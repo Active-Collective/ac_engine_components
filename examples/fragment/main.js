@@ -1,6 +1,16 @@
 import Stats from 'stats.js/src/Stats';
 import * as THREE from 'three'
-import { Components, SimpleGrid, SimpleScene, SimpleRenderer, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleRaycaster } from 'openbim-components'
+import {
+    Components,
+    SimpleGrid,
+    SimpleScene,
+    SimpleRenderer,
+    SimpleCamera,
+    SimpleClipper,
+    SimpleDimensions,
+    Fragments,
+    SimpleRaycaster
+} from 'openbim-components'
 
 const container = document.getElementById('viewer-container');
 
@@ -14,12 +24,6 @@ components.raycaster = new SimpleRaycaster(components);
 components.init();
 
 const scene = components.scene.getScene();
-
-const cube = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshStandardMaterial({ color: "red" }))
-cube.position.set(0, 1.5, 0)
-scene.add(cube)
-
-components.meshes.push(cube);
 
 const directionalLight = new THREE.DirectionalLight();
 directionalLight.position.set(5, 10, 3)
@@ -46,6 +50,14 @@ stats.showPanel(2);
 document.body.append(stats.dom);
 stats.dom.style.right = '0px';
 stats.dom.style.left = 'auto';
+
+components.renderer.onStartRender.on(() => stats.begin());
+components.renderer.onFinishRender.on(() => stats.end());
+
+const fragments = new Fragments(components);
+fragments.loadCompressed('../models/model.zip');
+
+window.addEventListener("mousemove", () => fragments.highlighter.highlightOnHover());
 
 window.onkeydown = (event) => {
     switch (event.code){
