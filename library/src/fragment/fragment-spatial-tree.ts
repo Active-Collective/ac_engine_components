@@ -1,6 +1,6 @@
 import { FragmentProperties } from "./fragment-properties";
 
-interface Node {
+export interface Node {
   expressID: any;
   type: string;
   children: Node[];
