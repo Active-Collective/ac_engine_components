@@ -22,15 +22,18 @@
         "client-zip": "https://unpkg.com/client-zip@2.3.0/index.js"
       }
     }
+
+
 </script>
 <script type="module">
-	import Stats from 'stats.js/src/Stats.js';
 	import * as THREE from 'three';
-	import { downloadZip } from 'client-zip';
+	import Stats from 'stats.js/src/Stats.js';
+	import { unzip } from 'unzipit';
 	import * as OBC from './resources/openbim-components.js';
-	import * as dat from 'three/examples/jsm/libs/lil-gui.module.min';
 
 	const container = document.getElementById('container');
+
+	// Set up a basic scene
 
 	const components = new OBC.Components();
 
@@ -39,13 +42,12 @@
 	components.renderer = renderer;
 	renderer.postproduction.outlineColor = 0x999999;
 
-	const camera = new OBC.SimpleCamera(components);
+	const camera = new OBC.OrthoPerspectiveCamera(components);
 	components.camera = camera;
 	renderer.postproduction.setup(camera.controls);
 	renderer.postproduction.active = true;
 
 	components.raycaster = new OBC.SimpleRaycaster(components);
-
 	components.init();
 
 	const scene = components.scene.get();
@@ -61,11 +63,13 @@
 	scene.add(ambientLight);
 
 	// Add a grid in the origin
+
 	const grid = new OBC.SimpleGrid(components);
 	components.tools.add(grid);
 	renderer.postproduction.excludedItems.add(grid.get());
 
 	// Set up stats
+
 	const stats = new Stats();
 	stats.showPanel(2);
 	document.body.append(stats.dom);
@@ -79,72 +83,55 @@
 
 	// Set up fragment culler update
 
-	container.addEventListener("mouseup", () => fragments.culler.needsUpdate = true);
-	container.addEventListener("wheel", () => fragments.culler.needsUpdate = true);
+	container.addEventListener('mouseup', () => fragments.culler.needsUpdate = true);
+	container.addEventListener('wheel', () => fragments.culler.needsUpdate = true);
 
 	// Bind postproduction update with fragment culler update
 
 	fragments.culler.viewUpdated.on(() => setTimeout(() => renderer.postproduction.update(), 300));
 
-	convertIfcToFragments();
+	const mainCanvas = renderer.get().domElement;
+	mainCanvas.addEventListener('mousedown', () => {
+		fragments.memoryCuller.needsUpdate = true;
+	});
 
-	let model = {};
+	await loadFragment('./resources/small.zip');
 
-	async function convertIfcToFragments() {
+	async function loadFragment(url) {
+		const { entries } = await unzip(url);
 
-    fragments.ifcLoader.settings.setWasmPath("./resources/");
-		fragments.ifcLoader.settings.optionalCategories.length = 0;
+		// Load the bounding boxes for this model
 
-    fragments.ifcLoader.settings.webIfc = {
-    	COORDINATE_TO_ORIGIN: false,
-      USE_FAST_BOOLS: false
-    };
+		const opaqueBoxes = await entries['bounding-boxes-opaque.json'].json();
+		const transparentBoxes = await entries['bounding-boxes-transparent.json'].json();
+		const fragmentMap = await entries['express-fragment-map.json'].json();
+		fragments.memoryCuller.loadBoxes(opaqueBoxes, transparentBoxes, fragmentMap);
 
-		model = await fragments.ifcLoader.load("./resources/01.ifc");
-		addFragments(model);
+		// Load fragments only when the tiles are found in the screen
 
-		fragments.culler.needsUpdate = true;
+		fragments.memoryCuller.fragmentsDiscovered.on(async (fragIDs) => {
+			for (const fragID of fragIDs) {
+				const geometryName = fragID + '.glb';
+				const geometry = await entries[geometryName].blob();
+				const geometryURL = URL.createObjectURL(geometry);
+
+				const dataName = fragID + '.json';
+				const dataBlob = await entries[dataName].blob();
+				const dataURL = URL.createObjectURL(dataBlob);
+
+				await fragments.load(geometryURL, dataURL);
+				fragments.culler.needsUpdate = true;
+			}
+		});
+
+		fragments.memoryCuller.needsUpdate = true;
+
+		// // Create debug frame showing the bounding boxes
+		// fragments.memoryCuller.renderDebugFrame = true;
+		// const memoryCanvas = fragments.memoryCuller.renderer.domElement;
+		// memoryCanvas.style.position = 'absolute';
+		// document.body.append(memoryCanvas);
 	}
-
-	function addFragments(model) {
-		for(const fragment of model.fragments) {
-			fragments.add(fragment);
-		}
-  }
-
-	async function downloadFragment() {
-
-		const files = [];
-		for (const frag of model.fragments) {
-			const file = await frag.export();
-			files.push(file.geometry, file.data);
-		}
-
-		files.push(new File([JSON.stringify(model.levelRelationships)], 'levels-relationship.json'));
-		files.push(new File([JSON.stringify(model.itemTypes)], 'model-types.json'));
-		files.push(new File([JSON.stringify(model.allTypes)], 'all-types.json'));
-		files.push(new File([JSON.stringify(model.floorsProperties)], 'levels-properties.json'));
-		files.push(new File([JSON.stringify(model.coordinationMatrix)], 'coordination-matrix.json'));
-
-		const blob = await downloadZip(files).blob();
-		const link = document.createElement("a");
-
-		link.href = URL.createObjectURL(blob);
-		link.download = "test.zip";
-		link.click();
-
-		link.remove();
-	}
-
-	// Set up GUI
-
-	const gui = new dat.GUI();
-
-	const actions = {
-		"Download fragment": downloadFragment
-  }
-
-	gui.add(actions, "Download fragment");
 
 </script>
 </body>
