@@ -87,35 +87,17 @@
 
 	fragments.culler.viewUpdated.on(() => setTimeout(() => renderer.postproduction.update(), 300));
 
-	await loadFragment('./resources/01.zip');
+	await loadFragment("./resources/01.frag");
 
 	async function loadFragment(url) {
-		const {entries} = await unzip(url);
+      const fetched = await fetch(url);
+      const rawData = await fetched.arrayBuffer();
+      const buffer = new Uint8Array(rawData);
+      const result = fragments.serializer.import(buffer);
 
-		const fileNames = Object.keys(entries);
-
-		const coordMatrix = await entries['coordination-matrix.json'].json();
-
-		// Load all the fragments within this zip file
-
-		for (let i = 0; i < fileNames.length; i++) {
-
-			const name = fileNames[i];
-			if (!name.includes('.glb')) continue;
-
-			const geometryName = fileNames[i];
-			const geometry = await entries[geometryName].blob();
-			const geometryURL = URL.createObjectURL(geometry);
-
-			const dataName = geometryName.substring(0, geometryName.indexOf('.glb')) + '.json';
-			const dataBlob = await entries[dataName].blob();
-
-			const dataURL = URL.createObjectURL(dataBlob);
-
-			await fragments.load(geometryURL, dataURL, coordMatrix);
-
-			fragments.culler.needsUpdate = true;
-		}
+      for(const frag of result) {
+        scene.add(frag.mesh);
+      }
   }
 
 </script>
