@@ -58,40 +58,43 @@
 	const grid = new OBC.SimpleGrid(components);
 	components.tools.add(grid);
 
+	// Set up highlighting
+
 	let fragments = new OBC.FragmentManager(components);
 
-	async function loadFragments(url) {
-		const file = await fetch(url);
-		const data = await file.arrayBuffer();
-		const buffer = new Uint8Array(data);
-		fragments.load(buffer);
+	const file = await fetch("../../../resources/small.frag");
+	const data = await file.arrayBuffer();
+	const buffer = new Uint8Array(data);
+	fragments.load(buffer);
+
+  const highlighter = new OBC.FragmentHighlighter(components, fragments);
+
+	const redMaterial = new THREE.MeshBasicMaterial({color: 'red'});
+	highlighter.add("default", redMaterial);
+
+	let lastSelection;
+
+	let singleSelection = {
+		value: true
+  };
+
+	function highlightOnClick() {
+		const result = highlighter.highlight("default", singleSelection.value);
+		if(result) {
+			const fragmentID = result.fragment.id;
+			lastSelection = {[fragmentID]: [result.id]};
+		}
   }
 
-	function exportFragments(name) {
-		const fragmentCount = Object.keys(fragments.list).length;
-		if(fragmentCount === 0) {
-			alert("No fragments loaded!");
-			return;
+	container.addEventListener('click', () => {
+		highlightOnClick();
+	});
+
+	function highlightOnID() {
+		if(lastSelection !== undefined) {
+			highlighter.highlightByID("default", lastSelection);
     }
-		const data = fragments.export();
-		const blob = new Blob([data]);
-		const file = new File([blob], name);
-		download(file);
-  }
-
-	function download(file) {
-		const link = document.createElement("a");
-		link.href = URL.createObjectURL(file);
-		link.download = file.name;
-		document.body.appendChild(link);
-		link.click();
-		link.remove();
-  }
-
-	function disposeFragments() {
-		fragments.dispose();
-		fragments = new OBC.FragmentManager(components);
-  }
+	}
 
 	// Set up stats
 
@@ -106,18 +109,16 @@
 
 	// Set up dat.gui menu
 
-  const settings = {
-		loadFragments: () => loadFragments("../../../resources/small.frag"),
-    exportFragments: () => exportFragments("example.frag"),
-    disposeFragments: () => disposeFragments()
+  const commands = {
+		highlight: "Click",
+    highlightOnID: () => highlightOnID()
   }
 
 	const gui = new dat.GUI();
 
-	gui.add(settings, "loadFragments").name("Import fragments");
-	gui.add(settings, "exportFragments").name("Export fragments");
-	gui.add(settings, "disposeFragments").name("Dispose fragments");
-
+	gui.add(commands, "highlight");
+	gui.add(commands, "highlightOnID").name("Select last selection");
+	gui.add(singleSelection, "value").name("Single selection");
 
 </script>
 </body>

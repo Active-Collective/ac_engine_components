@@ -1,7 +1,7 @@
 import * as WEBIFC from "web-ifc";
 
 /** Configuration of the IFC-fragment conversion. */
-export class Settings {
+export class IfcFragmentSettings {
   /** Categories that always will be instanced. */
   instancedCategories = new Set<number>();
 

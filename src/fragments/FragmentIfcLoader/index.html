@@ -60,11 +60,25 @@
 
 	let fragments = new OBC.FragmentManager(components);
 
-	async function loadFragments(url) {
+	let fragmentIfcLoader = new OBC.FragmentIfcLoader(fragments);
+
+	fragmentIfcLoader.settings.wasm = {
+		path: "https://unpkg.com/web-ifc@0.0.39/",
+    absolute: true
+  }
+
+	fragmentIfcLoader.settings.webIfc.COORDINATE_TO_ORIGIN = false;
+
+	async function loadIfcAsFragments(url) {
 		const file = await fetch(url);
 		const data = await file.arrayBuffer();
 		const buffer = new Uint8Array(data);
-		fragments.load(buffer);
+		const result = await fragmentIfcLoader.load(buffer);
+
+		scene.add(result);
+		for(const fragment of result.fragments) {
+			fragments.list[fragment.id] = fragment;
+    }
   }
 
 	function exportFragments(name) {
@@ -90,7 +104,9 @@
 
 	function disposeFragments() {
 		fragments.dispose();
+		fragmentIfcLoader.dispose();
 		fragments = new OBC.FragmentManager(components);
+		fragmentIfcLoader = new OBC.FragmentIfcLoader(fragments);
   }
 
 	// Set up stats
@@ -107,7 +123,7 @@
 	// Set up dat.gui menu
 
   const settings = {
-		loadFragments: () => loadFragments("../../../resources/small.frag"),
+		loadFragments: () => loadIfcAsFragments("../../../resources/small.ifc"),
     exportFragments: () => exportFragments("example.frag"),
     disposeFragments: () => disposeFragments()
   }

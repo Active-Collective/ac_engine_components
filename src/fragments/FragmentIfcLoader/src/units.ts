@@ -14,7 +14,7 @@ export class Units {
   setUp(webIfc: WEBIFC.IfcAPI) {
     this.factor = 1;
     const lengthUnits = this.getLengthUnits(webIfc);
-    if (lengthUnits === null) return;
+    if (lengthUnits === null || lengthUnits.Name === null) return;
     if (lengthUnits.Name.value === "FOOT") {
       this.factor = 0.3048;
     } else if (lengthUnits.Prefix?.value === "MILLI") {

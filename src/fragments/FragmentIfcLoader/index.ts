@@ -1,18 +1,23 @@
 import * as WEBIFC from "web-ifc";
-import { IfcToFragmentItems, MaterialList } from "./base-types";
-import { Settings } from "./settings";
-import { Geometry } from "./geometry";
-import { DataConverter } from "./data-converter";
 import { Disposable } from "../../base-types";
 import { FragmentManager } from "../index";
+import {
+  DataConverter,
+  IfcToFragmentItems,
+  MaterialList,
+  IfcFragmentSettings,
+  Geometry,
+} from "./src";
 
 /**
  * Reads all the geometry of the IFC file and generates a set of
- * [fragments](https://github.com/ifcjs/fragment).
+ * [fragments](https://github.com/ifcjs/fragment). It can also return the
+ * properties as a JSON file, as well as other sets of information within
+ * the IFC file.
  */
-export class IfcFragmentLoader implements Disposable {
+export class FragmentIfcLoader implements Disposable {
   /** Configuration of the IFC-fragment conversion. */
-  settings = new Settings();
+  settings = new IfcFragmentSettings();
 
   private _fragments: FragmentManager;
   private _webIfc = new WEBIFC.IfcAPI();
@@ -47,11 +52,8 @@ export class IfcFragmentLoader implements Disposable {
   }
 
   /** Loads the IFC file and converts it to a set of fragments. */
-  async load(ifcURL: URL) {
+  async load(data: Uint8Array) {
     await this.initializeWebIfc();
-    const file = await fetch(ifcURL);
-    const buffer = await file.arrayBuffer();
-    const data = new Uint8Array(buffer);
     this._webIfc.OpenModel(data, this.settings.webIfc);
     return this.loadAllGeometry();
   }

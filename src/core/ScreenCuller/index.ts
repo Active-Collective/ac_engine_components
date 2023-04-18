@@ -1,13 +1,12 @@
 import * as THREE from "three";
-import { Fragment } from "bim-fragment";
 import { Material } from "three";
-import { Disposable, Event } from "../base-types";
-import { Components, Disposer } from "../core";
-import { FragmentManager } from "./index";
+import { Disposable, Event } from "../../base-types";
+import { Components } from "../Components";
+import { Disposer } from "../MemoryComponent";
 
 // TODO: Clean up and document
 
-export class FragmentCulling implements Disposable {
+export class ScreenCuller implements Disposable {
   readonly renderer: THREE.WebGLRenderer;
   readonly renderTarget: THREE.WebGLRenderTarget;
   readonly bufferSize: number;
@@ -17,9 +16,9 @@ export class FragmentCulling implements Disposable {
   enabled = true;
   viewUpdated = new Event();
   needsUpdate = false;
-  fragmentColorMap = new Map<string, Fragment>();
+  meshColorMap = new Map<string, THREE.Mesh>();
   renderDebugFrame = false;
-  visibleFragments: Fragment[] = [];
+  visibleMeshes: THREE.Mesh[] = [];
   meshes = new Map<string, THREE.InstancedMesh>();
 
   private readonly _previouslyVisibleMeshes = new Set<string>();
@@ -29,15 +28,14 @@ export class FragmentCulling implements Disposable {
   });
 
   private _disposer = new Disposer();
-  private _buffer: Uint8Array;
   private _colors = { r: 0, g: 0, b: 0, i: 0 };
 
   // Alternative scene and meshes to make the visibility check
   private readonly _scene = new THREE.Scene();
+  private readonly _buffer: Uint8Array;
 
   constructor(
     private components: Components,
-    private fragment: FragmentManager,
     readonly updateInterval = 1000,
     readonly rtWidth = 512,
     readonly rtHeight = 512,
@@ -82,8 +80,8 @@ export class FragmentCulling implements Disposable {
     (this._buffer as any) = null;
     this._transparentMat.dispose();
     this.viewUpdated.reset();
-    this.fragmentColorMap.clear();
-    this.visibleFragments = [];
+    this.meshColorMap.clear();
+    this.visibleMeshes = [];
     for (const id in this.materialCache) {
       const material = this.materialCache.get(id);
       if (material) {
@@ -99,9 +97,13 @@ export class FragmentCulling implements Disposable {
     this.meshes.clear();
   }
 
-  add(fragment: Fragment) {
+  add(mesh: THREE.Mesh | THREE.InstancedMesh) {
     if (!this.enabled) return;
-    const { geometry, material } = fragment.mesh;
+
+    mesh.visible = false;
+    const isInstanced = mesh instanceof THREE.InstancedMesh;
+
+    const { geometry, material } = mesh;
 
     const { r, g, b, code } = this.getNextColor();
     const colorMaterial = this.getMaterial(r, g, b);
@@ -136,22 +138,22 @@ export class FragmentCulling implements Disposable {
       newMaterial = colorMaterial;
     }
 
-    this.fragmentColorMap.set(code, fragment);
+    this.meshColorMap.set(code, mesh);
 
-    const mesh = new THREE.InstancedMesh(
-      geometry,
-      newMaterial,
-      fragment.capacity
-    );
+    const count = isInstanced ? mesh.count : 1;
+    const colorMesh = new THREE.InstancedMesh(geometry, newMaterial, count);
 
-    fragment.mesh.visible = false;
+    if (isInstanced) {
+      colorMesh.instanceMatrix = mesh.instanceMatrix;
+    } else {
+      colorMesh.setMatrixAt(0, new THREE.Matrix4());
+    }
 
-    mesh.instanceMatrix = fragment.mesh.instanceMatrix;
-    mesh.applyMatrix4(fragment.mesh.matrix);
-    mesh.updateMatrix();
+    colorMesh.applyMatrix4(mesh.matrix);
+    colorMesh.updateMatrix();
 
-    this._scene.add(mesh);
-    this.meshes.set(fragment.id, mesh);
+    this._scene.add(colorMesh);
+    this.meshes.set(mesh.uuid, colorMesh);
   }
 
   updateVisibility = (force?: boolean) => {
@@ -193,25 +195,26 @@ export class FragmentCulling implements Disposable {
     const meshesThatJustDisappeared = new Set(this._previouslyVisibleMeshes);
     this._previouslyVisibleMeshes.clear();
 
-    this.visibleFragments = [];
+    this.visibleMeshes = [];
 
     // Make found meshes visible
     for (const code of colors.values()) {
-      const fragment = this.fragmentColorMap.get(code);
-      if (fragment) {
-        this.visibleFragments.push(fragment);
-        fragment.mesh.visible = true;
-        this._previouslyVisibleMeshes.add(fragment.id);
-        meshesThatJustDisappeared.delete(fragment.id);
-        this.cullEdges(fragment, true);
+      const mesh = this.meshColorMap.get(code);
+      if (mesh) {
+        this.visibleMeshes.push(mesh);
+        mesh.visible = true;
+        this._previouslyVisibleMeshes.add(mesh.uuid);
+        meshesThatJustDisappeared.delete(mesh.uuid);
+        // this.cullEdges(mesh, true);
       }
     }
 
     // Hide meshes that were visible before but not anymore
-    for (const id of meshesThatJustDisappeared) {
-      const fragment = this.fragment.list[id];
-      fragment.mesh.visible = false;
-      this.cullEdges(fragment, false);
+    for (const uuid of meshesThatJustDisappeared) {
+      const mesh = this.meshes.get(uuid);
+      if (mesh === undefined) continue;
+      mesh.visible = false;
+      // this.cullEdges(mesh, false);
     }
   };
 
@@ -272,19 +275,19 @@ export class FragmentCulling implements Disposable {
   // TODO: Decouple culling from fragments
   // If the edges need to be updated (e.g. some walls have been hidden)
   // this allows to compute them only when they are visibile
-  private cullEdges(fragment: Fragment, visible: boolean) {
-    if (visible) {
-      this.updateEdges(fragment);
-    }
-    // if (this.fragment.edges.edgesList[fragment.id]) {
-    //   this.fragment.edges.edgesList[fragment.id].visible = visible;
-    // }
-  }
+  // private cullEdges(fragment: Fragment, visible: boolean) {
+  //   if (visible) {
+  //     this.updateEdges(fragment);
+  //   }
+  // if (this.fragment.edges.edgesList[fragment.id]) {
+  //   this.fragment.edges.edgesList[fragment.id].visible = visible;
+  // }
+  // }
 
-  private updateEdges(_fragment: Fragment) {
-    // if (this.fragment.edges.edgesToUpdate.has(fragment.id)) {
-    //   this.fragment.edges.generate(fragment);
-    //   this.fragment.edges.edgesToUpdate.delete(fragment.id);
-    // }
-  }
+  // private updateEdges(_fragment: Fragment) {
+  // if (this.fragment.edges.edgesToUpdate.has(fragment.id)) {
+  //   this.fragment.edges.generate(fragment);
+  //   this.fragment.edges.edgesToUpdate.delete(fragment.id);
+  // }
+  // }
 }

@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { Fragment } from "bim-fragment";
-import { Disposable } from "../base-types";
-import { FragmentManager } from "./index";
-import { Components } from "../core";
+import { Disposable } from "../../base-types";
+import { FragmentManager } from "../index";
+import { Components } from "../../core";
 
 // TODO: Clean up and document
 
 export class FragmentHighlighter implements Disposable {
-  active = false;
+  active = true;
   highlightMats: { [name: string]: THREE.Material[] | undefined } = {};
 
   private tempMatrix = new THREE.Matrix4();

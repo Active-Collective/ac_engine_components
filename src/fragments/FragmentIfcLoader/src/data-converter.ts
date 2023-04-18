@@ -8,9 +8,9 @@ import {
   IfcItemsCategories,
   IfcCategoryMap,
   IfcJsonExporter,
-} from "../../ifc";
+} from "../../../ifc";
 import { SpatialStructure } from "./spatial-structure";
-import { Settings } from "./settings";
+import { IfcFragmentSettings } from "./ifcFragmentSettings";
 import { Units } from "./units";
 import {
   FragmentData,
@@ -36,12 +36,12 @@ export class DataConverter {
   private readonly _items: IfcToFragmentItems;
   private readonly _materials: MaterialList;
   private readonly _spatialTree = new SpatialStructure();
-  private readonly _settings: Settings;
+  private readonly _settings: IfcFragmentSettings;
 
   constructor(
     items: IfcToFragmentItems,
     materials: MaterialList,
-    settings: Settings
+    settings: IfcFragmentSettings
   ) {
     this._items = items;
     this._materials = materials;

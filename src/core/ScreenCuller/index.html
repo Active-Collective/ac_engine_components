@@ -20,6 +20,7 @@
         "openbim-components": "../../../resources/openbim-components.js"
       }
     }
+
 </script>
 <script type="module">
 
@@ -58,40 +59,37 @@
 	const grid = new OBC.SimpleGrid(components);
 	components.tools.add(grid);
 
-	let fragments = new OBC.FragmentManager(components);
+	const culler = new OBC.ScreenCuller(components);
 
-	async function loadFragments(url) {
-		const file = await fetch(url);
-		const data = await file.arrayBuffer();
-		const buffer = new Uint8Array(data);
-		fragments.load(buffer);
-  }
+	const cubes = [];
 
-	function exportFragments(name) {
-		const fragmentCount = Object.keys(fragments.list).length;
-		if(fragmentCount === 0) {
-			alert("No fragments loaded!");
-			return;
-    }
-		const data = fragments.export();
-		const blob = new Blob([data]);
-		const file = new File([blob], name);
-		download(file);
-  }
+	function getRandomNumber(limit) {
+		return Math.random() * limit;
+	}
 
-	function download(file) {
-		const link = document.createElement("a");
-		link.href = URL.createObjectURL(file);
-		link.download = file.name;
-		document.body.appendChild(link);
-		link.click();
-		link.remove();
-  }
+	const geometry = new THREE.BoxGeometry();
+	const material = new THREE.MeshLambertMaterial({ color: 'red' });
 
-	function disposeFragments() {
-		fragments.dispose();
-		fragments = new OBC.FragmentManager(components);
-  }
+	function regenerateCubes() {
+		resetCubes();
+		for (let i = 0; i < settings.count; i++) {
+			const cube = new THREE.Mesh(geometry, material);
+			cube.position.x = getRandomNumber(10);
+			cube.position.y = getRandomNumber(10);
+			cube.position.z = getRandomNumber(10);
+			scene.add(cube);
+			culler.add(cube);
+			cubes.push(cube);
+		}
+	}
+
+
+	function resetCubes() {
+		for (const cube of cubes) {
+			cube.removeFromParent();
+		}
+		cubes.length = 0;
+	}
 
 	// Set up stats
 
@@ -103,20 +101,21 @@
 	renderer.beforeUpdate.on(() => stats.begin());
 	renderer.afterUpdate.on(() => stats.end());
 
-
-	// Set up dat.gui menu
-
-  const settings = {
-		loadFragments: () => loadFragments("../../../resources/small.frag"),
-    exportFragments: () => exportFragments("example.frag"),
-    disposeFragments: () => disposeFragments()
-  }
+	// Set up GUI
 
 	const gui = new dat.GUI();
 
-	gui.add(settings, "loadFragments").name("Import fragments");
-	gui.add(settings, "exportFragments").name("Export fragments");
-	gui.add(settings, "disposeFragments").name("Dispose fragments");
+	const settings = {
+		count: 10,
+		update: () => {
+			culler.needsUpdate = true;
+		},
+	};
+
+	regenerateCubes();
+
+	gui.add(settings, 'update').name('Update visibility');
+	gui.add(settings, 'count').name('Update cube count').onChange(() => regenerateCubes());
 
 
 </script>
