@@ -11,7 +11,8 @@ export class TransformHelper {
     let num = 0;
 
     for (const geom of geometries) {
-      const positions = geom.attributes.position.array;
+      const position = geom.attributes.position as THREE.BufferAttribute;
+      const positions = position.array;
       for (let i = 0; i < positions.length; i += 3) {
         cenx += positions[i];
         ceny += positions[i + 1];
@@ -109,7 +110,8 @@ export class TransformHelper {
       let mibZ = 1e10;
 
       for (const geom of geometries) {
-        const positions = geom.attributes.position.array;
+        const position = geom.attributes.position as THREE.BufferAttribute;
+        const positions = position.array;
         for (let i = 0; i < positions.length; i += 3) {
           const x = positions[i];
           const y = positions[i + 1];
