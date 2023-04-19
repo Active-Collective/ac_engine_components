@@ -11623,6 +11623,413 @@ class ScreenCuller {
     }
 }
 
+/** The name of the CSS class that styles the dimension label. */
+const DimensionLabelClassName = "ifcjs-dimension-label";
+/** The name of the CSS class that styles the dimension label. */
+const DimensionPreviewClassName = "ifcjs-dimension-preview";
+
+// TODO: Document + clean up this: way less parameters, clearer logic
+class SimpleDimensionLine {
+    constructor(components, data) {
+        this.boundingBox = new THREE$1.Mesh();
+        this._disposer = new Disposer();
+        this._root = new THREE$1.Group();
+        this._endpoints = [];
+        this._components = components;
+        this.start = data.start;
+        this.end = data.end;
+        this._length = this.getLength();
+        this.center = this.getCenter();
+        this._line = this.createLine(data);
+        this.newEndpointMesh(data);
+        this.newEndpointMesh(data);
+        this.label = this.newText();
+        this._root.renderOrder = 2;
+        this._components.scene.get().add(this._root);
+    }
+    set visible(visible) {
+        if (visible) {
+            this._components.scene.get().add(this._root);
+            this._root.add(this.label);
+        }
+        else {
+            this._root.removeFromParent();
+            this.label.removeFromParent();
+        }
+    }
+    set geometry(geometry) {
+        for (const point of this._endpoints) {
+            point.geometry = geometry;
+        }
+    }
+    set endPoint(point) {
+        this.end = point;
+        this.updateEndpointPosition(point);
+        this.updateEndpointMeshes(point);
+        this.updateLabel();
+    }
+    dispose() {
+        this.visible = false;
+        this._disposer.dispose(this._root);
+        this._disposer.dispose(this._line);
+        for (const mesh of this._endpoints) {
+            mesh.removeFromParent();
+        }
+        this._endpoints.length = 0;
+        this.label.removeFromParent();
+        this.label.element.remove();
+        if (this.boundingBox) {
+            this._disposer.dispose(this.boundingBox);
+        }
+    }
+    createBoundingBox() {
+        this.boundingBox.geometry = new THREE$1.BoxGeometry(1, 1, this._length);
+        this.boundingBox.position.copy(this.center);
+        this.boundingBox.lookAt(this.end);
+        this.boundingBox.visible = false;
+        this._root.add(this.boundingBox);
+    }
+    updateLabel() {
+        this._length = this.getLength();
+        this.label.element.textContent = this.getTextContent();
+        this.center = this.getCenter();
+        this.label.position.set(this.center.x, this.center.y, this.center.z);
+        this._line.computeLineDistances();
+    }
+    updateEndpointMeshes(point) {
+        this._endpoints[1].position.copy(point);
+        this._endpoints[1].lookAt(this.start);
+        this._endpoints[0].lookAt(this.end);
+    }
+    updateEndpointPosition(point) {
+        const position = this._line.geometry.attributes.position;
+        position.setXYZ(1, point.x, point.y, point.z);
+        position.needsUpdate = true;
+    }
+    createLine(data) {
+        const axisGeom = new THREE$1.BufferGeometry();
+        axisGeom.setFromPoints([data.start, data.end]);
+        const line = new THREE$1.Line(axisGeom, data.lineMaterial);
+        this._root.add(line);
+        return line;
+    }
+    newEndpointMesh(data) {
+        const isFirst = this._endpoints.length === 0;
+        const position = isFirst ? this.start : this.end;
+        const direction = isFirst ? this.end : this.start;
+        const mesh = data.endpoint.clone();
+        mesh.position.copy(position);
+        mesh.lookAt(direction);
+        this._endpoints.push(mesh);
+        this._root.add(mesh);
+    }
+    newText() {
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        htmlText.textContent = this.getTextContent();
+        const label = new CSS2DObject(htmlText);
+        label.position.set(this.center.x, this.center.y, this.center.z);
+        this._root.add(label);
+        return label;
+    }
+    getTextContent() {
+        return `${this._length / SimpleDimensionLine.scale} ${SimpleDimensionLine.units}`;
+    }
+    getLength() {
+        return parseFloat(this.start.distanceTo(this.end).toFixed(2));
+    }
+    getCenter() {
+        let dir = this.end.clone().sub(this.start);
+        const len = dir.length() * 0.5;
+        dir = dir.normalize().multiplyScalar(len);
+        return this.start.clone().add(dir);
+    }
+}
+SimpleDimensionLine.scale = 1;
+SimpleDimensionLine.units = "m";
+
+/**
+ * A basic dimension tool to measure distances between 2 points in 3D and
+ * display a 3D symbol displaying the numeric value.
+ */
+class SimpleDimensions extends Component {
+    constructor(components) {
+        super();
+        this.components = components;
+        /** {@link Component.name} */
+        this.name = "SimpleDimensions";
+        /** {@link Updateable.beforeUpdate} */
+        this.beforeUpdate = new Event();
+        /** {@link Updateable.afterUpdate} */
+        this.afterUpdate = new Event();
+        /** {@link Createable.afterCreate} */
+        this.afterCreate = new Event();
+        /** {@link Createable.beforeCreate} */
+        this.beforeCreate = new Event();
+        /** {@link Createable.afterDelete} */
+        this.afterDelete = new Event();
+        /** {@link Createable.beforeDelete} */
+        this.beforeDelete = new Event();
+        /** {@link Createable.onCreate} */
+        this.onCreate = new Event();
+        /** {@link Createable.onDelete} */
+        this.onDelete = new Event();
+        /** The minimum distance to force the dimension cursor to a vertex. */
+        this.snapDistance = 0.25;
+        this._lineMaterial = new THREE$1.LineDashedMaterial({
+            color: 0x000000,
+            linewidth: 2,
+            depthTest: false,
+            dashSize: 0.2,
+            gapSize: 0.2,
+        });
+        this._dimensions = [];
+        this._visible = true;
+        this._enabled = false;
+        this._disposer = new Disposer();
+        /** Temporary variables for internal operations */
+        this._temp = {
+            isDragging: false,
+            start: new THREE$1.Vector3(),
+            end: new THREE$1.Vector3(),
+            dimension: undefined,
+        };
+        this._raycaster = new SimpleRaycaster(this.components);
+        this._endpointMesh = this.newEndpointMesh();
+        const htmlPreview = document.createElement("div");
+        htmlPreview.className = DimensionPreviewClassName;
+        this.previewElement = new CSS2DObject(htmlPreview);
+        this.previewElement.visible = false;
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this.previewVisible = state;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(state) {
+        this._visible = state;
+        if (!this._visible) {
+            this.enabled = false;
+        }
+        for (const dimension of this._dimensions) {
+            dimension.visible = this._visible;
+        }
+    }
+    /**
+     * The [Color](https://threejs.org/docs/#api/en/math/Color)
+     * of the geometry of the dimensions.
+     */
+    set color(color) {
+        this._endpointMesh.material.color = color;
+        this._lineMaterial.color = color;
+    }
+    /** The geometry used in both endpoints of all the dimensions. */
+    get geometry() {
+        return this._endpointMesh.geometry;
+    }
+    /** The geometry used in both endpoints of all the dimensions. */
+    set geometry(geometry) {
+        this._endpointMesh.geometry = geometry;
+        for (const dim of this._dimensions) {
+            dim.geometry = geometry;
+        }
+    }
+    set previewVisible(state) {
+        var _a;
+        const scene = (_a = this.components.scene) === null || _a === void 0 ? void 0 : _a.get();
+        if (state) {
+            scene.add(this.previewElement);
+        }
+        else {
+            this.previewElement.removeFromParent();
+        }
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._dimensions;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        this.enabled = false;
+        this._dimensions.forEach((dim) => dim.dispose());
+        this._dimensions = [];
+        this._disposer.dispose(this._endpointMesh);
+        this._endpointMesh.removeFromParent();
+        this.previewElement.removeFromParent();
+        this.previewElement.element.remove();
+    }
+    /** {@link Updateable.update} */
+    update(_delta) {
+        if (this._enabled) {
+            this.beforeUpdate.trigger(this);
+            const intersects = this._raycaster.castRay();
+            this.previewElement.visible = !!intersects;
+            if (!intersects)
+                return;
+            this.previewElement.visible = true;
+            const closest = this.getClosestVertex(intersects);
+            this.previewElement.visible = !!closest;
+            if (!closest)
+                return;
+            this.previewElement.position.set(closest.x, closest.y, closest.z);
+            if (this._temp.isDragging) {
+                this.drawInProcess();
+            }
+            this.afterUpdate.trigger(this);
+        }
+    }
+    /**
+     * Starts or finishes drawing a new dimension line.
+     *
+     * @param plane - forces the dimension to be drawn on a plane. Use this if you are drawing
+     * dimensions in floor plan navigation.
+     */
+    create(plane) {
+        if (!this._enabled)
+            return;
+        if (!this._temp.isDragging) {
+            this.drawStart(plane);
+            return;
+        }
+        this.drawEnd();
+    }
+    /** Deletes the dimension that the user is hovering over with the mouse or touch event. */
+    delete() {
+        if (!this._enabled || this._dimensions.length === 0)
+            return;
+        const boundingBoxes = this.getBoundingBoxes();
+        const intersect = this._raycaster.castRay(boundingBoxes);
+        if (!intersect)
+            return;
+        const dimension = this._dimensions.find((dim) => dim.boundingBox === intersect.object);
+        if (dimension) {
+            const index = this._dimensions.indexOf(dimension);
+            this._dimensions.splice(index, 1);
+            dimension.dispose();
+            this.onDelete.trigger(dimension);
+        }
+    }
+    /** Deletes all the dimensions that have been previously created. */
+    deleteAll() {
+        this._dimensions.forEach((dim) => {
+            dim.dispose();
+            this.onDelete.trigger(dim);
+        });
+        this._dimensions = [];
+    }
+    /** Cancels the drawing of the current dimension. */
+    cancelDrawing() {
+        var _a;
+        if (!this._temp.dimension)
+            return;
+        this._temp.isDragging = false;
+        (_a = this._temp.dimension) === null || _a === void 0 ? void 0 : _a.dispose();
+        this._temp.dimension = undefined;
+    }
+    drawStart(plane) {
+        const items = plane ? [plane] : undefined;
+        const intersects = this._raycaster.castRay(items);
+        if (!intersects)
+            return;
+        this._temp.isDragging = true;
+        this._temp.start = plane
+            ? intersects.point
+            : this.getClosestVertex(intersects);
+    }
+    drawInProcess() {
+        const intersects = this._raycaster.castRay();
+        if (!intersects)
+            return;
+        const found = this.getClosestVertex(intersects);
+        if (!found)
+            return;
+        this._temp.end = found;
+        if (!this._temp.dimension) {
+            this._temp.dimension = this.drawDimension();
+        }
+        this._temp.dimension.endPoint = this._temp.end;
+    }
+    drawEnd() {
+        if (!this._temp.dimension)
+            return;
+        this._temp.dimension.createBoundingBox();
+        this._dimensions.push(this._temp.dimension);
+        this._temp.dimension = undefined;
+        this._temp.isDragging = false;
+        this.onCreate.trigger(this._temp.dimension);
+    }
+    newEndpointMesh() {
+        const geometry = SimpleDimensions.getDefaultEndpointGeometry();
+        const material = new THREE$1.MeshBasicMaterial({
+            color: 0x000000,
+            depthTest: false,
+        });
+        return new THREE$1.Mesh(geometry, material);
+    }
+    drawDimension() {
+        return new SimpleDimensionLine(this.components, {
+            start: this._temp.start,
+            end: this._temp.end,
+            lineMaterial: this._lineMaterial,
+            endpoint: this._endpointMesh,
+        });
+    }
+    getBoundingBoxes() {
+        return this._dimensions
+            .map((dim) => dim.boundingBox)
+            .filter((box) => box !== undefined);
+    }
+    static getDefaultEndpointGeometry(height = 0.4, radius = 0.1) {
+        const coneGeometry = new THREE$1.ConeGeometry(radius, height);
+        coneGeometry.translate(0, -height / 2, 0);
+        coneGeometry.rotateX(-Math.PI / 2);
+        return coneGeometry;
+    }
+    getClosestVertex(intersects) {
+        let closestVertex = new THREE$1.Vector3();
+        let vertexFound = false;
+        let closestDistance = Number.MAX_SAFE_INTEGER;
+        const vertices = SimpleDimensions.getVertices(intersects);
+        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
+            if (!vertex)
+                return;
+            const distance = intersects.point.distanceTo(vertex);
+            if (distance > closestDistance || distance > this.snapDistance)
+                return;
+            vertexFound = true;
+            closestVertex = vertex;
+            closestDistance = intersects.point.distanceTo(vertex);
+        });
+        return vertexFound ? closestVertex : intersects.point;
+    }
+    static getVertices(intersects) {
+        const mesh = intersects.object;
+        if (!intersects.face || !mesh)
+            return null;
+        const geom = mesh.geometry;
+        return [
+            SimpleDimensions.getVertex(intersects.face.a, geom),
+            SimpleDimensions.getVertex(intersects.face.b, geom),
+            SimpleDimensions.getVertex(intersects.face.c, geom),
+        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
+    }
+    static getVertex(index, geom) {
+        if (index === undefined)
+            return null;
+        const vertices = geom.attributes.position;
+        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
+    }
+}
+
 /**
 	 * @param  {Array<BufferGeometry>} geometries
 	 * @param  {Boolean} useGroups
@@ -84308,4 +84715,4 @@ class CloudProcessor extends Component {
     }
 }
 
-export { BaseRenderer, Button, CloudProcessor, Component, Components, Disposer, Event, FragmentHighlighter, FragmentIfcLoader, FragmentManager, Mouse, ScreenCuller, SimpleCamera, SimpleClipper, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, ToolComponent, Toolbar, TreeView, UIManager };
+export { BaseRenderer, Button, CloudProcessor, Component, Components, Disposer, Event, FragmentHighlighter, FragmentIfcLoader, FragmentManager, Mouse, ScreenCuller, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, ToolComponent, Toolbar, TreeView, UIManager };
