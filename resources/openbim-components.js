@@ -95426,4 +95426,361 @@ class PostproductionRenderer extends SimpleRenderer {
     }
 }
 
-export { BaseRenderer, Button, CloudProcessor, Component, Components, DataConverter, Disposer, EdgesClipper, EdgesPlane, Event, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, IfcFragmentSettings, LocalCacher, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesProcessor, ScreenCuller, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, SimpleUIComponent, ToolComponent, Toolbar, TreeView, UIManager };
+/**
+ * Two pass Gaussian blur filter (horizontal and vertical blur shaders)
+ * - described in http://www.gamerendering.com/2008/10/11/gaussian-blur-filter-shader/
+ *   and used in http://www.cake23.de/traveling-wavefronts-lit-up.html
+ *
+ * - 9 samples per pass
+ * - standard deviation 2.7
+ * - "h" and "v" parameters should be set to "1 / width" and "1 / height"
+ */
+
+var HorizontalBlurShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'h': { value: 1.0 / 512.0 }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform sampler2D tDiffuse;
+		uniform float h;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vec4 sum = vec4( 0.0 );
+
+			sum += texture2D( tDiffuse, vec2( vUv.x - 4.0 * h, vUv.y ) ) * 0.051;
+			sum += texture2D( tDiffuse, vec2( vUv.x - 3.0 * h, vUv.y ) ) * 0.0918;
+			sum += texture2D( tDiffuse, vec2( vUv.x - 2.0 * h, vUv.y ) ) * 0.12245;
+			sum += texture2D( tDiffuse, vec2( vUv.x - 1.0 * h, vUv.y ) ) * 0.1531;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y ) ) * 0.1633;
+			sum += texture2D( tDiffuse, vec2( vUv.x + 1.0 * h, vUv.y ) ) * 0.1531;
+			sum += texture2D( tDiffuse, vec2( vUv.x + 2.0 * h, vUv.y ) ) * 0.12245;
+			sum += texture2D( tDiffuse, vec2( vUv.x + 3.0 * h, vUv.y ) ) * 0.0918;
+			sum += texture2D( tDiffuse, vec2( vUv.x + 4.0 * h, vUv.y ) ) * 0.051;
+
+			gl_FragColor = sum;
+
+		}`
+
+};
+
+/**
+ * Two pass Gaussian blur filter (horizontal and vertical blur shaders)
+ * - described in http://www.gamerendering.com/2008/10/11/gaussian-blur-filter-shader/
+ *   and used in http://www.cake23.de/traveling-wavefronts-lit-up.html
+ *
+ * - 9 samples per pass
+ * - standard deviation 2.7
+ * - "h" and "v" parameters should be set to "1 / width" and "1 / height"
+ */
+
+const VerticalBlurShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'v': { value: 1.0 / 512.0 }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform sampler2D tDiffuse;
+		uniform float v;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vec4 sum = vec4( 0.0 );
+
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 4.0 * v ) ) * 0.051;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 3.0 * v ) ) * 0.0918;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 2.0 * v ) ) * 0.12245;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 1.0 * v ) ) * 0.1531;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y ) ) * 0.1633;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 1.0 * v ) ) * 0.1531;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 2.0 * v ) ) * 0.12245;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 3.0 * v ) ) * 0.0918;
+			sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 4.0 * v ) ) * 0.051;
+
+			gl_FragColor = sum;
+
+		}`
+
+};
+
+class ShadowDropper extends Component {
+    constructor(components) {
+        super();
+        this.components = components;
+        this.name = "ShadowDropper";
+        this.enabled = true;
+        // Controls how far away the shadow is computed
+        this.cameraHeight = 10;
+        this.darkness = 1.2;
+        this.opacity = 1;
+        this.resolution = 512;
+        this.amount = 3.5;
+        this.planeColor = 0xffffff;
+        this.shadowOffset = 0;
+        this.shadowExtraScaleFactor = 1.5;
+        this.shadows = {};
+        this.disposer = new Disposer();
+        this.tempMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
+        this.depthMaterial = new THREE$1.MeshDepthMaterial();
+        this.initializeDepthMaterial();
+    }
+    /** {@link Component.get} */
+    get() {
+        return this.shadows;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        const shadowIDs = Object.keys(this.shadows);
+        shadowIDs.forEach((shadowID) => this.deleteShadow(shadowID));
+        this.tempMaterial.dispose();
+        this.depthMaterial.dispose();
+    }
+    /**
+     * Creates a blurred dropped shadow of the given mesh.
+     *
+     * @param model - the mesh whose shadow to generate.
+     * @param id - the name of this shadow.
+     */
+    renderShadow(model, id) {
+        if (this.shadows[id]) {
+            throw new Error(`There is already a shadow with ID ${id}`);
+        }
+        const { size, center, min } = this.getSizeCenterMin(model);
+        const shadow = this.createShadow(id, size);
+        this.initializeShadow(shadow, center, min);
+        this.createPlanes(shadow, size);
+        this.bakeShadow(model, shadow);
+        return shadow.root;
+    }
+    /**
+     * Deletes the specified shadow (if it exists).
+     *
+     * @param id - the name of this shadow.
+     */
+    deleteShadow(id) {
+        const shadow = this.shadows[id];
+        delete this.shadows[id];
+        if (!shadow)
+            throw new Error(`No shadow with ID ${id} was found.`);
+        this.disposer.dispose(shadow.root);
+        this.disposer.dispose(shadow.blurPlane);
+        shadow.rt.dispose();
+        shadow.rtBlur.dispose();
+    }
+    createPlanes(currentShadow, size) {
+        const planeGeometry = new THREE$1.PlaneGeometry(size.x, size.z).rotateX(Math.PI / 2);
+        this.createBasePlane(currentShadow, planeGeometry);
+        ShadowDropper.createBlurPlane(currentShadow, planeGeometry);
+        // this.createGroundColorPlane(currentShadow, planeGeometry);
+    }
+    initializeShadow(shadow, center, min) {
+        this.initializeRoot(shadow, center, min);
+        ShadowDropper.initializeRenderTargets(shadow);
+        ShadowDropper.initializeCamera(shadow);
+    }
+    bakeShadow(meshes, shadow) {
+        const scene = this.components.scene.get();
+        const areModelsInScene = meshes.map((mesh) => !!mesh.parent);
+        for (let i = 0; i < meshes.length; i++) {
+            if (!areModelsInScene[i]) {
+                scene.add(meshes[i]);
+            }
+        }
+        const children = scene.children.filter((obj) => !meshes.includes(obj) && obj !== shadow.root);
+        for (let i = children.length - 1; i >= 0; i--) {
+            scene.remove(children[i]);
+        }
+        // remove the background
+        const initialBackground = scene.background;
+        scene.background = null;
+        // force the depthMaterial to everything
+        scene.overrideMaterial = this.depthMaterial;
+        // Make meshes visible if they were invisible
+        const previousVisibleAttributes = [];
+        for (const mesh of meshes) {
+            previousVisibleAttributes.push(mesh.visible);
+            mesh.visible = true;
+        }
+        // render to the render target to get the depths
+        const renderer = this.components.renderer.get();
+        renderer.setRenderTarget(shadow.rt);
+        renderer.render(scene, shadow.camera);
+        // and reset the override material
+        scene.overrideMaterial = null;
+        this.blurShadow(shadow, this.amount);
+        // a second pass to reduce the artifacts
+        // (0.4 is the minimum blur amount so that the artifacts are gone)
+        this.blurShadow(shadow, this.amount * 0.4);
+        // reset and render the normal scene
+        renderer.setRenderTarget(null);
+        scene.background = initialBackground;
+        // reset visibility
+        for (let i = 0; i < meshes.length; i++) {
+            meshes[i].visible = previousVisibleAttributes[i];
+        }
+        for (let i = children.length - 1; i >= 0; i--) {
+            scene.add(children[i]);
+        }
+        for (let i = 0; i < meshes.length; i++) {
+            if (!areModelsInScene[i]) {
+                scene.remove(meshes[i]);
+            }
+        }
+    }
+    static initializeCamera(shadow) {
+        shadow.camera.rotation.x = Math.PI / 2; // get the camera to look up
+        shadow.root.add(shadow.camera);
+    }
+    static initializeRenderTargets(shadow) {
+        shadow.rt.texture.generateMipmaps = false;
+        shadow.rtBlur.texture.generateMipmaps = false;
+    }
+    initializeRoot(shadow, center, min) {
+        const scene = this.components.scene.get();
+        shadow.root.position.set(center.x, min.y - this.shadowOffset, center.z);
+        scene.add(shadow.root);
+    }
+    // Plane simulating the "ground". This is not needed for BIM models generally
+    // private createGroundColorPlane(_shadow: Shadow, planeGeometry: BufferGeometry) {
+    //   const fillPlaneMaterial = new MeshBasicMaterial({
+    //     color: this.planeColor,
+    //     opacity: this.opacity,
+    //     transparent: true,
+    //     depthWrite: false,
+    //     clippingPlanes: this.context.getClippingPlanes()
+    //   });
+    //   const fillPlane = new Mesh(planeGeometry, fillPlaneMaterial);
+    //   fillPlane.rotateX(Math.PI);
+    //   fillPlane.renderOrder = -1;
+    //   shadow.root.add(fillPlane);
+    // }
+    createBasePlane(shadow, planeGeometry) {
+        const planeMaterial = this.createPlaneMaterial(shadow);
+        const plane = new THREE$1.Mesh(planeGeometry, planeMaterial);
+        // make sure it's rendered after the fillPlane
+        plane.renderOrder = 2;
+        shadow.root.add(plane);
+        // the y from the texture is flipped!
+        plane.scale.y = -1;
+    }
+    static createBlurPlane(shadow, planeGeometry) {
+        shadow.blurPlane.geometry = planeGeometry;
+        shadow.blurPlane.visible = false;
+        shadow.root.add(shadow.blurPlane);
+    }
+    createPlaneMaterial(shadow) {
+        const renderer = this.components.renderer;
+        return new THREE$1.MeshBasicMaterial({
+            map: shadow.rt.texture,
+            opacity: this.opacity,
+            transparent: true,
+            depthWrite: false,
+            clippingPlanes: renderer.clippingPlanes,
+        });
+    }
+    // like MeshDepthMaterial, but goes from black to transparent
+    initializeDepthMaterial() {
+        this.depthMaterial.depthTest = false;
+        this.depthMaterial.depthWrite = false;
+        const oldShader = "gl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), opacity );";
+        const newShader = "gl_FragColor = vec4( vec3( 0.0 ), ( 1.0 - fragCoordZ ) * darkness );";
+        this.depthMaterial.userData.darkness = { value: this.darkness };
+        this.depthMaterial.onBeforeCompile = (shader) => {
+            shader.uniforms.darkness = this.depthMaterial.userData.darkness;
+            shader.fragmentShader = /* glsl */ `
+						uniform float darkness;
+						${shader.fragmentShader.replace(oldShader, newShader)}
+					`;
+        };
+    }
+    createShadow(id, size) {
+        this.shadows[id] = {
+            root: new THREE$1.Group(),
+            rt: new THREE$1.WebGLRenderTarget(this.resolution, this.resolution),
+            rtBlur: new THREE$1.WebGLRenderTarget(this.resolution, this.resolution),
+            blurPlane: new THREE$1.Mesh(),
+            camera: this.createCamera(size),
+        };
+        return this.shadows[id];
+    }
+    createCamera(size) {
+        return new THREE$1.OrthographicCamera(-size.x / 2, size.x / 2, size.z / 2, -size.z / 2, 0, this.cameraHeight);
+    }
+    getSizeCenterMin(meshes) {
+        const parent = meshes[0].parent;
+        const group = new THREE$1.Group();
+        group.children = meshes;
+        const boundingBox = new THREE$1.Box3().setFromObject(group);
+        parent === null || parent === void 0 ? void 0 : parent.add(...meshes);
+        const size = new THREE$1.Vector3();
+        boundingBox.getSize(size);
+        size.x *= this.shadowExtraScaleFactor;
+        size.z *= this.shadowExtraScaleFactor;
+        const center = new THREE$1.Vector3();
+        boundingBox.getCenter(center);
+        const min = boundingBox.min;
+        return { size, center, min };
+    }
+    blurShadow(shadow, amount) {
+        const horizontalBlurMaterial = new THREE$1.ShaderMaterial(HorizontalBlurShader);
+        horizontalBlurMaterial.depthTest = false;
+        const verticalBlurMaterial = new THREE$1.ShaderMaterial(VerticalBlurShader);
+        verticalBlurMaterial.depthTest = false;
+        shadow.blurPlane.visible = true;
+        // blur horizontally and draw in the renderTargetBlur
+        shadow.blurPlane.material = horizontalBlurMaterial;
+        // @ts-ignore
+        shadow.blurPlane.material.uniforms.tDiffuse.value = shadow.rt.texture;
+        horizontalBlurMaterial.uniforms.h.value = (amount * 1) / 256;
+        const renderer = this.components.renderer.get();
+        renderer.setRenderTarget(shadow.rtBlur);
+        renderer.render(shadow.blurPlane, shadow.camera);
+        // blur vertically and draw in the main renderTarget
+        shadow.blurPlane.material = verticalBlurMaterial;
+        // @ts-ignore
+        shadow.blurPlane.material.uniforms.tDiffuse.value = shadow.rtBlur.texture;
+        verticalBlurMaterial.uniforms.v.value = (amount * 1) / 256;
+        renderer.setRenderTarget(shadow.rt);
+        renderer.render(shadow.blurPlane, shadow.camera);
+        shadow.blurPlane.visible = false;
+    }
+}
+
+export { BaseRenderer, Button, CloudProcessor, Component, Components, DataConverter, Disposer, EdgesClipper, EdgesPlane, Event, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, IfcFragmentSettings, LocalCacher, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesProcessor, ScreenCuller, ShadowDropper, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, SimpleUIComponent, ToolComponent, Toolbar, TreeView, UIManager };
