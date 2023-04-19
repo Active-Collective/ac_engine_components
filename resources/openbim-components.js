@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.135.0/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, BufferAttribute as BufferAttribute$1, Vector2 as Vector2$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, PropertyBinding, InterpolateLinear, RGBAFormat, RGBFormat, MathUtils, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, InstancedMesh, Color as Color$1, Interpolant } from 'https://unpkg.com/three@0.135.0/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, BufferAttribute as BufferAttribute$1, Vector2 as Vector2$1, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, PropertyBinding, InterpolateLinear, RGBAFormat, RGBFormat, MathUtils, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, InstancedMesh, Color as Color$1, Interpolant, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 as Vector4$1, OrthographicCamera, WebGLRenderTarget, Clock, DepthTexture, UnsignedShortType, MeshDepthMaterial, RGBADepthPacking, NoBlending, MeshNormalMaterial, CustomBlending, DstColorFactor, ZeroFactor, AddEquation, DstAlphaFactor } from 'https://unpkg.com/three@0.135.0/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -257,6 +257,14 @@ class ToolComponent extends Component {
         this.tools = [];
         this.onToolAdded = new Event();
         this.onToolRemoved = new Event();
+        /** {@link Component.name} */
+        this.name = "ToolComponent";
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        this._urls = {
+            base: "https://2fomw59q4h.execute-api.eu-central-1.amazonaws.com/v1/tools/",
+            path: "/contents/index.js?accessToken=",
+        };
     }
     /**
      * Registers a new tool component.
@@ -634,10 +642,8 @@ const ACTION = Object.freeze({
     TOUCH_ZOOM: 512,
     TOUCH_DOLLY_TRUCK: 1024,
     TOUCH_DOLLY_OFFSET: 2048,
-    TOUCH_DOLLY_ROTATE: 4096,
-    TOUCH_ZOOM_TRUCK: 8192,
-    TOUCH_ZOOM_OFFSET: 16384,
-    TOUCH_ZOOM_ROTATE: 32768,
+    TOUCH_ZOOM_TRUCK: 4096,
+    TOUCH_ZOOM_OFFSET: 8192,
 });
 function isPerspectiveCamera(camera) {
     return camera.isPerspectiveCamera;
@@ -723,16 +729,10 @@ class EventDispatcher {
         if (listeners[type].indexOf(listener) === -1)
             listeners[type].push(listener);
     }
-    /**
-     * Presence of the specified event listener.
-     * @param type event name
-     * @param listener handler function
-     * @category Methods
-     */
-    hasEventListener(type, listener) {
-        const listeners = this._listeners;
-        return listeners[type] !== undefined && listeners[type].indexOf(listener) !== -1;
-    }
+    // hasEventListener( type: string, listener: Listener ): boolean {
+    // 	const listeners = this._listeners;
+    // 	return listeners[ type ] !== undefined && listeners[ type ].indexOf( listener ) !== - 1;
+    // }
     /**
      * Removes the specified event listener
      * @param type event name
@@ -779,11 +779,10 @@ class EventDispatcher {
     }
 }
 
-const VERSION = '1.38.1'; // will be replaced with `version` in package.json during the build process.
-const TOUCH_DOLLY_FACTOR = 1 / 8;
 const isBrowser = typeof window !== 'undefined';
 const isMac = isBrowser && /Mac/.test(navigator.platform);
 const isPointerEventsNotSupported = !(isBrowser && 'PointerEvent' in window); // Safari 12 does not support PointerEvents API
+const TOUCH_DOLLY_FACTOR = 1 / 8;
 let THREE;
 let _ORIGIN;
 let _AXIS_Y;
@@ -807,81 +806,6 @@ let _quaternionB;
 let _rotationMatrix;
 let _raycaster$1;
 class CameraControls extends EventDispatcher {
-    /**
-     * Injects THREE as the dependency. You can then proceed to use CameraControls.
-     *
-     * e.g
-     * ```javascript
-     * CameraControls.install( { THREE: THREE } );
-     * ```
-     *
-     * Note: If you do not wish to use enter three.js to reduce file size(tree-shaking for example), make a subset to install.
-     *
-     * ```js
-     * import {
-     * 	Vector2,
-     * 	Vector3,
-     * 	Vector4,
-     * 	Quaternion,
-     * 	Matrix4,
-     * 	Spherical,
-     * 	Box3,
-     * 	Sphere,
-     * 	Raycaster,
-     * 	MathUtils,
-     * } from 'three';
-     *
-     * const subsetOfTHREE = {
-     * 	Vector2   : Vector2,
-     * 	Vector3   : Vector3,
-     * 	Vector4   : Vector4,
-     * 	Quaternion: Quaternion,
-     * 	Matrix4   : Matrix4,
-     * 	Spherical : Spherical,
-     * 	Box3      : Box3,
-     * 	Sphere    : Sphere,
-     * 	Raycaster : Raycaster,
-     * 	MathUtils : {
-     * 		DEG2RAD: MathUtils.DEG2RAD,
-     * 		clamp: MathUtils.clamp,
-     * 	},
-     * };
-
-     * CameraControls.install( { THREE: subsetOfTHREE } );
-     * ```
-     * @category Statics
-     */
-    static install(libs) {
-        THREE = libs.THREE;
-        _ORIGIN = Object.freeze(new THREE.Vector3(0, 0, 0));
-        _AXIS_Y = Object.freeze(new THREE.Vector3(0, 1, 0));
-        _AXIS_Z = Object.freeze(new THREE.Vector3(0, 0, 1));
-        _v2$1 = new THREE.Vector2();
-        _v3A = new THREE.Vector3();
-        _v3B = new THREE.Vector3();
-        _v3C = new THREE.Vector3();
-        _xColumn = new THREE.Vector3();
-        _yColumn = new THREE.Vector3();
-        _zColumn = new THREE.Vector3();
-        _deltaTarget = new THREE.Vector3();
-        _deltaOffset = new THREE.Vector3();
-        _sphericalA = new THREE.Spherical();
-        _sphericalB = new THREE.Spherical();
-        _box3A = new THREE.Box3();
-        _box3B = new THREE.Box3();
-        _sphere = new THREE.Sphere();
-        _quaternionA = new THREE.Quaternion();
-        _quaternionB = new THREE.Quaternion();
-        _rotationMatrix = new THREE.Matrix4();
-        _raycaster$1 = new THREE.Raycaster();
-    }
-    /**
-     * list all ACTIONs
-     * @category Statics
-     */
-    static get ACTION() {
-        return ACTION;
-    }
     /**
      * Creates a `CameraControls` instance.
      *
@@ -1051,7 +975,6 @@ class CameraControls extends EventDispatcher {
         this._enabled = true;
         this._state = ACTION.NONE;
         this._viewport = null;
-        this._affectOffset = false;
         this._dollyControlAmount = 0;
         this._hasRested = true;
         this._boundaryEnclosesCamera = false;
@@ -1116,11 +1039,10 @@ class CameraControls extends EventDispatcher {
         };
         this._zoomInternal = (delta, x, y) => {
             const zoomScale = Math.pow(0.95, delta * this.dollySpeed);
-            const prevZoom = this._zoomEnd;
             // for both PerspectiveCamera and OrthographicCamera
             this.zoomTo(this._zoom * zoomScale);
             if (this.dollyToCursor) {
-                this._dollyControlAmount += this._zoomEnd - prevZoom;
+                this._dollyControlAmount = this._zoomEnd;
                 this._dollyControlCoord.set(x, y);
             }
             return;
@@ -1133,6 +1055,10 @@ class CameraControls extends EventDispatcher {
         this._yAxisUpSpace = new THREE.Quaternion().setFromUnitVectors(this._camera.up, _AXIS_Y);
         this._yAxisUpSpaceInverse = quatInvertCompat(this._yAxisUpSpace.clone());
         this._state = ACTION.NONE;
+        this._domElement = domElement;
+        this._domElement.style.touchAction = 'none';
+        this._domElement.style.userSelect = 'none';
+        this._domElement.style.webkitUserSelect = 'none';
         // the location
         this._target = new THREE.Vector3();
         this._targetEnd = this._target.clone();
@@ -1176,95 +1102,117 @@ class CameraControls extends EventDispatcher {
                     ACTION.NONE,
             three: ACTION.TOUCH_TRUCK,
         };
-        const dragStartPosition = new THREE.Vector2();
-        const lastDragPosition = new THREE.Vector2();
-        const dollyStart = new THREE.Vector2();
-        const onPointerDown = (event) => {
-            if (!this._enabled || !this._domElement)
-                return;
-            // Don't call `event.preventDefault()` on the pointerdown event
-            // to keep receiving pointermove evens outside dragging iframe
-            // https://taye.me/blog/tips/2015/11/16/mouse-drag-outside-iframe/
-            const pointer = {
-                pointerId: event.pointerId,
-                clientX: event.clientX,
-                clientY: event.clientY,
-                deltaX: 0,
-                deltaY: 0,
-            };
-            this._activePointers.push(pointer);
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-            this._domElement.ownerDocument.addEventListener('pointermove', onPointerMove, { passive: false });
-            this._domElement.ownerDocument.addEventListener('pointerup', onPointerUp);
-            startDragging(event);
-        };
-        const onMouseDown = (event) => {
-            if (!this._enabled || !this._domElement)
-                return;
-            const pointer = {
-                pointerId: 0,
-                clientX: event.clientX,
-                clientY: event.clientY,
-                deltaX: 0,
-                deltaY: 0,
-            };
-            this._activePointers.push(pointer);
-            // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
-            this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
-            this._domElement.ownerDocument.addEventListener('mousemove', onMouseMove);
-            this._domElement.ownerDocument.addEventListener('mouseup', onMouseUp);
-            startDragging(event);
-        };
-        const onTouchStart = (event) => {
-            if (!this._enabled || !this._domElement)
-                return;
-            event.preventDefault();
-            Array.prototype.forEach.call(event.changedTouches, (touch) => {
+        if (this._domElement) {
+            const dragStartPosition = new THREE.Vector2();
+            const lastDragPosition = new THREE.Vector2();
+            const dollyStart = new THREE.Vector2();
+            const onPointerDown = (event) => {
+                if (!this._enabled)
+                    return;
+                // Don't call `event.preventDefault()` on the pointerdown event
+                // to keep receiving pointermove evens outside dragging iframe
+                // https://taye.me/blog/tips/2015/11/16/mouse-drag-outside-iframe/
                 const pointer = {
-                    pointerId: touch.identifier,
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
+                    pointerId: event.pointerId,
+                    clientX: event.clientX,
+                    clientY: event.clientY,
                     deltaX: 0,
                     deltaY: 0,
                 };
                 this._activePointers.push(pointer);
-            });
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-            this._domElement.ownerDocument.addEventListener('touchmove', onTouchMove, { passive: false });
-            this._domElement.ownerDocument.addEventListener('touchend', onTouchEnd);
-            startDragging(event);
-        };
-        const onPointerMove = (event) => {
-            if (event.cancelable)
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+                this._domElement.ownerDocument.addEventListener('pointermove', onPointerMove, { passive: false });
+                this._domElement.ownerDocument.addEventListener('pointerup', onPointerUp);
+                startDragging(event);
+            };
+            const onMouseDown = (event) => {
+                if (!this._enabled)
+                    return;
+                const pointer = {
+                    pointerId: 0,
+                    clientX: event.clientX,
+                    clientY: event.clientY,
+                    deltaX: 0,
+                    deltaY: 0,
+                };
+                this._activePointers.push(pointer);
+                // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
+                this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
+                this._domElement.ownerDocument.addEventListener('mousemove', onMouseMove);
+                this._domElement.ownerDocument.addEventListener('mouseup', onMouseUp);
+                startDragging(event);
+            };
+            const onTouchStart = (event) => {
+                if (!this._enabled)
+                    return;
                 event.preventDefault();
-            const pointerId = event.pointerId;
-            const pointer = this._findPointerById(pointerId);
-            if (!pointer)
-                return;
-            pointer.clientX = event.clientX;
-            pointer.clientY = event.clientY;
-            pointer.deltaX = event.movementX;
-            pointer.deltaY = event.movementY;
-            if (event.pointerType === 'touch') {
-                switch (this._activePointers.length) {
-                    case 1:
-                        this._state = this.touches.one;
-                        break;
-                    case 2:
-                        this._state = this.touches.two;
-                        break;
-                    case 3:
-                        this._state = this.touches.three;
-                        break;
+                Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                    const pointer = {
+                        pointerId: touch.identifier,
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        deltaX: 0,
+                        deltaY: 0,
+                    };
+                    this._activePointers.push(pointer);
+                });
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+                this._domElement.ownerDocument.addEventListener('touchmove', onTouchMove, { passive: false });
+                this._domElement.ownerDocument.addEventListener('touchend', onTouchEnd);
+                startDragging(event);
+            };
+            const onPointerMove = (event) => {
+                if (event.cancelable)
+                    event.preventDefault();
+                const pointerId = event.pointerId;
+                const pointer = this._findPointerById(pointerId);
+                if (!pointer)
+                    return;
+                pointer.clientX = event.clientX;
+                pointer.clientY = event.clientY;
+                pointer.deltaX = event.movementX;
+                pointer.deltaY = event.movementY;
+                if (event.pointerType === 'touch') {
+                    switch (this._activePointers.length) {
+                        case 1:
+                            this._state = this.touches.one;
+                            break;
+                        case 2:
+                            this._state = this.touches.two;
+                            break;
+                        case 3:
+                            this._state = this.touches.three;
+                            break;
+                    }
                 }
-            }
-            else {
+                else {
+                    this._state = 0;
+                    if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
+                        this._state = this._state | this.mouseButtons.left;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
+                        this._state = this._state | this.mouseButtons.middle;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
+                        this._state = this._state | this.mouseButtons.right;
+                    }
+                }
+                dragging();
+            };
+            const onMouseMove = (event) => {
+                const pointer = this._findPointerById(0);
+                if (!pointer)
+                    return;
+                pointer.clientX = event.clientX;
+                pointer.clientY = event.clientY;
+                pointer.deltaX = event.movementX;
+                pointer.deltaY = event.movementY;
                 this._state = 0;
                 if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
                     this._state = this._state | this.mouseButtons.left;
@@ -1275,48 +1223,59 @@ class CameraControls extends EventDispatcher {
                 if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
                     this._state = this._state | this.mouseButtons.right;
                 }
-            }
-            dragging();
-        };
-        const onMouseMove = (event) => {
-            const pointer = this._findPointerById(0);
-            if (!pointer)
-                return;
-            pointer.clientX = event.clientX;
-            pointer.clientY = event.clientY;
-            pointer.deltaX = event.movementX;
-            pointer.deltaY = event.movementY;
-            this._state = 0;
-            if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
-                this._state = this._state | this.mouseButtons.left;
-            }
-            if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
-                this._state = this._state | this.mouseButtons.middle;
-            }
-            if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
-                this._state = this._state | this.mouseButtons.right;
-            }
-            dragging();
-        };
-        const onTouchMove = (event) => {
-            if (event.cancelable)
-                event.preventDefault();
-            Array.prototype.forEach.call(event.changedTouches, (touch) => {
-                const pointerId = touch.identifier;
+                dragging();
+            };
+            const onTouchMove = (event) => {
+                if (event.cancelable)
+                    event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                    const pointerId = touch.identifier;
+                    const pointer = this._findPointerById(pointerId);
+                    if (!pointer)
+                        return;
+                    pointer.clientX = touch.clientX;
+                    pointer.clientY = touch.clientY;
+                    // touch event does not have movementX and movementY.
+                });
+                dragging();
+            };
+            const onPointerUp = (event) => {
+                const pointerId = event.pointerId;
                 const pointer = this._findPointerById(pointerId);
-                if (!pointer)
-                    return;
-                pointer.clientX = touch.clientX;
-                pointer.clientY = touch.clientY;
-                // touch event does not have movementX and movementY.
-            });
-            dragging();
-        };
-        const onPointerUp = (event) => {
-            const pointerId = event.pointerId;
-            const pointer = this._findPointerById(pointerId);
-            pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-            if (event.pointerType === 'touch') {
+                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+                if (event.pointerType === 'touch') {
+                    switch (this._activePointers.length) {
+                        case 0:
+                            this._state = ACTION.NONE;
+                            break;
+                        case 1:
+                            this._state = this.touches.one;
+                            break;
+                        case 2:
+                            this._state = this.touches.two;
+                            break;
+                        case 3:
+                            this._state = this.touches.three;
+                            break;
+                    }
+                }
+                else {
+                    this._state = ACTION.NONE;
+                }
+                endDragging();
+            };
+            const onMouseUp = () => {
+                const pointer = this._findPointerById(0);
+                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+                this._state = ACTION.NONE;
+                endDragging();
+            };
+            const onTouchEnd = (event) => {
+                Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                    const pointerId = touch.identifier;
+                    const pointer = this._findPointerById(pointerId);
+                    pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+                });
                 switch (this._activePointers.length) {
                     case 0:
                         this._state = ACTION.NONE;
@@ -1331,252 +1290,281 @@ class CameraControls extends EventDispatcher {
                         this._state = this.touches.three;
                         break;
                 }
-            }
-            else {
-                this._state = ACTION.NONE;
-            }
-            endDragging();
-        };
-        const onMouseUp = () => {
-            const pointer = this._findPointerById(0);
-            pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-            this._state = ACTION.NONE;
-            endDragging();
-        };
-        const onTouchEnd = (event) => {
-            Array.prototype.forEach.call(event.changedTouches, (touch) => {
-                const pointerId = touch.identifier;
-                const pointer = this._findPointerById(pointerId);
-                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-            });
-            switch (this._activePointers.length) {
-                case 0:
-                    this._state = ACTION.NONE;
-                    break;
-                case 1:
-                    this._state = this.touches.one;
-                    break;
-                case 2:
-                    this._state = this.touches.two;
-                    break;
-                case 3:
-                    this._state = this.touches.three;
-                    break;
-            }
-            endDragging();
-        };
-        let lastScrollTimeStamp = -1;
-        const onMouseWheel = (event) => {
-            if (!this._enabled || this.mouseButtons.wheel === ACTION.NONE)
-                return;
-            event.preventDefault();
-            if (this.dollyToCursor ||
-                this.mouseButtons.wheel === ACTION.ROTATE ||
-                this.mouseButtons.wheel === ACTION.TRUCK) {
-                const now = performance.now();
-                // only need to fire this at scroll start.
-                if (lastScrollTimeStamp - now < 1000)
-                    this._getClientRect(this._elementRect);
-                lastScrollTimeStamp = now;
-            }
-            // Ref: https://github.com/cedricpinson/osgjs/blob/00e5a7e9d9206c06fdde0436e1d62ab7cb5ce853/sources/osgViewer/input/source/InputSourceMouse.js#L89-L103
-            const deltaYFactor = isMac ? -1 : -3;
-            const delta = (event.deltaMode === 1) ? event.deltaY / deltaYFactor : event.deltaY / (deltaYFactor * 10);
-            const x = this.dollyToCursor ? (event.clientX - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-            const y = this.dollyToCursor ? (event.clientY - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-            switch (this.mouseButtons.wheel) {
-                case ACTION.ROTATE: {
-                    this._rotateInternal(event.deltaX, event.deltaY);
-                    break;
+                endDragging();
+            };
+            let lastScrollTimeStamp = -1;
+            const onMouseWheel = (event) => {
+                if (!this._enabled || this.mouseButtons.wheel === ACTION.NONE)
+                    return;
+                event.preventDefault();
+                if (this.dollyToCursor ||
+                    this.mouseButtons.wheel === ACTION.ROTATE ||
+                    this.mouseButtons.wheel === ACTION.TRUCK) {
+                    const now = performance.now();
+                    // only need to fire this at scroll start.
+                    if (lastScrollTimeStamp - now < 1000)
+                        this._getClientRect(this._elementRect);
+                    lastScrollTimeStamp = now;
                 }
-                case ACTION.TRUCK: {
-                    this._truckInternal(event.deltaX, event.deltaY, false);
-                    break;
-                }
-                case ACTION.OFFSET: {
-                    this._truckInternal(event.deltaX, event.deltaY, true);
-                    break;
-                }
-                case ACTION.DOLLY: {
-                    this._dollyInternal(-delta, x, y);
-                    break;
-                }
-                case ACTION.ZOOM: {
-                    this._zoomInternal(-delta, x, y);
-                    break;
-                }
-            }
-            this.dispatchEvent({ type: 'control' });
-        };
-        const onContextMenu = (event) => {
-            if (!this._enabled)
-                return;
-            event.preventDefault();
-        };
-        const startDragging = (event) => {
-            if (!this._enabled)
-                return;
-            extractClientCoordFromEvent(this._activePointers, _v2$1);
-            this._getClientRect(this._elementRect);
-            dragStartPosition.copy(_v2$1);
-            lastDragPosition.copy(_v2$1);
-            const isMultiTouch = this._activePointers.length >= 2;
-            if (isMultiTouch) {
-                // 2 finger pinch
-                const dx = _v2$1.x - this._activePointers[1].clientX;
-                const dy = _v2$1.y - this._activePointers[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                dollyStart.set(0, distance);
-                // center coords of 2 finger truck
-                const x = (this._activePointers[0].clientX + this._activePointers[1].clientX) * 0.5;
-                const y = (this._activePointers[0].clientY + this._activePointers[1].clientY) * 0.5;
-                lastDragPosition.set(x, y);
-            }
-            if ('touches' in event ||
-                'pointerType' in event && event.pointerType === 'touch') {
-                switch (this._activePointers.length) {
-                    case 1:
-                        this._state = this.touches.one;
+                // Ref: https://github.com/cedricpinson/osgjs/blob/00e5a7e9d9206c06fdde0436e1d62ab7cb5ce853/sources/osgViewer/input/source/InputSourceMouse.js#L89-L103
+                const deltaYFactor = isMac ? -1 : -3;
+                const delta = (event.deltaMode === 1) ? event.deltaY / deltaYFactor : event.deltaY / (deltaYFactor * 10);
+                const x = this.dollyToCursor ? (event.clientX - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                const y = this.dollyToCursor ? (event.clientY - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                switch (this.mouseButtons.wheel) {
+                    case ACTION.ROTATE: {
+                        this._rotateInternal(event.deltaX, event.deltaY);
                         break;
-                    case 2:
-                        this._state = this.touches.two;
+                    }
+                    case ACTION.TRUCK: {
+                        this._truckInternal(event.deltaX, event.deltaY, false);
                         break;
-                    case 3:
-                        this._state = this.touches.three;
+                    }
+                    case ACTION.OFFSET: {
+                        this._truckInternal(event.deltaX, event.deltaY, true);
                         break;
+                    }
+                    case ACTION.DOLLY: {
+                        this._dollyInternal(-delta, x, y);
+                        break;
+                    }
+                    case ACTION.ZOOM: {
+                        this._zoomInternal(-delta, x, y);
+                        break;
+                    }
                 }
-            }
-            else {
-                this._state = 0;
-                if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
-                    this._state = this._state | this.mouseButtons.left;
+                this.dispatchEvent({ type: 'control' });
+            };
+            const onContextMenu = (event) => {
+                if (!this._enabled)
+                    return;
+                event.preventDefault();
+            };
+            const startDragging = (event) => {
+                if (!this._enabled)
+                    return;
+                extractClientCoordFromEvent(this._activePointers, _v2$1);
+                this._getClientRect(this._elementRect);
+                dragStartPosition.copy(_v2$1);
+                lastDragPosition.copy(_v2$1);
+                const isMultiTouch = this._activePointers.length >= 2;
+                if (isMultiTouch) {
+                    // 2 finger pinch
+                    const dx = _v2$1.x - this._activePointers[1].clientX;
+                    const dy = _v2$1.y - this._activePointers[1].clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    dollyStart.set(0, distance);
+                    // center coords of 2 finger truck
+                    const x = (this._activePointers[0].clientX + this._activePointers[1].clientX) * 0.5;
+                    const y = (this._activePointers[0].clientY + this._activePointers[1].clientY) * 0.5;
+                    lastDragPosition.set(x, y);
                 }
-                if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
-                    this._state = this._state | this.mouseButtons.middle;
+                if ('touches' in event ||
+                    'pointerType' in event && event.pointerType === 'touch') {
+                    switch (this._activePointers.length) {
+                        case 1:
+                            this._state = this.touches.one;
+                            break;
+                        case 2:
+                            this._state = this.touches.two;
+                            break;
+                        case 3:
+                            this._state = this.touches.three;
+                            break;
+                    }
                 }
-                if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
-                    this._state = this._state | this.mouseButtons.right;
+                else {
+                    this._state = 0;
+                    if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
+                        this._state = this._state | this.mouseButtons.left;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
+                        this._state = this._state | this.mouseButtons.middle;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
+                        this._state = this._state | this.mouseButtons.right;
+                    }
                 }
-            }
-            this.dispatchEvent({ type: 'controlstart' });
-        };
-        const dragging = () => {
-            if (!this._enabled)
-                return;
-            extractClientCoordFromEvent(this._activePointers, _v2$1);
-            // When pointer lock is enabled clientX, clientY, screenX, and screenY remain 0.
-            // If pointer lock is enabled, use the Delta directory, and assume active-pointer is not multiple.
-            const isPointerLockActive = this._domElement && document.pointerLockElement === this._domElement;
-            const deltaX = isPointerLockActive ? -this._activePointers[0].deltaX : lastDragPosition.x - _v2$1.x;
-            const deltaY = isPointerLockActive ? -this._activePointers[0].deltaY : lastDragPosition.y - _v2$1.y;
-            lastDragPosition.copy(_v2$1);
-            if ((this._state & ACTION.ROTATE) === ACTION.ROTATE ||
-                (this._state & ACTION.TOUCH_ROTATE) === ACTION.TOUCH_ROTATE ||
-                (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
-                (this._state & ACTION.TOUCH_ZOOM_ROTATE) === ACTION.TOUCH_ZOOM_ROTATE) {
-                this._rotateInternal(deltaX, deltaY);
-            }
-            if ((this._state & ACTION.DOLLY) === ACTION.DOLLY ||
-                (this._state & ACTION.ZOOM) === ACTION.ZOOM) {
-                const dollyX = this.dollyToCursor ? (dragStartPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-                const dollyY = this.dollyToCursor ? (dragStartPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-                (this._state & ACTION.DOLLY) === ACTION.DOLLY ?
-                    this._dollyInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
-                    this._zoomInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
-            }
-            if ((this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
-                (this._state & ACTION.TOUCH_ZOOM) === ACTION.TOUCH_ZOOM ||
-                (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK ||
-                (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
-                (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET ||
-                (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
-                (this._state & ACTION.TOUCH_ZOOM_ROTATE) === ACTION.TOUCH_ZOOM_ROTATE) {
-                const dx = _v2$1.x - this._activePointers[1].clientX;
-                const dy = _v2$1.y - this._activePointers[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const dollyDelta = dollyStart.y - distance;
-                dollyStart.set(0, distance);
-                const dollyX = this.dollyToCursor ? (lastDragPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-                const dollyY = this.dollyToCursor ? (lastDragPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-                (this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
-                    (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
+                this.dispatchEvent({ type: 'controlstart' });
+            };
+            const dragging = () => {
+                if (!this._enabled)
+                    return;
+                extractClientCoordFromEvent(this._activePointers, _v2$1);
+                // When pointer lock is enabled clientX, clientY, screenX, and screenY remain 0.
+                // If pointer lock is enabled, use the Delta directory, and assume active-pointer is not multiple.
+                const isPointerLockActive = this._domElement && document.pointerLockElement === this._domElement;
+                const deltaX = isPointerLockActive ? -this._activePointers[0].deltaX : lastDragPosition.x - _v2$1.x;
+                const deltaY = isPointerLockActive ? -this._activePointers[0].deltaY : lastDragPosition.y - _v2$1.y;
+                lastDragPosition.copy(_v2$1);
+                if ((this._state & ACTION.ROTATE) === ACTION.ROTATE ||
+                    (this._state & ACTION.TOUCH_ROTATE) === ACTION.TOUCH_ROTATE) {
+                    this._rotateInternal(deltaX, deltaY);
+                }
+                if ((this._state & ACTION.DOLLY) === ACTION.DOLLY ||
+                    (this._state & ACTION.ZOOM) === ACTION.ZOOM) {
+                    const dollyX = this.dollyToCursor ? (dragStartPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                    const dollyY = this.dollyToCursor ? (dragStartPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                    this._state === ACTION.DOLLY ?
+                        this._dollyInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
+                        this._zoomInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
+                }
+                if ((this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
+                    (this._state & ACTION.TOUCH_ZOOM) === ACTION.TOUCH_ZOOM ||
                     (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ?
-                    this._dollyInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
-                    this._zoomInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
-            }
-            if ((this._state & ACTION.TRUCK) === ACTION.TRUCK ||
-                (this._state & ACTION.TOUCH_TRUCK) === ACTION.TOUCH_TRUCK ||
-                (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK) {
-                this._truckInternal(deltaX, deltaY, false);
-            }
-            if ((this._state & ACTION.OFFSET) === ACTION.OFFSET ||
-                (this._state & ACTION.TOUCH_OFFSET) === ACTION.TOUCH_OFFSET ||
-                (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
-                (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
-                this._truckInternal(deltaX, deltaY, true);
-            }
-            this.dispatchEvent({ type: 'control' });
-        };
-        const endDragging = () => {
-            extractClientCoordFromEvent(this._activePointers, _v2$1);
-            lastDragPosition.copy(_v2$1);
-            if (this._activePointers.length === 0 && this._domElement) {
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-                this.dispatchEvent({ type: 'controlend' });
-            }
-        };
-        this._addAllEventListeners = (domElement) => {
-            this._domElement = domElement;
-            this._domElement.style.touchAction = 'none';
-            this._domElement.style.userSelect = 'none';
-            this._domElement.style.webkitUserSelect = 'none';
+                    (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK ||
+                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
+                    (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
+                    const dx = _v2$1.x - this._activePointers[1].clientX;
+                    const dy = _v2$1.y - this._activePointers[1].clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const dollyDelta = dollyStart.y - distance;
+                    dollyStart.set(0, distance);
+                    const dollyX = this.dollyToCursor ? (lastDragPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                    const dollyY = this.dollyToCursor ? (lastDragPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                    this._state === ACTION.TOUCH_DOLLY ||
+                        this._state === ACTION.TOUCH_DOLLY_TRUCK ||
+                        this._state === ACTION.TOUCH_DOLLY_OFFSET ?
+                        this._dollyInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
+                        this._zoomInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
+                }
+                if ((this._state & ACTION.TRUCK) === ACTION.TRUCK ||
+                    (this._state & ACTION.TOUCH_TRUCK) === ACTION.TOUCH_TRUCK ||
+                    (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
+                    (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK) {
+                    this._truckInternal(deltaX, deltaY, false);
+                }
+                if ((this._state & ACTION.OFFSET) === ACTION.OFFSET ||
+                    (this._state & ACTION.TOUCH_OFFSET) === ACTION.TOUCH_OFFSET ||
+                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
+                    (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
+                    this._truckInternal(deltaX, deltaY, true);
+                }
+                this.dispatchEvent({ type: 'control' });
+            };
+            const endDragging = () => {
+                extractClientCoordFromEvent(this._activePointers, _v2$1);
+                lastDragPosition.copy(_v2$1);
+                if (this._activePointers.length === 0) {
+                    // eslint-disable-next-line no-undef
+                    this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+                    this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+                    // eslint-disable-next-line no-undef
+                    this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+                    this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+                    this.dispatchEvent({ type: 'controlend' });
+                }
+            };
             this._domElement.addEventListener('pointerdown', onPointerDown);
             isPointerEventsNotSupported && this._domElement.addEventListener('mousedown', onMouseDown);
             isPointerEventsNotSupported && this._domElement.addEventListener('touchstart', onTouchStart);
             this._domElement.addEventListener('pointercancel', onPointerUp);
             this._domElement.addEventListener('wheel', onMouseWheel, { passive: false });
             this._domElement.addEventListener('contextmenu', onContextMenu);
-        };
-        this._removeAllEventListeners = () => {
-            if (!this._domElement)
-                return;
-            this._domElement.removeEventListener('pointerdown', onPointerDown);
-            this._domElement.removeEventListener('mousedown', onMouseDown);
-            this._domElement.removeEventListener('touchstart', onTouchStart);
-            this._domElement.removeEventListener('pointercancel', onPointerUp);
-            // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener#matching_event_listeners_for_removal
-            // > it's probably wise to use the same values used for the call to `addEventListener()` when calling `removeEventListener()`
-            // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
-            // eslint-disable-next-line no-undef
-            this._domElement.removeEventListener('wheel', onMouseWheel, { passive: false });
-            this._domElement.removeEventListener('contextmenu', onContextMenu);
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-            this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
-            this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-        };
-        this.cancel = () => {
-            if (this._state === ACTION.NONE)
-                return;
-            this._state = ACTION.NONE;
-            this._activePointers.length = 0;
-            endDragging();
-        };
-        if (domElement)
-            this.connect(domElement);
+            this._removeAllEventListeners = () => {
+                this._domElement.removeEventListener('pointerdown', onPointerDown);
+                this._domElement.removeEventListener('mousedown', onMouseDown);
+                this._domElement.removeEventListener('touchstart', onTouchStart);
+                this._domElement.removeEventListener('pointercancel', onPointerUp);
+                // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener#matching_event_listeners_for_removal
+                // > it's probably wise to use the same values used for the call to `addEventListener()` when calling `removeEventListener()`
+                // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
+                // eslint-disable-next-line no-undef
+                this._domElement.removeEventListener('wheel', onMouseWheel, { passive: false });
+                this._domElement.removeEventListener('contextmenu', onContextMenu);
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+                this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
+                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+            };
+            this.cancel = () => {
+                if (this._state === ACTION.NONE)
+                    return;
+                this._state = ACTION.NONE;
+                this._activePointers.length = 0;
+                endDragging();
+            };
+        }
         this.update(0);
+    }
+    /**
+     * Injects THREE as the dependency. You can then proceed to use CameraControls.
+     *
+     * e.g
+     * ```javascript
+     * CameraControls.install( { THREE: THREE } );
+     * ```
+     *
+     * Note: If you do not wish to use enter three.js to reduce file size(tree-shaking for example), make a subset to install.
+     *
+     * ```js
+     * import {
+     * 	Vector2,
+     * 	Vector3,
+     * 	Vector4,
+     * 	Quaternion,
+     * 	Matrix4,
+     * 	Spherical,
+     * 	Box3,
+     * 	Sphere,
+     * 	Raycaster,
+     * 	MathUtils,
+     * } from 'three';
+     *
+     * const subsetOfTHREE = {
+     * 	Vector2   : Vector2,
+     * 	Vector3   : Vector3,
+     * 	Vector4   : Vector4,
+     * 	Quaternion: Quaternion,
+     * 	Matrix4   : Matrix4,
+     * 	Spherical : Spherical,
+     * 	Box3      : Box3,
+     * 	Sphere    : Sphere,
+     * 	Raycaster : Raycaster,
+     * 	MathUtils : {
+     * 		DEG2RAD: MathUtils.DEG2RAD,
+     * 		clamp: MathUtils.clamp,
+     * 	},
+     * };
+
+     * CameraControls.install( { THREE: subsetOfTHREE } );
+     * ```
+     * @category Statics
+     */
+    static install(libs) {
+        THREE = libs.THREE;
+        _ORIGIN = Object.freeze(new THREE.Vector3(0, 0, 0));
+        _AXIS_Y = Object.freeze(new THREE.Vector3(0, 1, 0));
+        _AXIS_Z = Object.freeze(new THREE.Vector3(0, 0, 1));
+        _v2$1 = new THREE.Vector2();
+        _v3A = new THREE.Vector3();
+        _v3B = new THREE.Vector3();
+        _v3C = new THREE.Vector3();
+        _xColumn = new THREE.Vector3();
+        _yColumn = new THREE.Vector3();
+        _zColumn = new THREE.Vector3();
+        _deltaTarget = new THREE.Vector3();
+        _deltaOffset = new THREE.Vector3();
+        _sphericalA = new THREE.Spherical();
+        _sphericalB = new THREE.Spherical();
+        _box3A = new THREE.Box3();
+        _box3B = new THREE.Box3();
+        _sphere$1 = new THREE.Sphere();
+        _quaternionA = new THREE.Quaternion();
+        _quaternionB = new THREE.Quaternion();
+        _rotationMatrix = new THREE.Matrix4();
+        _raycaster$1 = new THREE.Raycaster();
+    }
+    /**
+     * list all ACTIONs
+     * @category Statics
+     */
+    static get ACTION() {
+        return ACTION;
     }
     /**
      * The camera to be controlled
@@ -1601,8 +1589,6 @@ class CameraControls extends EventDispatcher {
         return this._enabled;
     }
     set enabled(enabled) {
-        if (!this._domElement)
-            return;
         this._enabled = enabled;
         if (enabled) {
             this._domElement.style.touchAction = 'none';
@@ -1974,12 +1960,11 @@ class CameraControls extends EventDispatcher {
         const phi = roundToStep(this._sphericalEnd.phi, PI_HALF);
         promises.push(this.rotateTo(theta, phi, enableTransition));
         const normal = _v3A.setFromSpherical(this._sphericalEnd).normalize();
-        const rotation = _quaternionA.setFromUnitVectors(normal, _AXIS_Z);
+        const rotation = _quaternionA.setFromUnitVectors(normal, _AXIS_Z).multiply(this._yAxisUpSpaceInverse);
         const viewFromPolar = approxEquals(Math.abs(normal.y), 1);
         if (viewFromPolar) {
             rotation.multiply(_quaternionB.setFromAxisAngle(_AXIS_Y, theta));
         }
-        rotation.multiply(this._yAxisUpSpaceInverse);
         // make oriented bounding box
         const bb = _box3B.makeEmpty();
         // left bottom back corner
@@ -2011,11 +1996,7 @@ class CameraControls extends EventDispatcher {
         bb.min.y -= paddingBottom;
         bb.max.x += paddingRight;
         bb.max.y += paddingTop;
-        rotation.setFromUnitVectors(_AXIS_Z, normal);
-        if (viewFromPolar) {
-            rotation.premultiply(_quaternionB.invert());
-        }
-        rotation.premultiply(this._yAxisUpSpace);
+        rotation.setFromUnitVectors(_AXIS_Z, normal).multiply(this._yAxisUpSpace);
         const bbSize = bb.getSize(_v3A);
         const center = bb.getCenter(_v3B).applyQuaternion(rotation);
         if (isPerspectiveCamera(this._camera)) {
@@ -2159,10 +2140,7 @@ class CameraControls extends EventDispatcher {
      */
     setTarget(targetX, targetY, targetZ, enableTransition = false) {
         const pos = this.getPosition(_v3A);
-        const promise = this.setLookAt(pos.x, pos.y, pos.z, targetX, targetY, targetZ, enableTransition);
-        // see https://github.com/yomotsu/camera-controls/issues/335
-        this._sphericalEnd.phi = THREE.MathUtils.clamp(this.polarAngle, this.minPolarAngle, this.maxPolarAngle);
-        return promise;
+        return this.setLookAt(pos.x, pos.y, pos.z, targetX, targetY, targetZ, enableTransition);
     }
     /**
      * Set focal offset using the screen parallel coordinates. z doesn't affect in Orthographic as with Dolly.
@@ -2178,10 +2156,6 @@ class CameraControls extends EventDispatcher {
         if (!enableTransition) {
             this._focalOffset.copy(this._focalOffsetEnd);
         }
-        this._affectOffset =
-            !approxZero(x) ||
-                !approxZero(y) ||
-                !approxZero(z);
         const resolveImmediately = !enableTransition ||
             approxEquals(this._focalOffset.x, this._focalOffsetEnd.x, this.restThreshold) &&
                 approxEquals(this._focalOffset.y, this._focalOffsetEnd.y, this.restThreshold) &&
@@ -2190,14 +2164,12 @@ class CameraControls extends EventDispatcher {
     }
     /**
      * Set orbit point without moving the camera.
-     * SHOULD NOT RUN DURING ANIMATIONS. `setOrbitPoint()` will immediately fix the positions.
      * @param targetX
      * @param targetY
      * @param targetZ
      * @category Methods
      */
     setOrbitPoint(targetX, targetY, targetZ) {
-        this._camera.updateMatrixWorld();
         _xColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 0);
         _yColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 1);
         _zColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 2);
@@ -2338,10 +2310,9 @@ class CameraControls extends EventDispatcher {
      * @category Methods
      */
     saveState() {
-        this.getTarget(this._target0);
-        this.getPosition(this._position0);
+        this._target0.copy(this._target);
+        this._position0.copy(this._camera.position);
         this._zoom0 = this._zoom;
-        this._focalOffset0.copy(this._focalOffset);
     }
     /**
      * Sync camera-up direction.
@@ -2393,11 +2364,11 @@ class CameraControls extends EventDispatcher {
         if (this._dollyControlAmount !== 0) {
             if (isPerspectiveCamera(this._camera)) {
                 const camera = this._camera;
-                const cameraDirection = _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
-                const planeX = _v3B.copy(cameraDirection).cross(camera.up).normalize();
+                const direction = _v3A.setFromSpherical(this._sphericalEnd).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
+                const planeX = _v3B.copy(direction).cross(camera.up).normalize();
                 if (planeX.lengthSq() === 0)
                     planeX.x = 1.0;
-                const planeY = _v3C.crossVectors(planeX, cameraDirection);
+                const planeY = _v3C.crossVectors(planeX, direction);
                 const worldToScreen = this._sphericalEnd.radius * Math.tan(camera.getEffectiveFOV() * THREE.MathUtils.DEG2RAD * 0.5);
                 const prevRadius = this._sphericalEnd.radius - this._dollyControlAmount;
                 const lerpRatio = (prevRadius - this._sphericalEnd.radius) / this._sphericalEnd.radius;
@@ -2405,42 +2376,20 @@ class CameraControls extends EventDispatcher {
                     .add(planeX.multiplyScalar(this._dollyControlCoord.x * worldToScreen * camera.aspect))
                     .add(planeY.multiplyScalar(this._dollyControlCoord.y * worldToScreen));
                 this._targetEnd.lerp(cursor, lerpRatio);
+                this._target.copy(this._targetEnd);
             }
             else if (isOrthographicCamera(this._camera)) {
                 const camera = this._camera;
-                const worldCursorPosition = _v3A.set(this._dollyControlCoord.x, this._dollyControlCoord.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera); //.sub( _v3B.set( this._focalOffset.x, this._focalOffset.y, 0 ) );
+                const worldPosition = _v3A.set(this._dollyControlCoord.x, this._dollyControlCoord.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera);
                 const quaternion = _v3B.set(0, 0, -1).applyQuaternion(camera.quaternion);
-                const cursor = _v3C.copy(worldCursorPosition).add(quaternion.multiplyScalar(-worldCursorPosition.dot(camera.up)));
-                const prevZoom = this._zoom - this._dollyControlAmount;
-                const lerpRatio = -(prevZoom - this._zoomEnd) / this._zoom;
-                // find the "distance" (aka plane constant in three.js) of Plane
-                // from a given position (this._targetEnd) and normal vector (cameraDirection)
-                // https://www.maplesoft.com/support/help/maple/view.aspx?path=MathApps%2FEquationOfAPlaneNormal#bkmrk0
-                const cameraDirection = _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
-                const prevPlaneConstant = this._targetEnd.dot(cameraDirection);
-                this._targetEnd.lerp(cursor, lerpRatio);
-                const newPlaneConstant = this._targetEnd.dot(cameraDirection);
-                // Pull back the camera depth that has moved, to be the camera stationary as zoom
-                const pullBack = cameraDirection.multiplyScalar(newPlaneConstant - prevPlaneConstant);
-                this._targetEnd.sub(pullBack);
+                const divisor = quaternion.dot(camera.up);
+                const distance = approxZero(divisor) ? -worldPosition.dot(camera.up) : -worldPosition.dot(camera.up) / divisor;
+                const cursor = _v3C.copy(worldPosition).add(quaternion.multiplyScalar(distance));
+                this._targetEnd.lerp(cursor, 1 - camera.zoom / this._dollyControlAmount);
+                this._target.copy(this._targetEnd);
             }
-            this._target.copy(this._targetEnd);
-            // target position may be moved beyond boundary.
-            this._boundary.clampPoint(this._targetEnd, this._targetEnd);
             this._dollyControlAmount = 0;
         }
-        // zoom
-        const deltaZoom = this._zoomEnd - this._zoom;
-        this._zoom += deltaZoom * lerpRatio;
-        if (this._camera.zoom !== this._zoom) {
-            if (approxZero(deltaZoom))
-                this._zoom = this._zoomEnd;
-            this._camera.zoom = this._zoom;
-            this._camera.updateProjectionMatrix();
-            this._updateNearPlaneCorners();
-            this._needsUpdate = true;
-        }
-        // collision detection
         const maxDistance = this._collisionTest();
         this._spherical.radius = Math.min(this._spherical.radius, maxDistance);
         // decompose spherical to the camera position
@@ -2448,8 +2397,11 @@ class CameraControls extends EventDispatcher {
         this._camera.position.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).add(this._target);
         this._camera.lookAt(this._target);
         // set offset after the orbit movement
-        if (this._affectOffset) {
-            this._camera.updateMatrixWorld();
+        const affectOffset = !approxZero(this._focalOffset.x) ||
+            !approxZero(this._focalOffset.y) ||
+            !approxZero(this._focalOffset.z);
+        if (affectOffset) {
+            this._camera.updateMatrix();
             _xColumn.setFromMatrixColumn(this._camera.matrix, 0);
             _yColumn.setFromMatrixColumn(this._camera.matrix, 1);
             _zColumn.setFromMatrixColumn(this._camera.matrix, 2);
@@ -2461,6 +2413,17 @@ class CameraControls extends EventDispatcher {
         }
         if (this._boundaryEnclosesCamera) {
             this._encloseToBoundary(this._camera.position.copy(this._target), _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse), 1.0);
+        }
+        // zoom
+        const deltaZoom = this._zoomEnd - this._zoom;
+        this._zoom += deltaZoom * lerpRatio;
+        if (this._camera.zoom !== this._zoom) {
+            if (approxZero(deltaZoom))
+                this._zoom = this._zoomEnd;
+            this._camera.zoom = this._zoom;
+            this._camera.updateProjectionMatrix();
+            this._updateNearPlaneCorners();
+            this._needsUpdate = true;
         }
         const updated = this._needsUpdate;
         if (updated && !this._updatedLastTime) {
@@ -2559,32 +2522,11 @@ class CameraControls extends EventDispatcher {
         this._needsUpdate = true;
     }
     /**
-     * Attach all internal event handlers to enable drag control.
-     * @category Methods
-     */
-    connect(domElement) {
-        if (this._domElement) {
-            console.warn('camera-controls is already connected.');
-            return;
-        }
-        domElement.setAttribute('data-camera-controls-version', VERSION);
-        this._addAllEventListeners(domElement);
-    }
-    /**
-     * Detach all internal event handlers to disable drag control.
-     */
-    disconnect() {
-        this._removeAllEventListeners();
-        this._domElement = undefined;
-    }
-    /**
      * Dispose the cameraControls instance itself, remove all eventListeners.
      * @category Methods
      */
     dispose() {
-        this.disconnect();
-        if (this._domElement && 'setAttribute' in this._domElement)
-            this._domElement.removeAttribute('data-camera-controls-version');
+        this._removeAllEventListeners();
     }
     _findPointerById(pointerId) {
         // to support IE11 use some instead of Array#find (will be removed when IE11 is deprecated)
@@ -2677,8 +2619,6 @@ class CameraControls extends EventDispatcher {
      * Get its client rect and package into given `DOMRect` .
      */
     _getClientRect(target) {
-        if (!this._domElement)
-            return;
         const rect = this._domElement.getBoundingClientRect();
         target.x = rect.left;
         target.y = rect.top;
@@ -2707,8 +2647,6 @@ class CameraControls extends EventDispatcher {
             this.addEventListener('rest', onResolve);
         });
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _addAllEventListeners(_domElement) { }
     _removeAllEventListeners() { }
 }
 function createBoundingSphere(object3d, out) {
@@ -2760,14 +2698,6 @@ function createBoundingSphere(object3d, out) {
  * what features it offers.
  */
 class SimpleCamera extends Component {
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this.controls.enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(enabled) {
-        this.controls.enabled = enabled;
-    }
     constructor(components) {
         super();
         this.components = components;
@@ -2783,6 +2713,14 @@ class SimpleCamera extends Component {
         const scene = components.scene.get();
         scene.add(this._perspectiveCamera);
         this.setupEvents();
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this.controls.enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(enabled) {
+        this.controls.enabled = enabled;
     }
     /** {@link Component.get} */
     get() {
@@ -2909,14 +2847,6 @@ class SimpleRaycaster extends Component {
  * [Three.js grid helper](https://threejs.org/docs/#api/en/helpers/GridHelper).
  */
 class SimpleGrid extends Component {
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._grid.visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(visible) {
-        this._grid.visible = visible;
-    }
     constructor(components) {
         super();
         /** {@link Component.name} */
@@ -2927,6 +2857,14 @@ class SimpleGrid extends Component {
         this._grid = new THREE$1.GridHelper(50, 50);
         const scene = components.scene.get();
         scene.add(this._grid);
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._grid.visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        this._grid.visible = visible;
     }
     /** {@link Component.get} */
     get() {
@@ -3006,7 +2944,7 @@ function getLongestEdgeIndex( bounds ) {
 
 }
 
-// copies bounds a into bounds b
+// copys bounds a into bounds b
 function copyBounds( source, target ) {
 
 	target.set( source );
@@ -3544,7 +3482,7 @@ function getOptimalSplit( nodeBoundingData, centroidBoundingData, triangleBounds
 					const nextBin = sahBins[ i + 1 ];
 					const rightBounds = nextBin.rightCacheBounds;
 
-					// don't do anything with the bounds if the new bounds have no triangles
+					// dont do anything with the bounds if the new bounds have no triangles
 					if ( binCount !== 0 ) {
 
 						if ( leftCount === 0 ) {
@@ -3627,13 +3565,10 @@ function getAverage( triangleBounds, offset, count, axis ) {
 function computeTriangleBounds( geo, fullBounds ) {
 
 	const posAttr = geo.attributes.position;
+	const posArr = posAttr.array;
 	const index = geo.index.array;
 	const triCount = index.length / 3;
 	const triangleBounds = new Float32Array( triCount * 6 );
-	const normalized = posAttr.normalized;
-
-	// used for non-normalized positions
-	const posArr = posAttr.array;
 
 	// support for an interleaved position buffer
 	const bufferOffset = posAttr.offset || 0;
@@ -3644,47 +3579,19 @@ function computeTriangleBounds( geo, fullBounds ) {
 
 	}
 
-	// used for normalized positions
-	const getters = [ 'getX', 'getY', 'getZ' ];
-
 	for ( let tri = 0; tri < triCount; tri ++ ) {
 
 		const tri3 = tri * 3;
 		const tri6 = tri * 6;
-
-		let ai, bi, ci;
-
-		if ( normalized ) {
-
-			ai = index[ tri3 + 0 ];
-			bi = index[ tri3 + 1 ];
-			ci = index[ tri3 + 2 ];
-
-		} else {
-
-			ai = index[ tri3 + 0 ] * stride + bufferOffset;
-			bi = index[ tri3 + 1 ] * stride + bufferOffset;
-			ci = index[ tri3 + 2 ] * stride + bufferOffset;
-
-		}
+		const ai = index[ tri3 + 0 ] * stride + bufferOffset;
+		const bi = index[ tri3 + 1 ] * stride + bufferOffset;
+		const ci = index[ tri3 + 2 ] * stride + bufferOffset;
 
 		for ( let el = 0; el < 3; el ++ ) {
 
-			let a, b, c;
-
-			if ( normalized ) {
-
-				a = posAttr[ getters[ el ] ]( ai );
-				b = posAttr[ getters[ el ] ]( bi );
-				c = posAttr[ getters[ el ] ]( ci );
-
-			} else {
-
-				a = posArr[ ai + el ];
-				b = posArr[ bi + el ];
-				c = posArr[ ci + el ];
-
-			}
+			const a = posArr[ ai + el ];
+			const b = posArr[ bi + el ];
+			const c = posArr[ ci + el ];
 
 			let min = a;
 			if ( b < min ) min = b;
@@ -4412,7 +4319,7 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 
 	// TODO: If the triangles are coplanar and intersecting the target is nonsensical. It should at least
 	// be a line contained by both triangles if not a different special case somehow represented in the return result.
-	return function intersectsTriangle( other, target = null, suppressLog = false ) {
+	return function intersectsTriangle( other, target = null ) {
 
 		if ( this.needsUpdate ) {
 
@@ -4485,11 +4392,7 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 			if ( target ) {
 
 				// TODO find two points that intersect on the edges and make that the result
-				if ( ! suppressLog ) {
-
-					console.warn( 'ExtendedTriangle.intersectsTriangle: Triangles are coplanar which does not support an output edge. Setting edge to 0, 0, 0.' );
-
-				}
+				console.warn( 'ExtendedTriangle.intersectsTriangle: Triangles are coplanar which does not support an output edge. Setting edge to 0, 0, 0.' );
 
 				target.start.set( 0, 0, 0 );
 				target.end.set( 0, 0, 0 );
@@ -4541,7 +4444,7 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 
 			}
 
-			if ( count1 === 1 && other.containsPoint( edge1.end ) ) {
+			if ( count1 === 1 && this.containsPoint( edge1.end ) ) {
 
 				if ( target ) {
 
@@ -4783,13 +4686,13 @@ ExtendedTriangle.prototype.distanceToTriangle = ( function () {
 
 } )();
 
-class OrientedBox {
+class OrientedBox extends Box3 {
 
-	constructor( min, max, matrix ) {
+	constructor( ...args ) {
+
+		super( ...args );
 
 		this.isOrientedBox = true;
-		this.min = new Vector3$1();
-		this.max = new Vector3$1();
 		this.matrix = new Matrix4();
 		this.invMatrix = new Matrix4();
 		this.points = new Array( 8 ).fill().map( () => new Vector3$1() );
@@ -4798,16 +4701,11 @@ class OrientedBox {
 		this.alignedSatBounds = new Array( 3 ).fill().map( () => new SeparatingAxisBounds() );
 		this.needsUpdate = false;
 
-		if ( min ) this.min.copy( min );
-		if ( max ) this.max.copy( max );
-		if ( matrix ) this.matrix.copy( matrix );
-
 	}
 
 	set( min, max, matrix ) {
 
-		this.min.copy( min );
-		this.max.copy( max );
+		super.set( min, max );
 		this.matrix.copy( matrix );
 		this.needsUpdate = true;
 
@@ -4815,8 +4713,7 @@ class OrientedBox {
 
 	copy( other ) {
 
-		this.min.copy( other.min );
-		this.max.copy( other.max );
+		super.copy( other );
 		this.matrix.copy( other.matrix );
 		this.needsUpdate = true;
 
@@ -6157,6 +6054,16 @@ class MeshBVH {
 		const geometry = this.geometry;
 		const indexArr = geometry.index.array;
 		const posAttr = geometry.attributes.position;
+		const posArr = posAttr.array;
+
+		// support for an interleaved position buffer
+		const bufferOffset = posAttr.offset || 0;
+		let stride = 3;
+		if ( posAttr.isInterleavedBufferAttribute ) {
+
+			stride = posAttr.data.stride;
+
+		}
 
 		let buffer, uint32Array, uint16Array, float32Array;
 		let byteOffset = 0;
@@ -6188,13 +6095,12 @@ class MeshBVH {
 				let maxx = - Infinity;
 				let maxy = - Infinity;
 				let maxz = - Infinity;
-
 				for ( let i = 3 * offset, l = 3 * ( offset + count ); i < l; i ++ ) {
 
-					const index = indexArr[ i ];
-					const x = posAttr.getX( index );
-					const y = posAttr.getY( index );
-					const z = posAttr.getZ( index );
+					const index = indexArr[ i ] * stride + bufferOffset;
+					const x = posArr[ index + 0 ];
+					const y = posArr[ index + 1 ];
+					const z = posArr[ index + 2 ];
 
 					if ( x < minx ) minx = x;
 					if ( x > maxx ) maxx = x;
@@ -6972,6 +6878,180 @@ class MeshBVH {
 	}
 
 }
+
+// Deprecation
+const originalRaycast = MeshBVH.prototype.raycast;
+MeshBVH.prototype.raycast = function ( ...args ) {
+
+	if ( args[ 0 ].isMesh ) {
+
+		console.warn( 'MeshBVH: The function signature and results frame for "raycast" has changed. See docs for new signature.' );
+		const [
+			mesh, raycaster, ray, intersects,
+		] = args;
+
+		const results = originalRaycast.call( this, ray, mesh.material );
+		results.forEach( hit => {
+
+			hit = convertRaycastIntersect( hit, mesh, raycaster );
+			if ( hit ) {
+
+				intersects.push( hit );
+
+			}
+
+		} );
+
+		return intersects;
+
+	} else {
+
+		return originalRaycast.apply( this, args );
+
+	}
+
+};
+
+const originalRaycastFirst = MeshBVH.prototype.raycastFirst;
+MeshBVH.prototype.raycastFirst = function ( ...args ) {
+
+	if ( args[ 0 ].isMesh ) {
+
+		console.warn( 'MeshBVH: The function signature and results frame for "raycastFirst" has changed. See docs for new signature.' );
+		const [
+			mesh, raycaster, ray,
+		] = args;
+
+		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+
+	} else {
+
+		return originalRaycastFirst.apply( this, args );
+
+	}
+
+};
+
+const originalClosestPointToPoint = MeshBVH.prototype.closestPointToPoint;
+MeshBVH.prototype.closestPointToPoint = function ( ...args ) {
+
+
+	if ( args[ 0 ].isMesh ) {
+
+		console.warn( 'MeshBVH: The function signature and results frame for "closestPointToPoint" has changed. See docs for new signature.' );
+
+		args.unshift();
+
+		const target = args[ 1 ];
+		const result = {};
+		args[ 1 ] = result;
+
+		originalClosestPointToPoint.apply( this, args );
+
+		if ( target ) {
+
+			target.copy( result.point );
+
+		}
+
+		return result.distance;
+
+	} else {
+
+		return originalClosestPointToPoint.apply( this, args );
+
+	}
+
+};
+
+const originalClosestPointToGeometry = MeshBVH.prototype.closestPointToGeometry;
+MeshBVH.prototype.closestPointToGeometry = function ( ...args ) {
+
+	const target1 = args[ 2 ];
+	const target2 = args[ 3 ];
+	if ( target1 && target1.isVector3 || target2 && target2.isVector3 ) {
+
+		console.warn( 'MeshBVH: The function signature and results frame for "closestPointToGeometry" has changed. See docs for new signature.' );
+
+		const result1 = {};
+		const result2 = {};
+		const geometryToBvh = args[ 1 ];
+		args[ 2 ] = result1;
+		args[ 3 ] = result2;
+
+		originalClosestPointToGeometry.apply( this, args );
+
+		if ( target1 ) {
+
+			target1.copy( result1.point );
+
+		}
+
+		if ( target2 ) {
+
+			target2.copy( result2.point ).applyMatrix4( geometryToBvh );
+
+		}
+
+		return result1.distance;
+
+	} else {
+
+		return originalClosestPointToGeometry.apply( this, args );
+
+	}
+
+};
+
+const originalRefit = MeshBVH.prototype.refit;
+MeshBVH.prototype.refit = function ( ...args ) {
+
+	const nodeIndices = args[ 0 ];
+	const terminationIndices = args[ 1 ];
+	if ( terminationIndices && ( terminationIndices instanceof Set || Array.isArray( terminationIndices ) ) ) {
+
+		console.warn( 'MeshBVH: The function signature for "refit" has changed. See docs for new signature.' );
+
+		const newNodeIndices = new Set();
+		terminationIndices.forEach( v => newNodeIndices.add( v ) );
+		if ( nodeIndices ) {
+
+			nodeIndices.forEach( v => newNodeIndices.add( v ) );
+
+		}
+
+		originalRefit.call( this, newNodeIndices );
+
+	} else {
+
+		originalRefit.apply( this, args );
+
+	}
+
+};
+
+[
+	'intersectsGeometry',
+	'shapecast',
+	'intersectsBox',
+	'intersectsSphere',
+].forEach( name => {
+
+	const originalFunc = MeshBVH.prototype[ name ];
+	MeshBVH.prototype[ name ] = function ( ...args ) {
+
+		if ( args[ 0 ] === null || args[ 0 ].isMesh ) {
+
+			args.shift();
+			console.warn( `MeshBVH: The function signature for "${ name }" has changed and no longer takes Mesh. See docs for new signature.` );
+
+		}
+
+		return originalFunc.apply( this, args );
+
+	};
+
+} );
 
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();
@@ -8831,6 +8911,24 @@ var createPopper = /*#__PURE__*/popperGenerator({
 }); // eslint-disable-next-line import/no-unused-modules
 
 class Toolbar extends Component {
+    constructor(components, options) {
+        super();
+        this.domElement = document.createElement("div");
+        this.children = [];
+        this._enabled = true;
+        this._visible = true;
+        this.components = components;
+        const _options = {
+            name: "Toolbar",
+            position: "bottom",
+            ...options,
+        };
+        this.name = _options.name;
+        this.domElement.id = _options.name;
+        this.domElement.classList.add("tooeen-toolbar");
+        this.position = _options.position;
+        this.visible = true;
+    }
     set visible(visible) {
         this.domElement.style.display =
             visible && this.hasElements ? "flex" : "none";
@@ -8856,24 +8954,6 @@ class Toolbar extends Component {
     }
     get position() {
         return this._position;
-    }
-    constructor(components, options) {
-        super();
-        this.domElement = document.createElement("div");
-        this.children = [];
-        this._enabled = true;
-        this._visible = true;
-        this.components = components;
-        const _options = {
-            name: "Toolbar",
-            position: "bottom",
-            ...options,
-        };
-        this.name = _options.name;
-        this.domElement.id = _options.name;
-        this.domElement.classList.add("tooeen-toolbar");
-        this.position = _options.position;
-        this.visible = true;
     }
     dispose(onlyChildren = false) {
         this.children.forEach(button => button.dispose());
@@ -8909,44 +8989,6 @@ class Toolbar extends Component {
 }
 
 class Button extends Component {
-    get active() {
-        return this._active;
-    }
-    set active(active) {
-        this.domElement.setAttribute("data-active", String(active));
-        this._active = active;
-    }
-    set visible(visible) {
-        this._visible = visible;
-    } // Not implemented yet.
-    get visible() {
-        return this._visible;
-    }
-    set enabled(enabled) {
-        this.domElement.disabled = !enabled;
-        this._enabled = enabled;
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set onclick(listener) {
-        this.domElement.onclick = (e) => {
-            e.stopImmediatePropagation();
-            listener(e);
-            if (this._closeOnClick) {
-                this.components.ui.closeMenus();
-                this.components.ui.contextMenu.visible = false;
-            }
-        };
-    }
-    set parent(toolbar) {
-        this._parent = toolbar;
-        this.menu.position = toolbar.position;
-        this.updateMenuPlacement();
-    }
-    get parent() {
-        return this._parent;
-    }
     constructor(components, options) {
         var _a, _b;
         super();
@@ -9011,6 +9053,44 @@ class Button extends Component {
         });
         // #endregion
     }
+    get active() {
+        return this._active;
+    }
+    set active(active) {
+        this.domElement.setAttribute("data-active", String(active));
+        this._active = active;
+    }
+    set visible(visible) {
+        this._visible = visible;
+    } // Not implemented yet.
+    get visible() {
+        return this._visible;
+    }
+    set enabled(enabled) {
+        this.domElement.disabled = !enabled;
+        this._enabled = enabled;
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set onclick(listener) {
+        this.domElement.onclick = (e) => {
+            e.stopImmediatePropagation();
+            listener(e);
+            if (this._closeOnClick) {
+                this.components.ui.closeMenus();
+                this.components.ui.contextMenu.visible = false;
+            }
+        };
+    }
+    set parent(toolbar) {
+        this._parent = toolbar;
+        this.menu.position = toolbar.position;
+        this.updateMenuPlacement();
+    }
+    get parent() {
+        return this._parent;
+    }
     dispose(onlyChildren = false) {
         this.menu.dispose();
         if (!onlyChildren) {
@@ -9047,30 +9127,6 @@ class Button extends Component {
 }
 
 class TreeView extends Component {
-    get expanded() {
-        return this._expanded;
-    }
-    set expanded(expanded) {
-        this._expanded = expanded;
-        if (expanded) {
-            this._childrenContainer.style.display = "block";
-        }
-        else {
-            this._childrenContainer.style.display = "none";
-        }
-    }
-    set onclick(listener) {
-        this.domElement.onclick = (e) => {
-            e.stopImmediatePropagation();
-            listener(e);
-        };
-    }
-    set onmouseover(listener) {
-        this.domElement.onmouseover = (e) => {
-            e.stopImmediatePropagation();
-            listener(e);
-        };
-    }
     constructor(components, name) {
         super();
         this.enabled = true;
@@ -9095,6 +9151,30 @@ class TreeView extends Component {
         this._childrenContainer.className = "tooeen-tree-item-container";
         this._childrenContainer.style.display = "none";
         this.domElement.append(this._childrenContainer);
+    }
+    get expanded() {
+        return this._expanded;
+    }
+    set expanded(expanded) {
+        this._expanded = expanded;
+        if (expanded) {
+            this._childrenContainer.style.display = "block";
+        }
+        else {
+            this._childrenContainer.style.display = "none";
+        }
+    }
+    set onclick(listener) {
+        this.domElement.onclick = (e) => {
+            e.stopImmediatePropagation();
+            listener(e);
+        };
+    }
+    set onmouseover(listener) {
+        this.domElement.onmouseover = (e) => {
+            e.stopImmediatePropagation();
+            listener(e);
+        };
     }
     get() {
         return this.domElement;
@@ -9152,9 +9232,6 @@ class TreeView extends Component {
  * A component that handles all UI components.
  */
 class UIManager extends Component {
-    get() {
-        return this.toolbars;
-    }
     constructor(components) {
         super();
         this.name = "UIManager";
@@ -9181,6 +9258,9 @@ class UIManager extends Component {
         this.containers.right.classList.add("vcontainer");
         this.containers.bottom.classList.add("hcontainer");
         this.containers.left.classList.add("vcontainer");
+    }
+    get() {
+        return this.toolbars;
     }
     setup() {
         this.viewerContainer = this.components.renderer.get().domElement
@@ -9267,10 +9347,6 @@ class UIManager extends Component {
 }
 
 class SimpleUIComponent extends Component {
-    get visible() { return this._visible; }
-    set visible(visible) { this._visible = visible; }
-    get enabled() { return this._enabled; }
-    set enabled(enabled) { this._enabled = enabled; }
     constructor(components, domElement) {
         super();
         this.name = "SimpleUIComponent";
@@ -9280,6 +9356,10 @@ class SimpleUIComponent extends Component {
         this.components = components;
         this.domElement = domElement;
     }
+    get visible() { return this._visible; }
+    set visible(visible) { this._visible = visible; }
+    get enabled() { return this._enabled; }
+    set enabled(enabled) { this._enabled = enabled; }
     get() {
         return this.domElement;
     }
@@ -9305,6 +9385,30 @@ class SimpleUIComponent extends Component {
  *
  */
 class Components {
+    constructor() {
+        /**
+         * All the loaded [meshes](https://threejs.org/docs/#api/en/objects/Mesh).
+         * This includes IFC models, fragments, 3D scans, etc.
+         */
+        this.meshes = [];
+        this._enabled = true;
+        this.update = () => {
+            if (!this._enabled)
+                return;
+            const delta = this._clock.getDelta();
+            Components.update(this.scene, delta);
+            Components.update(this.renderer, delta);
+            Components.update(this.camera, delta);
+            this.tools.update(delta);
+            const renderer = this.renderer.get();
+            // Works the same as requestAnimationFrame, but let us use WebXR.
+            renderer.setAnimationLoop(this.update);
+        };
+        this._clock = new THREE$1.Clock();
+        this.tools = new ToolComponent();
+        this.ui = new UIManager(this);
+        Components.setupBVH();
+    }
     /**
      * The [Three.js renderer](https://threejs.org/docs/#api/en/renderers/WebGLRenderer)
      * used to render the scene. This library provides multiple renderer
@@ -9370,30 +9474,6 @@ class Components {
      */
     set raycaster(raycaster) {
         this._raycaster = raycaster;
-    }
-    constructor() {
-        /**
-         * All the loaded [meshes](https://threejs.org/docs/#api/en/objects/Mesh).
-         * This includes IFC models, fragments, 3D scans, etc.
-         */
-        this.meshes = [];
-        this._enabled = true;
-        this.update = () => {
-            if (!this._enabled)
-                return;
-            const delta = this._clock.getDelta();
-            Components.update(this.scene, delta);
-            Components.update(this.renderer, delta);
-            Components.update(this.camera, delta);
-            this.tools.update(delta);
-            const renderer = this.renderer.get();
-            // Works the same as requestAnimationFrame, but let us use WebXR.
-            renderer.setAnimationLoop(this.update);
-        };
-        this._clock = new THREE$1.Clock();
-        this.tools = new ToolComponent();
-        this.ui = new UIManager(this);
-        Components.setupBVH();
     }
     /**
      * Initializes the library. It should be called at the start of the app after
@@ -10957,46 +11037,6 @@ TransformControlsPlane.prototype.isTransformControlsPlane = true;
  * Each of the planes created by {@link SimpleClipper}.
  */
 class SimplePlane extends Component {
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        this._enabled = state;
-        this._components.renderer.togglePlane(state, this._plane);
-    }
-    /** {@link Hideable.visible } */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible } */
-    set visible(state) {
-        this._visible = state;
-        this._controls.visible = state;
-        this._helper.visible = state;
-        this.toggleControls(state);
-    }
-    /** The meshes used for raycasting */
-    get meshes() {
-        return [this._planeMesh, this._arrowBoundBox];
-    }
-    /** The material of the clipping plane representation. */
-    get planeMaterial() {
-        return this._planeMesh.material;
-    }
-    /** The material of the clipping plane representation. */
-    set planeMaterial(material) {
-        this._planeMesh.material = material;
-    }
-    /** The size of the clipping plane representation. */
-    get size() {
-        return this._planeMesh.scale.x;
-    }
-    /** Sets the size of the clipping plane representation. */
-    set size(size) {
-        this._planeMesh.scale.set(size, size, size);
-    }
     constructor(components, origin, normal, material, size = 5) {
         super();
         /** {@link Component.name} */
@@ -11040,6 +11080,46 @@ class SimplePlane extends Component {
         this._controls = this.newTransformControls();
         this._plane.setFromNormalAndCoplanarPoint(normal, origin);
         this.toggleControls(true);
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this._components.renderer.togglePlane(state, this._plane);
+    }
+    /** {@link Hideable.visible } */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible } */
+    set visible(state) {
+        this._visible = state;
+        this._controls.visible = state;
+        this._helper.visible = state;
+        this.toggleControls(state);
+    }
+    /** The meshes used for raycasting */
+    get meshes() {
+        return [this._planeMesh, this._arrowBoundBox];
+    }
+    /** The material of the clipping plane representation. */
+    get planeMaterial() {
+        return this._planeMesh.material;
+    }
+    /** The material of the clipping plane representation. */
+    set planeMaterial(material) {
+        this._planeMesh.material = material;
+    }
+    /** The size of the clipping plane representation. */
+    get size() {
+        return this._planeMesh.scale.x;
+    }
+    /** Sets the size of the clipping plane representation. */
+    set size(size) {
+        this._planeMesh.scale.set(size, size, size);
     }
     /** {@link Component.get} */
     get() {
@@ -11130,51 +11210,6 @@ class SimplePlane extends Component {
  * E.g. {@link SimplePlane}.
  */
 class SimpleClipper extends Component {
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        this._enabled = state;
-        for (const plane of this._planes) {
-            plane.enabled = state;
-        }
-        this.updateMaterials();
-    }
-    /** {@link Hideable.visible } */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible } */
-    set visible(state) {
-        this._visible = state;
-        for (const plane of this._planes) {
-            plane.visible = state;
-        }
-    }
-    /** The material of the clipping plane representation. */
-    get material() {
-        return this._material;
-    }
-    /** The material of the clipping plane representation. */
-    set material(material) {
-        this._material = material;
-        for (const plane of this._planes) {
-            plane.planeMaterial = material;
-        }
-    }
-    /** The size of the geometric representation of the clippings planes. */
-    get size() {
-        return this._size;
-    }
-    /** The size of the geometric representation of the clippings planes. */
-    set size(size) {
-        this._size = size;
-        for (const plane of this._planes) {
-            plane.size = size;
-        }
-    }
     constructor(components, PlaneType) {
         super();
         this.components = components;
@@ -11219,6 +11254,51 @@ class SimpleClipper extends Component {
         this._onEndDragging = () => {
             this.afterDrag.trigger();
         };
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        for (const plane of this._planes) {
+            plane.enabled = state;
+        }
+        this.updateMaterials();
+    }
+    /** {@link Hideable.visible } */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible } */
+    set visible(state) {
+        this._visible = state;
+        for (const plane of this._planes) {
+            plane.visible = state;
+        }
+    }
+    /** The material of the clipping plane representation. */
+    get material() {
+        return this._material;
+    }
+    /** The material of the clipping plane representation. */
+    set material(material) {
+        this._material = material;
+        for (const plane of this._planes) {
+            plane.planeMaterial = material;
+        }
+    }
+    /** The size of the geometric representation of the clippings planes. */
+    get size() {
+        return this._size;
+    }
+    /** The size of the geometric representation of the clippings planes. */
+    set size(size) {
+        this._size = size;
+        for (const plane of this._planes) {
+            plane.size = size;
+        }
     }
     /** {@link Component.get} */
     get() {
@@ -11361,6 +11441,7 @@ class SimpleClipper extends Component {
 }
 
 // TODO: Clean up and document
+// TODO: Work at the instance level instead of the mesh level
 class ScreenCuller extends Component {
     constructor(components, updateInterval = 1000, rtWidth = 512, rtHeight = 512, autoUpdate = true) {
         super();
@@ -11585,6 +11666,5594 @@ class ScreenCuller extends Component {
             b: this._colors.b,
             code: `${this._colors.r}-${this._colors.g}-${this._colors.b}`,
         };
+    }
+}
+
+/** The name of the CSS class that styles the dimension label. */
+const DimensionLabelClassName = "ifcjs-dimension-label";
+/** The name of the CSS class that styles the dimension label. */
+const DimensionPreviewClassName = "ifcjs-dimension-preview";
+
+// TODO: Document + clean up this: way less parameters, clearer logic
+class SimpleDimensionLine {
+    constructor(components, data) {
+        this.boundingBox = new THREE$1.Mesh();
+        this._disposer = new Disposer();
+        this._root = new THREE$1.Group();
+        this._endpoints = [];
+        this._components = components;
+        this.start = data.start;
+        this.end = data.end;
+        this._length = this.getLength();
+        this.center = this.getCenter();
+        this._line = this.createLine(data);
+        this.newEndpointMesh(data);
+        this.newEndpointMesh(data);
+        this.label = this.newText();
+        this._root.renderOrder = 2;
+        this._components.scene.get().add(this._root);
+    }
+    set visible(visible) {
+        if (visible) {
+            this._components.scene.get().add(this._root);
+            this._root.add(this.label);
+        }
+        else {
+            this._root.removeFromParent();
+            this.label.removeFromParent();
+        }
+    }
+    set geometry(geometry) {
+        for (const point of this._endpoints) {
+            point.geometry = geometry;
+        }
+    }
+    set endPoint(point) {
+        this.end = point;
+        this.updateEndpointPosition(point);
+        this.updateEndpointMeshes(point);
+        this.updateLabel();
+    }
+    dispose() {
+        this.visible = false;
+        this._disposer.dispose(this._root);
+        this._disposer.dispose(this._line);
+        for (const mesh of this._endpoints) {
+            mesh.removeFromParent();
+        }
+        this._endpoints.length = 0;
+        this.label.removeFromParent();
+        this.label.element.remove();
+        if (this.boundingBox) {
+            this._disposer.dispose(this.boundingBox);
+        }
+    }
+    createBoundingBox() {
+        this.boundingBox.geometry = new THREE$1.BoxGeometry(1, 1, this._length);
+        this.boundingBox.position.copy(this.center);
+        this.boundingBox.lookAt(this.end);
+        this.boundingBox.visible = false;
+        this._root.add(this.boundingBox);
+    }
+    updateLabel() {
+        this._length = this.getLength();
+        this.label.element.textContent = this.getTextContent();
+        this.center = this.getCenter();
+        this.label.position.set(this.center.x, this.center.y, this.center.z);
+        this._line.computeLineDistances();
+    }
+    updateEndpointMeshes(point) {
+        this._endpoints[1].position.copy(point);
+        this._endpoints[1].lookAt(this.start);
+        this._endpoints[0].lookAt(this.end);
+    }
+    updateEndpointPosition(point) {
+        const position = this._line.geometry.attributes.position;
+        position.setXYZ(1, point.x, point.y, point.z);
+        position.needsUpdate = true;
+    }
+    createLine(data) {
+        const axisGeom = new THREE$1.BufferGeometry();
+        axisGeom.setFromPoints([data.start, data.end]);
+        const line = new THREE$1.Line(axisGeom, data.lineMaterial);
+        this._root.add(line);
+        return line;
+    }
+    newEndpointMesh(data) {
+        const isFirst = this._endpoints.length === 0;
+        const position = isFirst ? this.start : this.end;
+        const direction = isFirst ? this.end : this.start;
+        const mesh = data.endpoint.clone();
+        mesh.position.copy(position);
+        mesh.lookAt(direction);
+        this._endpoints.push(mesh);
+        this._root.add(mesh);
+    }
+    newText() {
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        htmlText.textContent = this.getTextContent();
+        const label = new CSS2DObject(htmlText);
+        label.position.set(this.center.x, this.center.y, this.center.z);
+        this._root.add(label);
+        return label;
+    }
+    getTextContent() {
+        return `${this._length / SimpleDimensionLine.scale} ${SimpleDimensionLine.units}`;
+    }
+    getLength() {
+        return parseFloat(this.start.distanceTo(this.end).toFixed(2));
+    }
+    getCenter() {
+        let dir = this.end.clone().sub(this.start);
+        const len = dir.length() * 0.5;
+        dir = dir.normalize().multiplyScalar(len);
+        return this.start.clone().add(dir);
+    }
+}
+SimpleDimensionLine.scale = 1;
+SimpleDimensionLine.units = "m";
+
+/**
+ * A basic dimension tool to measure distances between 2 points in 3D and
+ * display a 3D symbol displaying the numeric value.
+ */
+class SimpleDimensions extends Component {
+    constructor(components) {
+        super();
+        this.components = components;
+        /** {@link Component.name} */
+        this.name = "SimpleDimensions";
+        /** {@link Updateable.beforeUpdate} */
+        this.beforeUpdate = new Event();
+        /** {@link Updateable.afterUpdate} */
+        this.afterUpdate = new Event();
+        /** {@link Createable.afterCreate} */
+        this.afterCreate = new Event();
+        /** {@link Createable.beforeCreate} */
+        this.beforeCreate = new Event();
+        /** {@link Createable.afterDelete} */
+        this.afterDelete = new Event();
+        /** {@link Createable.beforeDelete} */
+        this.beforeDelete = new Event();
+        /** {@link Createable.onCreate} */
+        this.onCreate = new Event();
+        /** {@link Createable.onDelete} */
+        this.onDelete = new Event();
+        /** The minimum distance to force the dimension cursor to a vertex. */
+        this.snapDistance = 0.25;
+        this._lineMaterial = new THREE$1.LineDashedMaterial({
+            color: 0x000000,
+            linewidth: 2,
+            depthTest: false,
+            dashSize: 0.2,
+            gapSize: 0.2,
+        });
+        this._dimensions = [];
+        this._visible = true;
+        this._enabled = false;
+        this._disposer = new Disposer();
+        /** Temporary variables for internal operations */
+        this._temp = {
+            isDragging: false,
+            start: new THREE$1.Vector3(),
+            end: new THREE$1.Vector3(),
+            dimension: undefined,
+        };
+        this._raycaster = new SimpleRaycaster(this.components);
+        this._endpointMesh = this.newEndpointMesh();
+        const htmlPreview = document.createElement("div");
+        htmlPreview.className = DimensionPreviewClassName;
+        this.previewElement = new CSS2DObject(htmlPreview);
+        this.previewElement.visible = false;
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this.previewVisible = state;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(state) {
+        this._visible = state;
+        if (!this._visible) {
+            this.enabled = false;
+        }
+        for (const dimension of this._dimensions) {
+            dimension.visible = this._visible;
+        }
+    }
+    /**
+     * The [Color](https://threejs.org/docs/#api/en/math/Color)
+     * of the geometry of the dimensions.
+     */
+    set color(color) {
+        this._endpointMesh.material.color = color;
+        this._lineMaterial.color = color;
+    }
+    /** The geometry used in both endpoints of all the dimensions. */
+    get geometry() {
+        return this._endpointMesh.geometry;
+    }
+    /** The geometry used in both endpoints of all the dimensions. */
+    set geometry(geometry) {
+        this._endpointMesh.geometry = geometry;
+        for (const dim of this._dimensions) {
+            dim.geometry = geometry;
+        }
+    }
+    set previewVisible(state) {
+        var _a;
+        const scene = (_a = this.components.scene) === null || _a === void 0 ? void 0 : _a.get();
+        if (state) {
+            scene.add(this.previewElement);
+        }
+        else {
+            this.previewElement.removeFromParent();
+        }
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._dimensions;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        this.enabled = false;
+        this._dimensions.forEach((dim) => dim.dispose());
+        this._dimensions = [];
+        this._disposer.dispose(this._endpointMesh);
+        this._endpointMesh.removeFromParent();
+        this.previewElement.removeFromParent();
+        this.previewElement.element.remove();
+    }
+    /** {@link Updateable.update} */
+    update(_delta) {
+        if (this._enabled) {
+            this.beforeUpdate.trigger(this);
+            const intersects = this._raycaster.castRay();
+            this.previewElement.visible = !!intersects;
+            if (!intersects)
+                return;
+            this.previewElement.visible = true;
+            const closest = this.getClosestVertex(intersects);
+            this.previewElement.visible = !!closest;
+            if (!closest)
+                return;
+            this.previewElement.position.set(closest.x, closest.y, closest.z);
+            if (this._temp.isDragging) {
+                this.drawInProcess();
+            }
+            this.afterUpdate.trigger(this);
+        }
+    }
+    /**
+     * Starts or finishes drawing a new dimension line.
+     *
+     * @param plane - forces the dimension to be drawn on a plane. Use this if you are drawing
+     * dimensions in floor plan navigation.
+     */
+    create(plane) {
+        if (!this._enabled)
+            return;
+        if (!this._temp.isDragging) {
+            this.drawStart(plane);
+            return;
+        }
+        this.drawEnd();
+    }
+    /** Deletes the dimension that the user is hovering over with the mouse or touch event. */
+    delete() {
+        if (!this._enabled || this._dimensions.length === 0)
+            return;
+        const boundingBoxes = this.getBoundingBoxes();
+        const intersect = this._raycaster.castRay(boundingBoxes);
+        if (!intersect)
+            return;
+        const dimension = this._dimensions.find((dim) => dim.boundingBox === intersect.object);
+        if (dimension) {
+            const index = this._dimensions.indexOf(dimension);
+            this._dimensions.splice(index, 1);
+            dimension.dispose();
+            this.onDelete.trigger(dimension);
+        }
+    }
+    /** Deletes all the dimensions that have been previously created. */
+    deleteAll() {
+        this._dimensions.forEach((dim) => {
+            dim.dispose();
+            this.onDelete.trigger(dim);
+        });
+        this._dimensions = [];
+    }
+    /** Cancels the drawing of the current dimension. */
+    cancelDrawing() {
+        var _a;
+        if (!this._temp.dimension)
+            return;
+        this._temp.isDragging = false;
+        (_a = this._temp.dimension) === null || _a === void 0 ? void 0 : _a.dispose();
+        this._temp.dimension = undefined;
+    }
+    drawStart(plane) {
+        const items = plane ? [plane] : undefined;
+        const intersects = this._raycaster.castRay(items);
+        if (!intersects)
+            return;
+        this._temp.isDragging = true;
+        this._temp.start = plane
+            ? intersects.point
+            : this.getClosestVertex(intersects);
+    }
+    drawInProcess() {
+        const intersects = this._raycaster.castRay();
+        if (!intersects)
+            return;
+        const found = this.getClosestVertex(intersects);
+        if (!found)
+            return;
+        this._temp.end = found;
+        if (!this._temp.dimension) {
+            this._temp.dimension = this.drawDimension();
+        }
+        this._temp.dimension.endPoint = this._temp.end;
+    }
+    drawEnd() {
+        if (!this._temp.dimension)
+            return;
+        this._temp.dimension.createBoundingBox();
+        this._dimensions.push(this._temp.dimension);
+        this._temp.dimension = undefined;
+        this._temp.isDragging = false;
+        this.onCreate.trigger(this._temp.dimension);
+    }
+    newEndpointMesh() {
+        const geometry = SimpleDimensions.getDefaultEndpointGeometry();
+        const material = new THREE$1.MeshBasicMaterial({
+            color: 0x000000,
+            depthTest: false,
+        });
+        return new THREE$1.Mesh(geometry, material);
+    }
+    drawDimension() {
+        return new SimpleDimensionLine(this.components, {
+            start: this._temp.start,
+            end: this._temp.end,
+            lineMaterial: this._lineMaterial,
+            endpoint: this._endpointMesh,
+        });
+    }
+    getBoundingBoxes() {
+        return this._dimensions
+            .map((dim) => dim.boundingBox)
+            .filter((box) => box !== undefined);
+    }
+    static getDefaultEndpointGeometry(height = 0.4, radius = 0.1) {
+        const coneGeometry = new THREE$1.ConeGeometry(radius, height);
+        coneGeometry.translate(0, -height / 2, 0);
+        coneGeometry.rotateX(-Math.PI / 2);
+        return coneGeometry;
+    }
+    getClosestVertex(intersects) {
+        let closestVertex = new THREE$1.Vector3();
+        let vertexFound = false;
+        let closestDistance = Number.MAX_SAFE_INTEGER;
+        const vertices = SimpleDimensions.getVertices(intersects);
+        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
+            if (!vertex)
+                return;
+            const distance = intersects.point.distanceTo(vertex);
+            if (distance > closestDistance || distance > this.snapDistance)
+                return;
+            vertexFound = true;
+            closestVertex = vertex;
+            closestDistance = intersects.point.distanceTo(vertex);
+        });
+        return vertexFound ? closestVertex : intersects.point;
+    }
+    static getVertices(intersects) {
+        const mesh = intersects.object;
+        if (!intersects.face || !mesh)
+            return null;
+        const geom = mesh.geometry;
+        return [
+            SimpleDimensions.getVertex(intersects.face.a, geom),
+            SimpleDimensions.getVertex(intersects.face.b, geom),
+            SimpleDimensions.getVertex(intersects.face.c, geom),
+        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
+    }
+    static getVertex(index, geom) {
+        if (index === undefined)
+            return null;
+        const vertices = geom.attributes.position;
+        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
+    }
+}
+
+/*
+ * Dexie.js - a minimalistic wrapper for IndexedDB
+ * ===============================================
+ *
+ * By David Fahlander, david.fahlander@gmail.com
+ *
+ * Version 3.2.3, Mon Jan 23 2023
+ *
+ * https://dexie.org
+ *
+ * Apache License Version 2.0, January 2004, http://www.apache.org/licenses/
+ */
+ 
+const _global = typeof globalThis !== 'undefined' ? globalThis :
+    typeof self !== 'undefined' ? self :
+        typeof window !== 'undefined' ? window :
+            global;
+
+const keys = Object.keys;
+const isArray = Array.isArray;
+if (typeof Promise !== 'undefined' && !_global.Promise) {
+    _global.Promise = Promise;
+}
+function extend(obj, extension) {
+    if (typeof extension !== 'object')
+        return obj;
+    keys(extension).forEach(function (key) {
+        obj[key] = extension[key];
+    });
+    return obj;
+}
+const getProto = Object.getPrototypeOf;
+const _hasOwn = {}.hasOwnProperty;
+function hasOwn(obj, prop) {
+    return _hasOwn.call(obj, prop);
+}
+function props(proto, extension) {
+    if (typeof extension === 'function')
+        extension = extension(getProto(proto));
+    (typeof Reflect === "undefined" ? keys : Reflect.ownKeys)(extension).forEach(key => {
+        setProp(proto, key, extension[key]);
+    });
+}
+const defineProperty = Object.defineProperty;
+function setProp(obj, prop, functionOrGetSet, options) {
+    defineProperty(obj, prop, extend(functionOrGetSet && hasOwn(functionOrGetSet, "get") && typeof functionOrGetSet.get === 'function' ?
+        { get: functionOrGetSet.get, set: functionOrGetSet.set, configurable: true } :
+        { value: functionOrGetSet, configurable: true, writable: true }, options));
+}
+function derive(Child) {
+    return {
+        from: function (Parent) {
+            Child.prototype = Object.create(Parent.prototype);
+            setProp(Child.prototype, "constructor", Child);
+            return {
+                extend: props.bind(null, Child.prototype)
+            };
+        }
+    };
+}
+const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+function getPropertyDescriptor(obj, prop) {
+    const pd = getOwnPropertyDescriptor(obj, prop);
+    let proto;
+    return pd || (proto = getProto(obj)) && getPropertyDescriptor(proto, prop);
+}
+const _slice = [].slice;
+function slice(args, start, end) {
+    return _slice.call(args, start, end);
+}
+function override(origFunc, overridedFactory) {
+    return overridedFactory(origFunc);
+}
+function assert(b) {
+    if (!b)
+        throw new Error("Assertion Failed");
+}
+function asap$1(fn) {
+    if (_global.setImmediate)
+        setImmediate(fn);
+    else
+        setTimeout(fn, 0);
+}
+function arrayToObject(array, extractor) {
+    return array.reduce((result, item, i) => {
+        var nameAndValue = extractor(item, i);
+        if (nameAndValue)
+            result[nameAndValue[0]] = nameAndValue[1];
+        return result;
+    }, {});
+}
+function tryCatch(fn, onerror, args) {
+    try {
+        fn.apply(null, args);
+    }
+    catch (ex) {
+        onerror && onerror(ex);
+    }
+}
+function getByKeyPath(obj, keyPath) {
+    if (hasOwn(obj, keyPath))
+        return obj[keyPath];
+    if (!keyPath)
+        return obj;
+    if (typeof keyPath !== 'string') {
+        var rv = [];
+        for (var i = 0, l = keyPath.length; i < l; ++i) {
+            var val = getByKeyPath(obj, keyPath[i]);
+            rv.push(val);
+        }
+        return rv;
+    }
+    var period = keyPath.indexOf('.');
+    if (period !== -1) {
+        var innerObj = obj[keyPath.substr(0, period)];
+        return innerObj === undefined ? undefined : getByKeyPath(innerObj, keyPath.substr(period + 1));
+    }
+    return undefined;
+}
+function setByKeyPath(obj, keyPath, value) {
+    if (!obj || keyPath === undefined)
+        return;
+    if ('isFrozen' in Object && Object.isFrozen(obj))
+        return;
+    if (typeof keyPath !== 'string' && 'length' in keyPath) {
+        assert(typeof value !== 'string' && 'length' in value);
+        for (var i = 0, l = keyPath.length; i < l; ++i) {
+            setByKeyPath(obj, keyPath[i], value[i]);
+        }
+    }
+    else {
+        var period = keyPath.indexOf('.');
+        if (period !== -1) {
+            var currentKeyPath = keyPath.substr(0, period);
+            var remainingKeyPath = keyPath.substr(period + 1);
+            if (remainingKeyPath === "")
+                if (value === undefined) {
+                    if (isArray(obj) && !isNaN(parseInt(currentKeyPath)))
+                        obj.splice(currentKeyPath, 1);
+                    else
+                        delete obj[currentKeyPath];
+                }
+                else
+                    obj[currentKeyPath] = value;
+            else {
+                var innerObj = obj[currentKeyPath];
+                if (!innerObj || !hasOwn(obj, currentKeyPath))
+                    innerObj = (obj[currentKeyPath] = {});
+                setByKeyPath(innerObj, remainingKeyPath, value);
+            }
+        }
+        else {
+            if (value === undefined) {
+                if (isArray(obj) && !isNaN(parseInt(keyPath)))
+                    obj.splice(keyPath, 1);
+                else
+                    delete obj[keyPath];
+            }
+            else
+                obj[keyPath] = value;
+        }
+    }
+}
+function delByKeyPath(obj, keyPath) {
+    if (typeof keyPath === 'string')
+        setByKeyPath(obj, keyPath, undefined);
+    else if ('length' in keyPath)
+        [].map.call(keyPath, function (kp) {
+            setByKeyPath(obj, kp, undefined);
+        });
+}
+function shallowClone(obj) {
+    var rv = {};
+    for (var m in obj) {
+        if (hasOwn(obj, m))
+            rv[m] = obj[m];
+    }
+    return rv;
+}
+const concat = [].concat;
+function flatten(a) {
+    return concat.apply([], a);
+}
+const intrinsicTypeNames = "Boolean,String,Date,RegExp,Blob,File,FileList,FileSystemFileHandle,ArrayBuffer,DataView,Uint8ClampedArray,ImageBitmap,ImageData,Map,Set,CryptoKey"
+    .split(',').concat(flatten([8, 16, 32, 64].map(num => ["Int", "Uint", "Float"].map(t => t + num + "Array")))).filter(t => _global[t]);
+const intrinsicTypes = intrinsicTypeNames.map(t => _global[t]);
+arrayToObject(intrinsicTypeNames, x => [x, true]);
+let circularRefs = null;
+function deepClone(any) {
+    circularRefs = typeof WeakMap !== 'undefined' && new WeakMap();
+    const rv = innerDeepClone(any);
+    circularRefs = null;
+    return rv;
+}
+function innerDeepClone(any) {
+    if (!any || typeof any !== 'object')
+        return any;
+    let rv = circularRefs && circularRefs.get(any);
+    if (rv)
+        return rv;
+    if (isArray(any)) {
+        rv = [];
+        circularRefs && circularRefs.set(any, rv);
+        for (var i = 0, l = any.length; i < l; ++i) {
+            rv.push(innerDeepClone(any[i]));
+        }
+    }
+    else if (intrinsicTypes.indexOf(any.constructor) >= 0) {
+        rv = any;
+    }
+    else {
+        const proto = getProto(any);
+        rv = proto === Object.prototype ? {} : Object.create(proto);
+        circularRefs && circularRefs.set(any, rv);
+        for (var prop in any) {
+            if (hasOwn(any, prop)) {
+                rv[prop] = innerDeepClone(any[prop]);
+            }
+        }
+    }
+    return rv;
+}
+const { toString } = {};
+function toStringTag(o) {
+    return toString.call(o).slice(8, -1);
+}
+const iteratorSymbol = typeof Symbol !== 'undefined' ?
+    Symbol.iterator :
+    '@@iterator';
+const getIteratorOf = typeof iteratorSymbol === "symbol" ? function (x) {
+    var i;
+    return x != null && (i = x[iteratorSymbol]) && i.apply(x);
+} : function () { return null; };
+const NO_CHAR_ARRAY = {};
+function getArrayOf(arrayLike) {
+    var i, a, x, it;
+    if (arguments.length === 1) {
+        if (isArray(arrayLike))
+            return arrayLike.slice();
+        if (this === NO_CHAR_ARRAY && typeof arrayLike === 'string')
+            return [arrayLike];
+        if ((it = getIteratorOf(arrayLike))) {
+            a = [];
+            while ((x = it.next()), !x.done)
+                a.push(x.value);
+            return a;
+        }
+        if (arrayLike == null)
+            return [arrayLike];
+        i = arrayLike.length;
+        if (typeof i === 'number') {
+            a = new Array(i);
+            while (i--)
+                a[i] = arrayLike[i];
+            return a;
+        }
+        return [arrayLike];
+    }
+    i = arguments.length;
+    a = new Array(i);
+    while (i--)
+        a[i] = arguments[i];
+    return a;
+}
+const isAsyncFunction = typeof Symbol !== 'undefined'
+    ? (fn) => fn[Symbol.toStringTag] === 'AsyncFunction'
+    : () => false;
+
+var debug = typeof location !== 'undefined' &&
+    /^(http|https):\/\/(localhost|127\.0\.0\.1)/.test(location.href);
+function setDebug(value, filter) {
+    debug = value;
+    libraryFilter = filter;
+}
+var libraryFilter = () => true;
+const NEEDS_THROW_FOR_STACK = !new Error("").stack;
+function getErrorWithStack() {
+    if (NEEDS_THROW_FOR_STACK)
+        try {
+            getErrorWithStack.arguments;
+            throw new Error();
+        }
+        catch (e) {
+            return e;
+        }
+    return new Error();
+}
+function prettyStack(exception, numIgnoredFrames) {
+    var stack = exception.stack;
+    if (!stack)
+        return "";
+    numIgnoredFrames = (numIgnoredFrames || 0);
+    if (stack.indexOf(exception.name) === 0)
+        numIgnoredFrames += (exception.name + exception.message).split('\n').length;
+    return stack.split('\n')
+        .slice(numIgnoredFrames)
+        .filter(libraryFilter)
+        .map(frame => "\n" + frame)
+        .join('');
+}
+
+var dexieErrorNames = [
+    'Modify',
+    'Bulk',
+    'OpenFailed',
+    'VersionChange',
+    'Schema',
+    'Upgrade',
+    'InvalidTable',
+    'MissingAPI',
+    'NoSuchDatabase',
+    'InvalidArgument',
+    'SubTransaction',
+    'Unsupported',
+    'Internal',
+    'DatabaseClosed',
+    'PrematureCommit',
+    'ForeignAwait'
+];
+var idbDomErrorNames = [
+    'Unknown',
+    'Constraint',
+    'Data',
+    'TransactionInactive',
+    'ReadOnly',
+    'Version',
+    'NotFound',
+    'InvalidState',
+    'InvalidAccess',
+    'Abort',
+    'Timeout',
+    'QuotaExceeded',
+    'Syntax',
+    'DataClone'
+];
+var errorList = dexieErrorNames.concat(idbDomErrorNames);
+var defaultTexts = {
+    VersionChanged: "Database version changed by other database connection",
+    DatabaseClosed: "Database has been closed",
+    Abort: "Transaction aborted",
+    TransactionInactive: "Transaction has already completed or failed",
+    MissingAPI: "IndexedDB API missing. Please visit https://tinyurl.com/y2uuvskb"
+};
+function DexieError(name, msg) {
+    this._e = getErrorWithStack();
+    this.name = name;
+    this.message = msg;
+}
+derive(DexieError).from(Error).extend({
+    stack: {
+        get: function () {
+            return this._stack ||
+                (this._stack = this.name + ": " + this.message + prettyStack(this._e, 2));
+        }
+    },
+    toString: function () { return this.name + ": " + this.message; }
+});
+function getMultiErrorMessage(msg, failures) {
+    return msg + ". Errors: " + Object.keys(failures)
+        .map(key => failures[key].toString())
+        .filter((v, i, s) => s.indexOf(v) === i)
+        .join('\n');
+}
+function ModifyError(msg, failures, successCount, failedKeys) {
+    this._e = getErrorWithStack();
+    this.failures = failures;
+    this.failedKeys = failedKeys;
+    this.successCount = successCount;
+    this.message = getMultiErrorMessage(msg, failures);
+}
+derive(ModifyError).from(DexieError);
+function BulkError(msg, failures) {
+    this._e = getErrorWithStack();
+    this.name = "BulkError";
+    this.failures = Object.keys(failures).map(pos => failures[pos]);
+    this.failuresByPos = failures;
+    this.message = getMultiErrorMessage(msg, failures);
+}
+derive(BulkError).from(DexieError);
+var errnames = errorList.reduce((obj, name) => (obj[name] = name + "Error", obj), {});
+const BaseException = DexieError;
+var exceptions = errorList.reduce((obj, name) => {
+    var fullName = name + "Error";
+    function DexieError(msgOrInner, inner) {
+        this._e = getErrorWithStack();
+        this.name = fullName;
+        if (!msgOrInner) {
+            this.message = defaultTexts[name] || fullName;
+            this.inner = null;
+        }
+        else if (typeof msgOrInner === 'string') {
+            this.message = `${msgOrInner}${!inner ? '' : '\n ' + inner}`;
+            this.inner = inner || null;
+        }
+        else if (typeof msgOrInner === 'object') {
+            this.message = `${msgOrInner.name} ${msgOrInner.message}`;
+            this.inner = msgOrInner;
+        }
+    }
+    derive(DexieError).from(BaseException);
+    obj[name] = DexieError;
+    return obj;
+}, {});
+exceptions.Syntax = SyntaxError;
+exceptions.Type = TypeError;
+exceptions.Range = RangeError;
+var exceptionMap = idbDomErrorNames.reduce((obj, name) => {
+    obj[name + "Error"] = exceptions[name];
+    return obj;
+}, {});
+function mapError(domError, message) {
+    if (!domError || domError instanceof DexieError || domError instanceof TypeError || domError instanceof SyntaxError || !domError.name || !exceptionMap[domError.name])
+        return domError;
+    var rv = new exceptionMap[domError.name](message || domError.message, domError);
+    if ("stack" in domError) {
+        setProp(rv, "stack", { get: function () {
+                return this.inner.stack;
+            } });
+    }
+    return rv;
+}
+var fullNameExceptions = errorList.reduce((obj, name) => {
+    if (["Syntax", "Type", "Range"].indexOf(name) === -1)
+        obj[name + "Error"] = exceptions[name];
+    return obj;
+}, {});
+fullNameExceptions.ModifyError = ModifyError;
+fullNameExceptions.DexieError = DexieError;
+fullNameExceptions.BulkError = BulkError;
+
+function nop() { }
+function mirror(val) { return val; }
+function pureFunctionChain(f1, f2) {
+    if (f1 == null || f1 === mirror)
+        return f2;
+    return function (val) {
+        return f2(f1(val));
+    };
+}
+function callBoth(on1, on2) {
+    return function () {
+        on1.apply(this, arguments);
+        on2.apply(this, arguments);
+    };
+}
+function hookCreatingChain(f1, f2) {
+    if (f1 === nop)
+        return f2;
+    return function () {
+        var res = f1.apply(this, arguments);
+        if (res !== undefined)
+            arguments[0] = res;
+        var onsuccess = this.onsuccess,
+        onerror = this.onerror;
+        this.onsuccess = null;
+        this.onerror = null;
+        var res2 = f2.apply(this, arguments);
+        if (onsuccess)
+            this.onsuccess = this.onsuccess ? callBoth(onsuccess, this.onsuccess) : onsuccess;
+        if (onerror)
+            this.onerror = this.onerror ? callBoth(onerror, this.onerror) : onerror;
+        return res2 !== undefined ? res2 : res;
+    };
+}
+function hookDeletingChain(f1, f2) {
+    if (f1 === nop)
+        return f2;
+    return function () {
+        f1.apply(this, arguments);
+        var onsuccess = this.onsuccess,
+        onerror = this.onerror;
+        this.onsuccess = this.onerror = null;
+        f2.apply(this, arguments);
+        if (onsuccess)
+            this.onsuccess = this.onsuccess ? callBoth(onsuccess, this.onsuccess) : onsuccess;
+        if (onerror)
+            this.onerror = this.onerror ? callBoth(onerror, this.onerror) : onerror;
+    };
+}
+function hookUpdatingChain(f1, f2) {
+    if (f1 === nop)
+        return f2;
+    return function (modifications) {
+        var res = f1.apply(this, arguments);
+        extend(modifications, res);
+        var onsuccess = this.onsuccess,
+        onerror = this.onerror;
+        this.onsuccess = null;
+        this.onerror = null;
+        var res2 = f2.apply(this, arguments);
+        if (onsuccess)
+            this.onsuccess = this.onsuccess ? callBoth(onsuccess, this.onsuccess) : onsuccess;
+        if (onerror)
+            this.onerror = this.onerror ? callBoth(onerror, this.onerror) : onerror;
+        return res === undefined ?
+            (res2 === undefined ? undefined : res2) :
+            (extend(res, res2));
+    };
+}
+function reverseStoppableEventChain(f1, f2) {
+    if (f1 === nop)
+        return f2;
+    return function () {
+        if (f2.apply(this, arguments) === false)
+            return false;
+        return f1.apply(this, arguments);
+    };
+}
+function promisableChain(f1, f2) {
+    if (f1 === nop)
+        return f2;
+    return function () {
+        var res = f1.apply(this, arguments);
+        if (res && typeof res.then === 'function') {
+            var thiz = this, i = arguments.length, args = new Array(i);
+            while (i--)
+                args[i] = arguments[i];
+            return res.then(function () {
+                return f2.apply(thiz, args);
+            });
+        }
+        return f2.apply(this, arguments);
+    };
+}
+
+var INTERNAL = {};
+const LONG_STACKS_CLIP_LIMIT = 100,
+MAX_LONG_STACKS = 20, ZONE_ECHO_LIMIT = 100, [resolvedNativePromise, nativePromiseProto, resolvedGlobalPromise] = typeof Promise === 'undefined' ?
+    [] :
+    (() => {
+        let globalP = Promise.resolve();
+        if (typeof crypto === 'undefined' || !crypto.subtle)
+            return [globalP, getProto(globalP), globalP];
+        const nativeP = crypto.subtle.digest("SHA-512", new Uint8Array([0]));
+        return [
+            nativeP,
+            getProto(nativeP),
+            globalP
+        ];
+    })(), nativePromiseThen = nativePromiseProto && nativePromiseProto.then;
+const NativePromise = resolvedNativePromise && resolvedNativePromise.constructor;
+const patchGlobalPromise = !!resolvedGlobalPromise;
+var stack_being_generated = false;
+var schedulePhysicalTick = resolvedGlobalPromise ?
+    () => { resolvedGlobalPromise.then(physicalTick); }
+    :
+        _global.setImmediate ?
+            setImmediate.bind(null, physicalTick) :
+            _global.MutationObserver ?
+                () => {
+                    var hiddenDiv = document.createElement("div");
+                    (new MutationObserver(() => {
+                        physicalTick();
+                        hiddenDiv = null;
+                    })).observe(hiddenDiv, { attributes: true });
+                    hiddenDiv.setAttribute('i', '1');
+                } :
+                () => { setTimeout(physicalTick, 0); };
+var asap = function (callback, args) {
+    microtickQueue.push([callback, args]);
+    if (needsNewPhysicalTick) {
+        schedulePhysicalTick();
+        needsNewPhysicalTick = false;
+    }
+};
+var isOutsideMicroTick = true,
+needsNewPhysicalTick = true,
+unhandledErrors = [],
+rejectingErrors = [],
+currentFulfiller = null, rejectionMapper = mirror;
+var globalPSD = {
+    id: 'global',
+    global: true,
+    ref: 0,
+    unhandleds: [],
+    onunhandled: globalError,
+    pgp: false,
+    env: {},
+    finalize: function () {
+        this.unhandleds.forEach(uh => {
+            try {
+                globalError(uh[0], uh[1]);
+            }
+            catch (e) { }
+        });
+    }
+};
+var PSD = globalPSD;
+var microtickQueue = [];
+var numScheduledCalls = 0;
+var tickFinalizers = [];
+function DexiePromise(fn) {
+    if (typeof this !== 'object')
+        throw new TypeError('Promises must be constructed via new');
+    this._listeners = [];
+    this.onuncatched = nop;
+    this._lib = false;
+    var psd = (this._PSD = PSD);
+    if (debug) {
+        this._stackHolder = getErrorWithStack();
+        this._prev = null;
+        this._numPrev = 0;
+    }
+    if (typeof fn !== 'function') {
+        if (fn !== INTERNAL)
+            throw new TypeError('Not a function');
+        this._state = arguments[1];
+        this._value = arguments[2];
+        if (this._state === false)
+            handleRejection(this, this._value);
+        return;
+    }
+    this._state = null;
+    this._value = null;
+    ++psd.ref;
+    executePromiseTask(this, fn);
+}
+const thenProp = {
+    get: function () {
+        var psd = PSD, microTaskId = totalEchoes;
+        function then(onFulfilled, onRejected) {
+            var possibleAwait = !psd.global && (psd !== PSD || microTaskId !== totalEchoes);
+            const cleanup = possibleAwait && !decrementExpectedAwaits();
+            var rv = new DexiePromise((resolve, reject) => {
+                propagateToListener(this, new Listener(nativeAwaitCompatibleWrap(onFulfilled, psd, possibleAwait, cleanup), nativeAwaitCompatibleWrap(onRejected, psd, possibleAwait, cleanup), resolve, reject, psd));
+            });
+            debug && linkToPreviousPromise(rv, this);
+            return rv;
+        }
+        then.prototype = INTERNAL;
+        return then;
+    },
+    set: function (value) {
+        setProp(this, 'then', value && value.prototype === INTERNAL ?
+            thenProp :
+            {
+                get: function () {
+                    return value;
+                },
+                set: thenProp.set
+            });
+    }
+};
+props(DexiePromise.prototype, {
+    then: thenProp,
+    _then: function (onFulfilled, onRejected) {
+        propagateToListener(this, new Listener(null, null, onFulfilled, onRejected, PSD));
+    },
+    catch: function (onRejected) {
+        if (arguments.length === 1)
+            return this.then(null, onRejected);
+        var type = arguments[0], handler = arguments[1];
+        return typeof type === 'function' ? this.then(null, err =>
+        err instanceof type ? handler(err) : PromiseReject(err))
+            : this.then(null, err =>
+            err && err.name === type ? handler(err) : PromiseReject(err));
+    },
+    finally: function (onFinally) {
+        return this.then(value => {
+            onFinally();
+            return value;
+        }, err => {
+            onFinally();
+            return PromiseReject(err);
+        });
+    },
+    stack: {
+        get: function () {
+            if (this._stack)
+                return this._stack;
+            try {
+                stack_being_generated = true;
+                var stacks = getStack(this, [], MAX_LONG_STACKS);
+                var stack = stacks.join("\nFrom previous: ");
+                if (this._state !== null)
+                    this._stack = stack;
+                return stack;
+            }
+            finally {
+                stack_being_generated = false;
+            }
+        }
+    },
+    timeout: function (ms, msg) {
+        return ms < Infinity ?
+            new DexiePromise((resolve, reject) => {
+                var handle = setTimeout(() => reject(new exceptions.Timeout(msg)), ms);
+                this.then(resolve, reject).finally(clearTimeout.bind(null, handle));
+            }) : this;
+    }
+});
+if (typeof Symbol !== 'undefined' && Symbol.toStringTag)
+    setProp(DexiePromise.prototype, Symbol.toStringTag, 'Dexie.Promise');
+globalPSD.env = snapShot();
+function Listener(onFulfilled, onRejected, resolve, reject, zone) {
+    this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null;
+    this.onRejected = typeof onRejected === 'function' ? onRejected : null;
+    this.resolve = resolve;
+    this.reject = reject;
+    this.psd = zone;
+}
+props(DexiePromise, {
+    all: function () {
+        var values = getArrayOf.apply(null, arguments)
+            .map(onPossibleParallellAsync);
+        return new DexiePromise(function (resolve, reject) {
+            if (values.length === 0)
+                resolve([]);
+            var remaining = values.length;
+            values.forEach((a, i) => DexiePromise.resolve(a).then(x => {
+                values[i] = x;
+                if (!--remaining)
+                    resolve(values);
+            }, reject));
+        });
+    },
+    resolve: value => {
+        if (value instanceof DexiePromise)
+            return value;
+        if (value && typeof value.then === 'function')
+            return new DexiePromise((resolve, reject) => {
+                value.then(resolve, reject);
+            });
+        var rv = new DexiePromise(INTERNAL, true, value);
+        linkToPreviousPromise(rv, currentFulfiller);
+        return rv;
+    },
+    reject: PromiseReject,
+    race: function () {
+        var values = getArrayOf.apply(null, arguments).map(onPossibleParallellAsync);
+        return new DexiePromise((resolve, reject) => {
+            values.map(value => DexiePromise.resolve(value).then(resolve, reject));
+        });
+    },
+    PSD: {
+        get: () => PSD,
+        set: value => PSD = value
+    },
+    totalEchoes: { get: () => totalEchoes },
+    newPSD: newScope,
+    usePSD: usePSD,
+    scheduler: {
+        get: () => asap,
+        set: value => { asap = value; }
+    },
+    rejectionMapper: {
+        get: () => rejectionMapper,
+        set: value => { rejectionMapper = value; }
+    },
+    follow: (fn, zoneProps) => {
+        return new DexiePromise((resolve, reject) => {
+            return newScope((resolve, reject) => {
+                var psd = PSD;
+                psd.unhandleds = [];
+                psd.onunhandled = reject;
+                psd.finalize = callBoth(function () {
+                    run_at_end_of_this_or_next_physical_tick(() => {
+                        this.unhandleds.length === 0 ? resolve() : reject(this.unhandleds[0]);
+                    });
+                }, psd.finalize);
+                fn();
+            }, zoneProps, resolve, reject);
+        });
+    }
+});
+if (NativePromise) {
+    if (NativePromise.allSettled)
+        setProp(DexiePromise, "allSettled", function () {
+            const possiblePromises = getArrayOf.apply(null, arguments).map(onPossibleParallellAsync);
+            return new DexiePromise(resolve => {
+                if (possiblePromises.length === 0)
+                    resolve([]);
+                let remaining = possiblePromises.length;
+                const results = new Array(remaining);
+                possiblePromises.forEach((p, i) => DexiePromise.resolve(p).then(value => results[i] = { status: "fulfilled", value }, reason => results[i] = { status: "rejected", reason })
+                    .then(() => --remaining || resolve(results)));
+            });
+        });
+    if (NativePromise.any && typeof AggregateError !== 'undefined')
+        setProp(DexiePromise, "any", function () {
+            const possiblePromises = getArrayOf.apply(null, arguments).map(onPossibleParallellAsync);
+            return new DexiePromise((resolve, reject) => {
+                if (possiblePromises.length === 0)
+                    reject(new AggregateError([]));
+                let remaining = possiblePromises.length;
+                const failures = new Array(remaining);
+                possiblePromises.forEach((p, i) => DexiePromise.resolve(p).then(value => resolve(value), failure => {
+                    failures[i] = failure;
+                    if (!--remaining)
+                        reject(new AggregateError(failures));
+                }));
+            });
+        });
+}
+function executePromiseTask(promise, fn) {
+    try {
+        fn(value => {
+            if (promise._state !== null)
+                return;
+            if (value === promise)
+                throw new TypeError('A promise cannot be resolved with itself.');
+            var shouldExecuteTick = promise._lib && beginMicroTickScope();
+            if (value && typeof value.then === 'function') {
+                executePromiseTask(promise, (resolve, reject) => {
+                    value instanceof DexiePromise ?
+                        value._then(resolve, reject) :
+                        value.then(resolve, reject);
+                });
+            }
+            else {
+                promise._state = true;
+                promise._value = value;
+                propagateAllListeners(promise);
+            }
+            if (shouldExecuteTick)
+                endMicroTickScope();
+        }, handleRejection.bind(null, promise));
+    }
+    catch (ex) {
+        handleRejection(promise, ex);
+    }
+}
+function handleRejection(promise, reason) {
+    rejectingErrors.push(reason);
+    if (promise._state !== null)
+        return;
+    var shouldExecuteTick = promise._lib && beginMicroTickScope();
+    reason = rejectionMapper(reason);
+    promise._state = false;
+    promise._value = reason;
+    debug && reason !== null && typeof reason === 'object' && !reason._promise && tryCatch(() => {
+        var origProp = getPropertyDescriptor(reason, "stack");
+        reason._promise = promise;
+        setProp(reason, "stack", {
+            get: () => stack_being_generated ?
+                origProp && (origProp.get ?
+                    origProp.get.apply(reason) :
+                    origProp.value) :
+                promise.stack
+        });
+    });
+    addPossiblyUnhandledError(promise);
+    propagateAllListeners(promise);
+    if (shouldExecuteTick)
+        endMicroTickScope();
+}
+function propagateAllListeners(promise) {
+    var listeners = promise._listeners;
+    promise._listeners = [];
+    for (var i = 0, len = listeners.length; i < len; ++i) {
+        propagateToListener(promise, listeners[i]);
+    }
+    var psd = promise._PSD;
+    --psd.ref || psd.finalize();
+    if (numScheduledCalls === 0) {
+        ++numScheduledCalls;
+        asap(() => {
+            if (--numScheduledCalls === 0)
+                finalizePhysicalTick();
+        }, []);
+    }
+}
+function propagateToListener(promise, listener) {
+    if (promise._state === null) {
+        promise._listeners.push(listener);
+        return;
+    }
+    var cb = promise._state ? listener.onFulfilled : listener.onRejected;
+    if (cb === null) {
+        return (promise._state ? listener.resolve : listener.reject)(promise._value);
+    }
+    ++listener.psd.ref;
+    ++numScheduledCalls;
+    asap(callListener, [cb, promise, listener]);
+}
+function callListener(cb, promise, listener) {
+    try {
+        currentFulfiller = promise;
+        var ret, value = promise._value;
+        if (promise._state) {
+            ret = cb(value);
+        }
+        else {
+            if (rejectingErrors.length)
+                rejectingErrors = [];
+            ret = cb(value);
+            if (rejectingErrors.indexOf(value) === -1)
+                markErrorAsHandled(promise);
+        }
+        listener.resolve(ret);
+    }
+    catch (e) {
+        listener.reject(e);
+    }
+    finally {
+        currentFulfiller = null;
+        if (--numScheduledCalls === 0)
+            finalizePhysicalTick();
+        --listener.psd.ref || listener.psd.finalize();
+    }
+}
+function getStack(promise, stacks, limit) {
+    if (stacks.length === limit)
+        return stacks;
+    var stack = "";
+    if (promise._state === false) {
+        var failure = promise._value, errorName, message;
+        if (failure != null) {
+            errorName = failure.name || "Error";
+            message = failure.message || failure;
+            stack = prettyStack(failure, 0);
+        }
+        else {
+            errorName = failure;
+            message = "";
+        }
+        stacks.push(errorName + (message ? ": " + message : "") + stack);
+    }
+    if (debug) {
+        stack = prettyStack(promise._stackHolder, 2);
+        if (stack && stacks.indexOf(stack) === -1)
+            stacks.push(stack);
+        if (promise._prev)
+            getStack(promise._prev, stacks, limit);
+    }
+    return stacks;
+}
+function linkToPreviousPromise(promise, prev) {
+    var numPrev = prev ? prev._numPrev + 1 : 0;
+    if (numPrev < LONG_STACKS_CLIP_LIMIT) {
+        promise._prev = prev;
+        promise._numPrev = numPrev;
+    }
+}
+function physicalTick() {
+    beginMicroTickScope() && endMicroTickScope();
+}
+function beginMicroTickScope() {
+    var wasRootExec = isOutsideMicroTick;
+    isOutsideMicroTick = false;
+    needsNewPhysicalTick = false;
+    return wasRootExec;
+}
+function endMicroTickScope() {
+    var callbacks, i, l;
+    do {
+        while (microtickQueue.length > 0) {
+            callbacks = microtickQueue;
+            microtickQueue = [];
+            l = callbacks.length;
+            for (i = 0; i < l; ++i) {
+                var item = callbacks[i];
+                item[0].apply(null, item[1]);
+            }
+        }
+    } while (microtickQueue.length > 0);
+    isOutsideMicroTick = true;
+    needsNewPhysicalTick = true;
+}
+function finalizePhysicalTick() {
+    var unhandledErrs = unhandledErrors;
+    unhandledErrors = [];
+    unhandledErrs.forEach(p => {
+        p._PSD.onunhandled.call(null, p._value, p);
+    });
+    var finalizers = tickFinalizers.slice(0);
+    var i = finalizers.length;
+    while (i)
+        finalizers[--i]();
+}
+function run_at_end_of_this_or_next_physical_tick(fn) {
+    function finalizer() {
+        fn();
+        tickFinalizers.splice(tickFinalizers.indexOf(finalizer), 1);
+    }
+    tickFinalizers.push(finalizer);
+    ++numScheduledCalls;
+    asap(() => {
+        if (--numScheduledCalls === 0)
+            finalizePhysicalTick();
+    }, []);
+}
+function addPossiblyUnhandledError(promise) {
+    if (!unhandledErrors.some(p => p._value === promise._value))
+        unhandledErrors.push(promise);
+}
+function markErrorAsHandled(promise) {
+    var i = unhandledErrors.length;
+    while (i)
+        if (unhandledErrors[--i]._value === promise._value) {
+            unhandledErrors.splice(i, 1);
+            return;
+        }
+}
+function PromiseReject(reason) {
+    return new DexiePromise(INTERNAL, false, reason);
+}
+function wrap(fn, errorCatcher) {
+    var psd = PSD;
+    return function () {
+        var wasRootExec = beginMicroTickScope(), outerScope = PSD;
+        try {
+            switchToZone(psd, true);
+            return fn.apply(this, arguments);
+        }
+        catch (e) {
+            errorCatcher && errorCatcher(e);
+        }
+        finally {
+            switchToZone(outerScope, false);
+            if (wasRootExec)
+                endMicroTickScope();
+        }
+    };
+}
+const task = { awaits: 0, echoes: 0, id: 0 };
+var taskCounter = 0;
+var zoneStack = [];
+var zoneEchoes = 0;
+var totalEchoes = 0;
+var zone_id_counter = 0;
+function newScope(fn, props, a1, a2) {
+    var parent = PSD, psd = Object.create(parent);
+    psd.parent = parent;
+    psd.ref = 0;
+    psd.global = false;
+    psd.id = ++zone_id_counter;
+    var globalEnv = globalPSD.env;
+    psd.env = patchGlobalPromise ? {
+        Promise: DexiePromise,
+        PromiseProp: { value: DexiePromise, configurable: true, writable: true },
+        all: DexiePromise.all,
+        race: DexiePromise.race,
+        allSettled: DexiePromise.allSettled,
+        any: DexiePromise.any,
+        resolve: DexiePromise.resolve,
+        reject: DexiePromise.reject,
+        nthen: getPatchedPromiseThen(globalEnv.nthen, psd),
+        gthen: getPatchedPromiseThen(globalEnv.gthen, psd)
+    } : {};
+    if (props)
+        extend(psd, props);
+    ++parent.ref;
+    psd.finalize = function () {
+        --this.parent.ref || this.parent.finalize();
+    };
+    var rv = usePSD(psd, fn, a1, a2);
+    if (psd.ref === 0)
+        psd.finalize();
+    return rv;
+}
+function incrementExpectedAwaits() {
+    if (!task.id)
+        task.id = ++taskCounter;
+    ++task.awaits;
+    task.echoes += ZONE_ECHO_LIMIT;
+    return task.id;
+}
+function decrementExpectedAwaits() {
+    if (!task.awaits)
+        return false;
+    if (--task.awaits === 0)
+        task.id = 0;
+    task.echoes = task.awaits * ZONE_ECHO_LIMIT;
+    return true;
+}
+if (('' + nativePromiseThen).indexOf('[native code]') === -1) {
+    incrementExpectedAwaits = decrementExpectedAwaits = nop;
+}
+function onPossibleParallellAsync(possiblePromise) {
+    if (task.echoes && possiblePromise && possiblePromise.constructor === NativePromise) {
+        incrementExpectedAwaits();
+        return possiblePromise.then(x => {
+            decrementExpectedAwaits();
+            return x;
+        }, e => {
+            decrementExpectedAwaits();
+            return rejection(e);
+        });
+    }
+    return possiblePromise;
+}
+function zoneEnterEcho(targetZone) {
+    ++totalEchoes;
+    if (!task.echoes || --task.echoes === 0) {
+        task.echoes = task.id = 0;
+    }
+    zoneStack.push(PSD);
+    switchToZone(targetZone, true);
+}
+function zoneLeaveEcho() {
+    var zone = zoneStack[zoneStack.length - 1];
+    zoneStack.pop();
+    switchToZone(zone, false);
+}
+function switchToZone(targetZone, bEnteringZone) {
+    var currentZone = PSD;
+    if (bEnteringZone ? task.echoes && (!zoneEchoes++ || targetZone !== PSD) : zoneEchoes && (!--zoneEchoes || targetZone !== PSD)) {
+        enqueueNativeMicroTask(bEnteringZone ? zoneEnterEcho.bind(null, targetZone) : zoneLeaveEcho);
+    }
+    if (targetZone === PSD)
+        return;
+    PSD = targetZone;
+    if (currentZone === globalPSD)
+        globalPSD.env = snapShot();
+    if (patchGlobalPromise) {
+        var GlobalPromise = globalPSD.env.Promise;
+        var targetEnv = targetZone.env;
+        nativePromiseProto.then = targetEnv.nthen;
+        GlobalPromise.prototype.then = targetEnv.gthen;
+        if (currentZone.global || targetZone.global) {
+            Object.defineProperty(_global, 'Promise', targetEnv.PromiseProp);
+            GlobalPromise.all = targetEnv.all;
+            GlobalPromise.race = targetEnv.race;
+            GlobalPromise.resolve = targetEnv.resolve;
+            GlobalPromise.reject = targetEnv.reject;
+            if (targetEnv.allSettled)
+                GlobalPromise.allSettled = targetEnv.allSettled;
+            if (targetEnv.any)
+                GlobalPromise.any = targetEnv.any;
+        }
+    }
+}
+function snapShot() {
+    var GlobalPromise = _global.Promise;
+    return patchGlobalPromise ? {
+        Promise: GlobalPromise,
+        PromiseProp: Object.getOwnPropertyDescriptor(_global, "Promise"),
+        all: GlobalPromise.all,
+        race: GlobalPromise.race,
+        allSettled: GlobalPromise.allSettled,
+        any: GlobalPromise.any,
+        resolve: GlobalPromise.resolve,
+        reject: GlobalPromise.reject,
+        nthen: nativePromiseProto.then,
+        gthen: GlobalPromise.prototype.then
+    } : {};
+}
+function usePSD(psd, fn, a1, a2, a3) {
+    var outerScope = PSD;
+    try {
+        switchToZone(psd, true);
+        return fn(a1, a2, a3);
+    }
+    finally {
+        switchToZone(outerScope, false);
+    }
+}
+function enqueueNativeMicroTask(job) {
+    nativePromiseThen.call(resolvedNativePromise, job);
+}
+function nativeAwaitCompatibleWrap(fn, zone, possibleAwait, cleanup) {
+    return typeof fn !== 'function' ? fn : function () {
+        var outerZone = PSD;
+        if (possibleAwait)
+            incrementExpectedAwaits();
+        switchToZone(zone, true);
+        try {
+            return fn.apply(this, arguments);
+        }
+        finally {
+            switchToZone(outerZone, false);
+            if (cleanup)
+                enqueueNativeMicroTask(decrementExpectedAwaits);
+        }
+    };
+}
+function getPatchedPromiseThen(origThen, zone) {
+    return function (onResolved, onRejected) {
+        return origThen.call(this, nativeAwaitCompatibleWrap(onResolved, zone), nativeAwaitCompatibleWrap(onRejected, zone));
+    };
+}
+const UNHANDLEDREJECTION = "unhandledrejection";
+function globalError(err, promise) {
+    var rv;
+    try {
+        rv = promise.onuncatched(err);
+    }
+    catch (e) { }
+    if (rv !== false)
+        try {
+            var event, eventData = { promise: promise, reason: err };
+            if (_global.document && document.createEvent) {
+                event = document.createEvent('Event');
+                event.initEvent(UNHANDLEDREJECTION, true, true);
+                extend(event, eventData);
+            }
+            else if (_global.CustomEvent) {
+                event = new CustomEvent(UNHANDLEDREJECTION, { detail: eventData });
+                extend(event, eventData);
+            }
+            if (event && _global.dispatchEvent) {
+                dispatchEvent(event);
+                if (!_global.PromiseRejectionEvent && _global.onunhandledrejection)
+                    try {
+                        _global.onunhandledrejection(event);
+                    }
+                    catch (_) { }
+            }
+            if (debug && event && !event.defaultPrevented) {
+                console.warn(`Unhandled rejection: ${err.stack || err}`);
+            }
+        }
+        catch (e) { }
+}
+var rejection = DexiePromise.reject;
+
+function tempTransaction(db, mode, storeNames, fn) {
+    if (!db.idbdb || (!db._state.openComplete && (!PSD.letThrough && !db._vip))) {
+        if (db._state.openComplete) {
+            return rejection(new exceptions.DatabaseClosed(db._state.dbOpenError));
+        }
+        if (!db._state.isBeingOpened) {
+            if (!db._options.autoOpen)
+                return rejection(new exceptions.DatabaseClosed());
+            db.open().catch(nop);
+        }
+        return db._state.dbReadyPromise.then(() => tempTransaction(db, mode, storeNames, fn));
+    }
+    else {
+        var trans = db._createTransaction(mode, storeNames, db._dbSchema);
+        try {
+            trans.create();
+            db._state.PR1398_maxLoop = 3;
+        }
+        catch (ex) {
+            if (ex.name === errnames.InvalidState && db.isOpen() && --db._state.PR1398_maxLoop > 0) {
+                console.warn('Dexie: Need to reopen db');
+                db._close();
+                return db.open().then(() => tempTransaction(db, mode, storeNames, fn));
+            }
+            return rejection(ex);
+        }
+        return trans._promise(mode, (resolve, reject) => {
+            return newScope(() => {
+                PSD.trans = trans;
+                return fn(resolve, reject, trans);
+            });
+        }).then(result => {
+            return trans._completion.then(() => result);
+        });
+    }
+}
+
+const DEXIE_VERSION = '3.2.3';
+const maxString = String.fromCharCode(65535);
+const minKey = -Infinity;
+const INVALID_KEY_ARGUMENT = "Invalid key provided. Keys must be of type string, number, Date or Array<string | number | Date>.";
+const STRING_EXPECTED = "String expected.";
+const connections = [];
+const isIEOrEdge = typeof navigator !== 'undefined' && /(MSIE|Trident|Edge)/.test(navigator.userAgent);
+const hasIEDeleteObjectStoreBug = isIEOrEdge;
+const hangsOnDeleteLargeKeyRange = isIEOrEdge;
+const dexieStackFrameFilter = frame => !/(dexie\.js|dexie\.min\.js)/.test(frame);
+const DBNAMES_DB = '__dbnames';
+const READONLY = 'readonly';
+const READWRITE = 'readwrite';
+
+function combine(filter1, filter2) {
+    return filter1 ?
+        filter2 ?
+            function () { return filter1.apply(this, arguments) && filter2.apply(this, arguments); } :
+            filter1 :
+        filter2;
+}
+
+const AnyRange = {
+    type: 3 ,
+    lower: -Infinity,
+    lowerOpen: false,
+    upper: [[]],
+    upperOpen: false
+};
+
+function workaroundForUndefinedPrimKey(keyPath) {
+    return typeof keyPath === "string" && !/\./.test(keyPath)
+        ? (obj) => {
+            if (obj[keyPath] === undefined && (keyPath in obj)) {
+                obj = deepClone(obj);
+                delete obj[keyPath];
+            }
+            return obj;
+        }
+        : (obj) => obj;
+}
+
+class Table {
+    _trans(mode, fn, writeLocked) {
+        const trans = this._tx || PSD.trans;
+        const tableName = this.name;
+        function checkTableInTransaction(resolve, reject, trans) {
+            if (!trans.schema[tableName])
+                throw new exceptions.NotFound("Table " + tableName + " not part of transaction");
+            return fn(trans.idbtrans, trans);
+        }
+        const wasRootExec = beginMicroTickScope();
+        try {
+            return trans && trans.db === this.db ?
+                trans === PSD.trans ?
+                    trans._promise(mode, checkTableInTransaction, writeLocked) :
+                    newScope(() => trans._promise(mode, checkTableInTransaction, writeLocked), { trans: trans, transless: PSD.transless || PSD }) :
+                tempTransaction(this.db, mode, [this.name], checkTableInTransaction);
+        }
+        finally {
+            if (wasRootExec)
+                endMicroTickScope();
+        }
+    }
+    get(keyOrCrit, cb) {
+        if (keyOrCrit && keyOrCrit.constructor === Object)
+            return this.where(keyOrCrit).first(cb);
+        return this._trans('readonly', (trans) => {
+            return this.core.get({ trans, key: keyOrCrit })
+                .then(res => this.hook.reading.fire(res));
+        }).then(cb);
+    }
+    where(indexOrCrit) {
+        if (typeof indexOrCrit === 'string')
+            return new this.db.WhereClause(this, indexOrCrit);
+        if (isArray(indexOrCrit))
+            return new this.db.WhereClause(this, `[${indexOrCrit.join('+')}]`);
+        const keyPaths = keys(indexOrCrit);
+        if (keyPaths.length === 1)
+            return this
+                .where(keyPaths[0])
+                .equals(indexOrCrit[keyPaths[0]]);
+        const compoundIndex = this.schema.indexes.concat(this.schema.primKey).filter(ix => ix.compound &&
+            keyPaths.every(keyPath => ix.keyPath.indexOf(keyPath) >= 0) &&
+            ix.keyPath.every(keyPath => keyPaths.indexOf(keyPath) >= 0))[0];
+        if (compoundIndex && this.db._maxKey !== maxString)
+            return this
+                .where(compoundIndex.name)
+                .equals(compoundIndex.keyPath.map(kp => indexOrCrit[kp]));
+        if (!compoundIndex && debug)
+            console.warn(`The query ${JSON.stringify(indexOrCrit)} on ${this.name} would benefit of a ` +
+                `compound index [${keyPaths.join('+')}]`);
+        const { idxByName } = this.schema;
+        const idb = this.db._deps.indexedDB;
+        function equals(a, b) {
+            try {
+                return idb.cmp(a, b) === 0;
+            }
+            catch (e) {
+                return false;
+            }
+        }
+        const [idx, filterFunction] = keyPaths.reduce(([prevIndex, prevFilterFn], keyPath) => {
+            const index = idxByName[keyPath];
+            const value = indexOrCrit[keyPath];
+            return [
+                prevIndex || index,
+                prevIndex || !index ?
+                    combine(prevFilterFn, index && index.multi ?
+                        x => {
+                            const prop = getByKeyPath(x, keyPath);
+                            return isArray(prop) && prop.some(item => equals(value, item));
+                        } : x => equals(value, getByKeyPath(x, keyPath)))
+                    : prevFilterFn
+            ];
+        }, [null, null]);
+        return idx ?
+            this.where(idx.name).equals(indexOrCrit[idx.keyPath])
+                .filter(filterFunction) :
+            compoundIndex ?
+                this.filter(filterFunction) :
+                this.where(keyPaths).equals('');
+    }
+    filter(filterFunction) {
+        return this.toCollection().and(filterFunction);
+    }
+    count(thenShortcut) {
+        return this.toCollection().count(thenShortcut);
+    }
+    offset(offset) {
+        return this.toCollection().offset(offset);
+    }
+    limit(numRows) {
+        return this.toCollection().limit(numRows);
+    }
+    each(callback) {
+        return this.toCollection().each(callback);
+    }
+    toArray(thenShortcut) {
+        return this.toCollection().toArray(thenShortcut);
+    }
+    toCollection() {
+        return new this.db.Collection(new this.db.WhereClause(this));
+    }
+    orderBy(index) {
+        return new this.db.Collection(new this.db.WhereClause(this, isArray(index) ?
+            `[${index.join('+')}]` :
+            index));
+    }
+    reverse() {
+        return this.toCollection().reverse();
+    }
+    mapToClass(constructor) {
+        this.schema.mappedClass = constructor;
+        const readHook = obj => {
+            if (!obj)
+                return obj;
+            const res = Object.create(constructor.prototype);
+            for (var m in obj)
+                if (hasOwn(obj, m))
+                    try {
+                        res[m] = obj[m];
+                    }
+                    catch (_) { }
+            return res;
+        };
+        if (this.schema.readHook) {
+            this.hook.reading.unsubscribe(this.schema.readHook);
+        }
+        this.schema.readHook = readHook;
+        this.hook("reading", readHook);
+        return constructor;
+    }
+    defineClass() {
+        function Class(content) {
+            extend(this, content);
+        }
+        return this.mapToClass(Class);
+    }
+    add(obj, key) {
+        const { auto, keyPath } = this.schema.primKey;
+        let objToAdd = obj;
+        if (keyPath && auto) {
+            objToAdd = workaroundForUndefinedPrimKey(keyPath)(obj);
+        }
+        return this._trans('readwrite', trans => {
+            return this.core.mutate({ trans, type: 'add', keys: key != null ? [key] : null, values: [objToAdd] });
+        }).then(res => res.numFailures ? DexiePromise.reject(res.failures[0]) : res.lastResult)
+            .then(lastResult => {
+            if (keyPath) {
+                try {
+                    setByKeyPath(obj, keyPath, lastResult);
+                }
+                catch (_) { }
+            }
+            return lastResult;
+        });
+    }
+    update(keyOrObject, modifications) {
+        if (typeof keyOrObject === 'object' && !isArray(keyOrObject)) {
+            const key = getByKeyPath(keyOrObject, this.schema.primKey.keyPath);
+            if (key === undefined)
+                return rejection(new exceptions.InvalidArgument("Given object does not contain its primary key"));
+            try {
+                if (typeof modifications !== "function") {
+                    keys(modifications).forEach(keyPath => {
+                        setByKeyPath(keyOrObject, keyPath, modifications[keyPath]);
+                    });
+                }
+                else {
+                    modifications(keyOrObject, { value: keyOrObject, primKey: key });
+                }
+            }
+            catch (_a) {
+            }
+            return this.where(":id").equals(key).modify(modifications);
+        }
+        else {
+            return this.where(":id").equals(keyOrObject).modify(modifications);
+        }
+    }
+    put(obj, key) {
+        const { auto, keyPath } = this.schema.primKey;
+        let objToAdd = obj;
+        if (keyPath && auto) {
+            objToAdd = workaroundForUndefinedPrimKey(keyPath)(obj);
+        }
+        return this._trans('readwrite', trans => this.core.mutate({ trans, type: 'put', values: [objToAdd], keys: key != null ? [key] : null }))
+            .then(res => res.numFailures ? DexiePromise.reject(res.failures[0]) : res.lastResult)
+            .then(lastResult => {
+            if (keyPath) {
+                try {
+                    setByKeyPath(obj, keyPath, lastResult);
+                }
+                catch (_) { }
+            }
+            return lastResult;
+        });
+    }
+    delete(key) {
+        return this._trans('readwrite', trans => this.core.mutate({ trans, type: 'delete', keys: [key] }))
+            .then(res => res.numFailures ? DexiePromise.reject(res.failures[0]) : undefined);
+    }
+    clear() {
+        return this._trans('readwrite', trans => this.core.mutate({ trans, type: 'deleteRange', range: AnyRange }))
+            .then(res => res.numFailures ? DexiePromise.reject(res.failures[0]) : undefined);
+    }
+    bulkGet(keys) {
+        return this._trans('readonly', trans => {
+            return this.core.getMany({
+                keys,
+                trans
+            }).then(result => result.map(res => this.hook.reading.fire(res)));
+        });
+    }
+    bulkAdd(objects, keysOrOptions, options) {
+        const keys = Array.isArray(keysOrOptions) ? keysOrOptions : undefined;
+        options = options || (keys ? undefined : keysOrOptions);
+        const wantResults = options ? options.allKeys : undefined;
+        return this._trans('readwrite', trans => {
+            const { auto, keyPath } = this.schema.primKey;
+            if (keyPath && keys)
+                throw new exceptions.InvalidArgument("bulkAdd(): keys argument invalid on tables with inbound keys");
+            if (keys && keys.length !== objects.length)
+                throw new exceptions.InvalidArgument("Arguments objects and keys must have the same length");
+            const numObjects = objects.length;
+            let objectsToAdd = keyPath && auto ?
+                objects.map(workaroundForUndefinedPrimKey(keyPath)) :
+                objects;
+            return this.core.mutate({ trans, type: 'add', keys: keys, values: objectsToAdd, wantResults })
+                .then(({ numFailures, results, lastResult, failures }) => {
+                const result = wantResults ? results : lastResult;
+                if (numFailures === 0)
+                    return result;
+                throw new BulkError(`${this.name}.bulkAdd(): ${numFailures} of ${numObjects} operations failed`, failures);
+            });
+        });
+    }
+    bulkPut(objects, keysOrOptions, options) {
+        const keys = Array.isArray(keysOrOptions) ? keysOrOptions : undefined;
+        options = options || (keys ? undefined : keysOrOptions);
+        const wantResults = options ? options.allKeys : undefined;
+        return this._trans('readwrite', trans => {
+            const { auto, keyPath } = this.schema.primKey;
+            if (keyPath && keys)
+                throw new exceptions.InvalidArgument("bulkPut(): keys argument invalid on tables with inbound keys");
+            if (keys && keys.length !== objects.length)
+                throw new exceptions.InvalidArgument("Arguments objects and keys must have the same length");
+            const numObjects = objects.length;
+            let objectsToPut = keyPath && auto ?
+                objects.map(workaroundForUndefinedPrimKey(keyPath)) :
+                objects;
+            return this.core.mutate({ trans, type: 'put', keys: keys, values: objectsToPut, wantResults })
+                .then(({ numFailures, results, lastResult, failures }) => {
+                const result = wantResults ? results : lastResult;
+                if (numFailures === 0)
+                    return result;
+                throw new BulkError(`${this.name}.bulkPut(): ${numFailures} of ${numObjects} operations failed`, failures);
+            });
+        });
+    }
+    bulkDelete(keys) {
+        const numKeys = keys.length;
+        return this._trans('readwrite', trans => {
+            return this.core.mutate({ trans, type: 'delete', keys: keys });
+        }).then(({ numFailures, lastResult, failures }) => {
+            if (numFailures === 0)
+                return lastResult;
+            throw new BulkError(`${this.name}.bulkDelete(): ${numFailures} of ${numKeys} operations failed`, failures);
+        });
+    }
+}
+
+function Events(ctx) {
+    var evs = {};
+    var rv = function (eventName, subscriber) {
+        if (subscriber) {
+            var i = arguments.length, args = new Array(i - 1);
+            while (--i)
+                args[i - 1] = arguments[i];
+            evs[eventName].subscribe.apply(null, args);
+            return ctx;
+        }
+        else if (typeof (eventName) === 'string') {
+            return evs[eventName];
+        }
+    };
+    rv.addEventType = add;
+    for (var i = 1, l = arguments.length; i < l; ++i) {
+        add(arguments[i]);
+    }
+    return rv;
+    function add(eventName, chainFunction, defaultFunction) {
+        if (typeof eventName === 'object')
+            return addConfiguredEvents(eventName);
+        if (!chainFunction)
+            chainFunction = reverseStoppableEventChain;
+        if (!defaultFunction)
+            defaultFunction = nop;
+        var context = {
+            subscribers: [],
+            fire: defaultFunction,
+            subscribe: function (cb) {
+                if (context.subscribers.indexOf(cb) === -1) {
+                    context.subscribers.push(cb);
+                    context.fire = chainFunction(context.fire, cb);
+                }
+            },
+            unsubscribe: function (cb) {
+                context.subscribers = context.subscribers.filter(function (fn) { return fn !== cb; });
+                context.fire = context.subscribers.reduce(chainFunction, defaultFunction);
+            }
+        };
+        evs[eventName] = rv[eventName] = context;
+        return context;
+    }
+    function addConfiguredEvents(cfg) {
+        keys(cfg).forEach(function (eventName) {
+            var args = cfg[eventName];
+            if (isArray(args)) {
+                add(eventName, cfg[eventName][0], cfg[eventName][1]);
+            }
+            else if (args === 'asap') {
+                var context = add(eventName, mirror, function fire() {
+                    var i = arguments.length, args = new Array(i);
+                    while (i--)
+                        args[i] = arguments[i];
+                    context.subscribers.forEach(function (fn) {
+                        asap$1(function fireEvent() {
+                            fn.apply(null, args);
+                        });
+                    });
+                });
+            }
+            else
+                throw new exceptions.InvalidArgument("Invalid event config");
+        });
+    }
+}
+
+function makeClassConstructor(prototype, constructor) {
+    derive(constructor).from({ prototype });
+    return constructor;
+}
+
+function createTableConstructor(db) {
+    return makeClassConstructor(Table.prototype, function Table(name, tableSchema, trans) {
+        this.db = db;
+        this._tx = trans;
+        this.name = name;
+        this.schema = tableSchema;
+        this.hook = db._allTables[name] ? db._allTables[name].hook : Events(null, {
+            "creating": [hookCreatingChain, nop],
+            "reading": [pureFunctionChain, mirror],
+            "updating": [hookUpdatingChain, nop],
+            "deleting": [hookDeletingChain, nop]
+        });
+    });
+}
+
+function isPlainKeyRange(ctx, ignoreLimitFilter) {
+    return !(ctx.filter || ctx.algorithm || ctx.or) &&
+        (ignoreLimitFilter ? ctx.justLimit : !ctx.replayFilter);
+}
+function addFilter(ctx, fn) {
+    ctx.filter = combine(ctx.filter, fn);
+}
+function addReplayFilter(ctx, factory, isLimitFilter) {
+    var curr = ctx.replayFilter;
+    ctx.replayFilter = curr ? () => combine(curr(), factory()) : factory;
+    ctx.justLimit = isLimitFilter && !curr;
+}
+function addMatchFilter(ctx, fn) {
+    ctx.isMatch = combine(ctx.isMatch, fn);
+}
+function getIndexOrStore(ctx, coreSchema) {
+    if (ctx.isPrimKey)
+        return coreSchema.primaryKey;
+    const index = coreSchema.getIndexByKeyPath(ctx.index);
+    if (!index)
+        throw new exceptions.Schema("KeyPath " + ctx.index + " on object store " + coreSchema.name + " is not indexed");
+    return index;
+}
+function openCursor(ctx, coreTable, trans) {
+    const index = getIndexOrStore(ctx, coreTable.schema);
+    return coreTable.openCursor({
+        trans,
+        values: !ctx.keysOnly,
+        reverse: ctx.dir === 'prev',
+        unique: !!ctx.unique,
+        query: {
+            index,
+            range: ctx.range
+        }
+    });
+}
+function iter(ctx, fn, coreTrans, coreTable) {
+    const filter = ctx.replayFilter ? combine(ctx.filter, ctx.replayFilter()) : ctx.filter;
+    if (!ctx.or) {
+        return iterate(openCursor(ctx, coreTable, coreTrans), combine(ctx.algorithm, filter), fn, !ctx.keysOnly && ctx.valueMapper);
+    }
+    else {
+        const set = {};
+        const union = (item, cursor, advance) => {
+            if (!filter || filter(cursor, advance, result => cursor.stop(result), err => cursor.fail(err))) {
+                var primaryKey = cursor.primaryKey;
+                var key = '' + primaryKey;
+                if (key === '[object ArrayBuffer]')
+                    key = '' + new Uint8Array(primaryKey);
+                if (!hasOwn(set, key)) {
+                    set[key] = true;
+                    fn(item, cursor, advance);
+                }
+            }
+        };
+        return Promise.all([
+            ctx.or._iterate(union, coreTrans),
+            iterate(openCursor(ctx, coreTable, coreTrans), ctx.algorithm, union, !ctx.keysOnly && ctx.valueMapper)
+        ]);
+    }
+}
+function iterate(cursorPromise, filter, fn, valueMapper) {
+    var mappedFn = valueMapper ? (x, c, a) => fn(valueMapper(x), c, a) : fn;
+    var wrappedFn = wrap(mappedFn);
+    return cursorPromise.then(cursor => {
+        if (cursor) {
+            return cursor.start(() => {
+                var c = () => cursor.continue();
+                if (!filter || filter(cursor, advancer => c = advancer, val => { cursor.stop(val); c = nop; }, e => { cursor.fail(e); c = nop; }))
+                    wrappedFn(cursor.value, cursor, advancer => c = advancer);
+                c();
+            });
+        }
+    });
+}
+
+function cmp(a, b) {
+    try {
+        const ta = type(a);
+        const tb = type(b);
+        if (ta !== tb) {
+            if (ta === 'Array')
+                return 1;
+            if (tb === 'Array')
+                return -1;
+            if (ta === 'binary')
+                return 1;
+            if (tb === 'binary')
+                return -1;
+            if (ta === 'string')
+                return 1;
+            if (tb === 'string')
+                return -1;
+            if (ta === 'Date')
+                return 1;
+            if (tb !== 'Date')
+                return NaN;
+            return -1;
+        }
+        switch (ta) {
+            case 'number':
+            case 'Date':
+            case 'string':
+                return a > b ? 1 : a < b ? -1 : 0;
+            case 'binary': {
+                return compareUint8Arrays(getUint8Array(a), getUint8Array(b));
+            }
+            case 'Array':
+                return compareArrays(a, b);
+        }
+    }
+    catch (_a) { }
+    return NaN;
+}
+function compareArrays(a, b) {
+    const al = a.length;
+    const bl = b.length;
+    const l = al < bl ? al : bl;
+    for (let i = 0; i < l; ++i) {
+        const res = cmp(a[i], b[i]);
+        if (res !== 0)
+            return res;
+    }
+    return al === bl ? 0 : al < bl ? -1 : 1;
+}
+function compareUint8Arrays(a, b) {
+    const al = a.length;
+    const bl = b.length;
+    const l = al < bl ? al : bl;
+    for (let i = 0; i < l; ++i) {
+        if (a[i] !== b[i])
+            return a[i] < b[i] ? -1 : 1;
+    }
+    return al === bl ? 0 : al < bl ? -1 : 1;
+}
+function type(x) {
+    const t = typeof x;
+    if (t !== 'object')
+        return t;
+    if (ArrayBuffer.isView(x))
+        return 'binary';
+    const tsTag = toStringTag(x);
+    return tsTag === 'ArrayBuffer' ? 'binary' : tsTag;
+}
+function getUint8Array(a) {
+    if (a instanceof Uint8Array)
+        return a;
+    if (ArrayBuffer.isView(a))
+        return new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+    return new Uint8Array(a);
+}
+
+class Collection {
+    _read(fn, cb) {
+        var ctx = this._ctx;
+        return ctx.error ?
+            ctx.table._trans(null, rejection.bind(null, ctx.error)) :
+            ctx.table._trans('readonly', fn).then(cb);
+    }
+    _write(fn) {
+        var ctx = this._ctx;
+        return ctx.error ?
+            ctx.table._trans(null, rejection.bind(null, ctx.error)) :
+            ctx.table._trans('readwrite', fn, "locked");
+    }
+    _addAlgorithm(fn) {
+        var ctx = this._ctx;
+        ctx.algorithm = combine(ctx.algorithm, fn);
+    }
+    _iterate(fn, coreTrans) {
+        return iter(this._ctx, fn, coreTrans, this._ctx.table.core);
+    }
+    clone(props) {
+        var rv = Object.create(this.constructor.prototype), ctx = Object.create(this._ctx);
+        if (props)
+            extend(ctx, props);
+        rv._ctx = ctx;
+        return rv;
+    }
+    raw() {
+        this._ctx.valueMapper = null;
+        return this;
+    }
+    each(fn) {
+        var ctx = this._ctx;
+        return this._read(trans => iter(ctx, fn, trans, ctx.table.core));
+    }
+    count(cb) {
+        return this._read(trans => {
+            const ctx = this._ctx;
+            const coreTable = ctx.table.core;
+            if (isPlainKeyRange(ctx, true)) {
+                return coreTable.count({
+                    trans,
+                    query: {
+                        index: getIndexOrStore(ctx, coreTable.schema),
+                        range: ctx.range
+                    }
+                }).then(count => Math.min(count, ctx.limit));
+            }
+            else {
+                var count = 0;
+                return iter(ctx, () => { ++count; return false; }, trans, coreTable)
+                    .then(() => count);
+            }
+        }).then(cb);
+    }
+    sortBy(keyPath, cb) {
+        const parts = keyPath.split('.').reverse(), lastPart = parts[0], lastIndex = parts.length - 1;
+        function getval(obj, i) {
+            if (i)
+                return getval(obj[parts[i]], i - 1);
+            return obj[lastPart];
+        }
+        var order = this._ctx.dir === "next" ? 1 : -1;
+        function sorter(a, b) {
+            var aVal = getval(a, lastIndex), bVal = getval(b, lastIndex);
+            return aVal < bVal ? -order : aVal > bVal ? order : 0;
+        }
+        return this.toArray(function (a) {
+            return a.sort(sorter);
+        }).then(cb);
+    }
+    toArray(cb) {
+        return this._read(trans => {
+            var ctx = this._ctx;
+            if (ctx.dir === 'next' && isPlainKeyRange(ctx, true) && ctx.limit > 0) {
+                const { valueMapper } = ctx;
+                const index = getIndexOrStore(ctx, ctx.table.core.schema);
+                return ctx.table.core.query({
+                    trans,
+                    limit: ctx.limit,
+                    values: true,
+                    query: {
+                        index,
+                        range: ctx.range
+                    }
+                }).then(({ result }) => valueMapper ? result.map(valueMapper) : result);
+            }
+            else {
+                const a = [];
+                return iter(ctx, item => a.push(item), trans, ctx.table.core).then(() => a);
+            }
+        }, cb);
+    }
+    offset(offset) {
+        var ctx = this._ctx;
+        if (offset <= 0)
+            return this;
+        ctx.offset += offset;
+        if (isPlainKeyRange(ctx)) {
+            addReplayFilter(ctx, () => {
+                var offsetLeft = offset;
+                return (cursor, advance) => {
+                    if (offsetLeft === 0)
+                        return true;
+                    if (offsetLeft === 1) {
+                        --offsetLeft;
+                        return false;
+                    }
+                    advance(() => {
+                        cursor.advance(offsetLeft);
+                        offsetLeft = 0;
+                    });
+                    return false;
+                };
+            });
+        }
+        else {
+            addReplayFilter(ctx, () => {
+                var offsetLeft = offset;
+                return () => (--offsetLeft < 0);
+            });
+        }
+        return this;
+    }
+    limit(numRows) {
+        this._ctx.limit = Math.min(this._ctx.limit, numRows);
+        addReplayFilter(this._ctx, () => {
+            var rowsLeft = numRows;
+            return function (cursor, advance, resolve) {
+                if (--rowsLeft <= 0)
+                    advance(resolve);
+                return rowsLeft >= 0;
+            };
+        }, true);
+        return this;
+    }
+    until(filterFunction, bIncludeStopEntry) {
+        addFilter(this._ctx, function (cursor, advance, resolve) {
+            if (filterFunction(cursor.value)) {
+                advance(resolve);
+                return bIncludeStopEntry;
+            }
+            else {
+                return true;
+            }
+        });
+        return this;
+    }
+    first(cb) {
+        return this.limit(1).toArray(function (a) { return a[0]; }).then(cb);
+    }
+    last(cb) {
+        return this.reverse().first(cb);
+    }
+    filter(filterFunction) {
+        addFilter(this._ctx, function (cursor) {
+            return filterFunction(cursor.value);
+        });
+        addMatchFilter(this._ctx, filterFunction);
+        return this;
+    }
+    and(filter) {
+        return this.filter(filter);
+    }
+    or(indexName) {
+        return new this.db.WhereClause(this._ctx.table, indexName, this);
+    }
+    reverse() {
+        this._ctx.dir = (this._ctx.dir === "prev" ? "next" : "prev");
+        if (this._ondirectionchange)
+            this._ondirectionchange(this._ctx.dir);
+        return this;
+    }
+    desc() {
+        return this.reverse();
+    }
+    eachKey(cb) {
+        var ctx = this._ctx;
+        ctx.keysOnly = !ctx.isMatch;
+        return this.each(function (val, cursor) { cb(cursor.key, cursor); });
+    }
+    eachUniqueKey(cb) {
+        this._ctx.unique = "unique";
+        return this.eachKey(cb);
+    }
+    eachPrimaryKey(cb) {
+        var ctx = this._ctx;
+        ctx.keysOnly = !ctx.isMatch;
+        return this.each(function (val, cursor) { cb(cursor.primaryKey, cursor); });
+    }
+    keys(cb) {
+        var ctx = this._ctx;
+        ctx.keysOnly = !ctx.isMatch;
+        var a = [];
+        return this.each(function (item, cursor) {
+            a.push(cursor.key);
+        }).then(function () {
+            return a;
+        }).then(cb);
+    }
+    primaryKeys(cb) {
+        var ctx = this._ctx;
+        if (ctx.dir === 'next' && isPlainKeyRange(ctx, true) && ctx.limit > 0) {
+            return this._read(trans => {
+                var index = getIndexOrStore(ctx, ctx.table.core.schema);
+                return ctx.table.core.query({
+                    trans,
+                    values: false,
+                    limit: ctx.limit,
+                    query: {
+                        index,
+                        range: ctx.range
+                    }
+                });
+            }).then(({ result }) => result).then(cb);
+        }
+        ctx.keysOnly = !ctx.isMatch;
+        var a = [];
+        return this.each(function (item, cursor) {
+            a.push(cursor.primaryKey);
+        }).then(function () {
+            return a;
+        }).then(cb);
+    }
+    uniqueKeys(cb) {
+        this._ctx.unique = "unique";
+        return this.keys(cb);
+    }
+    firstKey(cb) {
+        return this.limit(1).keys(function (a) { return a[0]; }).then(cb);
+    }
+    lastKey(cb) {
+        return this.reverse().firstKey(cb);
+    }
+    distinct() {
+        var ctx = this._ctx, idx = ctx.index && ctx.table.schema.idxByName[ctx.index];
+        if (!idx || !idx.multi)
+            return this;
+        var set = {};
+        addFilter(this._ctx, function (cursor) {
+            var strKey = cursor.primaryKey.toString();
+            var found = hasOwn(set, strKey);
+            set[strKey] = true;
+            return !found;
+        });
+        return this;
+    }
+    modify(changes) {
+        var ctx = this._ctx;
+        return this._write(trans => {
+            var modifyer;
+            if (typeof changes === 'function') {
+                modifyer = changes;
+            }
+            else {
+                var keyPaths = keys(changes);
+                var numKeys = keyPaths.length;
+                modifyer = function (item) {
+                    var anythingModified = false;
+                    for (var i = 0; i < numKeys; ++i) {
+                        var keyPath = keyPaths[i], val = changes[keyPath];
+                        if (getByKeyPath(item, keyPath) !== val) {
+                            setByKeyPath(item, keyPath, val);
+                            anythingModified = true;
+                        }
+                    }
+                    return anythingModified;
+                };
+            }
+            const coreTable = ctx.table.core;
+            const { outbound, extractKey } = coreTable.schema.primaryKey;
+            const limit = this.db._options.modifyChunkSize || 200;
+            const totalFailures = [];
+            let successCount = 0;
+            const failedKeys = [];
+            const applyMutateResult = (expectedCount, res) => {
+                const { failures, numFailures } = res;
+                successCount += expectedCount - numFailures;
+                for (let pos of keys(failures)) {
+                    totalFailures.push(failures[pos]);
+                }
+            };
+            return this.clone().primaryKeys().then(keys => {
+                const nextChunk = (offset) => {
+                    const count = Math.min(limit, keys.length - offset);
+                    return coreTable.getMany({
+                        trans,
+                        keys: keys.slice(offset, offset + count),
+                        cache: "immutable"
+                    }).then(values => {
+                        const addValues = [];
+                        const putValues = [];
+                        const putKeys = outbound ? [] : null;
+                        const deleteKeys = [];
+                        for (let i = 0; i < count; ++i) {
+                            const origValue = values[i];
+                            const ctx = {
+                                value: deepClone(origValue),
+                                primKey: keys[offset + i]
+                            };
+                            if (modifyer.call(ctx, ctx.value, ctx) !== false) {
+                                if (ctx.value == null) {
+                                    deleteKeys.push(keys[offset + i]);
+                                }
+                                else if (!outbound && cmp(extractKey(origValue), extractKey(ctx.value)) !== 0) {
+                                    deleteKeys.push(keys[offset + i]);
+                                    addValues.push(ctx.value);
+                                }
+                                else {
+                                    putValues.push(ctx.value);
+                                    if (outbound)
+                                        putKeys.push(keys[offset + i]);
+                                }
+                            }
+                        }
+                        const criteria = isPlainKeyRange(ctx) &&
+                            ctx.limit === Infinity &&
+                            (typeof changes !== 'function' || changes === deleteCallback) && {
+                            index: ctx.index,
+                            range: ctx.range
+                        };
+                        return Promise.resolve(addValues.length > 0 &&
+                            coreTable.mutate({ trans, type: 'add', values: addValues })
+                                .then(res => {
+                                for (let pos in res.failures) {
+                                    deleteKeys.splice(parseInt(pos), 1);
+                                }
+                                applyMutateResult(addValues.length, res);
+                            })).then(() => (putValues.length > 0 || (criteria && typeof changes === 'object')) &&
+                            coreTable.mutate({
+                                trans,
+                                type: 'put',
+                                keys: putKeys,
+                                values: putValues,
+                                criteria,
+                                changeSpec: typeof changes !== 'function'
+                                    && changes
+                            }).then(res => applyMutateResult(putValues.length, res))).then(() => (deleteKeys.length > 0 || (criteria && changes === deleteCallback)) &&
+                            coreTable.mutate({
+                                trans,
+                                type: 'delete',
+                                keys: deleteKeys,
+                                criteria
+                            }).then(res => applyMutateResult(deleteKeys.length, res))).then(() => {
+                            return keys.length > offset + count && nextChunk(offset + limit);
+                        });
+                    });
+                };
+                return nextChunk(0).then(() => {
+                    if (totalFailures.length > 0)
+                        throw new ModifyError("Error modifying one or more objects", totalFailures, successCount, failedKeys);
+                    return keys.length;
+                });
+            });
+        });
+    }
+    delete() {
+        var ctx = this._ctx, range = ctx.range;
+        if (isPlainKeyRange(ctx) &&
+            ((ctx.isPrimKey && !hangsOnDeleteLargeKeyRange) || range.type === 3 ))
+         {
+            return this._write(trans => {
+                const { primaryKey } = ctx.table.core.schema;
+                const coreRange = range;
+                return ctx.table.core.count({ trans, query: { index: primaryKey, range: coreRange } }).then(count => {
+                    return ctx.table.core.mutate({ trans, type: 'deleteRange', range: coreRange })
+                        .then(({ failures, lastResult, results, numFailures }) => {
+                        if (numFailures)
+                            throw new ModifyError("Could not delete some values", Object.keys(failures).map(pos => failures[pos]), count - numFailures);
+                        return count - numFailures;
+                    });
+                });
+            });
+        }
+        return this.modify(deleteCallback);
+    }
+}
+const deleteCallback = (value, ctx) => ctx.value = null;
+
+function createCollectionConstructor(db) {
+    return makeClassConstructor(Collection.prototype, function Collection(whereClause, keyRangeGenerator) {
+        this.db = db;
+        let keyRange = AnyRange, error = null;
+        if (keyRangeGenerator)
+            try {
+                keyRange = keyRangeGenerator();
+            }
+            catch (ex) {
+                error = ex;
+            }
+        const whereCtx = whereClause._ctx;
+        const table = whereCtx.table;
+        const readingHook = table.hook.reading.fire;
+        this._ctx = {
+            table: table,
+            index: whereCtx.index,
+            isPrimKey: (!whereCtx.index || (table.schema.primKey.keyPath && whereCtx.index === table.schema.primKey.name)),
+            range: keyRange,
+            keysOnly: false,
+            dir: "next",
+            unique: "",
+            algorithm: null,
+            filter: null,
+            replayFilter: null,
+            justLimit: true,
+            isMatch: null,
+            offset: 0,
+            limit: Infinity,
+            error: error,
+            or: whereCtx.or,
+            valueMapper: readingHook !== mirror ? readingHook : null
+        };
+    });
+}
+
+function simpleCompare(a, b) {
+    return a < b ? -1 : a === b ? 0 : 1;
+}
+function simpleCompareReverse(a, b) {
+    return a > b ? -1 : a === b ? 0 : 1;
+}
+
+function fail(collectionOrWhereClause, err, T) {
+    var collection = collectionOrWhereClause instanceof WhereClause ?
+        new collectionOrWhereClause.Collection(collectionOrWhereClause) :
+        collectionOrWhereClause;
+    collection._ctx.error = T ? new T(err) : new TypeError(err);
+    return collection;
+}
+function emptyCollection(whereClause) {
+    return new whereClause.Collection(whereClause, () => rangeEqual("")).limit(0);
+}
+function upperFactory(dir) {
+    return dir === "next" ?
+        (s) => s.toUpperCase() :
+        (s) => s.toLowerCase();
+}
+function lowerFactory(dir) {
+    return dir === "next" ?
+        (s) => s.toLowerCase() :
+        (s) => s.toUpperCase();
+}
+function nextCasing(key, lowerKey, upperNeedle, lowerNeedle, cmp, dir) {
+    var length = Math.min(key.length, lowerNeedle.length);
+    var llp = -1;
+    for (var i = 0; i < length; ++i) {
+        var lwrKeyChar = lowerKey[i];
+        if (lwrKeyChar !== lowerNeedle[i]) {
+            if (cmp(key[i], upperNeedle[i]) < 0)
+                return key.substr(0, i) + upperNeedle[i] + upperNeedle.substr(i + 1);
+            if (cmp(key[i], lowerNeedle[i]) < 0)
+                return key.substr(0, i) + lowerNeedle[i] + upperNeedle.substr(i + 1);
+            if (llp >= 0)
+                return key.substr(0, llp) + lowerKey[llp] + upperNeedle.substr(llp + 1);
+            return null;
+        }
+        if (cmp(key[i], lwrKeyChar) < 0)
+            llp = i;
+    }
+    if (length < lowerNeedle.length && dir === "next")
+        return key + upperNeedle.substr(key.length);
+    if (length < key.length && dir === "prev")
+        return key.substr(0, upperNeedle.length);
+    return (llp < 0 ? null : key.substr(0, llp) + lowerNeedle[llp] + upperNeedle.substr(llp + 1));
+}
+function addIgnoreCaseAlgorithm(whereClause, match, needles, suffix) {
+    var upper, lower, compare, upperNeedles, lowerNeedles, direction, nextKeySuffix, needlesLen = needles.length;
+    if (!needles.every(s => typeof s === 'string')) {
+        return fail(whereClause, STRING_EXPECTED);
+    }
+    function initDirection(dir) {
+        upper = upperFactory(dir);
+        lower = lowerFactory(dir);
+        compare = (dir === "next" ? simpleCompare : simpleCompareReverse);
+        var needleBounds = needles.map(function (needle) {
+            return { lower: lower(needle), upper: upper(needle) };
+        }).sort(function (a, b) {
+            return compare(a.lower, b.lower);
+        });
+        upperNeedles = needleBounds.map(function (nb) { return nb.upper; });
+        lowerNeedles = needleBounds.map(function (nb) { return nb.lower; });
+        direction = dir;
+        nextKeySuffix = (dir === "next" ? "" : suffix);
+    }
+    initDirection("next");
+    var c = new whereClause.Collection(whereClause, () => createRange(upperNeedles[0], lowerNeedles[needlesLen - 1] + suffix));
+    c._ondirectionchange = function (direction) {
+        initDirection(direction);
+    };
+    var firstPossibleNeedle = 0;
+    c._addAlgorithm(function (cursor, advance, resolve) {
+        var key = cursor.key;
+        if (typeof key !== 'string')
+            return false;
+        var lowerKey = lower(key);
+        if (match(lowerKey, lowerNeedles, firstPossibleNeedle)) {
+            return true;
+        }
+        else {
+            var lowestPossibleCasing = null;
+            for (var i = firstPossibleNeedle; i < needlesLen; ++i) {
+                var casing = nextCasing(key, lowerKey, upperNeedles[i], lowerNeedles[i], compare, direction);
+                if (casing === null && lowestPossibleCasing === null)
+                    firstPossibleNeedle = i + 1;
+                else if (lowestPossibleCasing === null || compare(lowestPossibleCasing, casing) > 0) {
+                    lowestPossibleCasing = casing;
+                }
+            }
+            if (lowestPossibleCasing !== null) {
+                advance(function () { cursor.continue(lowestPossibleCasing + nextKeySuffix); });
+            }
+            else {
+                advance(resolve);
+            }
+            return false;
+        }
+    });
+    return c;
+}
+function createRange(lower, upper, lowerOpen, upperOpen) {
+    return {
+        type: 2 ,
+        lower,
+        upper,
+        lowerOpen,
+        upperOpen
+    };
+}
+function rangeEqual(value) {
+    return {
+        type: 1 ,
+        lower: value,
+        upper: value
+    };
+}
+
+class WhereClause {
+    get Collection() {
+        return this._ctx.table.db.Collection;
+    }
+    between(lower, upper, includeLower, includeUpper) {
+        includeLower = includeLower !== false;
+        includeUpper = includeUpper === true;
+        try {
+            if ((this._cmp(lower, upper) > 0) ||
+                (this._cmp(lower, upper) === 0 && (includeLower || includeUpper) && !(includeLower && includeUpper)))
+                return emptyCollection(this);
+            return new this.Collection(this, () => createRange(lower, upper, !includeLower, !includeUpper));
+        }
+        catch (e) {
+            return fail(this, INVALID_KEY_ARGUMENT);
+        }
+    }
+    equals(value) {
+        if (value == null)
+            return fail(this, INVALID_KEY_ARGUMENT);
+        return new this.Collection(this, () => rangeEqual(value));
+    }
+    above(value) {
+        if (value == null)
+            return fail(this, INVALID_KEY_ARGUMENT);
+        return new this.Collection(this, () => createRange(value, undefined, true));
+    }
+    aboveOrEqual(value) {
+        if (value == null)
+            return fail(this, INVALID_KEY_ARGUMENT);
+        return new this.Collection(this, () => createRange(value, undefined, false));
+    }
+    below(value) {
+        if (value == null)
+            return fail(this, INVALID_KEY_ARGUMENT);
+        return new this.Collection(this, () => createRange(undefined, value, false, true));
+    }
+    belowOrEqual(value) {
+        if (value == null)
+            return fail(this, INVALID_KEY_ARGUMENT);
+        return new this.Collection(this, () => createRange(undefined, value));
+    }
+    startsWith(str) {
+        if (typeof str !== 'string')
+            return fail(this, STRING_EXPECTED);
+        return this.between(str, str + maxString, true, true);
+    }
+    startsWithIgnoreCase(str) {
+        if (str === "")
+            return this.startsWith(str);
+        return addIgnoreCaseAlgorithm(this, (x, a) => x.indexOf(a[0]) === 0, [str], maxString);
+    }
+    equalsIgnoreCase(str) {
+        return addIgnoreCaseAlgorithm(this, (x, a) => x === a[0], [str], "");
+    }
+    anyOfIgnoreCase() {
+        var set = getArrayOf.apply(NO_CHAR_ARRAY, arguments);
+        if (set.length === 0)
+            return emptyCollection(this);
+        return addIgnoreCaseAlgorithm(this, (x, a) => a.indexOf(x) !== -1, set, "");
+    }
+    startsWithAnyOfIgnoreCase() {
+        var set = getArrayOf.apply(NO_CHAR_ARRAY, arguments);
+        if (set.length === 0)
+            return emptyCollection(this);
+        return addIgnoreCaseAlgorithm(this, (x, a) => a.some(n => x.indexOf(n) === 0), set, maxString);
+    }
+    anyOf() {
+        const set = getArrayOf.apply(NO_CHAR_ARRAY, arguments);
+        let compare = this._cmp;
+        try {
+            set.sort(compare);
+        }
+        catch (e) {
+            return fail(this, INVALID_KEY_ARGUMENT);
+        }
+        if (set.length === 0)
+            return emptyCollection(this);
+        const c = new this.Collection(this, () => createRange(set[0], set[set.length - 1]));
+        c._ondirectionchange = direction => {
+            compare = (direction === "next" ?
+                this._ascending :
+                this._descending);
+            set.sort(compare);
+        };
+        let i = 0;
+        c._addAlgorithm((cursor, advance, resolve) => {
+            const key = cursor.key;
+            while (compare(key, set[i]) > 0) {
+                ++i;
+                if (i === set.length) {
+                    advance(resolve);
+                    return false;
+                }
+            }
+            if (compare(key, set[i]) === 0) {
+                return true;
+            }
+            else {
+                advance(() => { cursor.continue(set[i]); });
+                return false;
+            }
+        });
+        return c;
+    }
+    notEqual(value) {
+        return this.inAnyRange([[minKey, value], [value, this.db._maxKey]], { includeLowers: false, includeUppers: false });
+    }
+    noneOf() {
+        const set = getArrayOf.apply(NO_CHAR_ARRAY, arguments);
+        if (set.length === 0)
+            return new this.Collection(this);
+        try {
+            set.sort(this._ascending);
+        }
+        catch (e) {
+            return fail(this, INVALID_KEY_ARGUMENT);
+        }
+        const ranges = set.reduce((res, val) => res ?
+            res.concat([[res[res.length - 1][1], val]]) :
+            [[minKey, val]], null);
+        ranges.push([set[set.length - 1], this.db._maxKey]);
+        return this.inAnyRange(ranges, { includeLowers: false, includeUppers: false });
+    }
+    inAnyRange(ranges, options) {
+        const cmp = this._cmp, ascending = this._ascending, descending = this._descending, min = this._min, max = this._max;
+        if (ranges.length === 0)
+            return emptyCollection(this);
+        if (!ranges.every(range => range[0] !== undefined &&
+            range[1] !== undefined &&
+            ascending(range[0], range[1]) <= 0)) {
+            return fail(this, "First argument to inAnyRange() must be an Array of two-value Arrays [lower,upper] where upper must not be lower than lower", exceptions.InvalidArgument);
+        }
+        const includeLowers = !options || options.includeLowers !== false;
+        const includeUppers = options && options.includeUppers === true;
+        function addRange(ranges, newRange) {
+            let i = 0, l = ranges.length;
+            for (; i < l; ++i) {
+                const range = ranges[i];
+                if (cmp(newRange[0], range[1]) < 0 && cmp(newRange[1], range[0]) > 0) {
+                    range[0] = min(range[0], newRange[0]);
+                    range[1] = max(range[1], newRange[1]);
+                    break;
+                }
+            }
+            if (i === l)
+                ranges.push(newRange);
+            return ranges;
+        }
+        let sortDirection = ascending;
+        function rangeSorter(a, b) { return sortDirection(a[0], b[0]); }
+        let set;
+        try {
+            set = ranges.reduce(addRange, []);
+            set.sort(rangeSorter);
+        }
+        catch (ex) {
+            return fail(this, INVALID_KEY_ARGUMENT);
+        }
+        let rangePos = 0;
+        const keyIsBeyondCurrentEntry = includeUppers ?
+            key => ascending(key, set[rangePos][1]) > 0 :
+            key => ascending(key, set[rangePos][1]) >= 0;
+        const keyIsBeforeCurrentEntry = includeLowers ?
+            key => descending(key, set[rangePos][0]) > 0 :
+            key => descending(key, set[rangePos][0]) >= 0;
+        function keyWithinCurrentRange(key) {
+            return !keyIsBeyondCurrentEntry(key) && !keyIsBeforeCurrentEntry(key);
+        }
+        let checkKey = keyIsBeyondCurrentEntry;
+        const c = new this.Collection(this, () => createRange(set[0][0], set[set.length - 1][1], !includeLowers, !includeUppers));
+        c._ondirectionchange = direction => {
+            if (direction === "next") {
+                checkKey = keyIsBeyondCurrentEntry;
+                sortDirection = ascending;
+            }
+            else {
+                checkKey = keyIsBeforeCurrentEntry;
+                sortDirection = descending;
+            }
+            set.sort(rangeSorter);
+        };
+        c._addAlgorithm((cursor, advance, resolve) => {
+            var key = cursor.key;
+            while (checkKey(key)) {
+                ++rangePos;
+                if (rangePos === set.length) {
+                    advance(resolve);
+                    return false;
+                }
+            }
+            if (keyWithinCurrentRange(key)) {
+                return true;
+            }
+            else if (this._cmp(key, set[rangePos][1]) === 0 || this._cmp(key, set[rangePos][0]) === 0) {
+                return false;
+            }
+            else {
+                advance(() => {
+                    if (sortDirection === ascending)
+                        cursor.continue(set[rangePos][0]);
+                    else
+                        cursor.continue(set[rangePos][1]);
+                });
+                return false;
+            }
+        });
+        return c;
+    }
+    startsWithAnyOf() {
+        const set = getArrayOf.apply(NO_CHAR_ARRAY, arguments);
+        if (!set.every(s => typeof s === 'string')) {
+            return fail(this, "startsWithAnyOf() only works with strings");
+        }
+        if (set.length === 0)
+            return emptyCollection(this);
+        return this.inAnyRange(set.map((str) => [str, str + maxString]));
+    }
+}
+
+function createWhereClauseConstructor(db) {
+    return makeClassConstructor(WhereClause.prototype, function WhereClause(table, index, orCollection) {
+        this.db = db;
+        this._ctx = {
+            table: table,
+            index: index === ":id" ? null : index,
+            or: orCollection
+        };
+        const indexedDB = db._deps.indexedDB;
+        if (!indexedDB)
+            throw new exceptions.MissingAPI();
+        this._cmp = this._ascending = indexedDB.cmp.bind(indexedDB);
+        this._descending = (a, b) => indexedDB.cmp(b, a);
+        this._max = (a, b) => indexedDB.cmp(a, b) > 0 ? a : b;
+        this._min = (a, b) => indexedDB.cmp(a, b) < 0 ? a : b;
+        this._IDBKeyRange = db._deps.IDBKeyRange;
+    });
+}
+
+function eventRejectHandler(reject) {
+    return wrap(function (event) {
+        preventDefault(event);
+        reject(event.target.error);
+        return false;
+    });
+}
+function preventDefault(event) {
+    if (event.stopPropagation)
+        event.stopPropagation();
+    if (event.preventDefault)
+        event.preventDefault();
+}
+
+const DEXIE_STORAGE_MUTATED_EVENT_NAME = 'storagemutated';
+const STORAGE_MUTATED_DOM_EVENT_NAME = 'x-storagemutated-1';
+const globalEvents = Events(null, DEXIE_STORAGE_MUTATED_EVENT_NAME);
+
+class Transaction {
+    _lock() {
+        assert(!PSD.global);
+        ++this._reculock;
+        if (this._reculock === 1 && !PSD.global)
+            PSD.lockOwnerFor = this;
+        return this;
+    }
+    _unlock() {
+        assert(!PSD.global);
+        if (--this._reculock === 0) {
+            if (!PSD.global)
+                PSD.lockOwnerFor = null;
+            while (this._blockedFuncs.length > 0 && !this._locked()) {
+                var fnAndPSD = this._blockedFuncs.shift();
+                try {
+                    usePSD(fnAndPSD[1], fnAndPSD[0]);
+                }
+                catch (e) { }
+            }
+        }
+        return this;
+    }
+    _locked() {
+        return this._reculock && PSD.lockOwnerFor !== this;
+    }
+    create(idbtrans) {
+        if (!this.mode)
+            return this;
+        const idbdb = this.db.idbdb;
+        const dbOpenError = this.db._state.dbOpenError;
+        assert(!this.idbtrans);
+        if (!idbtrans && !idbdb) {
+            switch (dbOpenError && dbOpenError.name) {
+                case "DatabaseClosedError":
+                    throw new exceptions.DatabaseClosed(dbOpenError);
+                case "MissingAPIError":
+                    throw new exceptions.MissingAPI(dbOpenError.message, dbOpenError);
+                default:
+                    throw new exceptions.OpenFailed(dbOpenError);
+            }
+        }
+        if (!this.active)
+            throw new exceptions.TransactionInactive();
+        assert(this._completion._state === null);
+        idbtrans = this.idbtrans = idbtrans ||
+            (this.db.core
+                ? this.db.core.transaction(this.storeNames, this.mode, { durability: this.chromeTransactionDurability })
+                : idbdb.transaction(this.storeNames, this.mode, { durability: this.chromeTransactionDurability }));
+        idbtrans.onerror = wrap(ev => {
+            preventDefault(ev);
+            this._reject(idbtrans.error);
+        });
+        idbtrans.onabort = wrap(ev => {
+            preventDefault(ev);
+            this.active && this._reject(new exceptions.Abort(idbtrans.error));
+            this.active = false;
+            this.on("abort").fire(ev);
+        });
+        idbtrans.oncomplete = wrap(() => {
+            this.active = false;
+            this._resolve();
+            if ('mutatedParts' in idbtrans) {
+                globalEvents.storagemutated.fire(idbtrans["mutatedParts"]);
+            }
+        });
+        return this;
+    }
+    _promise(mode, fn, bWriteLock) {
+        if (mode === 'readwrite' && this.mode !== 'readwrite')
+            return rejection(new exceptions.ReadOnly("Transaction is readonly"));
+        if (!this.active)
+            return rejection(new exceptions.TransactionInactive());
+        if (this._locked()) {
+            return new DexiePromise((resolve, reject) => {
+                this._blockedFuncs.push([() => {
+                        this._promise(mode, fn, bWriteLock).then(resolve, reject);
+                    }, PSD]);
+            });
+        }
+        else if (bWriteLock) {
+            return newScope(() => {
+                var p = new DexiePromise((resolve, reject) => {
+                    this._lock();
+                    const rv = fn(resolve, reject, this);
+                    if (rv && rv.then)
+                        rv.then(resolve, reject);
+                });
+                p.finally(() => this._unlock());
+                p._lib = true;
+                return p;
+            });
+        }
+        else {
+            var p = new DexiePromise((resolve, reject) => {
+                var rv = fn(resolve, reject, this);
+                if (rv && rv.then)
+                    rv.then(resolve, reject);
+            });
+            p._lib = true;
+            return p;
+        }
+    }
+    _root() {
+        return this.parent ? this.parent._root() : this;
+    }
+    waitFor(promiseLike) {
+        var root = this._root();
+        const promise = DexiePromise.resolve(promiseLike);
+        if (root._waitingFor) {
+            root._waitingFor = root._waitingFor.then(() => promise);
+        }
+        else {
+            root._waitingFor = promise;
+            root._waitingQueue = [];
+            var store = root.idbtrans.objectStore(root.storeNames[0]);
+            (function spin() {
+                ++root._spinCount;
+                while (root._waitingQueue.length)
+                    (root._waitingQueue.shift())();
+                if (root._waitingFor)
+                    store.get(-Infinity).onsuccess = spin;
+            }());
+        }
+        var currentWaitPromise = root._waitingFor;
+        return new DexiePromise((resolve, reject) => {
+            promise.then(res => root._waitingQueue.push(wrap(resolve.bind(null, res))), err => root._waitingQueue.push(wrap(reject.bind(null, err)))).finally(() => {
+                if (root._waitingFor === currentWaitPromise) {
+                    root._waitingFor = null;
+                }
+            });
+        });
+    }
+    abort() {
+        if (this.active) {
+            this.active = false;
+            if (this.idbtrans)
+                this.idbtrans.abort();
+            this._reject(new exceptions.Abort());
+        }
+    }
+    table(tableName) {
+        const memoizedTables = (this._memoizedTables || (this._memoizedTables = {}));
+        if (hasOwn(memoizedTables, tableName))
+            return memoizedTables[tableName];
+        const tableSchema = this.schema[tableName];
+        if (!tableSchema) {
+            throw new exceptions.NotFound("Table " + tableName + " not part of transaction");
+        }
+        const transactionBoundTable = new this.db.Table(tableName, tableSchema, this);
+        transactionBoundTable.core = this.db.core.table(tableName);
+        memoizedTables[tableName] = transactionBoundTable;
+        return transactionBoundTable;
+    }
+}
+
+function createTransactionConstructor(db) {
+    return makeClassConstructor(Transaction.prototype, function Transaction(mode, storeNames, dbschema, chromeTransactionDurability, parent) {
+        this.db = db;
+        this.mode = mode;
+        this.storeNames = storeNames;
+        this.schema = dbschema;
+        this.chromeTransactionDurability = chromeTransactionDurability;
+        this.idbtrans = null;
+        this.on = Events(this, "complete", "error", "abort");
+        this.parent = parent || null;
+        this.active = true;
+        this._reculock = 0;
+        this._blockedFuncs = [];
+        this._resolve = null;
+        this._reject = null;
+        this._waitingFor = null;
+        this._waitingQueue = null;
+        this._spinCount = 0;
+        this._completion = new DexiePromise((resolve, reject) => {
+            this._resolve = resolve;
+            this._reject = reject;
+        });
+        this._completion.then(() => {
+            this.active = false;
+            this.on.complete.fire();
+        }, e => {
+            var wasActive = this.active;
+            this.active = false;
+            this.on.error.fire(e);
+            this.parent ?
+                this.parent._reject(e) :
+                wasActive && this.idbtrans && this.idbtrans.abort();
+            return rejection(e);
+        });
+    });
+}
+
+function createIndexSpec(name, keyPath, unique, multi, auto, compound, isPrimKey) {
+    return {
+        name,
+        keyPath,
+        unique,
+        multi,
+        auto,
+        compound,
+        src: (unique && !isPrimKey ? '&' : '') + (multi ? '*' : '') + (auto ? "++" : "") + nameFromKeyPath(keyPath)
+    };
+}
+function nameFromKeyPath(keyPath) {
+    return typeof keyPath === 'string' ?
+        keyPath :
+        keyPath ? ('[' + [].join.call(keyPath, '+') + ']') : "";
+}
+
+function createTableSchema(name, primKey, indexes) {
+    return {
+        name,
+        primKey,
+        indexes,
+        mappedClass: null,
+        idxByName: arrayToObject(indexes, index => [index.name, index])
+    };
+}
+
+function safariMultiStoreFix(storeNames) {
+    return storeNames.length === 1 ? storeNames[0] : storeNames;
+}
+let getMaxKey = (IdbKeyRange) => {
+    try {
+        IdbKeyRange.only([[]]);
+        getMaxKey = () => [[]];
+        return [[]];
+    }
+    catch (e) {
+        getMaxKey = () => maxString;
+        return maxString;
+    }
+};
+
+function getKeyExtractor(keyPath) {
+    if (keyPath == null) {
+        return () => undefined;
+    }
+    else if (typeof keyPath === 'string') {
+        return getSinglePathKeyExtractor(keyPath);
+    }
+    else {
+        return obj => getByKeyPath(obj, keyPath);
+    }
+}
+function getSinglePathKeyExtractor(keyPath) {
+    const split = keyPath.split('.');
+    if (split.length === 1) {
+        return obj => obj[keyPath];
+    }
+    else {
+        return obj => getByKeyPath(obj, keyPath);
+    }
+}
+
+function arrayify(arrayLike) {
+    return [].slice.call(arrayLike);
+}
+let _id_counter = 0;
+function getKeyPathAlias(keyPath) {
+    return keyPath == null ?
+        ":id" :
+        typeof keyPath === 'string' ?
+            keyPath :
+            `[${keyPath.join('+')}]`;
+}
+function createDBCore(db, IdbKeyRange, tmpTrans) {
+    function extractSchema(db, trans) {
+        const tables = arrayify(db.objectStoreNames);
+        return {
+            schema: {
+                name: db.name,
+                tables: tables.map(table => trans.objectStore(table)).map(store => {
+                    const { keyPath, autoIncrement } = store;
+                    const compound = isArray(keyPath);
+                    const outbound = keyPath == null;
+                    const indexByKeyPath = {};
+                    const result = {
+                        name: store.name,
+                        primaryKey: {
+                            name: null,
+                            isPrimaryKey: true,
+                            outbound,
+                            compound,
+                            keyPath,
+                            autoIncrement,
+                            unique: true,
+                            extractKey: getKeyExtractor(keyPath)
+                        },
+                        indexes: arrayify(store.indexNames).map(indexName => store.index(indexName))
+                            .map(index => {
+                            const { name, unique, multiEntry, keyPath } = index;
+                            const compound = isArray(keyPath);
+                            const result = {
+                                name,
+                                compound,
+                                keyPath,
+                                unique,
+                                multiEntry,
+                                extractKey: getKeyExtractor(keyPath)
+                            };
+                            indexByKeyPath[getKeyPathAlias(keyPath)] = result;
+                            return result;
+                        }),
+                        getIndexByKeyPath: (keyPath) => indexByKeyPath[getKeyPathAlias(keyPath)]
+                    };
+                    indexByKeyPath[":id"] = result.primaryKey;
+                    if (keyPath != null) {
+                        indexByKeyPath[getKeyPathAlias(keyPath)] = result.primaryKey;
+                    }
+                    return result;
+                })
+            },
+            hasGetAll: tables.length > 0 && ('getAll' in trans.objectStore(tables[0])) &&
+                !(typeof navigator !== 'undefined' && /Safari/.test(navigator.userAgent) &&
+                    !/(Chrome\/|Edge\/)/.test(navigator.userAgent) &&
+                    [].concat(navigator.userAgent.match(/Safari\/(\d*)/))[1] < 604)
+        };
+    }
+    function makeIDBKeyRange(range) {
+        if (range.type === 3 )
+            return null;
+        if (range.type === 4 )
+            throw new Error("Cannot convert never type to IDBKeyRange");
+        const { lower, upper, lowerOpen, upperOpen } = range;
+        const idbRange = lower === undefined ?
+            upper === undefined ?
+                null :
+                IdbKeyRange.upperBound(upper, !!upperOpen) :
+            upper === undefined ?
+                IdbKeyRange.lowerBound(lower, !!lowerOpen) :
+                IdbKeyRange.bound(lower, upper, !!lowerOpen, !!upperOpen);
+        return idbRange;
+    }
+    function createDbCoreTable(tableSchema) {
+        const tableName = tableSchema.name;
+        function mutate({ trans, type, keys, values, range }) {
+            return new Promise((resolve, reject) => {
+                resolve = wrap(resolve);
+                const store = trans.objectStore(tableName);
+                const outbound = store.keyPath == null;
+                const isAddOrPut = type === "put" || type === "add";
+                if (!isAddOrPut && type !== 'delete' && type !== 'deleteRange')
+                    throw new Error("Invalid operation type: " + type);
+                const { length } = keys || values || { length: 1 };
+                if (keys && values && keys.length !== values.length) {
+                    throw new Error("Given keys array must have same length as given values array.");
+                }
+                if (length === 0)
+                    return resolve({ numFailures: 0, failures: {}, results: [], lastResult: undefined });
+                let req;
+                const reqs = [];
+                const failures = [];
+                let numFailures = 0;
+                const errorHandler = event => {
+                    ++numFailures;
+                    preventDefault(event);
+                };
+                if (type === 'deleteRange') {
+                    if (range.type === 4 )
+                        return resolve({ numFailures, failures, results: [], lastResult: undefined });
+                    if (range.type === 3 )
+                        reqs.push(req = store.clear());
+                    else
+                        reqs.push(req = store.delete(makeIDBKeyRange(range)));
+                }
+                else {
+                    const [args1, args2] = isAddOrPut ?
+                        outbound ?
+                            [values, keys] :
+                            [values, null] :
+                        [keys, null];
+                    if (isAddOrPut) {
+                        for (let i = 0; i < length; ++i) {
+                            reqs.push(req = (args2 && args2[i] !== undefined ?
+                                store[type](args1[i], args2[i]) :
+                                store[type](args1[i])));
+                            req.onerror = errorHandler;
+                        }
+                    }
+                    else {
+                        for (let i = 0; i < length; ++i) {
+                            reqs.push(req = store[type](args1[i]));
+                            req.onerror = errorHandler;
+                        }
+                    }
+                }
+                const done = event => {
+                    const lastResult = event.target.result;
+                    reqs.forEach((req, i) => req.error != null && (failures[i] = req.error));
+                    resolve({
+                        numFailures,
+                        failures,
+                        results: type === "delete" ? keys : reqs.map(req => req.result),
+                        lastResult
+                    });
+                };
+                req.onerror = event => {
+                    errorHandler(event);
+                    done(event);
+                };
+                req.onsuccess = done;
+            });
+        }
+        function openCursor({ trans, values, query, reverse, unique }) {
+            return new Promise((resolve, reject) => {
+                resolve = wrap(resolve);
+                const { index, range } = query;
+                const store = trans.objectStore(tableName);
+                const source = index.isPrimaryKey ?
+                    store :
+                    store.index(index.name);
+                const direction = reverse ?
+                    unique ?
+                        "prevunique" :
+                        "prev" :
+                    unique ?
+                        "nextunique" :
+                        "next";
+                const req = values || !('openKeyCursor' in source) ?
+                    source.openCursor(makeIDBKeyRange(range), direction) :
+                    source.openKeyCursor(makeIDBKeyRange(range), direction);
+                req.onerror = eventRejectHandler(reject);
+                req.onsuccess = wrap(ev => {
+                    const cursor = req.result;
+                    if (!cursor) {
+                        resolve(null);
+                        return;
+                    }
+                    cursor.___id = ++_id_counter;
+                    cursor.done = false;
+                    const _cursorContinue = cursor.continue.bind(cursor);
+                    let _cursorContinuePrimaryKey = cursor.continuePrimaryKey;
+                    if (_cursorContinuePrimaryKey)
+                        _cursorContinuePrimaryKey = _cursorContinuePrimaryKey.bind(cursor);
+                    const _cursorAdvance = cursor.advance.bind(cursor);
+                    const doThrowCursorIsNotStarted = () => { throw new Error("Cursor not started"); };
+                    const doThrowCursorIsStopped = () => { throw new Error("Cursor not stopped"); };
+                    cursor.trans = trans;
+                    cursor.stop = cursor.continue = cursor.continuePrimaryKey = cursor.advance = doThrowCursorIsNotStarted;
+                    cursor.fail = wrap(reject);
+                    cursor.next = function () {
+                        let gotOne = 1;
+                        return this.start(() => gotOne-- ? this.continue() : this.stop()).then(() => this);
+                    };
+                    cursor.start = (callback) => {
+                        const iterationPromise = new Promise((resolveIteration, rejectIteration) => {
+                            resolveIteration = wrap(resolveIteration);
+                            req.onerror = eventRejectHandler(rejectIteration);
+                            cursor.fail = rejectIteration;
+                            cursor.stop = value => {
+                                cursor.stop = cursor.continue = cursor.continuePrimaryKey = cursor.advance = doThrowCursorIsStopped;
+                                resolveIteration(value);
+                            };
+                        });
+                        const guardedCallback = () => {
+                            if (req.result) {
+                                try {
+                                    callback();
+                                }
+                                catch (err) {
+                                    cursor.fail(err);
+                                }
+                            }
+                            else {
+                                cursor.done = true;
+                                cursor.start = () => { throw new Error("Cursor behind last entry"); };
+                                cursor.stop();
+                            }
+                        };
+                        req.onsuccess = wrap(ev => {
+                            req.onsuccess = guardedCallback;
+                            guardedCallback();
+                        });
+                        cursor.continue = _cursorContinue;
+                        cursor.continuePrimaryKey = _cursorContinuePrimaryKey;
+                        cursor.advance = _cursorAdvance;
+                        guardedCallback();
+                        return iterationPromise;
+                    };
+                    resolve(cursor);
+                }, reject);
+            });
+        }
+        function query(hasGetAll) {
+            return (request) => {
+                return new Promise((resolve, reject) => {
+                    resolve = wrap(resolve);
+                    const { trans, values, limit, query } = request;
+                    const nonInfinitLimit = limit === Infinity ? undefined : limit;
+                    const { index, range } = query;
+                    const store = trans.objectStore(tableName);
+                    const source = index.isPrimaryKey ? store : store.index(index.name);
+                    const idbKeyRange = makeIDBKeyRange(range);
+                    if (limit === 0)
+                        return resolve({ result: [] });
+                    if (hasGetAll) {
+                        const req = values ?
+                            source.getAll(idbKeyRange, nonInfinitLimit) :
+                            source.getAllKeys(idbKeyRange, nonInfinitLimit);
+                        req.onsuccess = event => resolve({ result: event.target.result });
+                        req.onerror = eventRejectHandler(reject);
+                    }
+                    else {
+                        let count = 0;
+                        const req = values || !('openKeyCursor' in source) ?
+                            source.openCursor(idbKeyRange) :
+                            source.openKeyCursor(idbKeyRange);
+                        const result = [];
+                        req.onsuccess = event => {
+                            const cursor = req.result;
+                            if (!cursor)
+                                return resolve({ result });
+                            result.push(values ? cursor.value : cursor.primaryKey);
+                            if (++count === limit)
+                                return resolve({ result });
+                            cursor.continue();
+                        };
+                        req.onerror = eventRejectHandler(reject);
+                    }
+                });
+            };
+        }
+        return {
+            name: tableName,
+            schema: tableSchema,
+            mutate,
+            getMany({ trans, keys }) {
+                return new Promise((resolve, reject) => {
+                    resolve = wrap(resolve);
+                    const store = trans.objectStore(tableName);
+                    const length = keys.length;
+                    const result = new Array(length);
+                    let keyCount = 0;
+                    let callbackCount = 0;
+                    let req;
+                    const successHandler = event => {
+                        const req = event.target;
+                        if ((result[req._pos] = req.result) != null)
+                            ;
+                        if (++callbackCount === keyCount)
+                            resolve(result);
+                    };
+                    const errorHandler = eventRejectHandler(reject);
+                    for (let i = 0; i < length; ++i) {
+                        const key = keys[i];
+                        if (key != null) {
+                            req = store.get(keys[i]);
+                            req._pos = i;
+                            req.onsuccess = successHandler;
+                            req.onerror = errorHandler;
+                            ++keyCount;
+                        }
+                    }
+                    if (keyCount === 0)
+                        resolve(result);
+                });
+            },
+            get({ trans, key }) {
+                return new Promise((resolve, reject) => {
+                    resolve = wrap(resolve);
+                    const store = trans.objectStore(tableName);
+                    const req = store.get(key);
+                    req.onsuccess = event => resolve(event.target.result);
+                    req.onerror = eventRejectHandler(reject);
+                });
+            },
+            query: query(hasGetAll),
+            openCursor,
+            count({ query, trans }) {
+                const { index, range } = query;
+                return new Promise((resolve, reject) => {
+                    const store = trans.objectStore(tableName);
+                    const source = index.isPrimaryKey ? store : store.index(index.name);
+                    const idbKeyRange = makeIDBKeyRange(range);
+                    const req = idbKeyRange ? source.count(idbKeyRange) : source.count();
+                    req.onsuccess = wrap(ev => resolve(ev.target.result));
+                    req.onerror = eventRejectHandler(reject);
+                });
+            }
+        };
+    }
+    const { schema, hasGetAll } = extractSchema(db, tmpTrans);
+    const tables = schema.tables.map(tableSchema => createDbCoreTable(tableSchema));
+    const tableMap = {};
+    tables.forEach(table => tableMap[table.name] = table);
+    return {
+        stack: "dbcore",
+        transaction: db.transaction.bind(db),
+        table(name) {
+            const result = tableMap[name];
+            if (!result)
+                throw new Error(`Table '${name}' not found`);
+            return tableMap[name];
+        },
+        MIN_KEY: -Infinity,
+        MAX_KEY: getMaxKey(IdbKeyRange),
+        schema
+    };
+}
+
+function createMiddlewareStack(stackImpl, middlewares) {
+    return middlewares.reduce((down, { create }) => ({ ...down, ...create(down) }), stackImpl);
+}
+function createMiddlewareStacks(middlewares, idbdb, { IDBKeyRange, indexedDB }, tmpTrans) {
+    const dbcore = createMiddlewareStack(createDBCore(idbdb, IDBKeyRange, tmpTrans), middlewares.dbcore);
+    return {
+        dbcore
+    };
+}
+function generateMiddlewareStacks({ _novip: db }, tmpTrans) {
+    const idbdb = tmpTrans.db;
+    const stacks = createMiddlewareStacks(db._middlewares, idbdb, db._deps, tmpTrans);
+    db.core = stacks.dbcore;
+    db.tables.forEach(table => {
+        const tableName = table.name;
+        if (db.core.schema.tables.some(tbl => tbl.name === tableName)) {
+            table.core = db.core.table(tableName);
+            if (db[tableName] instanceof db.Table) {
+                db[tableName].core = table.core;
+            }
+        }
+    });
+}
+
+function setApiOnPlace({ _novip: db }, objs, tableNames, dbschema) {
+    tableNames.forEach(tableName => {
+        const schema = dbschema[tableName];
+        objs.forEach(obj => {
+            const propDesc = getPropertyDescriptor(obj, tableName);
+            if (!propDesc || ("value" in propDesc && propDesc.value === undefined)) {
+                if (obj === db.Transaction.prototype || obj instanceof db.Transaction) {
+                    setProp(obj, tableName, {
+                        get() { return this.table(tableName); },
+                        set(value) {
+                            defineProperty(this, tableName, { value, writable: true, configurable: true, enumerable: true });
+                        }
+                    });
+                }
+                else {
+                    obj[tableName] = new db.Table(tableName, schema);
+                }
+            }
+        });
+    });
+}
+function removeTablesApi({ _novip: db }, objs) {
+    objs.forEach(obj => {
+        for (let key in obj) {
+            if (obj[key] instanceof db.Table)
+                delete obj[key];
+        }
+    });
+}
+function lowerVersionFirst(a, b) {
+    return a._cfg.version - b._cfg.version;
+}
+function runUpgraders(db, oldVersion, idbUpgradeTrans, reject) {
+    const globalSchema = db._dbSchema;
+    const trans = db._createTransaction('readwrite', db._storeNames, globalSchema);
+    trans.create(idbUpgradeTrans);
+    trans._completion.catch(reject);
+    const rejectTransaction = trans._reject.bind(trans);
+    const transless = PSD.transless || PSD;
+    newScope(() => {
+        PSD.trans = trans;
+        PSD.transless = transless;
+        if (oldVersion === 0) {
+            keys(globalSchema).forEach(tableName => {
+                createTable(idbUpgradeTrans, tableName, globalSchema[tableName].primKey, globalSchema[tableName].indexes);
+            });
+            generateMiddlewareStacks(db, idbUpgradeTrans);
+            DexiePromise.follow(() => db.on.populate.fire(trans)).catch(rejectTransaction);
+        }
+        else
+            updateTablesAndIndexes(db, oldVersion, trans, idbUpgradeTrans).catch(rejectTransaction);
+    });
+}
+function updateTablesAndIndexes({ _novip: db }, oldVersion, trans, idbUpgradeTrans) {
+    const queue = [];
+    const versions = db._versions;
+    let globalSchema = db._dbSchema = buildGlobalSchema(db, db.idbdb, idbUpgradeTrans);
+    let anyContentUpgraderHasRun = false;
+    const versToRun = versions.filter(v => v._cfg.version >= oldVersion);
+    versToRun.forEach(version => {
+        queue.push(() => {
+            const oldSchema = globalSchema;
+            const newSchema = version._cfg.dbschema;
+            adjustToExistingIndexNames(db, oldSchema, idbUpgradeTrans);
+            adjustToExistingIndexNames(db, newSchema, idbUpgradeTrans);
+            globalSchema = db._dbSchema = newSchema;
+            const diff = getSchemaDiff(oldSchema, newSchema);
+            diff.add.forEach(tuple => {
+                createTable(idbUpgradeTrans, tuple[0], tuple[1].primKey, tuple[1].indexes);
+            });
+            diff.change.forEach(change => {
+                if (change.recreate) {
+                    throw new exceptions.Upgrade("Not yet support for changing primary key");
+                }
+                else {
+                    const store = idbUpgradeTrans.objectStore(change.name);
+                    change.add.forEach(idx => addIndex(store, idx));
+                    change.change.forEach(idx => {
+                        store.deleteIndex(idx.name);
+                        addIndex(store, idx);
+                    });
+                    change.del.forEach(idxName => store.deleteIndex(idxName));
+                }
+            });
+            const contentUpgrade = version._cfg.contentUpgrade;
+            if (contentUpgrade && version._cfg.version > oldVersion) {
+                generateMiddlewareStacks(db, idbUpgradeTrans);
+                trans._memoizedTables = {};
+                anyContentUpgraderHasRun = true;
+                let upgradeSchema = shallowClone(newSchema);
+                diff.del.forEach(table => {
+                    upgradeSchema[table] = oldSchema[table];
+                });
+                removeTablesApi(db, [db.Transaction.prototype]);
+                setApiOnPlace(db, [db.Transaction.prototype], keys(upgradeSchema), upgradeSchema);
+                trans.schema = upgradeSchema;
+                const contentUpgradeIsAsync = isAsyncFunction(contentUpgrade);
+                if (contentUpgradeIsAsync) {
+                    incrementExpectedAwaits();
+                }
+                let returnValue;
+                const promiseFollowed = DexiePromise.follow(() => {
+                    returnValue = contentUpgrade(trans);
+                    if (returnValue) {
+                        if (contentUpgradeIsAsync) {
+                            var decrementor = decrementExpectedAwaits.bind(null, null);
+                            returnValue.then(decrementor, decrementor);
+                        }
+                    }
+                });
+                return (returnValue && typeof returnValue.then === 'function' ?
+                    DexiePromise.resolve(returnValue) : promiseFollowed.then(() => returnValue));
+            }
+        });
+        queue.push(idbtrans => {
+            if (!anyContentUpgraderHasRun || !hasIEDeleteObjectStoreBug) {
+                const newSchema = version._cfg.dbschema;
+                deleteRemovedTables(newSchema, idbtrans);
+            }
+            removeTablesApi(db, [db.Transaction.prototype]);
+            setApiOnPlace(db, [db.Transaction.prototype], db._storeNames, db._dbSchema);
+            trans.schema = db._dbSchema;
+        });
+    });
+    function runQueue() {
+        return queue.length ? DexiePromise.resolve(queue.shift()(trans.idbtrans)).then(runQueue) :
+            DexiePromise.resolve();
+    }
+    return runQueue().then(() => {
+        createMissingTables(globalSchema, idbUpgradeTrans);
+    });
+}
+function getSchemaDiff(oldSchema, newSchema) {
+    const diff = {
+        del: [],
+        add: [],
+        change: []
+    };
+    let table;
+    for (table in oldSchema) {
+        if (!newSchema[table])
+            diff.del.push(table);
+    }
+    for (table in newSchema) {
+        const oldDef = oldSchema[table], newDef = newSchema[table];
+        if (!oldDef) {
+            diff.add.push([table, newDef]);
+        }
+        else {
+            const change = {
+                name: table,
+                def: newDef,
+                recreate: false,
+                del: [],
+                add: [],
+                change: []
+            };
+            if ((
+            '' + (oldDef.primKey.keyPath || '')) !== ('' + (newDef.primKey.keyPath || '')) ||
+                (oldDef.primKey.auto !== newDef.primKey.auto && !isIEOrEdge))
+             {
+                change.recreate = true;
+                diff.change.push(change);
+            }
+            else {
+                const oldIndexes = oldDef.idxByName;
+                const newIndexes = newDef.idxByName;
+                let idxName;
+                for (idxName in oldIndexes) {
+                    if (!newIndexes[idxName])
+                        change.del.push(idxName);
+                }
+                for (idxName in newIndexes) {
+                    const oldIdx = oldIndexes[idxName], newIdx = newIndexes[idxName];
+                    if (!oldIdx)
+                        change.add.push(newIdx);
+                    else if (oldIdx.src !== newIdx.src)
+                        change.change.push(newIdx);
+                }
+                if (change.del.length > 0 || change.add.length > 0 || change.change.length > 0) {
+                    diff.change.push(change);
+                }
+            }
+        }
+    }
+    return diff;
+}
+function createTable(idbtrans, tableName, primKey, indexes) {
+    const store = idbtrans.db.createObjectStore(tableName, primKey.keyPath ?
+        { keyPath: primKey.keyPath, autoIncrement: primKey.auto } :
+        { autoIncrement: primKey.auto });
+    indexes.forEach(idx => addIndex(store, idx));
+    return store;
+}
+function createMissingTables(newSchema, idbtrans) {
+    keys(newSchema).forEach(tableName => {
+        if (!idbtrans.db.objectStoreNames.contains(tableName)) {
+            createTable(idbtrans, tableName, newSchema[tableName].primKey, newSchema[tableName].indexes);
+        }
+    });
+}
+function deleteRemovedTables(newSchema, idbtrans) {
+    [].slice.call(idbtrans.db.objectStoreNames).forEach(storeName => newSchema[storeName] == null && idbtrans.db.deleteObjectStore(storeName));
+}
+function addIndex(store, idx) {
+    store.createIndex(idx.name, idx.keyPath, { unique: idx.unique, multiEntry: idx.multi });
+}
+function buildGlobalSchema(db, idbdb, tmpTrans) {
+    const globalSchema = {};
+    const dbStoreNames = slice(idbdb.objectStoreNames, 0);
+    dbStoreNames.forEach(storeName => {
+        const store = tmpTrans.objectStore(storeName);
+        let keyPath = store.keyPath;
+        const primKey = createIndexSpec(nameFromKeyPath(keyPath), keyPath || "", false, false, !!store.autoIncrement, keyPath && typeof keyPath !== "string", true);
+        const indexes = [];
+        for (let j = 0; j < store.indexNames.length; ++j) {
+            const idbindex = store.index(store.indexNames[j]);
+            keyPath = idbindex.keyPath;
+            var index = createIndexSpec(idbindex.name, keyPath, !!idbindex.unique, !!idbindex.multiEntry, false, keyPath && typeof keyPath !== "string", false);
+            indexes.push(index);
+        }
+        globalSchema[storeName] = createTableSchema(storeName, primKey, indexes);
+    });
+    return globalSchema;
+}
+function readGlobalSchema({ _novip: db }, idbdb, tmpTrans) {
+    db.verno = idbdb.version / 10;
+    const globalSchema = db._dbSchema = buildGlobalSchema(db, idbdb, tmpTrans);
+    db._storeNames = slice(idbdb.objectStoreNames, 0);
+    setApiOnPlace(db, [db._allTables], keys(globalSchema), globalSchema);
+}
+function verifyInstalledSchema(db, tmpTrans) {
+    const installedSchema = buildGlobalSchema(db, db.idbdb, tmpTrans);
+    const diff = getSchemaDiff(installedSchema, db._dbSchema);
+    return !(diff.add.length || diff.change.some(ch => ch.add.length || ch.change.length));
+}
+function adjustToExistingIndexNames({ _novip: db }, schema, idbtrans) {
+    const storeNames = idbtrans.db.objectStoreNames;
+    for (let i = 0; i < storeNames.length; ++i) {
+        const storeName = storeNames[i];
+        const store = idbtrans.objectStore(storeName);
+        db._hasGetAll = 'getAll' in store;
+        for (let j = 0; j < store.indexNames.length; ++j) {
+            const indexName = store.indexNames[j];
+            const keyPath = store.index(indexName).keyPath;
+            const dexieName = typeof keyPath === 'string' ? keyPath : "[" + slice(keyPath).join('+') + "]";
+            if (schema[storeName]) {
+                const indexSpec = schema[storeName].idxByName[dexieName];
+                if (indexSpec) {
+                    indexSpec.name = indexName;
+                    delete schema[storeName].idxByName[dexieName];
+                    schema[storeName].idxByName[indexName] = indexSpec;
+                }
+            }
+        }
+    }
+    if (typeof navigator !== 'undefined' && /Safari/.test(navigator.userAgent) &&
+        !/(Chrome\/|Edge\/)/.test(navigator.userAgent) &&
+        _global.WorkerGlobalScope && _global instanceof _global.WorkerGlobalScope &&
+        [].concat(navigator.userAgent.match(/Safari\/(\d*)/))[1] < 604) {
+        db._hasGetAll = false;
+    }
+}
+function parseIndexSyntax(primKeyAndIndexes) {
+    return primKeyAndIndexes.split(',').map((index, indexNum) => {
+        index = index.trim();
+        const name = index.replace(/([&*]|\+\+)/g, "");
+        const keyPath = /^\[/.test(name) ? name.match(/^\[(.*)\]$/)[1].split('+') : name;
+        return createIndexSpec(name, keyPath || null, /\&/.test(index), /\*/.test(index), /\+\+/.test(index), isArray(keyPath), indexNum === 0);
+    });
+}
+
+class Version {
+    _parseStoresSpec(stores, outSchema) {
+        keys(stores).forEach(tableName => {
+            if (stores[tableName] !== null) {
+                var indexes = parseIndexSyntax(stores[tableName]);
+                var primKey = indexes.shift();
+                if (primKey.multi)
+                    throw new exceptions.Schema("Primary key cannot be multi-valued");
+                indexes.forEach(idx => {
+                    if (idx.auto)
+                        throw new exceptions.Schema("Only primary key can be marked as autoIncrement (++)");
+                    if (!idx.keyPath)
+                        throw new exceptions.Schema("Index must have a name and cannot be an empty string");
+                });
+                outSchema[tableName] = createTableSchema(tableName, primKey, indexes);
+            }
+        });
+    }
+    stores(stores) {
+        const db = this.db;
+        this._cfg.storesSource = this._cfg.storesSource ?
+            extend(this._cfg.storesSource, stores) :
+            stores;
+        const versions = db._versions;
+        const storesSpec = {};
+        let dbschema = {};
+        versions.forEach(version => {
+            extend(storesSpec, version._cfg.storesSource);
+            dbschema = (version._cfg.dbschema = {});
+            version._parseStoresSpec(storesSpec, dbschema);
+        });
+        db._dbSchema = dbschema;
+        removeTablesApi(db, [db._allTables, db, db.Transaction.prototype]);
+        setApiOnPlace(db, [db._allTables, db, db.Transaction.prototype, this._cfg.tables], keys(dbschema), dbschema);
+        db._storeNames = keys(dbschema);
+        return this;
+    }
+    upgrade(upgradeFunction) {
+        this._cfg.contentUpgrade = promisableChain(this._cfg.contentUpgrade || nop, upgradeFunction);
+        return this;
+    }
+}
+
+function createVersionConstructor(db) {
+    return makeClassConstructor(Version.prototype, function Version(versionNumber) {
+        this.db = db;
+        this._cfg = {
+            version: versionNumber,
+            storesSource: null,
+            dbschema: {},
+            tables: {},
+            contentUpgrade: null
+        };
+    });
+}
+
+function getDbNamesTable(indexedDB, IDBKeyRange) {
+    let dbNamesDB = indexedDB["_dbNamesDB"];
+    if (!dbNamesDB) {
+        dbNamesDB = indexedDB["_dbNamesDB"] = new Dexie$1(DBNAMES_DB, {
+            addons: [],
+            indexedDB,
+            IDBKeyRange,
+        });
+        dbNamesDB.version(1).stores({ dbnames: "name" });
+    }
+    return dbNamesDB.table("dbnames");
+}
+function hasDatabasesNative(indexedDB) {
+    return indexedDB && typeof indexedDB.databases === "function";
+}
+function getDatabaseNames({ indexedDB, IDBKeyRange, }) {
+    return hasDatabasesNative(indexedDB)
+        ? Promise.resolve(indexedDB.databases()).then((infos) => infos
+            .map((info) => info.name)
+            .filter((name) => name !== DBNAMES_DB))
+        : getDbNamesTable(indexedDB, IDBKeyRange).toCollection().primaryKeys();
+}
+function _onDatabaseCreated({ indexedDB, IDBKeyRange }, name) {
+    !hasDatabasesNative(indexedDB) &&
+        name !== DBNAMES_DB &&
+        getDbNamesTable(indexedDB, IDBKeyRange).put({ name }).catch(nop);
+}
+function _onDatabaseDeleted({ indexedDB, IDBKeyRange }, name) {
+    !hasDatabasesNative(indexedDB) &&
+        name !== DBNAMES_DB &&
+        getDbNamesTable(indexedDB, IDBKeyRange).delete(name).catch(nop);
+}
+
+function vip(fn) {
+    return newScope(function () {
+        PSD.letThrough = true;
+        return fn();
+    });
+}
+
+function idbReady() {
+    var isSafari = !navigator.userAgentData &&
+        /Safari\//.test(navigator.userAgent) &&
+        !/Chrom(e|ium)\//.test(navigator.userAgent);
+    if (!isSafari || !indexedDB.databases)
+        return Promise.resolve();
+    var intervalId;
+    return new Promise(function (resolve) {
+        var tryIdb = function () { return indexedDB.databases().finally(resolve); };
+        intervalId = setInterval(tryIdb, 100);
+        tryIdb();
+    }).finally(function () { return clearInterval(intervalId); });
+}
+
+function dexieOpen(db) {
+    const state = db._state;
+    const { indexedDB } = db._deps;
+    if (state.isBeingOpened || db.idbdb)
+        return state.dbReadyPromise.then(() => state.dbOpenError ?
+            rejection(state.dbOpenError) :
+            db);
+    debug && (state.openCanceller._stackHolder = getErrorWithStack());
+    state.isBeingOpened = true;
+    state.dbOpenError = null;
+    state.openComplete = false;
+    const openCanceller = state.openCanceller;
+    function throwIfCancelled() {
+        if (state.openCanceller !== openCanceller)
+            throw new exceptions.DatabaseClosed('db.open() was cancelled');
+    }
+    let resolveDbReady = state.dbReadyResolve,
+    upgradeTransaction = null, wasCreated = false;
+    return DexiePromise.race([openCanceller, (typeof navigator === 'undefined' ? DexiePromise.resolve() : idbReady()).then(() => new DexiePromise((resolve, reject) => {
+            throwIfCancelled();
+            if (!indexedDB)
+                throw new exceptions.MissingAPI();
+            const dbName = db.name;
+            const req = state.autoSchema ?
+                indexedDB.open(dbName) :
+                indexedDB.open(dbName, Math.round(db.verno * 10));
+            if (!req)
+                throw new exceptions.MissingAPI();
+            req.onerror = eventRejectHandler(reject);
+            req.onblocked = wrap(db._fireOnBlocked);
+            req.onupgradeneeded = wrap(e => {
+                upgradeTransaction = req.transaction;
+                if (state.autoSchema && !db._options.allowEmptyDB) {
+                    req.onerror = preventDefault;
+                    upgradeTransaction.abort();
+                    req.result.close();
+                    const delreq = indexedDB.deleteDatabase(dbName);
+                    delreq.onsuccess = delreq.onerror = wrap(() => {
+                        reject(new exceptions.NoSuchDatabase(`Database ${dbName} doesnt exist`));
+                    });
+                }
+                else {
+                    upgradeTransaction.onerror = eventRejectHandler(reject);
+                    var oldVer = e.oldVersion > Math.pow(2, 62) ? 0 : e.oldVersion;
+                    wasCreated = oldVer < 1;
+                    db._novip.idbdb = req.result;
+                    runUpgraders(db, oldVer / 10, upgradeTransaction, reject);
+                }
+            }, reject);
+            req.onsuccess = wrap(() => {
+                upgradeTransaction = null;
+                const idbdb = db._novip.idbdb = req.result;
+                const objectStoreNames = slice(idbdb.objectStoreNames);
+                if (objectStoreNames.length > 0)
+                    try {
+                        const tmpTrans = idbdb.transaction(safariMultiStoreFix(objectStoreNames), 'readonly');
+                        if (state.autoSchema)
+                            readGlobalSchema(db, idbdb, tmpTrans);
+                        else {
+                            adjustToExistingIndexNames(db, db._dbSchema, tmpTrans);
+                            if (!verifyInstalledSchema(db, tmpTrans)) {
+                                console.warn(`Dexie SchemaDiff: Schema was extended without increasing the number passed to db.version(). Some queries may fail.`);
+                            }
+                        }
+                        generateMiddlewareStacks(db, tmpTrans);
+                    }
+                    catch (e) {
+                    }
+                connections.push(db);
+                idbdb.onversionchange = wrap(ev => {
+                    state.vcFired = true;
+                    db.on("versionchange").fire(ev);
+                });
+                idbdb.onclose = wrap(ev => {
+                    db.on("close").fire(ev);
+                });
+                if (wasCreated)
+                    _onDatabaseCreated(db._deps, dbName);
+                resolve();
+            }, reject);
+        }))]).then(() => {
+        throwIfCancelled();
+        state.onReadyBeingFired = [];
+        return DexiePromise.resolve(vip(() => db.on.ready.fire(db.vip))).then(function fireRemainders() {
+            if (state.onReadyBeingFired.length > 0) {
+                let remainders = state.onReadyBeingFired.reduce(promisableChain, nop);
+                state.onReadyBeingFired = [];
+                return DexiePromise.resolve(vip(() => remainders(db.vip))).then(fireRemainders);
+            }
+        });
+    }).finally(() => {
+        state.onReadyBeingFired = null;
+        state.isBeingOpened = false;
+    }).then(() => {
+        return db;
+    }).catch(err => {
+        state.dbOpenError = err;
+        try {
+            upgradeTransaction && upgradeTransaction.abort();
+        }
+        catch (_a) { }
+        if (openCanceller === state.openCanceller) {
+            db._close();
+        }
+        return rejection(err);
+    }).finally(() => {
+        state.openComplete = true;
+        resolveDbReady();
+    });
+}
+
+function awaitIterator(iterator) {
+    var callNext = result => iterator.next(result), doThrow = error => iterator.throw(error), onSuccess = step(callNext), onError = step(doThrow);
+    function step(getNext) {
+        return (val) => {
+            var next = getNext(val), value = next.value;
+            return next.done ? value :
+                (!value || typeof value.then !== 'function' ?
+                    isArray(value) ? Promise.all(value).then(onSuccess, onError) : onSuccess(value) :
+                    value.then(onSuccess, onError));
+        };
+    }
+    return step(callNext)();
+}
+
+function extractTransactionArgs(mode, _tableArgs_, scopeFunc) {
+    var i = arguments.length;
+    if (i < 2)
+        throw new exceptions.InvalidArgument("Too few arguments");
+    var args = new Array(i - 1);
+    while (--i)
+        args[i - 1] = arguments[i];
+    scopeFunc = args.pop();
+    var tables = flatten(args);
+    return [mode, tables, scopeFunc];
+}
+function enterTransactionScope(db, mode, storeNames, parentTransaction, scopeFunc) {
+    return DexiePromise.resolve().then(() => {
+        const transless = PSD.transless || PSD;
+        const trans = db._createTransaction(mode, storeNames, db._dbSchema, parentTransaction);
+        const zoneProps = {
+            trans: trans,
+            transless: transless
+        };
+        if (parentTransaction) {
+            trans.idbtrans = parentTransaction.idbtrans;
+        }
+        else {
+            try {
+                trans.create();
+                db._state.PR1398_maxLoop = 3;
+            }
+            catch (ex) {
+                if (ex.name === errnames.InvalidState && db.isOpen() && --db._state.PR1398_maxLoop > 0) {
+                    console.warn('Dexie: Need to reopen db');
+                    db._close();
+                    return db.open().then(() => enterTransactionScope(db, mode, storeNames, null, scopeFunc));
+                }
+                return rejection(ex);
+            }
+        }
+        const scopeFuncIsAsync = isAsyncFunction(scopeFunc);
+        if (scopeFuncIsAsync) {
+            incrementExpectedAwaits();
+        }
+        let returnValue;
+        const promiseFollowed = DexiePromise.follow(() => {
+            returnValue = scopeFunc.call(trans, trans);
+            if (returnValue) {
+                if (scopeFuncIsAsync) {
+                    var decrementor = decrementExpectedAwaits.bind(null, null);
+                    returnValue.then(decrementor, decrementor);
+                }
+                else if (typeof returnValue.next === 'function' && typeof returnValue.throw === 'function') {
+                    returnValue = awaitIterator(returnValue);
+                }
+            }
+        }, zoneProps);
+        return (returnValue && typeof returnValue.then === 'function' ?
+            DexiePromise.resolve(returnValue).then(x => trans.active ?
+                x
+                : rejection(new exceptions.PrematureCommit("Transaction committed too early. See http://bit.ly/2kdckMn")))
+            : promiseFollowed.then(() => returnValue)).then(x => {
+            if (parentTransaction)
+                trans._resolve();
+            return trans._completion.then(() => x);
+        }).catch(e => {
+            trans._reject(e);
+            return rejection(e);
+        });
+    });
+}
+
+function pad(a, value, count) {
+    const result = isArray(a) ? a.slice() : [a];
+    for (let i = 0; i < count; ++i)
+        result.push(value);
+    return result;
+}
+function createVirtualIndexMiddleware(down) {
+    return {
+        ...down,
+        table(tableName) {
+            const table = down.table(tableName);
+            const { schema } = table;
+            const indexLookup = {};
+            const allVirtualIndexes = [];
+            function addVirtualIndexes(keyPath, keyTail, lowLevelIndex) {
+                const keyPathAlias = getKeyPathAlias(keyPath);
+                const indexList = (indexLookup[keyPathAlias] = indexLookup[keyPathAlias] || []);
+                const keyLength = keyPath == null ? 0 : typeof keyPath === 'string' ? 1 : keyPath.length;
+                const isVirtual = keyTail > 0;
+                const virtualIndex = {
+                    ...lowLevelIndex,
+                    isVirtual,
+                    keyTail,
+                    keyLength,
+                    extractKey: getKeyExtractor(keyPath),
+                    unique: !isVirtual && lowLevelIndex.unique
+                };
+                indexList.push(virtualIndex);
+                if (!virtualIndex.isPrimaryKey) {
+                    allVirtualIndexes.push(virtualIndex);
+                }
+                if (keyLength > 1) {
+                    const virtualKeyPath = keyLength === 2 ?
+                        keyPath[0] :
+                        keyPath.slice(0, keyLength - 1);
+                    addVirtualIndexes(virtualKeyPath, keyTail + 1, lowLevelIndex);
+                }
+                indexList.sort((a, b) => a.keyTail - b.keyTail);
+                return virtualIndex;
+            }
+            const primaryKey = addVirtualIndexes(schema.primaryKey.keyPath, 0, schema.primaryKey);
+            indexLookup[":id"] = [primaryKey];
+            for (const index of schema.indexes) {
+                addVirtualIndexes(index.keyPath, 0, index);
+            }
+            function findBestIndex(keyPath) {
+                const result = indexLookup[getKeyPathAlias(keyPath)];
+                return result && result[0];
+            }
+            function translateRange(range, keyTail) {
+                return {
+                    type: range.type === 1  ?
+                        2  :
+                        range.type,
+                    lower: pad(range.lower, range.lowerOpen ? down.MAX_KEY : down.MIN_KEY, keyTail),
+                    lowerOpen: true,
+                    upper: pad(range.upper, range.upperOpen ? down.MIN_KEY : down.MAX_KEY, keyTail),
+                    upperOpen: true
+                };
+            }
+            function translateRequest(req) {
+                const index = req.query.index;
+                return index.isVirtual ? {
+                    ...req,
+                    query: {
+                        index,
+                        range: translateRange(req.query.range, index.keyTail)
+                    }
+                } : req;
+            }
+            const result = {
+                ...table,
+                schema: {
+                    ...schema,
+                    primaryKey,
+                    indexes: allVirtualIndexes,
+                    getIndexByKeyPath: findBestIndex
+                },
+                count(req) {
+                    return table.count(translateRequest(req));
+                },
+                query(req) {
+                    return table.query(translateRequest(req));
+                },
+                openCursor(req) {
+                    const { keyTail, isVirtual, keyLength } = req.query.index;
+                    if (!isVirtual)
+                        return table.openCursor(req);
+                    function createVirtualCursor(cursor) {
+                        function _continue(key) {
+                            key != null ?
+                                cursor.continue(pad(key, req.reverse ? down.MAX_KEY : down.MIN_KEY, keyTail)) :
+                                req.unique ?
+                                    cursor.continue(cursor.key.slice(0, keyLength)
+                                        .concat(req.reverse
+                                        ? down.MIN_KEY
+                                        : down.MAX_KEY, keyTail)) :
+                                    cursor.continue();
+                        }
+                        const virtualCursor = Object.create(cursor, {
+                            continue: { value: _continue },
+                            continuePrimaryKey: {
+                                value(key, primaryKey) {
+                                    cursor.continuePrimaryKey(pad(key, down.MAX_KEY, keyTail), primaryKey);
+                                }
+                            },
+                            primaryKey: {
+                                get() {
+                                    return cursor.primaryKey;
+                                }
+                            },
+                            key: {
+                                get() {
+                                    const key = cursor.key;
+                                    return keyLength === 1 ?
+                                        key[0] :
+                                        key.slice(0, keyLength);
+                                }
+                            },
+                            value: {
+                                get() {
+                                    return cursor.value;
+                                }
+                            }
+                        });
+                        return virtualCursor;
+                    }
+                    return table.openCursor(translateRequest(req))
+                        .then(cursor => cursor && createVirtualCursor(cursor));
+                }
+            };
+            return result;
+        }
+    };
+}
+const virtualIndexMiddleware = {
+    stack: "dbcore",
+    name: "VirtualIndexMiddleware",
+    level: 1,
+    create: createVirtualIndexMiddleware
+};
+
+function getObjectDiff(a, b, rv, prfx) {
+    rv = rv || {};
+    prfx = prfx || '';
+    keys(a).forEach((prop) => {
+        if (!hasOwn(b, prop)) {
+            rv[prfx + prop] = undefined;
+        }
+        else {
+            var ap = a[prop], bp = b[prop];
+            if (typeof ap === 'object' && typeof bp === 'object' && ap && bp) {
+                const apTypeName = toStringTag(ap);
+                const bpTypeName = toStringTag(bp);
+                if (apTypeName !== bpTypeName) {
+                    rv[prfx + prop] = b[prop];
+                }
+                else if (apTypeName === 'Object') {
+                    getObjectDiff(ap, bp, rv, prfx + prop + '.');
+                }
+                else if (ap !== bp) {
+                    rv[prfx + prop] = b[prop];
+                }
+            }
+            else if (ap !== bp)
+                rv[prfx + prop] = b[prop];
+        }
+    });
+    keys(b).forEach((prop) => {
+        if (!hasOwn(a, prop)) {
+            rv[prfx + prop] = b[prop];
+        }
+    });
+    return rv;
+}
+
+function getEffectiveKeys(primaryKey, req) {
+    if (req.type === 'delete')
+        return req.keys;
+    return req.keys || req.values.map(primaryKey.extractKey);
+}
+
+const hooksMiddleware = {
+    stack: "dbcore",
+    name: "HooksMiddleware",
+    level: 2,
+    create: (downCore) => ({
+        ...downCore,
+        table(tableName) {
+            const downTable = downCore.table(tableName);
+            const { primaryKey } = downTable.schema;
+            const tableMiddleware = {
+                ...downTable,
+                mutate(req) {
+                    const dxTrans = PSD.trans;
+                    const { deleting, creating, updating } = dxTrans.table(tableName).hook;
+                    switch (req.type) {
+                        case 'add':
+                            if (creating.fire === nop)
+                                break;
+                            return dxTrans._promise('readwrite', () => addPutOrDelete(req), true);
+                        case 'put':
+                            if (creating.fire === nop && updating.fire === nop)
+                                break;
+                            return dxTrans._promise('readwrite', () => addPutOrDelete(req), true);
+                        case 'delete':
+                            if (deleting.fire === nop)
+                                break;
+                            return dxTrans._promise('readwrite', () => addPutOrDelete(req), true);
+                        case 'deleteRange':
+                            if (deleting.fire === nop)
+                                break;
+                            return dxTrans._promise('readwrite', () => deleteRange(req), true);
+                    }
+                    return downTable.mutate(req);
+                    function addPutOrDelete(req) {
+                        const dxTrans = PSD.trans;
+                        const keys = req.keys || getEffectiveKeys(primaryKey, req);
+                        if (!keys)
+                            throw new Error("Keys missing");
+                        req = req.type === 'add' || req.type === 'put' ?
+                            { ...req, keys } :
+                            { ...req };
+                        if (req.type !== 'delete')
+                            req.values = [...req.values];
+                        if (req.keys)
+                            req.keys = [...req.keys];
+                        return getExistingValues(downTable, req, keys).then(existingValues => {
+                            const contexts = keys.map((key, i) => {
+                                const existingValue = existingValues[i];
+                                const ctx = { onerror: null, onsuccess: null };
+                                if (req.type === 'delete') {
+                                    deleting.fire.call(ctx, key, existingValue, dxTrans);
+                                }
+                                else if (req.type === 'add' || existingValue === undefined) {
+                                    const generatedPrimaryKey = creating.fire.call(ctx, key, req.values[i], dxTrans);
+                                    if (key == null && generatedPrimaryKey != null) {
+                                        key = generatedPrimaryKey;
+                                        req.keys[i] = key;
+                                        if (!primaryKey.outbound) {
+                                            setByKeyPath(req.values[i], primaryKey.keyPath, key);
+                                        }
+                                    }
+                                }
+                                else {
+                                    const objectDiff = getObjectDiff(existingValue, req.values[i]);
+                                    const additionalChanges = updating.fire.call(ctx, objectDiff, key, existingValue, dxTrans);
+                                    if (additionalChanges) {
+                                        const requestedValue = req.values[i];
+                                        Object.keys(additionalChanges).forEach(keyPath => {
+                                            if (hasOwn(requestedValue, keyPath)) {
+                                                requestedValue[keyPath] = additionalChanges[keyPath];
+                                            }
+                                            else {
+                                                setByKeyPath(requestedValue, keyPath, additionalChanges[keyPath]);
+                                            }
+                                        });
+                                    }
+                                }
+                                return ctx;
+                            });
+                            return downTable.mutate(req).then(({ failures, results, numFailures, lastResult }) => {
+                                for (let i = 0; i < keys.length; ++i) {
+                                    const primKey = results ? results[i] : keys[i];
+                                    const ctx = contexts[i];
+                                    if (primKey == null) {
+                                        ctx.onerror && ctx.onerror(failures[i]);
+                                    }
+                                    else {
+                                        ctx.onsuccess && ctx.onsuccess(req.type === 'put' && existingValues[i] ?
+                                            req.values[i] :
+                                            primKey
+                                        );
+                                    }
+                                }
+                                return { failures, results, numFailures, lastResult };
+                            }).catch(error => {
+                                contexts.forEach(ctx => ctx.onerror && ctx.onerror(error));
+                                return Promise.reject(error);
+                            });
+                        });
+                    }
+                    function deleteRange(req) {
+                        return deleteNextChunk(req.trans, req.range, 10000);
+                    }
+                    function deleteNextChunk(trans, range, limit) {
+                        return downTable.query({ trans, values: false, query: { index: primaryKey, range }, limit })
+                            .then(({ result }) => {
+                            return addPutOrDelete({ type: 'delete', keys: result, trans }).then(res => {
+                                if (res.numFailures > 0)
+                                    return Promise.reject(res.failures[0]);
+                                if (result.length < limit) {
+                                    return { failures: [], numFailures: 0, lastResult: undefined };
+                                }
+                                else {
+                                    return deleteNextChunk(trans, { ...range, lower: result[result.length - 1], lowerOpen: true }, limit);
+                                }
+                            });
+                        });
+                    }
+                }
+            };
+            return tableMiddleware;
+        },
+    })
+};
+function getExistingValues(table, req, effectiveKeys) {
+    return req.type === "add"
+        ? Promise.resolve([])
+        : table.getMany({ trans: req.trans, keys: effectiveKeys, cache: "immutable" });
+}
+
+function getFromTransactionCache(keys, cache, clone) {
+    try {
+        if (!cache)
+            return null;
+        if (cache.keys.length < keys.length)
+            return null;
+        const result = [];
+        for (let i = 0, j = 0; i < cache.keys.length && j < keys.length; ++i) {
+            if (cmp(cache.keys[i], keys[j]) !== 0)
+                continue;
+            result.push(clone ? deepClone(cache.values[i]) : cache.values[i]);
+            ++j;
+        }
+        return result.length === keys.length ? result : null;
+    }
+    catch (_a) {
+        return null;
+    }
+}
+const cacheExistingValuesMiddleware = {
+    stack: "dbcore",
+    level: -1,
+    create: (core) => {
+        return {
+            table: (tableName) => {
+                const table = core.table(tableName);
+                return {
+                    ...table,
+                    getMany: (req) => {
+                        if (!req.cache) {
+                            return table.getMany(req);
+                        }
+                        const cachedResult = getFromTransactionCache(req.keys, req.trans["_cache"], req.cache === "clone");
+                        if (cachedResult) {
+                            return DexiePromise.resolve(cachedResult);
+                        }
+                        return table.getMany(req).then((res) => {
+                            req.trans["_cache"] = {
+                                keys: req.keys,
+                                values: req.cache === "clone" ? deepClone(res) : res,
+                            };
+                            return res;
+                        });
+                    },
+                    mutate: (req) => {
+                        if (req.type !== "add")
+                            req.trans["_cache"] = null;
+                        return table.mutate(req);
+                    },
+                };
+            },
+        };
+    },
+};
+
+function isEmptyRange(node) {
+    return !("from" in node);
+}
+const RangeSet = function (fromOrTree, to) {
+    if (this) {
+        extend(this, arguments.length ? { d: 1, from: fromOrTree, to: arguments.length > 1 ? to : fromOrTree } : { d: 0 });
+    }
+    else {
+        const rv = new RangeSet();
+        if (fromOrTree && ("d" in fromOrTree)) {
+            extend(rv, fromOrTree);
+        }
+        return rv;
+    }
+};
+props(RangeSet.prototype, {
+    add(rangeSet) {
+        mergeRanges(this, rangeSet);
+        return this;
+    },
+    addKey(key) {
+        addRange(this, key, key);
+        return this;
+    },
+    addKeys(keys) {
+        keys.forEach(key => addRange(this, key, key));
+        return this;
+    },
+    [iteratorSymbol]() {
+        return getRangeSetIterator(this);
+    }
+});
+function addRange(target, from, to) {
+    const diff = cmp(from, to);
+    if (isNaN(diff))
+        return;
+    if (diff > 0)
+        throw RangeError();
+    if (isEmptyRange(target))
+        return extend(target, { from, to, d: 1 });
+    const left = target.l;
+    const right = target.r;
+    if (cmp(to, target.from) < 0) {
+        left
+            ? addRange(left, from, to)
+            : (target.l = { from, to, d: 1, l: null, r: null });
+        return rebalance(target);
+    }
+    if (cmp(from, target.to) > 0) {
+        right
+            ? addRange(right, from, to)
+            : (target.r = { from, to, d: 1, l: null, r: null });
+        return rebalance(target);
+    }
+    if (cmp(from, target.from) < 0) {
+        target.from = from;
+        target.l = null;
+        target.d = right ? right.d + 1 : 1;
+    }
+    if (cmp(to, target.to) > 0) {
+        target.to = to;
+        target.r = null;
+        target.d = target.l ? target.l.d + 1 : 1;
+    }
+    const rightWasCutOff = !target.r;
+    if (left && !target.l) {
+        mergeRanges(target, left);
+    }
+    if (right && rightWasCutOff) {
+        mergeRanges(target, right);
+    }
+}
+function mergeRanges(target, newSet) {
+    function _addRangeSet(target, { from, to, l, r }) {
+        addRange(target, from, to);
+        if (l)
+            _addRangeSet(target, l);
+        if (r)
+            _addRangeSet(target, r);
+    }
+    if (!isEmptyRange(newSet))
+        _addRangeSet(target, newSet);
+}
+function rangesOverlap(rangeSet1, rangeSet2) {
+    const i1 = getRangeSetIterator(rangeSet2);
+    let nextResult1 = i1.next();
+    if (nextResult1.done)
+        return false;
+    let a = nextResult1.value;
+    const i2 = getRangeSetIterator(rangeSet1);
+    let nextResult2 = i2.next(a.from);
+    let b = nextResult2.value;
+    while (!nextResult1.done && !nextResult2.done) {
+        if (cmp(b.from, a.to) <= 0 && cmp(b.to, a.from) >= 0)
+            return true;
+        cmp(a.from, b.from) < 0
+            ? (a = (nextResult1 = i1.next(b.from)).value)
+            : (b = (nextResult2 = i2.next(a.from)).value);
+    }
+    return false;
+}
+function getRangeSetIterator(node) {
+    let state = isEmptyRange(node) ? null : { s: 0, n: node };
+    return {
+        next(key) {
+            const keyProvided = arguments.length > 0;
+            while (state) {
+                switch (state.s) {
+                    case 0:
+                        state.s = 1;
+                        if (keyProvided) {
+                            while (state.n.l && cmp(key, state.n.from) < 0)
+                                state = { up: state, n: state.n.l, s: 1 };
+                        }
+                        else {
+                            while (state.n.l)
+                                state = { up: state, n: state.n.l, s: 1 };
+                        }
+                    case 1:
+                        state.s = 2;
+                        if (!keyProvided || cmp(key, state.n.to) <= 0)
+                            return { value: state.n, done: false };
+                    case 2:
+                        if (state.n.r) {
+                            state.s = 3;
+                            state = { up: state, n: state.n.r, s: 0 };
+                            continue;
+                        }
+                    case 3:
+                        state = state.up;
+                }
+            }
+            return { done: true };
+        },
+    };
+}
+function rebalance(target) {
+    var _a, _b;
+    const diff = (((_a = target.r) === null || _a === void 0 ? void 0 : _a.d) || 0) - (((_b = target.l) === null || _b === void 0 ? void 0 : _b.d) || 0);
+    const r = diff > 1 ? "r" : diff < -1 ? "l" : "";
+    if (r) {
+        const l = r === "r" ? "l" : "r";
+        const rootClone = { ...target };
+        const oldRootRight = target[r];
+        target.from = oldRootRight.from;
+        target.to = oldRootRight.to;
+        target[r] = oldRootRight[r];
+        rootClone[r] = oldRootRight[l];
+        target[l] = rootClone;
+        rootClone.d = computeDepth(rootClone);
+    }
+    target.d = computeDepth(target);
+}
+function computeDepth({ r, l }) {
+    return (r ? (l ? Math.max(r.d, l.d) : r.d) : l ? l.d : 0) + 1;
+}
+
+const observabilityMiddleware = {
+    stack: "dbcore",
+    level: 0,
+    create: (core) => {
+        const dbName = core.schema.name;
+        const FULL_RANGE = new RangeSet(core.MIN_KEY, core.MAX_KEY);
+        return {
+            ...core,
+            table: (tableName) => {
+                const table = core.table(tableName);
+                const { schema } = table;
+                const { primaryKey } = schema;
+                const { extractKey, outbound } = primaryKey;
+                const tableClone = {
+                    ...table,
+                    mutate: (req) => {
+                        const trans = req.trans;
+                        const mutatedParts = trans.mutatedParts || (trans.mutatedParts = {});
+                        const getRangeSet = (indexName) => {
+                            const part = `idb://${dbName}/${tableName}/${indexName}`;
+                            return (mutatedParts[part] ||
+                                (mutatedParts[part] = new RangeSet()));
+                        };
+                        const pkRangeSet = getRangeSet("");
+                        const delsRangeSet = getRangeSet(":dels");
+                        const { type } = req;
+                        let [keys, newObjs] = req.type === "deleteRange"
+                            ? [req.range]
+                            : req.type === "delete"
+                                ? [req.keys]
+                                : req.values.length < 50
+                                    ? [[], req.values]
+                                    : [];
+                        const oldCache = req.trans["_cache"];
+                        return table.mutate(req).then((res) => {
+                            if (isArray(keys)) {
+                                if (type !== "delete")
+                                    keys = res.results;
+                                pkRangeSet.addKeys(keys);
+                                const oldObjs = getFromTransactionCache(keys, oldCache);
+                                if (!oldObjs && type !== "add") {
+                                    delsRangeSet.addKeys(keys);
+                                }
+                                if (oldObjs || newObjs) {
+                                    trackAffectedIndexes(getRangeSet, schema, oldObjs, newObjs);
+                                }
+                            }
+                            else if (keys) {
+                                const range = { from: keys.lower, to: keys.upper };
+                                delsRangeSet.add(range);
+                                pkRangeSet.add(range);
+                            }
+                            else {
+                                pkRangeSet.add(FULL_RANGE);
+                                delsRangeSet.add(FULL_RANGE);
+                                schema.indexes.forEach(idx => getRangeSet(idx.name).add(FULL_RANGE));
+                            }
+                            return res;
+                        });
+                    },
+                };
+                const getRange = ({ query: { index, range }, }) => {
+                    var _a, _b;
+                    return [
+                        index,
+                        new RangeSet((_a = range.lower) !== null && _a !== void 0 ? _a : core.MIN_KEY, (_b = range.upper) !== null && _b !== void 0 ? _b : core.MAX_KEY),
+                    ];
+                };
+                const readSubscribers = {
+                    get: (req) => [primaryKey, new RangeSet(req.key)],
+                    getMany: (req) => [primaryKey, new RangeSet().addKeys(req.keys)],
+                    count: getRange,
+                    query: getRange,
+                    openCursor: getRange,
+                };
+                keys(readSubscribers).forEach(method => {
+                    tableClone[method] = function (req) {
+                        const { subscr } = PSD;
+                        if (subscr) {
+                            const getRangeSet = (indexName) => {
+                                const part = `idb://${dbName}/${tableName}/${indexName}`;
+                                return (subscr[part] ||
+                                    (subscr[part] = new RangeSet()));
+                            };
+                            const pkRangeSet = getRangeSet("");
+                            const delsRangeSet = getRangeSet(":dels");
+                            const [queriedIndex, queriedRanges] = readSubscribers[method](req);
+                            getRangeSet(queriedIndex.name || "").add(queriedRanges);
+                            if (!queriedIndex.isPrimaryKey) {
+                                if (method === "count") {
+                                    delsRangeSet.add(FULL_RANGE);
+                                }
+                                else {
+                                    const keysPromise = method === "query" &&
+                                        outbound &&
+                                        req.values &&
+                                        table.query({
+                                            ...req,
+                                            values: false,
+                                        });
+                                    return table[method].apply(this, arguments).then((res) => {
+                                        if (method === "query") {
+                                            if (outbound && req.values) {
+                                                return keysPromise.then(({ result: resultingKeys }) => {
+                                                    pkRangeSet.addKeys(resultingKeys);
+                                                    return res;
+                                                });
+                                            }
+                                            const pKeys = req.values
+                                                ? res.result.map(extractKey)
+                                                : res.result;
+                                            if (req.values) {
+                                                pkRangeSet.addKeys(pKeys);
+                                            }
+                                            else {
+                                                delsRangeSet.addKeys(pKeys);
+                                            }
+                                        }
+                                        else if (method === "openCursor") {
+                                            const cursor = res;
+                                            const wantValues = req.values;
+                                            return (cursor &&
+                                                Object.create(cursor, {
+                                                    key: {
+                                                        get() {
+                                                            delsRangeSet.addKey(cursor.primaryKey);
+                                                            return cursor.key;
+                                                        },
+                                                    },
+                                                    primaryKey: {
+                                                        get() {
+                                                            const pkey = cursor.primaryKey;
+                                                            delsRangeSet.addKey(pkey);
+                                                            return pkey;
+                                                        },
+                                                    },
+                                                    value: {
+                                                        get() {
+                                                            wantValues && pkRangeSet.addKey(cursor.primaryKey);
+                                                            return cursor.value;
+                                                        },
+                                                    },
+                                                }));
+                                        }
+                                        return res;
+                                    });
+                                }
+                            }
+                        }
+                        return table[method].apply(this, arguments);
+                    };
+                });
+                return tableClone;
+            },
+        };
+    },
+};
+function trackAffectedIndexes(getRangeSet, schema, oldObjs, newObjs) {
+    function addAffectedIndex(ix) {
+        const rangeSet = getRangeSet(ix.name || "");
+        function extractKey(obj) {
+            return obj != null ? ix.extractKey(obj) : null;
+        }
+        const addKeyOrKeys = (key) => ix.multiEntry && isArray(key)
+            ? key.forEach(key => rangeSet.addKey(key))
+            : rangeSet.addKey(key);
+        (oldObjs || newObjs).forEach((_, i) => {
+            const oldKey = oldObjs && extractKey(oldObjs[i]);
+            const newKey = newObjs && extractKey(newObjs[i]);
+            if (cmp(oldKey, newKey) !== 0) {
+                if (oldKey != null)
+                    addKeyOrKeys(oldKey);
+                if (newKey != null)
+                    addKeyOrKeys(newKey);
+            }
+        });
+    }
+    schema.indexes.forEach(addAffectedIndex);
+}
+
+class Dexie$1 {
+    constructor(name, options) {
+        this._middlewares = {};
+        this.verno = 0;
+        const deps = Dexie$1.dependencies;
+        this._options = options = {
+            addons: Dexie$1.addons,
+            autoOpen: true,
+            indexedDB: deps.indexedDB,
+            IDBKeyRange: deps.IDBKeyRange,
+            ...options
+        };
+        this._deps = {
+            indexedDB: options.indexedDB,
+            IDBKeyRange: options.IDBKeyRange
+        };
+        const { addons, } = options;
+        this._dbSchema = {};
+        this._versions = [];
+        this._storeNames = [];
+        this._allTables = {};
+        this.idbdb = null;
+        this._novip = this;
+        const state = {
+            dbOpenError: null,
+            isBeingOpened: false,
+            onReadyBeingFired: null,
+            openComplete: false,
+            dbReadyResolve: nop,
+            dbReadyPromise: null,
+            cancelOpen: nop,
+            openCanceller: null,
+            autoSchema: true,
+            PR1398_maxLoop: 3
+        };
+        state.dbReadyPromise = new DexiePromise(resolve => {
+            state.dbReadyResolve = resolve;
+        });
+        state.openCanceller = new DexiePromise((_, reject) => {
+            state.cancelOpen = reject;
+        });
+        this._state = state;
+        this.name = name;
+        this.on = Events(this, "populate", "blocked", "versionchange", "close", { ready: [promisableChain, nop] });
+        this.on.ready.subscribe = override(this.on.ready.subscribe, subscribe => {
+            return (subscriber, bSticky) => {
+                Dexie$1.vip(() => {
+                    const state = this._state;
+                    if (state.openComplete) {
+                        if (!state.dbOpenError)
+                            DexiePromise.resolve().then(subscriber);
+                        if (bSticky)
+                            subscribe(subscriber);
+                    }
+                    else if (state.onReadyBeingFired) {
+                        state.onReadyBeingFired.push(subscriber);
+                        if (bSticky)
+                            subscribe(subscriber);
+                    }
+                    else {
+                        subscribe(subscriber);
+                        const db = this;
+                        if (!bSticky)
+                            subscribe(function unsubscribe() {
+                                db.on.ready.unsubscribe(subscriber);
+                                db.on.ready.unsubscribe(unsubscribe);
+                            });
+                    }
+                });
+            };
+        });
+        this.Collection = createCollectionConstructor(this);
+        this.Table = createTableConstructor(this);
+        this.Transaction = createTransactionConstructor(this);
+        this.Version = createVersionConstructor(this);
+        this.WhereClause = createWhereClauseConstructor(this);
+        this.on("versionchange", ev => {
+            if (ev.newVersion > 0)
+                console.warn(`Another connection wants to upgrade database '${this.name}'. Closing db now to resume the upgrade.`);
+            else
+                console.warn(`Another connection wants to delete database '${this.name}'. Closing db now to resume the delete request.`);
+            this.close();
+        });
+        this.on("blocked", ev => {
+            if (!ev.newVersion || ev.newVersion < ev.oldVersion)
+                console.warn(`Dexie.delete('${this.name}') was blocked`);
+            else
+                console.warn(`Upgrade '${this.name}' blocked by other connection holding version ${ev.oldVersion / 10}`);
+        });
+        this._maxKey = getMaxKey(options.IDBKeyRange);
+        this._createTransaction = (mode, storeNames, dbschema, parentTransaction) => new this.Transaction(mode, storeNames, dbschema, this._options.chromeTransactionDurability, parentTransaction);
+        this._fireOnBlocked = ev => {
+            this.on("blocked").fire(ev);
+            connections
+                .filter(c => c.name === this.name && c !== this && !c._state.vcFired)
+                .map(c => c.on("versionchange").fire(ev));
+        };
+        this.use(virtualIndexMiddleware);
+        this.use(hooksMiddleware);
+        this.use(observabilityMiddleware);
+        this.use(cacheExistingValuesMiddleware);
+        this.vip = Object.create(this, { _vip: { value: true } });
+        addons.forEach(addon => addon(this));
+    }
+    version(versionNumber) {
+        if (isNaN(versionNumber) || versionNumber < 0.1)
+            throw new exceptions.Type(`Given version is not a positive number`);
+        versionNumber = Math.round(versionNumber * 10) / 10;
+        if (this.idbdb || this._state.isBeingOpened)
+            throw new exceptions.Schema("Cannot add version when database is open");
+        this.verno = Math.max(this.verno, versionNumber);
+        const versions = this._versions;
+        var versionInstance = versions.filter(v => v._cfg.version === versionNumber)[0];
+        if (versionInstance)
+            return versionInstance;
+        versionInstance = new this.Version(versionNumber);
+        versions.push(versionInstance);
+        versions.sort(lowerVersionFirst);
+        versionInstance.stores({});
+        this._state.autoSchema = false;
+        return versionInstance;
+    }
+    _whenReady(fn) {
+        return (this.idbdb && (this._state.openComplete || PSD.letThrough || this._vip)) ? fn() : new DexiePromise((resolve, reject) => {
+            if (this._state.openComplete) {
+                return reject(new exceptions.DatabaseClosed(this._state.dbOpenError));
+            }
+            if (!this._state.isBeingOpened) {
+                if (!this._options.autoOpen) {
+                    reject(new exceptions.DatabaseClosed());
+                    return;
+                }
+                this.open().catch(nop);
+            }
+            this._state.dbReadyPromise.then(resolve, reject);
+        }).then(fn);
+    }
+    use({ stack, create, level, name }) {
+        if (name)
+            this.unuse({ stack, name });
+        const middlewares = this._middlewares[stack] || (this._middlewares[stack] = []);
+        middlewares.push({ stack, create, level: level == null ? 10 : level, name });
+        middlewares.sort((a, b) => a.level - b.level);
+        return this;
+    }
+    unuse({ stack, name, create }) {
+        if (stack && this._middlewares[stack]) {
+            this._middlewares[stack] = this._middlewares[stack].filter(mw => create ? mw.create !== create :
+                name ? mw.name !== name :
+                    false);
+        }
+        return this;
+    }
+    open() {
+        return dexieOpen(this);
+    }
+    _close() {
+        const state = this._state;
+        const idx = connections.indexOf(this);
+        if (idx >= 0)
+            connections.splice(idx, 1);
+        if (this.idbdb) {
+            try {
+                this.idbdb.close();
+            }
+            catch (e) { }
+            this._novip.idbdb = null;
+        }
+        state.dbReadyPromise = new DexiePromise(resolve => {
+            state.dbReadyResolve = resolve;
+        });
+        state.openCanceller = new DexiePromise((_, reject) => {
+            state.cancelOpen = reject;
+        });
+    }
+    close() {
+        this._close();
+        const state = this._state;
+        this._options.autoOpen = false;
+        state.dbOpenError = new exceptions.DatabaseClosed();
+        if (state.isBeingOpened)
+            state.cancelOpen(state.dbOpenError);
+    }
+    delete() {
+        const hasArguments = arguments.length > 0;
+        const state = this._state;
+        return new DexiePromise((resolve, reject) => {
+            const doDelete = () => {
+                this.close();
+                var req = this._deps.indexedDB.deleteDatabase(this.name);
+                req.onsuccess = wrap(() => {
+                    _onDatabaseDeleted(this._deps, this.name);
+                    resolve();
+                });
+                req.onerror = eventRejectHandler(reject);
+                req.onblocked = this._fireOnBlocked;
+            };
+            if (hasArguments)
+                throw new exceptions.InvalidArgument("Arguments not allowed in db.delete()");
+            if (state.isBeingOpened) {
+                state.dbReadyPromise.then(doDelete);
+            }
+            else {
+                doDelete();
+            }
+        });
+    }
+    backendDB() {
+        return this.idbdb;
+    }
+    isOpen() {
+        return this.idbdb !== null;
+    }
+    hasBeenClosed() {
+        const dbOpenError = this._state.dbOpenError;
+        return dbOpenError && (dbOpenError.name === 'DatabaseClosed');
+    }
+    hasFailed() {
+        return this._state.dbOpenError !== null;
+    }
+    dynamicallyOpened() {
+        return this._state.autoSchema;
+    }
+    get tables() {
+        return keys(this._allTables).map(name => this._allTables[name]);
+    }
+    transaction() {
+        const args = extractTransactionArgs.apply(this, arguments);
+        return this._transaction.apply(this, args);
+    }
+    _transaction(mode, tables, scopeFunc) {
+        let parentTransaction = PSD.trans;
+        if (!parentTransaction || parentTransaction.db !== this || mode.indexOf('!') !== -1)
+            parentTransaction = null;
+        const onlyIfCompatible = mode.indexOf('?') !== -1;
+        mode = mode.replace('!', '').replace('?', '');
+        let idbMode, storeNames;
+        try {
+            storeNames = tables.map(table => {
+                var storeName = table instanceof this.Table ? table.name : table;
+                if (typeof storeName !== 'string')
+                    throw new TypeError("Invalid table argument to Dexie.transaction(). Only Table or String are allowed");
+                return storeName;
+            });
+            if (mode == "r" || mode === READONLY)
+                idbMode = READONLY;
+            else if (mode == "rw" || mode == READWRITE)
+                idbMode = READWRITE;
+            else
+                throw new exceptions.InvalidArgument("Invalid transaction mode: " + mode);
+            if (parentTransaction) {
+                if (parentTransaction.mode === READONLY && idbMode === READWRITE) {
+                    if (onlyIfCompatible) {
+                        parentTransaction = null;
+                    }
+                    else
+                        throw new exceptions.SubTransaction("Cannot enter a sub-transaction with READWRITE mode when parent transaction is READONLY");
+                }
+                if (parentTransaction) {
+                    storeNames.forEach(storeName => {
+                        if (parentTransaction && parentTransaction.storeNames.indexOf(storeName) === -1) {
+                            if (onlyIfCompatible) {
+                                parentTransaction = null;
+                            }
+                            else
+                                throw new exceptions.SubTransaction("Table " + storeName +
+                                    " not included in parent transaction.");
+                        }
+                    });
+                }
+                if (onlyIfCompatible && parentTransaction && !parentTransaction.active) {
+                    parentTransaction = null;
+                }
+            }
+        }
+        catch (e) {
+            return parentTransaction ?
+                parentTransaction._promise(null, (_, reject) => { reject(e); }) :
+                rejection(e);
+        }
+        const enterTransaction = enterTransactionScope.bind(null, this, idbMode, storeNames, parentTransaction, scopeFunc);
+        return (parentTransaction ?
+            parentTransaction._promise(idbMode, enterTransaction, "lock") :
+            PSD.trans ?
+                usePSD(PSD.transless, () => this._whenReady(enterTransaction)) :
+                this._whenReady(enterTransaction));
+    }
+    table(tableName) {
+        if (!hasOwn(this._allTables, tableName)) {
+            throw new exceptions.InvalidTable(`Table ${tableName} does not exist`);
+        }
+        return this._allTables[tableName];
+    }
+}
+
+const symbolObservable = typeof Symbol !== "undefined" && "observable" in Symbol
+    ? Symbol.observable
+    : "@@observable";
+class Observable {
+    constructor(subscribe) {
+        this._subscribe = subscribe;
+    }
+    subscribe(x, error, complete) {
+        return this._subscribe(!x || typeof x === "function" ? { next: x, error, complete } : x);
+    }
+    [symbolObservable]() {
+        return this;
+    }
+}
+
+function extendObservabilitySet(target, newSet) {
+    keys(newSet).forEach(part => {
+        const rangeSet = target[part] || (target[part] = new RangeSet());
+        mergeRanges(rangeSet, newSet[part]);
+    });
+    return target;
+}
+
+function liveQuery(querier) {
+    return new Observable((observer) => {
+        const scopeFuncIsAsync = isAsyncFunction(querier);
+        function execute(subscr) {
+            if (scopeFuncIsAsync) {
+                incrementExpectedAwaits();
+            }
+            const exec = () => newScope(querier, { subscr, trans: null });
+            const rv = PSD.trans
+                ?
+                    usePSD(PSD.transless, exec)
+                : exec();
+            if (scopeFuncIsAsync) {
+                rv.then(decrementExpectedAwaits, decrementExpectedAwaits);
+            }
+            return rv;
+        }
+        let closed = false;
+        let accumMuts = {};
+        let currentObs = {};
+        const subscription = {
+            get closed() {
+                return closed;
+            },
+            unsubscribe: () => {
+                closed = true;
+                globalEvents.storagemutated.unsubscribe(mutationListener);
+            },
+        };
+        observer.start && observer.start(subscription);
+        let querying = false, startedListening = false;
+        function shouldNotify() {
+            return keys(currentObs).some((key) => accumMuts[key] && rangesOverlap(accumMuts[key], currentObs[key]));
+        }
+        const mutationListener = (parts) => {
+            extendObservabilitySet(accumMuts, parts);
+            if (shouldNotify()) {
+                doQuery();
+            }
+        };
+        const doQuery = () => {
+            if (querying || closed)
+                return;
+            accumMuts = {};
+            const subscr = {};
+            const ret = execute(subscr);
+            if (!startedListening) {
+                globalEvents(DEXIE_STORAGE_MUTATED_EVENT_NAME, mutationListener);
+                startedListening = true;
+            }
+            querying = true;
+            Promise.resolve(ret).then((result) => {
+                querying = false;
+                if (closed)
+                    return;
+                if (shouldNotify()) {
+                    doQuery();
+                }
+                else {
+                    accumMuts = {};
+                    currentObs = subscr;
+                    observer.next && observer.next(result);
+                }
+            }, (err) => {
+                querying = false;
+                observer.error && observer.error(err);
+                subscription.unsubscribe();
+            });
+        };
+        doQuery();
+        return subscription;
+    });
+}
+
+let domDeps;
+try {
+    domDeps = {
+        indexedDB: _global.indexedDB || _global.mozIndexedDB || _global.webkitIndexedDB || _global.msIndexedDB,
+        IDBKeyRange: _global.IDBKeyRange || _global.webkitIDBKeyRange
+    };
+}
+catch (e) {
+    domDeps = { indexedDB: null, IDBKeyRange: null };
+}
+
+const Dexie = Dexie$1;
+props(Dexie, {
+    ...fullNameExceptions,
+    delete(databaseName) {
+        const db = new Dexie(databaseName, { addons: [] });
+        return db.delete();
+    },
+    exists(name) {
+        return new Dexie(name, { addons: [] }).open().then(db => {
+            db.close();
+            return true;
+        }).catch('NoSuchDatabaseError', () => false);
+    },
+    getDatabaseNames(cb) {
+        try {
+            return getDatabaseNames(Dexie.dependencies).then(cb);
+        }
+        catch (_a) {
+            return rejection(new exceptions.MissingAPI());
+        }
+    },
+    defineClass() {
+        function Class(content) {
+            extend(this, content);
+        }
+        return Class;
+    },
+    ignoreTransaction(scopeFunc) {
+        return PSD.trans ?
+            usePSD(PSD.transless, scopeFunc) :
+            scopeFunc();
+    },
+    vip,
+    async: function (generatorFn) {
+        return function () {
+            try {
+                var rv = awaitIterator(generatorFn.apply(this, arguments));
+                if (!rv || typeof rv.then !== 'function')
+                    return DexiePromise.resolve(rv);
+                return rv;
+            }
+            catch (e) {
+                return rejection(e);
+            }
+        };
+    },
+    spawn: function (generatorFn, args, thiz) {
+        try {
+            var rv = awaitIterator(generatorFn.apply(thiz, args || []));
+            if (!rv || typeof rv.then !== 'function')
+                return DexiePromise.resolve(rv);
+            return rv;
+        }
+        catch (e) {
+            return rejection(e);
+        }
+    },
+    currentTransaction: {
+        get: () => PSD.trans || null
+    },
+    waitFor: function (promiseOrFunction, optionalTimeout) {
+        const promise = DexiePromise.resolve(typeof promiseOrFunction === 'function' ?
+            Dexie.ignoreTransaction(promiseOrFunction) :
+            promiseOrFunction)
+            .timeout(optionalTimeout || 60000);
+        return PSD.trans ?
+            PSD.trans.waitFor(promise) :
+            promise;
+    },
+    Promise: DexiePromise,
+    debug: {
+        get: () => debug,
+        set: value => {
+            setDebug(value, value === 'dexie' ? () => true : dexieStackFrameFilter);
+        }
+    },
+    derive: derive,
+    extend: extend,
+    props: props,
+    override: override,
+    Events: Events,
+    on: globalEvents,
+    liveQuery,
+    extendObservabilitySet,
+    getByKeyPath: getByKeyPath,
+    setByKeyPath: setByKeyPath,
+    delByKeyPath: delByKeyPath,
+    shallowClone: shallowClone,
+    deepClone: deepClone,
+    getObjectDiff: getObjectDiff,
+    cmp,
+    asap: asap$1,
+    minKey: minKey,
+    addons: [],
+    connections: connections,
+    errnames: errnames,
+    dependencies: domDeps,
+    semVer: DEXIE_VERSION,
+    version: DEXIE_VERSION.split('.')
+        .map(n => parseInt(n))
+        .reduce((p, c, i) => p + (c / Math.pow(10, i * 2))),
+});
+Dexie.maxKey = getMaxKey(Dexie.dependencies.IDBKeyRange);
+
+if (typeof dispatchEvent !== 'undefined' && typeof addEventListener !== 'undefined') {
+    globalEvents(DEXIE_STORAGE_MUTATED_EVENT_NAME, updatedParts => {
+        if (!propagatingLocally) {
+            let event;
+            if (isIEOrEdge) {
+                event = document.createEvent('CustomEvent');
+                event.initCustomEvent(STORAGE_MUTATED_DOM_EVENT_NAME, true, true, updatedParts);
+            }
+            else {
+                event = new CustomEvent(STORAGE_MUTATED_DOM_EVENT_NAME, {
+                    detail: updatedParts
+                });
+            }
+            propagatingLocally = true;
+            dispatchEvent(event);
+            propagatingLocally = false;
+        }
+    });
+    addEventListener(STORAGE_MUTATED_DOM_EVENT_NAME, ({ detail }) => {
+        if (!propagatingLocally) {
+            propagateLocally(detail);
+        }
+    });
+}
+function propagateLocally(updateParts) {
+    let wasMe = propagatingLocally;
+    try {
+        propagatingLocally = true;
+        globalEvents.storagemutated.fire(updateParts);
+    }
+    finally {
+        propagatingLocally = wasMe;
+    }
+}
+let propagatingLocally = false;
+
+if (typeof BroadcastChannel !== 'undefined') {
+    const bc = new BroadcastChannel(STORAGE_MUTATED_DOM_EVENT_NAME);
+    if (typeof bc.unref === 'function') {
+        bc.unref();
+    }
+    globalEvents(DEXIE_STORAGE_MUTATED_EVENT_NAME, (changedParts) => {
+        if (!propagatingLocally) {
+            bc.postMessage(changedParts);
+        }
+    });
+    bc.onmessage = (ev) => {
+        if (ev.data)
+            propagateLocally(ev.data);
+    };
+}
+else if (typeof self !== 'undefined' && typeof navigator !== 'undefined') {
+    globalEvents(DEXIE_STORAGE_MUTATED_EVENT_NAME, (changedParts) => {
+        try {
+            if (!propagatingLocally) {
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem(STORAGE_MUTATED_DOM_EVENT_NAME, JSON.stringify({
+                        trig: Math.random(),
+                        changedParts,
+                    }));
+                }
+                if (typeof self['clients'] === 'object') {
+                    [...self['clients'].matchAll({ includeUncontrolled: true })].forEach((client) => client.postMessage({
+                        type: STORAGE_MUTATED_DOM_EVENT_NAME,
+                        changedParts,
+                    }));
+                }
+            }
+        }
+        catch (_a) { }
+    });
+    if (typeof addEventListener !== 'undefined') {
+        addEventListener('storage', (ev) => {
+            if (ev.key === STORAGE_MUTATED_DOM_EVENT_NAME) {
+                const data = JSON.parse(ev.newValue);
+                if (data)
+                    propagateLocally(data.changedParts);
+            }
+        });
+    }
+    const swContainer = self.document && navigator.serviceWorker;
+    if (swContainer) {
+        swContainer.addEventListener('message', propagateMessageLocally);
+    }
+}
+function propagateMessageLocally({ data }) {
+    if (data && data.type === STORAGE_MUTATED_DOM_EVENT_NAME) {
+        propagateLocally(data.changedParts);
+    }
+}
+
+DexiePromise.rejectionMapper = mapError;
+setDebug(debug, dexieStackFrameFilter);
+
+class ModelDatabase extends Dexie$1 {
+    constructor() {
+        super("ModelDatabase");
+        this.version(2).stores({
+            models: "id, file",
+        });
+    }
+}
+
+class LocalCacher {
+    constructor() {
+        this._storedModels = "open-bim-components-stored-files";
+        this._db = new ModelDatabase();
+    }
+    async get(id) {
+        if (this.exists(id)) {
+            await this._db.open();
+            const result = await this.getModelFromLocalCache(id);
+            this._db.close();
+            return result;
+        }
+        return null;
+    }
+    async save(id, url) {
+        this.addStoredID(id);
+        const rawData = await fetch(url);
+        const file = await rawData.blob();
+        await this._db.open();
+        await this._db.models.add({
+            id,
+            file,
+        });
+        this._db.close();
+    }
+    exists(id) {
+        const stored = localStorage.getItem(id);
+        return stored !== null;
+    }
+    async delete(ids) {
+        await this._db.open();
+        for (const id of ids) {
+            if (this.exists(id)) {
+                this.removeStoredID(id);
+                await this._db.models.where("id").equals(id).delete();
+            }
+        }
+        this._db.close();
+    }
+    async deleteAll() {
+        await this._db.open();
+        this.clearStoredIDs();
+        await this._db.delete();
+        this._db = new ModelDatabase();
+        this._db.close();
+    }
+    async getModelFromLocalCache(id) {
+        const found = await this._db.models.where("id").equals(id).toArray();
+        return found[0].file;
+    }
+    clearStoredIDs() {
+        const ids = this.getStoredIDs();
+        for (const id of ids) {
+            this.removeStoredID(id);
+        }
+    }
+    removeStoredID(id) {
+        localStorage.removeItem(id);
+        const ids = this.getStoredIDs().filter((savedId) => savedId !== id);
+        this.setStoredIDs(ids);
+    }
+    addStoredID(id) {
+        const time = performance.now().toString();
+        localStorage.setItem(id, time);
+        const ids = this.getStoredIDs();
+        ids.push(id);
+        this.setStoredIDs(ids);
+    }
+    getStoredIDs() {
+        const serialized = localStorage.getItem(this._storedModels) || "[]";
+        return JSON.parse(serialized);
+    }
+    setStoredIDs(ids) {
+        localStorage.setItem(this._storedModels, JSON.stringify(ids));
     }
 }
 
@@ -73557,6 +79226,7 @@ var IfcAPI2 = class {
   }
 };
 
+// eslint-disable-next-line max-classes-per-file
 class PropertiesContainer extends SimpleUIComponent {
     constructor(components) {
         const container = document.createElement("div");
@@ -73579,7 +79249,7 @@ class PropertiesProcessor extends Component {
         this.enabled = true;
         this._map = {};
         this._config = {
-            selectionHighlighter: "select"
+            selectionHighlighter: "select",
         };
         this.components = components;
         this._config = { ...this._config, ...config };
@@ -73595,7 +79265,7 @@ class PropertiesProcessor extends Component {
         var _a, _b;
         const highlighterEvents = this._fragmentsHighlighter.events;
         (_a = highlighterEvents[this._config.selectionHighlighter]) === null || _a === void 0 ? void 0 : _a.onClear.on(() => this.uiElement.dispose(true));
-        (_b = highlighterEvents[this._config.selectionHighlighter]) === null || _b === void 0 ? void 0 : _b.onHighlight.on(selection => {
+        (_b = highlighterEvents[this._config.selectionHighlighter]) === null || _b === void 0 ? void 0 : _b.onHighlight.on((selection) => {
             var _a;
             const fragmentIDs = Object.keys(selection);
             if (fragmentIDs.length !== 1) {
@@ -73616,7 +79286,9 @@ class PropertiesProcessor extends Component {
             this.renderProperties(modelID, expressID);
         });
     }
-    get() { return this._map; }
+    get() {
+        return this._map;
+    }
     process(model) {
         const props = {};
         this.processElements(model, props);
@@ -73652,7 +79324,7 @@ class PropertiesProcessor extends Component {
             const groupTree = new TreeView(this.components, groupName);
             this.uiElement.addChild(groupTree);
             const props = groupedProperties[groupName];
-            //#region Group properties 
+            // #region Group properties
             const propsTable = new PropertiesTable(this.components);
             const tableStructure = `
             <thead>
@@ -73665,10 +79337,12 @@ class PropertiesProcessor extends Component {
             `;
             propsTable.domElement.innerHTML = tableStructure;
             const tableBody = propsTable.domElement.querySelector("tbody");
-            //#endregion
+            // #endregion
             groupTree.addChild(propsTable);
-            props.forEach(prop => {
-                const value = typeof prop.value === "number" ? prop.value.toPrecision(4) : prop.value;
+            props.forEach((prop) => {
+                const value = typeof prop.value === "number"
+                    ? prop.value.toPrecision(4)
+                    : prop.value;
                 const propRow = `<tr><td>${prop.name}</td><td>${value}</td></tr>`;
                 tableBody.innerHTML += propRow;
             });
@@ -73692,23 +79366,58 @@ class PropertiesProcessor extends Component {
         const { group, prefix } = _options;
         const props = model.properties[expressID];
         const attributes = {
-            globalId: { name: `${prefix}GlobalId`, value: props.GlobalId.value, type: props.GlobalId.type, group: group },
-            ifcEntity: { name: `${prefix}IfcEntity`, value: model.allTypes[props.type], type: 1, group: group }
+            globalId: {
+                name: `${prefix}GlobalId`,
+                value: props.GlobalId.value,
+                type: props.GlobalId.type,
+                group,
+            },
+            ifcEntity: {
+                name: `${prefix}IfcEntity`,
+                value: model.allTypes[props.type],
+                type: 1,
+                group,
+            },
         };
         if (props.Name) {
-            attributes.name = { name: `${prefix}Name`, value: props.Name.value, type: props.Name.type, group: group };
+            attributes.name = {
+                name: `${prefix}Name`,
+                value: props.Name.value,
+                type: props.Name.type,
+                group,
+            };
         }
         if (props.Description) {
-            attributes.description = { name: `${prefix}Description`, value: props.Description.value, type: props.Description.type, group: group };
+            attributes.description = {
+                name: `${prefix}Description`,
+                value: props.Description.value,
+                type: props.Description.type,
+                group,
+            };
         }
         if (props.Tag) {
-            attributes.tag = { name: `${prefix}Tag`, value: props.Tag.value, type: props.Tag.type, group: group };
+            attributes.tag = {
+                name: `${prefix}Tag`,
+                value: props.Tag.value,
+                type: props.Tag.type,
+                group,
+            };
         }
         if (props.ObjectType) {
-            attributes.type = { name: `${prefix}Type`, value: props.ObjectType.value, type: props.ObjectType.type, group: group };
+            attributes.type = {
+                name: `${prefix}Type`,
+                value: props.ObjectType.value,
+                type: props.ObjectType.type,
+                group,
+            };
         }
         if (props.LongName) {
-            attributes.longName = { name: `${prefix}LongName`, value: props.LongName.value, type: props.LongName.type, group: group };
+            attributes.longName = {
+                name: `${prefix}LongName`,
+                value: props.LongName.value,
+                type: props.LongName.type,
+                group,
+            };
         }
         return attributes;
     }
@@ -73716,17 +79425,20 @@ class PropertiesProcessor extends Component {
         const properties = model.properties;
         const arrayProperties = Object.values(properties);
         const building = arrayProperties.find((prop) => prop.type === IFCBUILDING);
-        const { globalId, type, tag, ifcEntity, ...buildingAttributes } = this.processAttributes(model, building.expressID, { group: "Building", prefix: "Building" });
-        model.fragments.forEach(fragment => {
-            fragment.items.forEach(expressID => {
+        const { globalId, type, tag, ifcEntity, ...buildingAttributes } = this.processAttributes(model, building.expressID, {
+            group: "Building",
+            prefix: "Building",
+        });
+        model.fragments.forEach((fragment) => {
+            fragment.items.forEach((expressID) => {
                 const elementAttributes = this.processAttributes(model, Number(expressID));
                 for (const name in elementAttributes) {
-                    //@ts-ignore
+                    // @ts-ignore
                     const attribute = elementAttributes[name];
                     this.storeProperty(props, Number(expressID), attribute);
                 }
                 for (const name in buildingAttributes) {
-                    //@ts-ignore
+                    // @ts-ignore
                     const attribute = buildingAttributes[name];
                     this.storeProperty(props, Number(expressID), attribute);
                 }
@@ -73745,17 +79457,23 @@ class PropertiesProcessor extends Component {
         });
         psetRels.forEach((rel) => {
             const definition = properties[rel.RelatingPropertyDefinition.value];
-            const elements = rel.RelatedObjects.map((obj) => { return obj.value; });
+            const elements = rel.RelatedObjects.map((obj) => {
+                return obj.value;
+            });
             elements.forEach((expressID) => {
-                const definitionProperties = definition.HasProperties.map((prop) => { return properties[prop.value]; });
+                const definitionProperties = definition.HasProperties.map((prop) => {
+                    return properties[prop.value];
+                });
                 definitionProperties.forEach((prop) => {
                     var _a, _b, _c;
-                    const value = ((_a = prop.NominalValue) === null || _a === void 0 ? void 0 : _a.label) === "IFCBOOLEAN" ? prop.NominalValue.value === "T" ? true : false : (_b = prop.NominalValue) === null || _b === void 0 ? void 0 : _b.value;
+                    const value = ((_a = prop.NominalValue) === null || _a === void 0 ? void 0 : _a.label) === "IFCBOOLEAN"
+                        ? prop.NominalValue.value === "T"
+                        : (_b = prop.NominalValue) === null || _b === void 0 ? void 0 : _b.value;
                     const data = {
                         name: prop.Name.value,
-                        value: value,
+                        value,
                         type: (_c = prop.NominalValue) === null || _c === void 0 ? void 0 : _c.type,
-                        group: definition.Name.value
+                        group: definition.Name.value,
                     };
                     this.storeProperty(props, expressID, data);
                 });
@@ -73774,18 +79492,24 @@ class PropertiesProcessor extends Component {
         });
         qsetRels.forEach((rel) => {
             const definition = properties[rel.RelatingPropertyDefinition.value];
-            const elements = rel.RelatedObjects.map((obj) => { return obj.value; });
+            const elements = rel.RelatedObjects.map((obj) => {
+                return obj.value;
+            });
             elements.forEach((expressID) => {
-                const definitionQuantities = definition.Quantities.map((prop) => { return properties[prop.value]; });
+                const definitionQuantities = definition.Quantities.map((prop) => {
+                    return properties[prop.value];
+                });
                 definitionQuantities.forEach((qto) => {
                     const entityName = model.allTypes[qto.type];
-                    let valuePropName = entityName.replace(/IFCQUANTITY/, "").toLowerCase();
-                    valuePropName = valuePropName[0].toUpperCase() + valuePropName.slice(1) + "Value";
+                    let valuePropName = entityName
+                        .replace(/IFCQUANTITY/, "")
+                        .toLowerCase();
+                    valuePropName = `${valuePropName[0].toUpperCase() + valuePropName.slice(1)}Value`;
                     const data = {
                         name: qto.Name.value,
                         value: qto[valuePropName].value,
                         type: qto[valuePropName].type,
-                        group: definition.Name.value
+                        group: definition.Name.value,
                     };
                     this.storeProperty(props, expressID, data);
                 });
@@ -73799,10 +79523,15 @@ class PropertiesProcessor extends Component {
             return prop.type === IFCRELCONTAINEDINSPATIALSTRUCTURE;
         });
         spatialRelations.forEach((rel) => {
-            const elements = rel.RelatedElements.map((el) => { return el.value; });
+            const elements = rel.RelatedElements.map((el) => {
+                return el.value;
+            });
             const structure = properties[rel.RelatingStructure.value];
             if (structure.type === IFCBUILDINGSTOREY) {
-                const { globalId, type, tag, ifcEntity, ...storeyAttributes } = this.processAttributes(model, structure.expressID, { group: "Storey", prefix: "Storey" });
+                const { globalId, type, tag, ifcEntity, ...storeyAttributes } = this.processAttributes(model, structure.expressID, {
+                    group: "Storey",
+                    prefix: "Storey",
+                });
                 const elevation = {
                     name: "StoreyElevation",
                     group: "Storey",
@@ -73812,7 +79541,7 @@ class PropertiesProcessor extends Component {
                 elements.forEach((expressID) => {
                     this.storeProperty(props, expressID, elevation);
                     for (const name in storeyAttributes) {
-                        //@ts-ignore
+                        // @ts-ignore
                         const attribute = storeyAttributes[name];
                         this.storeProperty(props, expressID, attribute);
                     }
@@ -78678,9 +84407,9 @@ class Vector3 {
 
 	projectOnPlane( planeNormal ) {
 
-		_vector$1.copy( this ).projectOnVector( planeNormal );
+		_vector$2.copy( this ).projectOnVector( planeNormal );
 
-		return this.sub( _vector$1 );
+		return this.sub( _vector$2 );
 
 	}
 
@@ -78689,7 +84418,7 @@ class Vector3 {
 		// reflect incident vector off plane orthogonal to normal
 		// normal is assumed to have unit length
 
-		return this.sub( _vector$1.copy( normal ).multiplyScalar( 2 * this.dot( normal ) ) );
+		return this.sub( _vector$2.copy( normal ).multiplyScalar( 2 * this.dot( normal ) ) );
 
 	}
 
@@ -78879,7 +84608,7 @@ class Vector3 {
 
 Vector3.prototype.isVector3 = true;
 
-const _vector$1 = /*@__PURE__*/ new Vector3();
+const _vector$2 = /*@__PURE__*/ new Vector3();
 const _quaternion = /*@__PURE__*/ new Quaternion();
 
 class Vector2 {
@@ -79968,7 +85697,7 @@ Color.prototype.b = 1;
 
 const StaticDrawUsage = 35044;
 
-const _vector = /*@__PURE__*/ new Vector3();
+const _vector$1 = /*@__PURE__*/ new Vector3();
 const _vector2 = /*@__PURE__*/ new Vector2();
 
 class BufferAttribute {
@@ -80169,10 +85898,10 @@ class BufferAttribute {
 
 			for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-				_vector.fromBufferAttribute( this, i );
-				_vector.applyMatrix3( m );
+				_vector$1.fromBufferAttribute( this, i );
+				_vector$1.applyMatrix3( m );
 
-				this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+				this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 			}
 
@@ -80186,13 +85915,13 @@ class BufferAttribute {
 
 		for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-			_vector.x = this.getX( i );
-			_vector.y = this.getY( i );
-			_vector.z = this.getZ( i );
+			_vector$1.x = this.getX( i );
+			_vector$1.y = this.getY( i );
+			_vector$1.z = this.getZ( i );
 
-			_vector.applyMatrix4( m );
+			_vector$1.applyMatrix4( m );
 
-			this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 		}
 
@@ -80204,13 +85933,13 @@ class BufferAttribute {
 
 		for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-			_vector.x = this.getX( i );
-			_vector.y = this.getY( i );
-			_vector.z = this.getZ( i );
+			_vector$1.x = this.getX( i );
+			_vector$1.y = this.getY( i );
+			_vector$1.z = this.getZ( i );
 
-			_vector.applyNormalMatrix( m );
+			_vector$1.applyNormalMatrix( m );
 
-			this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 		}
 
@@ -80222,13 +85951,13 @@ class BufferAttribute {
 
 		for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-			_vector.x = this.getX( i );
-			_vector.y = this.getY( i );
-			_vector.z = this.getZ( i );
+			_vector$1.x = this.getX( i );
+			_vector$1.y = this.getY( i );
+			_vector$1.z = this.getZ( i );
 
-			_vector.transformDirection( m );
+			_vector$1.transformDirection( m );
 
-			this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 		}
 
@@ -82290,14 +88019,6 @@ class Serializer {
  * [fragment geometry](https://github.com/ifcjs/fragment).
  */
 class FragmentManager extends Component {
-    /** The list of meshes of the created fragments. */
-    get meshes() {
-        const allMeshes = [];
-        for (const fragID in this.list) {
-            allMeshes.push(this.list[fragID].mesh);
-        }
-        return allMeshes;
-    }
     constructor(components) {
         super();
         /** {@link Component.name} */
@@ -82308,6 +88029,14 @@ class FragmentManager extends Component {
         this.list = {};
         this._loader = new Serializer();
         this._components = components;
+    }
+    /** The list of meshes of the created fragments. */
+    get meshes() {
+        const allMeshes = [];
+        for (const fragID in this.list) {
+            allMeshes.push(this.list[fragID].mesh);
+        }
+        return allMeshes;
     }
     /** {@link Component.get} */
     get() {
@@ -84493,6 +90222,95 @@ class FragmentHighlighter extends Component {
     }
 }
 
+class FragmentTreeItem extends Component {
+    constructor(components, _fragmentHighlighter, _fragmentGrouper, name, config) {
+        super();
+        this._fragmentHighlighter = _fragmentHighlighter;
+        this._fragmentGrouper = _fragmentGrouper;
+        this.enabled = true;
+        this.filter = {};
+        this._children = [];
+        this.components = components;
+        this.name = name;
+        const defaultConfig = {
+            selectionHighlighterName: "select",
+            highlightHighlighterName: "highlight",
+        };
+        this._options = { ...defaultConfig, ...config };
+        this.uiElement = new TreeView(this.components, name);
+        this.uiElement.onclick = () => this.select();
+        this.uiElement.onmouseover = () => this.highlight();
+    }
+    get children() {
+        return this._children;
+    }
+    set children(children) {
+        this._children = children;
+        children.forEach((child) => this.uiElement.addChild(child.uiElement));
+    }
+    get() {
+        return { name: this.name, filter: this.filter, children: this.children };
+    }
+    select() {
+        const selectorName = this._options.selectionHighlighterName;
+        this._fragmentHighlighter.highlightByID(selectorName, this._fragmentGrouper.get(this.filter));
+    }
+    highlight() {
+        const highlighterName = this._options.highlightHighlighterName;
+        this._fragmentHighlighter.highlightByID(highlighterName, this._fragmentGrouper.get(this.filter));
+    }
+}
+
+class FragmentTree extends Component {
+    constructor(components, _fragmentHighlighter, _fragmentGrouper, name, groupSystemNames) {
+        super();
+        this._fragmentHighlighter = _fragmentHighlighter;
+        this._fragmentGrouper = _fragmentGrouper;
+        this.enabled = true;
+        this.functionsMap = {};
+        this._components = components;
+        this.name = name;
+        this.groupSystemNames = groupSystemNames;
+        this._tree = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentGrouper, this.name);
+        this.uiElement = this._tree.uiElement;
+    }
+    get() {
+        return this._tree;
+    }
+    build() {
+        this._tree.children = this.process(this.groupSystemNames);
+        return this.get();
+    }
+    // TODO: Check more in detail this update method.
+    update() {
+        this.uiElement.dispose();
+        this._tree.uiElement.dispose();
+        this.build();
+        return this.get();
+    }
+    process(groupSystemNames, result = {}) {
+        const groups = [];
+        const currentSystemName = groupSystemNames[0]; // storeys
+        const systemGroups = this._fragmentGrouper.groupSystems[currentSystemName];
+        if (!currentSystemName || !systemGroups) {
+            return groups;
+        }
+        for (const name in systemGroups) {
+            // name is N00, N01, N02...
+            const filter = { ...result, [currentSystemName]: name }; // { storeys: "N00" }, { storeys: "N01" }...
+            const hasElements = Object.keys(this._fragmentGrouper.get(filter)).length > 0;
+            if (hasElements) {
+                const treeItemName = currentSystemName[0].toUpperCase() + currentSystemName.slice(1); // Storeys
+                const treeItem = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentGrouper, `${treeItemName}: ${name}`); // Storeys: N01
+                treeItem.filter = filter;
+                groups.push(treeItem);
+                treeItem.children = this.process(groupSystemNames.slice(1), filter);
+            }
+        }
+        return groups;
+    }
+}
+
 // TODO: Clean up and document
 class FragmentGrouper {
     constructor(fragments) {
@@ -84576,100 +90394,5036 @@ class FragmentGrouper {
     }
 }
 
-class FragmentTreeItem extends Component {
-    get children() {
-        return this._children;
+// TODO: Clean up, add proper types and make this independent from fragments
+class FragmentGroups {
+    groupByPredefinedType(model) {
+        const group = {};
+        const arrayProperties = Object.values(model.properties);
+        const levelRelations = arrayProperties.filter((prop) => prop.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
+        const elements = [];
+        levelRelations.forEach((rel) => {
+            const expressIDs = rel.RelatedElements.map((element) => element.value);
+            elements.push(...expressIDs);
+        });
+        elements.forEach((element) => {
+            var _a;
+            const entity = model.properties[element];
+            const fragmentID = model.expressIDFragmentIDMap[entity.expressID];
+            const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
+            if (!group[predefinedType]) {
+                group[predefinedType] = {};
+            }
+            if (!group[predefinedType][fragmentID]) {
+                group[predefinedType][fragmentID] = [];
+            }
+            group[predefinedType][fragmentID].push(entity.expressID);
+        });
+        return group;
     }
-    set children(children) {
-        this._children = children;
-        children.forEach((child) => this.uiElement.addChild(child.uiElement));
+    groupByEntity(model) {
+        const group = {};
+        for (const expressID in model.itemTypes) {
+            const entity = model.allTypes[model.itemTypes[expressID]];
+            const fragment = model.expressIDFragmentIDMap[expressID];
+            if (!fragment) {
+                continue;
+            }
+            if (!group[entity]) {
+                group[entity] = {};
+            }
+            if (!group[entity][fragment]) {
+                group[entity][fragment] = [];
+            }
+            group[entity][fragment].push(expressID);
+        }
+        return group;
     }
-    constructor(components, _fragmentHighlighter, _fragmentGrouper, name, config) {
-        super();
-        this._fragmentHighlighter = _fragmentHighlighter;
-        this._fragmentGrouper = _fragmentGrouper;
-        this.enabled = true;
-        this.filter = {};
-        this._children = [];
-        this.components = components;
-        this.name = name;
-        const defaultConfig = {
-            selectionHighlighterName: "select",
-            highlightHighlighterName: "highlight",
-        };
-        this._options = { ...defaultConfig, ...config };
-        this.uiElement = new TreeView(this.components, name);
-        this.uiElement.onclick = () => this.select();
-        this.uiElement.onmouseover = () => this.highlight();
-    }
-    get() {
-        return { name: this.name, filter: this.filter, children: this.children };
-    }
-    select() {
-        const selectorName = this._options.selectionHighlighterName;
-        this._fragmentHighlighter.highlightByID(selectorName, this._fragmentGrouper.get(this.filter));
-    }
-    highlight() {
-        const highlighterName = this._options.highlightHighlighterName;
-        this._fragmentHighlighter.highlightByID(highlighterName, this._fragmentGrouper.get(this.filter));
+    groupByStorey(model) {
+        const group = {};
+        const properties = Object.values(model.properties);
+        const spatialRels = properties.filter((entity) => entity.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
+        spatialRels.forEach((rel) => {
+            if (!rel.RelatingStructure || !rel.RelatingStructure.value) {
+                return;
+            }
+            const storeyElements = rel.RelatedElements.map((element) => {
+                return element.value.toString();
+            });
+            const fragmentMap = {};
+            storeyElements.forEach((expressID) => {
+                const fragment = model.expressIDFragmentIDMap[expressID];
+                if (!fragment) {
+                    return;
+                }
+                if (!fragmentMap[fragment]) {
+                    fragmentMap[fragment] = [];
+                }
+                fragmentMap[fragment].push(expressID);
+            });
+            const storey = properties.find((prop) => prop.expressID === rel.RelatingStructure.value);
+            const storeyName = storey.Name.value;
+            group[storeyName] = fragmentMap;
+        });
+        return group;
     }
 }
 
-var __classPrivateFieldGet = (undefined && undefined.__classPrivateFieldGet) || function (receiver, state, kind, f) {
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-};
-var _FragmentTree_instances, _FragmentTree_process;
-class FragmentTree extends Component {
-    constructor(components, _fragmentHighlighter, _fragmentGrouper, name, groupSystemNames) {
+/**
+ * An object to easily use the services of That Open Platform.
+ */
+class CloudProcessor extends Component {
+    constructor(token) {
         super();
-        this._fragmentHighlighter = _fragmentHighlighter;
-        this._fragmentGrouper = _fragmentGrouper;
-        _FragmentTree_instances.add(this);
+        this.tools = [];
+        /** {@link Component.name} */
+        this.name = "CloudProcessor";
+        /** {@link Component.enabled} */
         this.enabled = true;
-        this.functionsMap = {};
-        this._components = components;
-        this.name = name;
-        this.groupSystemNames = groupSystemNames;
-        this._tree = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentGrouper, this.name);
-        this.uiElement = this._tree.uiElement;
+        this.modelProcessed = new Event();
+        this.checkInterval = 5000;
+        this._models = [];
+        this._urls = {
+            base: "https://01wj0udft7.execute-api.eu-central-1.amazonaws.com/v1/models",
+            token: "?accessToken=",
+        };
+        this._urls.token += token;
     }
+    /**
+     * Retrieves a tool component by its name.
+     */
     get() {
-        return this._tree;
+        return this._models;
     }
-    build() {
-        this._tree.children = __classPrivateFieldGet(this, _FragmentTree_instances, "m", _FragmentTree_process).call(this, this.groupSystemNames);
-        return this.get();
+    async update() {
+        const { base, token } = this._urls;
+        const url = `${base}${token}`;
+        const result = await fetch(url);
+        const parsed = await result.json();
+        this._models = parsed.models;
     }
-    // TODO: Check more in detail this update method.
-    update() {
-        this.uiElement.dispose();
-        this._tree.uiElement.dispose();
-        this.build();
-        return this.get();
+    async upload(fileUrl) {
+        const response = await this.createModel();
+        const uploadUrl = response.uploadUrl;
+        const read = await fetch(fileUrl);
+        const body = await read.arrayBuffer();
+        await fetch(uploadUrl, { method: "PUT", body });
+        this.setupModelProcessEvent(response.model._id);
+    }
+    async delete(modelID) {
+        const { base, token } = this._urls;
+        const url = `${base}/${modelID}${token}`;
+        const result = await fetch(url, { method: "DELETE" });
+        return result.json();
+    }
+    async getModel(modelID) {
+        const { base, token } = this._urls;
+        const modelUrl = `${base}/${modelID}${token}`;
+        const modelResponse = await fetch(modelUrl);
+        return modelResponse.json();
+    }
+    setupModelProcessEvent(modelID) {
+        const interval = setInterval(async () => {
+            const response = await this.getModel(modelID);
+            if (response.model.status === "PROCESSED") {
+                this.modelProcessed.trigger(response);
+                clearInterval(interval);
+            }
+        }, this.checkInterval);
+    }
+    async createModel() {
+        const { base, token } = this._urls;
+        const url = `${base}${token}`;
+        const result = await fetch(url, { method: "POST" });
+        return result.json();
     }
 }
-_FragmentTree_instances = new WeakSet(), _FragmentTree_process = function _FragmentTree_process(groupSystemNames, result = {}) {
-    const groups = [];
-    const currentSystemName = groupSystemNames[0]; // storeys
-    const systemGroups = this._fragmentGrouper.groupSystems[currentSystemName];
-    if (!currentSystemName || !systemGroups) {
-        return groups;
+
+/**
+ * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
+ */
+class ProjectionManager {
+    constructor(components, camera) {
+        this.components = components;
+        this._previousDistance = -1;
+        this._camera = camera;
+        const perspective = "Perspective";
+        this._currentCamera = camera.get(perspective);
+        this._currentProjection = perspective;
     }
-    for (const name in systemGroups) {
-        // name is N00, N01, N02...
-        const filter = { ...result, [currentSystemName]: name }; // { storeys: "N00" }, { storeys: "N01" }...
-        const hasElements = Object.keys(this._fragmentGrouper.get(filter)).length > 0;
-        if (hasElements) {
-            const treeItemName = currentSystemName[0].toUpperCase() + currentSystemName.slice(1); // Storeys
-            const treeItem = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentGrouper, `${treeItemName}: ${name}`); // Storeys: N01
-            treeItem.filter = filter;
-            groups.push(treeItem);
-            treeItem.children = __classPrivateFieldGet(this, _FragmentTree_instances, "m", _FragmentTree_process).call(this, groupSystemNames.slice(1), filter);
+    get projection() {
+        return this._currentProjection;
+    }
+    /**
+     * Sets the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
+     *
+     * @param projection - the new projection to set. If it is the current projection,
+     * it will have no effect.
+     */
+    async setProjection(projection) {
+        if (this.projection === projection)
+            return;
+        if (projection === "Orthographic") {
+            this.setOrthoCamera();
+        }
+        else {
+            await this.setPerspectiveCamera();
+        }
+        await this.updateActiveCamera();
+    }
+    setOrthoCamera() {
+        // Matching orthographic camera to perspective camera
+        // Resource: https://stackoverflow.com/questions/48758959/what-is-required-to-convert-threejs-perspective-camera-to-orthographic
+        if (this._camera.currentMode.id === "FirstPerson") {
+            return;
+        }
+        this._previousDistance = this._camera.controls.distance;
+        this._camera.controls.distance = 200;
+        const { width, height } = this.getDims();
+        this.setupOrthoCamera(height, width);
+        this._currentCamera = this._camera.get("Orthographic");
+        this._currentProjection = "Orthographic";
+    }
+    // This small delay is needed to hide weirdness during the transition
+    async updateActiveCamera() {
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                this._camera.activeCamera = this._currentCamera;
+                resolve();
+            }, 50);
+        });
+    }
+    getDims() {
+        const lineOfSight = new THREE$1.Vector3();
+        this._camera.get("Perspective").getWorldDirection(lineOfSight);
+        const target = new THREE$1.Vector3();
+        this._camera.controls.getTarget(target);
+        const distance = target
+            .clone()
+            .sub(this._camera.get("Perspective").position);
+        const depth = distance.dot(lineOfSight);
+        const dims = this.components.renderer.getSize();
+        const aspect = dims.x / dims.y;
+        const camera = this._camera.get("Perspective");
+        const height = depth * 2 * Math.atan((camera.fov * (Math.PI / 180)) / 2);
+        const width = height * aspect;
+        return { width, height };
+    }
+    setupOrthoCamera(height, width) {
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.ZOOM;
+        const pCamera = this._camera.get("Perspective");
+        const oCamera = this._camera.get("Orthographic");
+        oCamera.zoom = 1;
+        oCamera.left = width / -2;
+        oCamera.right = width / 2;
+        oCamera.top = height / 2;
+        oCamera.bottom = height / -2;
+        oCamera.updateProjectionMatrix();
+        oCamera.position.copy(pCamera.position);
+        oCamera.quaternion.copy(pCamera.quaternion);
+        this._camera.controls.camera = oCamera;
+    }
+    async setPerspectiveCamera() {
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        const pCamera = this._camera.get("Perspective");
+        const oCamera = this._camera.get("Orthographic");
+        pCamera.position.copy(oCamera.position);
+        pCamera.quaternion.copy(oCamera.quaternion);
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        this._camera.controls.distance = this._previousDistance;
+        await this._camera.controls.zoomTo(1);
+        pCamera.updateProjectionMatrix();
+        this._camera.controls.camera = pCamera;
+        this._currentCamera = pCamera;
+        this._currentProjection = "Perspective";
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows 3D navigation and panning
+ * like in many 3D and CAD softwares.
+ */
+class OrbitMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = true;
+        /** {@link NavigationMode.id} */
+        this.id = "Orbit";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+        this.activateOrbitControls();
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        if (active) {
+            this.activateOrbitControls();
         }
     }
-    return groups;
+    activateOrbitControls() {
+        const controls = this.camera.controls;
+        controls.minDistance = 1;
+        controls.maxDistance = 300;
+        controls.truckSpeed = 2;
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows first person navigation,
+ * simulating FPS video games.
+ */
+class FirstPersonMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = false;
+        /** {@link NavigationMode.id} */
+        this.id = "FirstPerson";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        if (active) {
+            const projection = this.camera.getProjection();
+            if (projection !== "Perspective") {
+                this.camera.setNavigationMode("Orbit");
+                return;
+            }
+            this.setupFirstPersonCamera();
+        }
+    }
+    setupFirstPersonCamera() {
+        const controls = this.camera.controls;
+        const cameraPosition = new THREE$1.Vector3();
+        controls.camera.getWorldPosition(cameraPosition);
+        const newTargetPosition = new THREE$1.Vector3();
+        controls.distance--;
+        controls.camera.getWorldPosition(newTargetPosition);
+        controls.minDistance = 1;
+        controls.maxDistance = 1;
+        controls.distance = 1;
+        controls.moveTo(newTargetPosition.x, newTargetPosition.y, newTargetPosition.z);
+        controls.truckSpeed = 50;
+        controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM_TRUCK;
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows to navigate floorplans in 2D,
+ * like many BIM tools.
+ */
+class PlanMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = false;
+        /** {@link NavigationMode.id} */
+        this.id = "Plan";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+        this.mouseInitialized = false;
+        this.defaultAzimuthSpeed = camera.controls.azimuthRotateSpeed;
+        this.defaultPolarSpeed = camera.controls.polarRotateSpeed;
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        const controls = this.camera.controls;
+        controls.azimuthRotateSpeed = active ? 0 : this.defaultAzimuthSpeed;
+        controls.polarRotateSpeed = active ? 0 : this.defaultPolarSpeed;
+        if (!this.mouseInitialized) {
+            this.mouseAction1 = controls.touches.one;
+            this.mouseAction2 = controls.touches.two;
+            this.mouseInitialized = true;
+        }
+        if (active) {
+            controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
+            controls.touches.one = CameraControls.ACTION.TOUCH_TRUCK;
+            controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM;
+        }
+        else {
+            controls.mouseButtons.left = CameraControls.ACTION.ROTATE;
+            controls.touches.one = this.mouseAction1;
+            controls.touches.two = this.mouseAction2;
+        }
+    }
+}
+
+/**
+ * A flexible camera that uses
+ * [yomotsu's cameracontrols](https://github.com/yomotsu/camera-controls) to
+ * easily control the camera in 2D and 3D. It supports multiple navigation
+ * modes, such as 2D floor plan navigation, first person and 3D orbit.
+ */
+class OrthoPerspectiveCamera extends SimpleCamera {
+    constructor(components) {
+        super(components);
+        /**
+         * Event that fires when the {@link CameraProjection} changes.
+         */
+        this.projectionChanged = new Event();
+        this._userInputButtons = {};
+        this._frustumSize = 50;
+        this._navigationModes = new Map();
+        this._orthoCamera = this.newOrthoCamera();
+        this._navigationModes.set("Orbit", new OrbitMode(this));
+        this._navigationModes.set("FirstPerson", new FirstPersonMode(this));
+        this._navigationModes.set("Plan", new PlanMode(this));
+        this.currentMode = this._navigationModes.get("Orbit");
+        this.currentMode.toggle(true, { preventTargetAdjustment: true });
+        this.toggleEvents(true);
+        this._projectionManager = new ProjectionManager(components, this);
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        super.dispose();
+        this.toggleEvents(false);
+        this._orthoCamera.removeFromParent();
+    }
+    /**
+     * Similar to {@link Component.get}, but with an optional argument
+     * to specify which camera to get.
+     *
+     * @param projection - The camera corresponding to the
+     * {@link CameraProjection} specified. If no projection is specified,
+     * the active camera will be returned.
+     */
+    get(projection) {
+        if (!projection) {
+            return this.activeCamera;
+        }
+        return projection === "Orthographic"
+            ? this._orthoCamera
+            : this._perspectiveCamera;
+    }
+    /** Returns the current {@link CameraProjection}. */
+    getProjection() {
+        return this._projectionManager.projection;
+    }
+    /**
+     * Changes the current {@link CameraProjection} from Ortographic to Perspective
+     * and Viceversa.
+     */
+    async toggleProjection() {
+        const projection = this.getProjection();
+        const newProjection = projection === "Perspective" ? "Orthographic" : "Perspective";
+        await this.setProjection(newProjection);
+    }
+    /**
+     * Sets the current {@link CameraProjection}. This triggers the event
+     * {@link projectionChanged}.
+     *
+     * @param projection - The new {@link CameraProjection} to set.
+     */
+    async setProjection(projection) {
+        await this._projectionManager.setProjection(projection);
+        this.projectionChanged.trigger(this.activeCamera);
+    }
+    /**
+     * Allows or prevents all user input.
+     *
+     * @param active - whether to enable or disable user inputs.
+     */
+    toggleUserInput(active) {
+        if (active) {
+            this.enableUserInput();
+        }
+        else {
+            this.disableUserInput();
+        }
+    }
+    /**
+     * Sets a new {@link NavigationMode} and disables the previous one.
+     *
+     * @param mode - The {@link NavigationMode} to set.
+     */
+    setNavigationMode(mode) {
+        if (this.currentMode.id === mode)
+            return;
+        this.currentMode.toggle(false);
+        if (!this._navigationModes.has(mode)) {
+            throw new Error("The specified mode does not exist!");
+        }
+        this.currentMode = this._navigationModes.get(mode);
+        this.currentMode.toggle(true);
+    }
+    /** Updates the aspect ratio of the camera to match the Renderer's aspect ratio. */
+    updateAspect() {
+        super.updateAspect();
+        this.setOrthoCameraAspect();
+    }
+    /**
+     * Make the camera view fit all the specified meshes.
+     *
+     * @param meshes - the meshes to fit. If it is not defined, it will
+     * evaluate {@link Components.meshes}.
+     */
+    async fitModelToFrame(meshes = this.components.meshes) {
+        if (!this.enabled)
+            return;
+        const scene = this.components.scene.get();
+        console.log(scene);
+        const maxNum = Number.MAX_VALUE;
+        const minNum = Number.MIN_VALUE;
+        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
+        const max = new THREE$1.Vector3(minNum, minNum, minNum);
+        for (const mesh of meshes) {
+            const box = new THREE$1.Box3().setFromObject(mesh);
+            if (box.min.x < min.x)
+                min.x = box.min.x;
+            if (box.min.y < min.y)
+                min.y = box.min.y;
+            if (box.min.z < min.z)
+                min.z = box.min.z;
+            if (box.max.x > max.x)
+                max.x = box.max.x;
+            if (box.max.y > max.y)
+                max.y = box.max.y;
+            if (box.max.z > max.z)
+                max.z = box.max.z;
+        }
+        const box = new THREE$1.Box3(min, max);
+        const sceneSize = new THREE$1.Vector3();
+        box.getSize(sceneSize);
+        const sceneCenter = new THREE$1.Vector3();
+        box.getCenter(sceneCenter);
+        const nearFactor = 0.5;
+        const radius = Math.max(sceneSize.x, sceneSize.y, sceneSize.z) * nearFactor;
+        const sphere = new THREE$1.Sphere(sceneCenter, radius);
+        await this.controls.fitToSphere(sphere, true);
+    }
+    disableUserInput() {
+        this._userInputButtons.left = this.controls.mouseButtons.left;
+        this._userInputButtons.right = this.controls.mouseButtons.right;
+        this._userInputButtons.middle = this.controls.mouseButtons.middle;
+        this._userInputButtons.wheel = this.controls.mouseButtons.wheel;
+        this.controls.mouseButtons.left = 0;
+        this.controls.mouseButtons.right = 0;
+        this.controls.mouseButtons.middle = 0;
+        this.controls.mouseButtons.wheel = 0;
+    }
+    enableUserInput() {
+        if (Object.keys(this._userInputButtons).length === 0)
+            return;
+        this.controls.mouseButtons.left = this._userInputButtons.left;
+        this.controls.mouseButtons.right = this._userInputButtons.right;
+        this.controls.mouseButtons.middle = this._userInputButtons.middle;
+        this.controls.mouseButtons.wheel = this._userInputButtons.wheel;
+    }
+    newOrthoCamera() {
+        const dims = this.components.renderer.getSize();
+        const aspect = dims.x / dims.y;
+        return new THREE$1.OrthographicCamera((this._frustumSize * aspect) / -2, (this._frustumSize * aspect) / 2, this._frustumSize / 2, this._frustumSize / -2, 0.1, 1000);
+    }
+    setOrthoCameraAspect() {
+        const size = this.components.renderer.getSize();
+        const aspect = size.x / size.y;
+        this._orthoCamera.left = (-this._frustumSize * aspect) / 2;
+        this._orthoCamera.right = (this._frustumSize * aspect) / 2;
+        this._orthoCamera.top = this._frustumSize / 2;
+        this._orthoCamera.bottom = -this._frustumSize / 2;
+        this._orthoCamera.updateProjectionMatrix();
+    }
+    toggleEvents(active) {
+        const modes = Object.values(this._navigationModes);
+        for (const mode of modes) {
+            if (active) {
+                mode.projectionChanged.on(this.projectionChanged.trigger);
+            }
+            else {
+                mode.projectionChanged.reset();
+            }
+        }
+    }
+}
+
+/**
+ * parameters = {
+ *  color: <hex>,
+ *  linewidth: <float>,
+ *  dashed: <boolean>,
+ *  dashScale: <float>,
+ *  dashSize: <float>,
+ *  dashOffset: <float>,
+ *  gapSize: <float>,
+ *  resolution: <Vector2>, // to be set by renderer
+ * }
+ */
+
+
+UniformsLib.line = {
+
+	worldUnits: { value: 1 },
+	linewidth: { value: 1 },
+	resolution: { value: new Vector2$1( 1, 1 ) },
+	dashOffset: { value: 0 },
+	dashScale: { value: 1 },
+	dashSize: { value: 1 },
+	gapSize: { value: 1 } // todo FIX - maybe change to totalSize
+
 };
 
-export { BaseRenderer, Button, Component, Components, DataConverter, Disposer, Event, FragmentGroup, FragmentGrouper, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, IfcFragmentSettings, Mouse, PropertiesProcessor, ScreenCuller, SimpleCamera, SimpleClipper, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, SimpleUIComponent, ToolComponent, Toolbar, TreeView, UIManager };
+ShaderLib[ 'line' ] = {
+
+	uniforms: UniformsUtils.merge( [
+		UniformsLib.common,
+		UniformsLib.fog,
+		UniformsLib.line
+	] ),
+
+	vertexShader:
+	/* glsl */`
+		#include <common>
+		#include <color_pars_vertex>
+		#include <fog_pars_vertex>
+		#include <logdepthbuf_pars_vertex>
+		#include <clipping_planes_pars_vertex>
+
+		uniform float linewidth;
+		uniform vec2 resolution;
+
+		attribute vec3 instanceStart;
+		attribute vec3 instanceEnd;
+
+		attribute vec3 instanceColorStart;
+		attribute vec3 instanceColorEnd;
+
+		#ifdef WORLD_UNITS
+
+			varying vec4 worldPos;
+			varying vec3 worldStart;
+			varying vec3 worldEnd;
+
+			#ifdef USE_DASH
+
+				varying vec2 vUv;
+
+			#endif
+
+		#else
+
+			varying vec2 vUv;
+
+		#endif
+
+		#ifdef USE_DASH
+
+			uniform float dashScale;
+			attribute float instanceDistanceStart;
+			attribute float instanceDistanceEnd;
+			varying float vLineDistance;
+
+		#endif
+
+		void trimSegment( const in vec4 start, inout vec4 end ) {
+
+			// trim end segment so it terminates between the camera plane and the near plane
+
+			// conservative estimate of the near plane
+			float a = projectionMatrix[ 2 ][ 2 ]; // 3nd entry in 3th column
+			float b = projectionMatrix[ 3 ][ 2 ]; // 3nd entry in 4th column
+			float nearEstimate = - 0.5 * b / a;
+
+			float alpha = ( nearEstimate - start.z ) / ( end.z - start.z );
+
+			end.xyz = mix( start.xyz, end.xyz, alpha );
+
+		}
+
+		void main() {
+
+			#ifdef USE_COLOR
+
+				vColor.xyz = ( position.y < 0.5 ) ? instanceColorStart : instanceColorEnd;
+
+			#endif
+
+			#ifdef USE_DASH
+
+				vLineDistance = ( position.y < 0.5 ) ? dashScale * instanceDistanceStart : dashScale * instanceDistanceEnd;
+				vUv = uv;
+
+			#endif
+
+			float aspect = resolution.x / resolution.y;
+
+			// camera space
+			vec4 start = modelViewMatrix * vec4( instanceStart, 1.0 );
+			vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );
+
+			#ifdef WORLD_UNITS
+
+				worldStart = start.xyz;
+				worldEnd = end.xyz;
+
+			#else
+
+				vUv = uv;
+
+			#endif
+
+			// special case for perspective projection, and segments that terminate either in, or behind, the camera plane
+			// clearly the gpu firmware has a way of addressing this issue when projecting into ndc space
+			// but we need to perform ndc-space calculations in the shader, so we must address this issue directly
+			// perhaps there is a more elegant solution -- WestLangley
+
+			bool perspective = ( projectionMatrix[ 2 ][ 3 ] == - 1.0 ); // 4th entry in the 3rd column
+
+			if ( perspective ) {
+
+				if ( start.z < 0.0 && end.z >= 0.0 ) {
+
+					trimSegment( start, end );
+
+				} else if ( end.z < 0.0 && start.z >= 0.0 ) {
+
+					trimSegment( end, start );
+
+				}
+
+			}
+
+			// clip space
+			vec4 clipStart = projectionMatrix * start;
+			vec4 clipEnd = projectionMatrix * end;
+
+			// ndc space
+			vec3 ndcStart = clipStart.xyz / clipStart.w;
+			vec3 ndcEnd = clipEnd.xyz / clipEnd.w;
+
+			// direction
+			vec2 dir = ndcEnd.xy - ndcStart.xy;
+
+			// account for clip-space aspect ratio
+			dir.x *= aspect;
+			dir = normalize( dir );
+
+			#ifdef WORLD_UNITS
+
+				// get the offset direction as perpendicular to the view vector
+				vec3 worldDir = normalize( end.xyz - start.xyz );
+				vec3 offset;
+				if ( position.y < 0.5 ) {
+
+					offset = normalize( cross( start.xyz, worldDir ) );
+
+				} else {
+
+					offset = normalize( cross( end.xyz, worldDir ) );
+
+				}
+
+				// sign flip
+				if ( position.x < 0.0 ) offset *= - 1.0;
+
+				float forwardOffset = dot( worldDir, vec3( 0.0, 0.0, 1.0 ) );
+
+				// don't extend the line if we're rendering dashes because we
+				// won't be rendering the endcaps
+				#ifndef USE_DASH
+
+					// extend the line bounds to encompass  endcaps
+					start.xyz += - worldDir * linewidth * 0.5;
+					end.xyz += worldDir * linewidth * 0.5;
+
+					// shift the position of the quad so it hugs the forward edge of the line
+					offset.xy -= dir * forwardOffset;
+					offset.z += 0.5;
+
+				#endif
+
+				// endcaps
+				if ( position.y > 1.0 || position.y < 0.0 ) {
+
+					offset.xy += dir * 2.0 * forwardOffset;
+
+				}
+
+				// adjust for linewidth
+				offset *= linewidth * 0.5;
+
+				// set the world position
+				worldPos = ( position.y < 0.5 ) ? start : end;
+				worldPos.xyz += offset;
+
+				// project the worldpos
+				vec4 clip = projectionMatrix * worldPos;
+
+				// shift the depth of the projected points so the line
+				// segements overlap neatly
+				vec3 clipPose = ( position.y < 0.5 ) ? ndcStart : ndcEnd;
+				clip.z = clipPose.z * clip.w;
+
+			#else
+
+				vec2 offset = vec2( dir.y, - dir.x );
+				// undo aspect ratio adjustment
+				dir.x /= aspect;
+				offset.x /= aspect;
+
+				// sign flip
+				if ( position.x < 0.0 ) offset *= - 1.0;
+
+				// endcaps
+				if ( position.y < 0.0 ) {
+
+					offset += - dir;
+
+				} else if ( position.y > 1.0 ) {
+
+					offset += dir;
+
+				}
+
+				// adjust for linewidth
+				offset *= linewidth;
+
+				// adjust for clip-space to screen-space conversion // maybe resolution should be based on viewport ...
+				offset /= resolution.y;
+
+				// select end
+				vec4 clip = ( position.y < 0.5 ) ? clipStart : clipEnd;
+
+				// back to clip space
+				offset *= clip.w;
+
+				clip.xy += offset;
+
+			#endif
+
+			gl_Position = clip;
+
+			vec4 mvPosition = ( position.y < 0.5 ) ? start : end; // this is an approximation
+
+			#include <logdepthbuf_vertex>
+			#include <clipping_planes_vertex>
+			#include <fog_vertex>
+
+		}
+		`,
+
+	fragmentShader:
+	/* glsl */`
+		uniform vec3 diffuse;
+		uniform float opacity;
+		uniform float linewidth;
+
+		#ifdef USE_DASH
+
+			uniform float dashOffset;
+			uniform float dashSize;
+			uniform float gapSize;
+
+		#endif
+
+		varying float vLineDistance;
+
+		#ifdef WORLD_UNITS
+
+			varying vec4 worldPos;
+			varying vec3 worldStart;
+			varying vec3 worldEnd;
+
+			#ifdef USE_DASH
+
+				varying vec2 vUv;
+
+			#endif
+
+		#else
+
+			varying vec2 vUv;
+
+		#endif
+
+		#include <common>
+		#include <color_pars_fragment>
+		#include <fog_pars_fragment>
+		#include <logdepthbuf_pars_fragment>
+		#include <clipping_planes_pars_fragment>
+
+		vec2 closestLineToLine(vec3 p1, vec3 p2, vec3 p3, vec3 p4) {
+
+			float mua;
+			float mub;
+
+			vec3 p13 = p1 - p3;
+			vec3 p43 = p4 - p3;
+
+			vec3 p21 = p2 - p1;
+
+			float d1343 = dot( p13, p43 );
+			float d4321 = dot( p43, p21 );
+			float d1321 = dot( p13, p21 );
+			float d4343 = dot( p43, p43 );
+			float d2121 = dot( p21, p21 );
+
+			float denom = d2121 * d4343 - d4321 * d4321;
+
+			float numer = d1343 * d4321 - d1321 * d4343;
+
+			mua = numer / denom;
+			mua = clamp( mua, 0.0, 1.0 );
+			mub = ( d1343 + d4321 * ( mua ) ) / d4343;
+			mub = clamp( mub, 0.0, 1.0 );
+
+			return vec2( mua, mub );
+
+		}
+
+		void main() {
+
+			#include <clipping_planes_fragment>
+
+			#ifdef USE_DASH
+
+				if ( vUv.y < - 1.0 || vUv.y > 1.0 ) discard; // discard endcaps
+
+				if ( mod( vLineDistance + dashOffset, dashSize + gapSize ) > dashSize ) discard; // todo - FIX
+
+			#endif
+
+			float alpha = opacity;
+
+			#ifdef WORLD_UNITS
+
+				// Find the closest points on the view ray and the line segment
+				vec3 rayEnd = normalize( worldPos.xyz ) * 1e5;
+				vec3 lineDir = worldEnd - worldStart;
+				vec2 params = closestLineToLine( worldStart, worldEnd, vec3( 0.0, 0.0, 0.0 ), rayEnd );
+
+				vec3 p1 = worldStart + lineDir * params.x;
+				vec3 p2 = rayEnd * params.y;
+				vec3 delta = p1 - p2;
+				float len = length( delta );
+				float norm = len / linewidth;
+
+				#ifndef USE_DASH
+
+					#ifdef USE_ALPHA_TO_COVERAGE
+
+						float dnorm = fwidth( norm );
+						alpha = 1.0 - smoothstep( 0.5 - dnorm, 0.5 + dnorm, norm );
+
+					#else
+
+						if ( norm > 0.5 ) {
+
+							discard;
+
+						}
+
+					#endif
+
+				#endif
+
+			#else
+
+				#ifdef USE_ALPHA_TO_COVERAGE
+
+					// artifacts appear on some hardware if a derivative is taken within a conditional
+					float a = vUv.x;
+					float b = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
+					float len2 = a * a + b * b;
+					float dlen = fwidth( len2 );
+
+					if ( abs( vUv.y ) > 1.0 ) {
+
+						alpha = 1.0 - smoothstep( 1.0 - dlen, 1.0 + dlen, len2 );
+
+					}
+
+				#else
+
+					if ( abs( vUv.y ) > 1.0 ) {
+
+						float a = vUv.x;
+						float b = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
+						float len2 = a * a + b * b;
+
+						if ( len2 > 1.0 ) discard;
+
+					}
+
+				#endif
+
+			#endif
+
+			vec4 diffuseColor = vec4( diffuse, alpha );
+
+			#include <logdepthbuf_fragment>
+			#include <color_fragment>
+
+			gl_FragColor = vec4( diffuseColor.rgb, alpha );
+
+			#include <tonemapping_fragment>
+			#include <encodings_fragment>
+			#include <fog_fragment>
+			#include <premultiplied_alpha_fragment>
+
+		}
+		`
+};
+
+class LineMaterial extends ShaderMaterial {
+
+	constructor( parameters ) {
+
+		super( {
+
+			type: 'LineMaterial',
+
+			uniforms: UniformsUtils.clone( ShaderLib[ 'line' ].uniforms ),
+
+			vertexShader: ShaderLib[ 'line' ].vertexShader,
+			fragmentShader: ShaderLib[ 'line' ].fragmentShader,
+
+			clipping: true // required for clipping support
+
+		} );
+
+		Object.defineProperties( this, {
+
+			color: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.diffuse.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.diffuse.value = value;
+
+				}
+
+			},
+
+			worldUnits: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return 'WORLD_UNITS' in this.defines;
+
+				},
+
+				set: function ( value ) {
+
+					if ( value === true ) {
+
+						this.defines.WORLD_UNITS = '';
+
+					} else {
+
+						delete this.defines.WORLD_UNITS;
+
+					}
+
+				}
+
+			},
+
+			linewidth: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.linewidth.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.linewidth.value = value;
+
+				}
+
+			},
+
+			dashed: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return Boolean( 'USE_DASH' in this.defines );
+
+				},
+
+				set( value ) {
+
+					if ( Boolean( value ) !== Boolean( 'USE_DASH' in this.defines ) ) {
+
+						this.needsUpdate = true;
+
+					}
+
+					if ( value === true ) {
+
+						this.defines.USE_DASH = '';
+
+					} else {
+
+						delete this.defines.USE_DASH;
+
+					}
+
+				}
+
+			},
+
+			dashScale: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.dashScale.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.dashScale.value = value;
+
+				}
+
+			},
+
+			dashSize: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.dashSize.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.dashSize.value = value;
+
+				}
+
+			},
+
+			dashOffset: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.dashOffset.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.dashOffset.value = value;
+
+				}
+
+			},
+
+			gapSize: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.gapSize.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.gapSize.value = value;
+
+				}
+
+			},
+
+			opacity: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.opacity.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.opacity.value = value;
+
+				}
+
+			},
+
+			resolution: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.resolution.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.resolution.value.copy( value );
+
+				}
+
+			},
+
+			alphaToCoverage: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return Boolean( 'USE_ALPHA_TO_COVERAGE' in this.defines );
+
+				},
+
+				set: function ( value ) {
+
+					if ( Boolean( value ) !== Boolean( 'USE_ALPHA_TO_COVERAGE' in this.defines ) ) {
+
+						this.needsUpdate = true;
+
+					}
+
+					if ( value === true ) {
+
+						this.defines.USE_ALPHA_TO_COVERAGE = '';
+						this.extensions.derivatives = true;
+
+					} else {
+
+						delete this.defines.USE_ALPHA_TO_COVERAGE;
+						this.extensions.derivatives = false;
+
+					}
+
+				}
+
+			}
+
+		} );
+
+		this.setValues( parameters );
+
+	}
+
+}
+
+LineMaterial.prototype.isLineMaterial = true;
+
+class EdgesStyles extends Component {
+    constructor(components) {
+        super();
+        this.components = components;
+        this.name = "EdgesStyles";
+        this.enabled = true;
+        this._styles = {};
+        this._defaultMaterial = new LineMaterial({
+            color: 0x000000,
+            linewidth: 0.001,
+        });
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+    }
+    get() {
+        return this._styles;
+    }
+    update(_delta) {
+        this.beforeUpdate.trigger(this._styles);
+        this.afterUpdate.trigger(this._styles);
+    }
+    // Creates a new style that applies to all clipping edges for generic models
+    async create(name, meshes, material = this._defaultMaterial) {
+        for (const mesh of meshes) {
+            if (!mesh.geometry.boundsTree)
+                mesh.geometry.computeBoundsTree();
+        }
+        const renderer = this.components.renderer;
+        material.clippingPlanes = renderer.clippingPlanes;
+        this._styles[name] = {
+            name,
+            material,
+            meshes,
+        };
+    }
+    dispose() {
+        const styles = Object.values(this._styles);
+        for (const style of styles) {
+            style.meshes.length = 0;
+            style.material.dispose();
+        }
+        this._styles = {};
+    }
+}
+
+const _box$1 = new Box3();
+const _vector = new Vector3$1();
+
+class LineSegmentsGeometry extends InstancedBufferGeometry {
+
+	constructor() {
+
+		super();
+
+		this.type = 'LineSegmentsGeometry';
+
+		const positions = [ - 1, 2, 0, 1, 2, 0, - 1, 1, 0, 1, 1, 0, - 1, 0, 0, 1, 0, 0, - 1, - 1, 0, 1, - 1, 0 ];
+		const uvs = [ - 1, 2, 1, 2, - 1, 1, 1, 1, - 1, - 1, 1, - 1, - 1, - 2, 1, - 2 ];
+		const index = [ 0, 2, 1, 2, 3, 1, 2, 4, 3, 4, 5, 3, 4, 6, 5, 6, 7, 5 ];
+
+		this.setIndex( index );
+		this.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
+		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+
+	}
+
+	applyMatrix4( matrix ) {
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined ) {
+
+			start.applyMatrix4( matrix );
+
+			end.applyMatrix4( matrix );
+
+			start.needsUpdate = true;
+
+		}
+
+		if ( this.boundingBox !== null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		if ( this.boundingSphere !== null ) {
+
+			this.computeBoundingSphere();
+
+		}
+
+		return this;
+
+	}
+
+	setPositions( array ) {
+
+		let lineSegments;
+
+		if ( array instanceof Float32Array ) {
+
+			lineSegments = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			lineSegments = new Float32Array( array );
+
+		}
+
+		const instanceBuffer = new InstancedInterleavedBuffer( lineSegments, 6, 1 ); // xyz, xyz
+
+		this.setAttribute( 'instanceStart', new InterleavedBufferAttribute( instanceBuffer, 3, 0 ) ); // xyz
+		this.setAttribute( 'instanceEnd', new InterleavedBufferAttribute( instanceBuffer, 3, 3 ) ); // xyz
+
+		//
+
+		this.computeBoundingBox();
+		this.computeBoundingSphere();
+
+		return this;
+
+	}
+
+	setColors( array ) {
+
+		let colors;
+
+		if ( array instanceof Float32Array ) {
+
+			colors = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			colors = new Float32Array( array );
+
+		}
+
+		const instanceColorBuffer = new InstancedInterleavedBuffer( colors, 6, 1 ); // rgb, rgb
+
+		this.setAttribute( 'instanceColorStart', new InterleavedBufferAttribute( instanceColorBuffer, 3, 0 ) ); // rgb
+		this.setAttribute( 'instanceColorEnd', new InterleavedBufferAttribute( instanceColorBuffer, 3, 3 ) ); // rgb
+
+		return this;
+
+	}
+
+	fromWireframeGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromEdgesGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromMesh( mesh ) {
+
+		this.fromWireframeGeometry( new WireframeGeometry( mesh.geometry ) );
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	fromLineSegments( lineSegments ) {
+
+		const geometry = lineSegments.geometry;
+
+		if ( geometry.isGeometry ) {
+
+			console.error( 'THREE.LineSegmentsGeometry no longer supports Geometry. Use THREE.BufferGeometry instead.' );
+			return;
+
+		} else if ( geometry.isBufferGeometry ) {
+
+			this.setPositions( geometry.attributes.position.array ); // assumes non-indexed
+
+		}
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	computeBoundingBox() {
+
+		if ( this.boundingBox === null ) {
+
+			this.boundingBox = new Box3();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			this.boundingBox.setFromBufferAttribute( start );
+
+			_box$1.setFromBufferAttribute( end );
+
+			this.boundingBox.union( _box$1 );
+
+		}
+
+	}
+
+	computeBoundingSphere() {
+
+		if ( this.boundingSphere === null ) {
+
+			this.boundingSphere = new Sphere();
+
+		}
+
+		if ( this.boundingBox === null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			const center = this.boundingSphere.center;
+
+			this.boundingBox.getCenter( center );
+
+			let maxRadiusSq = 0;
+
+			for ( let i = 0, il = start.count; i < il; i ++ ) {
+
+				_vector.fromBufferAttribute( start, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+				_vector.fromBufferAttribute( end, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+			}
+
+			this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
+
+			if ( isNaN( this.boundingSphere.radius ) ) {
+
+				console.error( 'THREE.LineSegmentsGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this );
+
+			}
+
+		}
+
+	}
+
+	toJSON() {
+
+		// todo
+
+	}
+
+	applyMatrix( matrix ) {
+
+		console.warn( 'THREE.LineSegmentsGeometry: applyMatrix() has been renamed to applyMatrix4().' );
+
+		return this.applyMatrix4( matrix );
+
+	}
+
+}
+
+LineSegmentsGeometry.prototype.isLineSegmentsGeometry = true;
+
+const _start = new Vector3$1();
+const _end = new Vector3$1();
+
+const _start4 = new Vector4$1();
+const _end4 = new Vector4$1();
+
+const _ssOrigin = new Vector4$1();
+const _ssOrigin3 = new Vector3$1();
+const _mvMatrix = new Matrix4();
+const _line = new Line3();
+const _closestPoint = new Vector3$1();
+
+const _box = new Box3();
+const _sphere = new Sphere();
+const _clipToWorldVector = new Vector4$1();
+
+// Returns the margin required to expand by in world space given the distance from the camera,
+// line width, resolution, and camera projection
+function getWorldSpaceHalfWidth( camera, distance, lineWidth, resolution ) {
+
+	// transform into clip space, adjust the x and y values by the pixel width offset, then
+	// transform back into world space to get world offset. Note clip space is [-1, 1] so full
+	// width does not need to be halved.
+	_clipToWorldVector.set( 0, 0, - distance, 1.0 ).applyMatrix4( camera.projectionMatrix );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+	_clipToWorldVector.x = lineWidth / resolution.width;
+	_clipToWorldVector.y = lineWidth / resolution.height;
+	_clipToWorldVector.applyMatrix4( camera.projectionMatrixInverse );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+
+	return Math.abs( Math.max( _clipToWorldVector.x, _clipToWorldVector.y ) );
+
+}
+
+class LineSegments2 extends Mesh {
+
+	constructor( geometry = new LineSegmentsGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
+
+		super( geometry, material );
+
+		this.type = 'LineSegments2';
+
+	}
+
+	// for backwards-compatability, but could be a method of LineSegmentsGeometry...
+
+	computeLineDistances() {
+
+		const geometry = this.geometry;
+
+		const instanceStart = geometry.attributes.instanceStart;
+		const instanceEnd = geometry.attributes.instanceEnd;
+		const lineDistances = new Float32Array( 2 * instanceStart.count );
+
+		for ( let i = 0, j = 0, l = instanceStart.count; i < l; i ++, j += 2 ) {
+
+			_start.fromBufferAttribute( instanceStart, i );
+			_end.fromBufferAttribute( instanceEnd, i );
+
+			lineDistances[ j ] = ( j === 0 ) ? 0 : lineDistances[ j - 1 ];
+			lineDistances[ j + 1 ] = lineDistances[ j ] + _start.distanceTo( _end );
+
+		}
+
+		const instanceDistanceBuffer = new InstancedInterleavedBuffer( lineDistances, 2, 1 ); // d0, d1
+
+		geometry.setAttribute( 'instanceDistanceStart', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 0 ) ); // d0
+		geometry.setAttribute( 'instanceDistanceEnd', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 1 ) ); // d1
+
+		return this;
+
+	}
+
+	raycast( raycaster, intersects ) {
+
+		if ( raycaster.camera === null ) {
+
+			console.error( 'LineSegments2: "Raycaster.camera" needs to be set in order to raycast against LineSegments2.' );
+
+		}
+
+		const threshold = ( raycaster.params.Line2 !== undefined ) ? raycaster.params.Line2.threshold || 0 : 0;
+
+		const ray = raycaster.ray;
+		const camera = raycaster.camera;
+		const projectionMatrix = camera.projectionMatrix;
+
+		const matrixWorld = this.matrixWorld;
+		const geometry = this.geometry;
+		const material = this.material;
+		const resolution = material.resolution;
+		const lineWidth = material.linewidth + threshold;
+
+		const instanceStart = geometry.attributes.instanceStart;
+		const instanceEnd = geometry.attributes.instanceEnd;
+
+		// camera forward is negative
+		const near = - camera.near;
+
+		//
+
+		// check if we intersect the sphere bounds
+		if ( geometry.boundingSphere === null ) {
+
+			geometry.computeBoundingSphere();
+
+		}
+
+		_sphere.copy( geometry.boundingSphere ).applyMatrix4( matrixWorld );
+		const distanceToSphere = Math.max( camera.near, _sphere.distanceToPoint( ray.origin ) );
+
+		// increase the sphere bounds by the worst case line screen space width
+		const sphereMargin = getWorldSpaceHalfWidth( camera, distanceToSphere, lineWidth, resolution );
+		_sphere.radius += sphereMargin;
+
+		if ( raycaster.ray.intersectsSphere( _sphere ) === false ) {
+
+			return;
+
+		}
+
+		//
+
+		// check if we intersect the box bounds
+		if ( geometry.boundingBox === null ) {
+
+			geometry.computeBoundingBox();
+
+		}
+
+		_box.copy( geometry.boundingBox ).applyMatrix4( matrixWorld );
+		const distanceToBox = Math.max( camera.near, _box.distanceToPoint( ray.origin ) );
+
+		// increase the box bounds by the worst case line screen space width
+		const boxMargin = getWorldSpaceHalfWidth( camera, distanceToBox, lineWidth, resolution );
+		_box.max.x += boxMargin;
+		_box.max.y += boxMargin;
+		_box.max.z += boxMargin;
+		_box.min.x -= boxMargin;
+		_box.min.y -= boxMargin;
+		_box.min.z -= boxMargin;
+
+		if ( raycaster.ray.intersectsBox( _box ) === false ) {
+
+			return;
+
+		}
+
+		//
+
+		// pick a point 1 unit out along the ray to avoid the ray origin
+		// sitting at the camera origin which will cause "w" to be 0 when
+		// applying the projection matrix.
+		ray.at( 1, _ssOrigin );
+
+		// ndc space [ - 1.0, 1.0 ]
+		_ssOrigin.w = 1;
+		_ssOrigin.applyMatrix4( camera.matrixWorldInverse );
+		_ssOrigin.applyMatrix4( projectionMatrix );
+		_ssOrigin.multiplyScalar( 1 / _ssOrigin.w );
+
+		// screen space
+		_ssOrigin.x *= resolution.x / 2;
+		_ssOrigin.y *= resolution.y / 2;
+		_ssOrigin.z = 0;
+
+		_ssOrigin3.copy( _ssOrigin );
+
+		_mvMatrix.multiplyMatrices( camera.matrixWorldInverse, matrixWorld );
+
+		for ( let i = 0, l = instanceStart.count; i < l; i ++ ) {
+
+			_start4.fromBufferAttribute( instanceStart, i );
+			_end4.fromBufferAttribute( instanceEnd, i );
+
+			_start4.w = 1;
+			_end4.w = 1;
+
+			// camera space
+			_start4.applyMatrix4( _mvMatrix );
+			_end4.applyMatrix4( _mvMatrix );
+
+			// skip the segment if it's entirely behind the camera
+			var isBehindCameraNear = _start4.z > near && _end4.z > near;
+			if ( isBehindCameraNear ) {
+
+				continue;
+
+			}
+
+			// trim the segment if it extends behind camera near
+			if ( _start4.z > near ) {
+
+				const deltaDist = _start4.z - _end4.z;
+				const t = ( _start4.z - near ) / deltaDist;
+				_start4.lerp( _end4, t );
+
+			} else if ( _end4.z > near ) {
+
+				const deltaDist = _end4.z - _start4.z;
+				const t = ( _end4.z - near ) / deltaDist;
+				_end4.lerp( _start4, t );
+
+			}
+
+			// clip space
+			_start4.applyMatrix4( projectionMatrix );
+			_end4.applyMatrix4( projectionMatrix );
+
+			// ndc space [ - 1.0, 1.0 ]
+			_start4.multiplyScalar( 1 / _start4.w );
+			_end4.multiplyScalar( 1 / _end4.w );
+
+			// screen space
+			_start4.x *= resolution.x / 2;
+			_start4.y *= resolution.y / 2;
+
+			_end4.x *= resolution.x / 2;
+			_end4.y *= resolution.y / 2;
+
+			// create 2d segment
+			_line.start.copy( _start4 );
+			_line.start.z = 0;
+
+			_line.end.copy( _end4 );
+			_line.end.z = 0;
+
+			// get closest point on ray to segment
+			const param = _line.closestPointToPointParameter( _ssOrigin3, true );
+			_line.at( param, _closestPoint );
+
+			// check if the intersection point is within clip space
+			const zPos = MathUtils.lerp( _start4.z, _end4.z, param );
+			const isInClipSpace = zPos >= - 1 && zPos <= 1;
+
+			const isInside = _ssOrigin3.distanceTo( _closestPoint ) < lineWidth * 0.5;
+
+			if ( isInClipSpace && isInside ) {
+
+				_line.start.fromBufferAttribute( instanceStart, i );
+				_line.end.fromBufferAttribute( instanceEnd, i );
+
+				_line.start.applyMatrix4( matrixWorld );
+				_line.end.applyMatrix4( matrixWorld );
+
+				const pointOnLine = new Vector3$1();
+				const point = new Vector3$1();
+
+				ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+
+				intersects.push( {
+
+					point: point,
+					pointOnLine: pointOnLine,
+					distance: ray.origin.distanceTo( point ),
+
+					object: this,
+					face: null,
+					faceIndex: i,
+					uv: null,
+					uv2: null,
+
+				} );
+
+			}
+
+		}
+
+	}
+
+}
+
+LineSegments2.prototype.isLineSegments2 = true;
+
+/**
+ * The edges that are drawn when the {@link EdgesPlane} sections a mesh.
+ */
+class ClippingEdges extends Component {
+    constructor(components, plane, styles) {
+        super();
+        /** {@link Component.name} */
+        this.name = "ClippingEdges";
+        /** {@link Component.enabled}. */
+        this.enabled = true;
+        this._edges = {};
+        this._disposer = new Disposer();
+        this._visible = true;
+        this._inverseMatrix = new THREE$1.Matrix4();
+        this._localPlane = new THREE$1.Plane();
+        this._tempLine = new THREE$1.Line3();
+        this._tempVector = new THREE$1.Vector3();
+        /** {@link Updateable.afterUpdate} */
+        this.afterUpdate = new Event();
+        /** {@link Updateable.beforeUpdate} */
+        this.beforeUpdate = new Event();
+        this._components = components;
+        this._plane = plane;
+        this._styles = styles;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        this._visible = visible;
+        const names = Object.keys(this._edges);
+        for (const edgeName of names) {
+            this.updateEdgesVisibility(edgeName, visible);
+        }
+        if (visible) {
+            this.update();
+        }
+    }
+    /** {@link Updateable.update} */
+    update() {
+        const styles = Object.values(this._styles.get());
+        for (const style of styles) {
+            this.drawEdges(style.name);
+        }
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._edges;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        const edges = Object.values(this._edges);
+        for (const edge of edges) {
+            this._disposer.disposeGeometry(edge.generatorGeometry);
+            this._disposer.dispose(edge.mesh, false);
+        }
+        ClippingEdges._basicEdges.removeFromParent();
+        ClippingEdges._basicEdges.geometry.dispose();
+        ClippingEdges._basicEdges = new THREE$1.LineSegments();
+    }
+    // Initializes the helper geometry used to compute the vertices
+    static newGeneratorGeometry() {
+        // create line geometry with enough data to hold 100000 segments
+        const generatorGeometry = new THREE$1.BufferGeometry();
+        const buffer = new Float32Array(300000);
+        const linePosAttr = new THREE$1.BufferAttribute(buffer, 3, false);
+        linePosAttr.setUsage(THREE$1.DynamicDrawUsage);
+        generatorGeometry.setAttribute("position", linePosAttr);
+        return generatorGeometry;
+    }
+    // Creates the geometry of the clipping edges
+    newThickEdges(styleName) {
+        const styles = this._styles.get();
+        const material = styles[styleName].material;
+        const thickLineGeometry = new LineSegmentsGeometry();
+        const thickEdges = new LineSegments2(thickLineGeometry, material);
+        thickEdges.material.polygonOffset = true;
+        thickEdges.material.polygonOffsetFactor = -2;
+        thickEdges.material.polygonOffsetUnits = 1;
+        thickEdges.renderOrder = 3;
+        return thickEdges;
+    }
+    // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
+    drawEdges(styleName) {
+        const style = this._styles.get()[styleName];
+        if (!this._edges[styleName]) {
+            this.initializeStyle(styleName);
+        }
+        const edges = this._edges[styleName];
+        let index = 0;
+        const posAttr = edges.generatorGeometry.attributes.position;
+        // @ts-ignore
+        posAttr.array.fill(0);
+        const notEmptyMeshes = style.meshes.filter((mesh) => mesh.geometry);
+        notEmptyMeshes.forEach((mesh) => {
+            if (!mesh.geometry.boundsTree) {
+                throw new Error("Boundstree not found for clipping edges subset.");
+            }
+            const instanced = mesh;
+            if (instanced.count > 1) {
+                for (let i = 0; i < instanced.count; i++) {
+                    const tempMesh = new THREE$1.Mesh(mesh.geometry);
+                    tempMesh.matrix.copy(mesh.matrix);
+                    const tempMatrix = new THREE$1.Matrix4();
+                    instanced.getMatrixAt(i, tempMatrix);
+                    tempMesh.applyMatrix4(tempMatrix);
+                    tempMesh.applyMatrix4(mesh.matrix);
+                    tempMesh.updateMatrix();
+                    tempMesh.updateMatrixWorld();
+                    this._inverseMatrix.copy(tempMesh.matrixWorld).invert();
+                    this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
+                    index = this.shapecast(tempMesh, posAttr, index);
+                }
+            }
+            else {
+                this._inverseMatrix.copy(mesh.matrixWorld).invert();
+                this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
+                index = this.shapecast(mesh, posAttr, index);
+            }
+        });
+        // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
+        edges.mesh.geometry.setDrawRange(0, index);
+        edges.mesh.position.copy(this._plane.normal).multiplyScalar(0.0001);
+        posAttr.needsUpdate = true;
+        // Update the edges geometry only if there is no NaN in the output (which means there's been an error)
+        if (!Number.isNaN(edges.generatorGeometry.attributes.position.array[0])) {
+            ClippingEdges._basicEdges.geometry = edges.generatorGeometry;
+            edges.mesh.geometry.fromLineSegments(ClippingEdges._basicEdges);
+            const scene = this._components.scene.get();
+            scene.add(edges.mesh);
+        }
+    }
+    initializeStyle(styleName) {
+        this._edges[styleName] = {
+            name: styleName,
+            generatorGeometry: ClippingEdges.newGeneratorGeometry(),
+            mesh: this.newThickEdges(styleName),
+        };
+    }
+    shapecast(mesh, posAttr, index) {
+        // @ts-ignore
+        mesh.geometry.boundsTree.shapecast({
+            intersectsBounds: (box) => {
+                return this._localPlane.intersectsBox(box);
+            },
+            // @ts-ignore
+            intersectsTriangle: (tri) => {
+                // check each triangle edge to see if it intersects with the plane. If so then
+                // add it to the list of segments.
+                let count = 0;
+                this._tempLine.start.copy(tri.a);
+                this._tempLine.end.copy(tri.b);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                this._tempLine.start.copy(tri.b);
+                this._tempLine.end.copy(tri.c);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                this._tempLine.start.copy(tri.c);
+                this._tempLine.end.copy(tri.a);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                // If we only intersected with one or three sides then just remove it. This could be handled
+                // more gracefully.
+                if (count !== 2) {
+                    index -= count;
+                }
+            },
+        });
+        return index;
+    }
+    updateEdgesVisibility(edgeName, visible) {
+        const edges = this._edges[edgeName];
+        edges.mesh.visible = visible;
+        if (visible) {
+            const scene = this._components.scene.get();
+            scene.add(edges.mesh);
+        }
+        else {
+            edges.mesh.removeFromParent();
+        }
+    }
+}
+ClippingEdges._basicEdges = new THREE$1.LineSegments();
+
+/**
+ * A more advanced version of {@link SimpleClipper} that also includes
+ * {@link ClippingEdges} with customizable lines.
+ */
+class EdgesPlane extends SimplePlane {
+    constructor(components, origin, normal, material, styles) {
+        super(components, origin, normal, material);
+        /**
+         * The max rate in milliseconds at which edges can be regenerated.
+         * To disable this behaviour set this to 0.
+         */
+        this.edgesMaxUpdateRate = 50;
+        this.lastUpdate = -1;
+        this.updateTimeout = -1;
+        /** {@link Updateable.update} */
+        this.update = () => {
+            // Rate limited edges update
+            const now = Date.now();
+            if (this.lastUpdate + this.edgesMaxUpdateRate < now) {
+                this.lastUpdate = now;
+                this.edges.update();
+            }
+            else if (this.updateTimeout === -1) {
+                this.updateTimeout = window.setTimeout(() => {
+                    this.update();
+                    this.updateTimeout = -1;
+                }, this.edgesMaxUpdateRate);
+            }
+        };
+        this.edges = new ClippingEdges(components, this._plane, styles);
+        this.visible = true;
+    }
+    /** {@link Hideable.visible} */
+    set visible(state) {
+        super.visible = state;
+        this.edges.visible = state;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        super.dispose();
+        this.edges.dispose();
+    }
+}
+
+/**
+ * A more advanced version of {@link SimpleClipper} that also supports
+ * {@link ClippingEdges} with customizable lines.
+ */
+class EdgesClipper extends SimpleClipper {
+    constructor(components, PlaneType) {
+        super(components, PlaneType);
+        /** {@link Component.name} */
+        this.name = "EdgesClipper";
+        this.styles = new EdgesStyles(components);
+    }
+    /** {@link Component.get} */
+    dispose() {
+        super.dispose();
+        this.styles.dispose();
+    }
+    /**
+     * Updates all the lines of the {@link ClippingEdges}.
+     */
+    updateEdges() {
+        if (!this.enabled)
+            return;
+        for (const plane of this._planes) {
+            plane.update();
+        }
+    }
+    newPlaneInstance(point, normal) {
+        return new this.PlaneType(this.components, point, normal, this._material, this.styles);
+    }
+}
+
+/**
+ * Full-screen textured quad shader
+ */
+
+var CopyShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'opacity': { value: 1.0 }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform float opacity;
+
+		uniform sampler2D tDiffuse;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vec4 texel = texture2D( tDiffuse, vUv );
+			gl_FragColor = opacity * texel;
+
+		}`
+
+};
+
+class Pass {
+
+	constructor() {
+
+		// if set to true, the pass is processed by the composer
+		this.enabled = true;
+
+		// if set to true, the pass indicates to swap read and write buffer after rendering
+		this.needsSwap = true;
+
+		// if set to true, the pass clears its buffer before rendering
+		this.clear = false;
+
+		// if set to true, the result of the pass is rendered to screen. This is set automatically by EffectComposer.
+		this.renderToScreen = false;
+
+	}
+
+	setSize( /* width, height */ ) {}
+
+	render( /* renderer, writeBuffer, readBuffer, deltaTime, maskActive */ ) {
+
+		console.error( 'THREE.Pass: .render() must be implemented in derived pass.' );
+
+	}
+
+}
+
+// Helper for passes that need to fill the viewport with a single quad.
+
+const _camera = new OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+
+// https://github.com/mrdoob/three.js/pull/21358
+
+const _geometry$1 = new BufferGeometry();
+_geometry$1.setAttribute( 'position', new Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
+_geometry$1.setAttribute( 'uv', new Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
+
+class FullScreenQuad {
+
+	constructor( material ) {
+
+		this._mesh = new Mesh( _geometry$1, material );
+
+	}
+
+	dispose() {
+
+		this._mesh.geometry.dispose();
+
+	}
+
+	render( renderer ) {
+
+		renderer.render( this._mesh, _camera );
+
+	}
+
+	get material() {
+
+		return this._mesh.material;
+
+	}
+
+	set material( value ) {
+
+		this._mesh.material = value;
+
+	}
+
+}
+
+class ShaderPass extends Pass {
+
+	constructor( shader, textureID ) {
+
+		super();
+
+		this.textureID = ( textureID !== undefined ) ? textureID : 'tDiffuse';
+
+		if ( shader instanceof ShaderMaterial ) {
+
+			this.uniforms = shader.uniforms;
+
+			this.material = shader;
+
+		} else if ( shader ) {
+
+			this.uniforms = UniformsUtils.clone( shader.uniforms );
+
+			this.material = new ShaderMaterial( {
+
+				defines: Object.assign( {}, shader.defines ),
+				uniforms: this.uniforms,
+				vertexShader: shader.vertexShader,
+				fragmentShader: shader.fragmentShader
+
+			} );
+
+		}
+
+		this.fsQuad = new FullScreenQuad( this.material );
+
+	}
+
+	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
+		if ( this.uniforms[ this.textureID ] ) {
+
+			this.uniforms[ this.textureID ].value = readBuffer.texture;
+
+		}
+
+		this.fsQuad.material = this.material;
+
+		if ( this.renderToScreen ) {
+
+			renderer.setRenderTarget( null );
+			this.fsQuad.render( renderer );
+
+		} else {
+
+			renderer.setRenderTarget( writeBuffer );
+			// TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
+			if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
+			this.fsQuad.render( renderer );
+
+		}
+
+	}
+
+}
+
+class MaskPass extends Pass {
+
+	constructor( scene, camera ) {
+
+		super();
+
+		this.scene = scene;
+		this.camera = camera;
+
+		this.clear = true;
+		this.needsSwap = false;
+
+		this.inverse = false;
+
+	}
+
+	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
+		const context = renderer.getContext();
+		const state = renderer.state;
+
+		// don't update color or depth
+
+		state.buffers.color.setMask( false );
+		state.buffers.depth.setMask( false );
+
+		// lock buffers
+
+		state.buffers.color.setLocked( true );
+		state.buffers.depth.setLocked( true );
+
+		// set up stencil
+
+		let writeValue, clearValue;
+
+		if ( this.inverse ) {
+
+			writeValue = 0;
+			clearValue = 1;
+
+		} else {
+
+			writeValue = 1;
+			clearValue = 0;
+
+		}
+
+		state.buffers.stencil.setTest( true );
+		state.buffers.stencil.setOp( context.REPLACE, context.REPLACE, context.REPLACE );
+		state.buffers.stencil.setFunc( context.ALWAYS, writeValue, 0xffffffff );
+		state.buffers.stencil.setClear( clearValue );
+		state.buffers.stencil.setLocked( true );
+
+		// draw into the stencil buffer
+
+		renderer.setRenderTarget( readBuffer );
+		if ( this.clear ) renderer.clear();
+		renderer.render( this.scene, this.camera );
+
+		renderer.setRenderTarget( writeBuffer );
+		if ( this.clear ) renderer.clear();
+		renderer.render( this.scene, this.camera );
+
+		// unlock color and depth buffer for subsequent rendering
+
+		state.buffers.color.setLocked( false );
+		state.buffers.depth.setLocked( false );
+
+		// only render where stencil is set to 1
+
+		state.buffers.stencil.setLocked( false );
+		state.buffers.stencil.setFunc( context.EQUAL, 1, 0xffffffff ); // draw if == 1
+		state.buffers.stencil.setOp( context.KEEP, context.KEEP, context.KEEP );
+		state.buffers.stencil.setLocked( true );
+
+	}
+
+}
+
+class ClearMaskPass extends Pass {
+
+	constructor() {
+
+		super();
+
+		this.needsSwap = false;
+
+	}
+
+	render( renderer /*, writeBuffer, readBuffer, deltaTime, maskActive */ ) {
+
+		renderer.state.buffers.stencil.setLocked( false );
+		renderer.state.buffers.stencil.setTest( false );
+
+	}
+
+}
+
+class EffectComposer {
+
+	constructor( renderer, renderTarget ) {
+
+		this.renderer = renderer;
+
+		if ( renderTarget === undefined ) {
+
+			const parameters = {
+				minFilter: LinearFilter,
+				magFilter: LinearFilter,
+				format: RGBAFormat
+			};
+
+			const size = renderer.getSize( new Vector2$1() );
+			this._pixelRatio = renderer.getPixelRatio();
+			this._width = size.width;
+			this._height = size.height;
+
+			renderTarget = new WebGLRenderTarget( this._width * this._pixelRatio, this._height * this._pixelRatio, parameters );
+			renderTarget.texture.name = 'EffectComposer.rt1';
+
+		} else {
+
+			this._pixelRatio = 1;
+			this._width = renderTarget.width;
+			this._height = renderTarget.height;
+
+		}
+
+		this.renderTarget1 = renderTarget;
+		this.renderTarget2 = renderTarget.clone();
+		this.renderTarget2.texture.name = 'EffectComposer.rt2';
+
+		this.writeBuffer = this.renderTarget1;
+		this.readBuffer = this.renderTarget2;
+
+		this.renderToScreen = true;
+
+		this.passes = [];
+
+		// dependencies
+
+		if ( CopyShader === undefined ) {
+
+			console.error( 'THREE.EffectComposer relies on CopyShader' );
+
+		}
+
+		if ( ShaderPass === undefined ) {
+
+			console.error( 'THREE.EffectComposer relies on ShaderPass' );
+
+		}
+
+		this.copyPass = new ShaderPass( CopyShader );
+
+		this.clock = new Clock();
+
+	}
+
+	swapBuffers() {
+
+		const tmp = this.readBuffer;
+		this.readBuffer = this.writeBuffer;
+		this.writeBuffer = tmp;
+
+	}
+
+	addPass( pass ) {
+
+		this.passes.push( pass );
+		pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+	}
+
+	insertPass( pass, index ) {
+
+		this.passes.splice( index, 0, pass );
+		pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+	}
+
+	removePass( pass ) {
+
+		const index = this.passes.indexOf( pass );
+
+		if ( index !== - 1 ) {
+
+			this.passes.splice( index, 1 );
+
+		}
+
+	}
+
+	isLastEnabledPass( passIndex ) {
+
+		for ( let i = passIndex + 1; i < this.passes.length; i ++ ) {
+
+			if ( this.passes[ i ].enabled ) {
+
+				return false;
+
+			}
+
+		}
+
+		return true;
+
+	}
+
+	render( deltaTime ) {
+
+		// deltaTime value is in seconds
+
+		if ( deltaTime === undefined ) {
+
+			deltaTime = this.clock.getDelta();
+
+		}
+
+		const currentRenderTarget = this.renderer.getRenderTarget();
+
+		let maskActive = false;
+
+		for ( let i = 0, il = this.passes.length; i < il; i ++ ) {
+
+			const pass = this.passes[ i ];
+
+			if ( pass.enabled === false ) continue;
+
+			pass.renderToScreen = ( this.renderToScreen && this.isLastEnabledPass( i ) );
+			pass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime, maskActive );
+
+			if ( pass.needsSwap ) {
+
+				if ( maskActive ) {
+
+					const context = this.renderer.getContext();
+					const stencil = this.renderer.state.buffers.stencil;
+
+					//context.stencilFunc( context.NOTEQUAL, 1, 0xffffffff );
+					stencil.setFunc( context.NOTEQUAL, 1, 0xffffffff );
+
+					this.copyPass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime );
+
+					//context.stencilFunc( context.EQUAL, 1, 0xffffffff );
+					stencil.setFunc( context.EQUAL, 1, 0xffffffff );
+
+				}
+
+				this.swapBuffers();
+
+			}
+
+			if ( MaskPass !== undefined ) {
+
+				if ( pass instanceof MaskPass ) {
+
+					maskActive = true;
+
+				} else if ( pass instanceof ClearMaskPass ) {
+
+					maskActive = false;
+
+				}
+
+			}
+
+		}
+
+		this.renderer.setRenderTarget( currentRenderTarget );
+
+	}
+
+	reset( renderTarget ) {
+
+		if ( renderTarget === undefined ) {
+
+			const size = this.renderer.getSize( new Vector2$1() );
+			this._pixelRatio = this.renderer.getPixelRatio();
+			this._width = size.width;
+			this._height = size.height;
+
+			renderTarget = this.renderTarget1.clone();
+			renderTarget.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+		}
+
+		this.renderTarget1.dispose();
+		this.renderTarget2.dispose();
+		this.renderTarget1 = renderTarget;
+		this.renderTarget2 = renderTarget.clone();
+
+		this.writeBuffer = this.renderTarget1;
+		this.readBuffer = this.renderTarget2;
+
+	}
+
+	setSize( width, height ) {
+
+		this._width = width;
+		this._height = height;
+
+		const effectiveWidth = this._width * this._pixelRatio;
+		const effectiveHeight = this._height * this._pixelRatio;
+
+		this.renderTarget1.setSize( effectiveWidth, effectiveHeight );
+		this.renderTarget2.setSize( effectiveWidth, effectiveHeight );
+
+		for ( let i = 0; i < this.passes.length; i ++ ) {
+
+			this.passes[ i ].setSize( effectiveWidth, effectiveHeight );
+
+		}
+
+	}
+
+	setPixelRatio( pixelRatio ) {
+
+		this._pixelRatio = pixelRatio;
+
+		this.setSize( this._width, this._height );
+
+	}
+
+}
+
+// Helper for passes that need to fill the viewport with a single quad.
+
+new OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+
+// https://github.com/mrdoob/three.js/pull/21358
+
+const _geometry = new BufferGeometry();
+_geometry.setAttribute( 'position', new Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
+_geometry.setAttribute( 'uv', new Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
+
+class RenderPass extends Pass {
+
+	constructor( scene, camera, overrideMaterial, clearColor, clearAlpha ) {
+
+		super();
+
+		this.scene = scene;
+		this.camera = camera;
+
+		this.overrideMaterial = overrideMaterial;
+
+		this.clearColor = clearColor;
+		this.clearAlpha = ( clearAlpha !== undefined ) ? clearAlpha : 0;
+
+		this.clear = true;
+		this.clearDepth = false;
+		this.needsSwap = false;
+		this._oldClearColor = new Color$1();
+
+	}
+
+	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
+		const oldAutoClear = renderer.autoClear;
+		renderer.autoClear = false;
+
+		let oldClearAlpha, oldOverrideMaterial;
+
+		if ( this.overrideMaterial !== undefined ) {
+
+			oldOverrideMaterial = this.scene.overrideMaterial;
+
+			this.scene.overrideMaterial = this.overrideMaterial;
+
+		}
+
+		if ( this.clearColor ) {
+
+			renderer.getClearColor( this._oldClearColor );
+			oldClearAlpha = renderer.getClearAlpha();
+
+			renderer.setClearColor( this.clearColor, this.clearAlpha );
+
+		}
+
+		if ( this.clearDepth ) {
+
+			renderer.clearDepth();
+
+		}
+
+		renderer.setRenderTarget( this.renderToScreen ? null : readBuffer );
+
+		// TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
+		if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
+		renderer.render( this.scene, this.camera );
+
+		if ( this.clearColor ) {
+
+			renderer.setClearColor( this._oldClearColor, oldClearAlpha );
+
+		}
+
+		if ( this.overrideMaterial !== undefined ) {
+
+			this.scene.overrideMaterial = oldOverrideMaterial;
+
+		}
+
+		renderer.autoClear = oldAutoClear;
+
+	}
+
+}
+
+/**
+ * TODO
+ */
+
+const SAOShader = {
+	defines: {
+		'NUM_SAMPLES': 7,
+		'NUM_RINGS': 4,
+		'NORMAL_TEXTURE': 0,
+		'DIFFUSE_TEXTURE': 0,
+		'DEPTH_PACKING': 1,
+		'PERSPECTIVE_CAMERA': 1
+	},
+	uniforms: {
+
+		'tDepth': { value: null },
+		'tDiffuse': { value: null },
+		'tNormal': { value: null },
+		'size': { value: new Vector2$1( 512, 512 ) },
+
+		'cameraNear': { value: 1 },
+		'cameraFar': { value: 100 },
+		'cameraProjectionMatrix': { value: new Matrix4() },
+		'cameraInverseProjectionMatrix': { value: new Matrix4() },
+
+		'scale': { value: 1.0 },
+		'intensity': { value: 0.1 },
+		'bias': { value: 0.5 },
+
+		'minResolution': { value: 0.0 },
+		'kernelRadius': { value: 100.0 },
+		'randomSeed': { value: 0.0 }
+	},
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		#include <common>
+
+		varying vec2 vUv;
+
+		#if DIFFUSE_TEXTURE == 1
+		uniform sampler2D tDiffuse;
+		#endif
+
+		uniform sampler2D tDepth;
+
+		#if NORMAL_TEXTURE == 1
+		uniform sampler2D tNormal;
+		#endif
+
+		uniform float cameraNear;
+		uniform float cameraFar;
+		uniform mat4 cameraProjectionMatrix;
+		uniform mat4 cameraInverseProjectionMatrix;
+
+		uniform float scale;
+		uniform float intensity;
+		uniform float bias;
+		uniform float kernelRadius;
+		uniform float minResolution;
+		uniform vec2 size;
+		uniform float randomSeed;
+
+		// RGBA depth
+
+		#include <packing>
+
+		vec4 getDefaultColor( const in vec2 screenPosition ) {
+			#if DIFFUSE_TEXTURE == 1
+			return texture2D( tDiffuse, vUv );
+			#else
+			return vec4( 1.0 );
+			#endif
+		}
+
+		float getDepth( const in vec2 screenPosition ) {
+			#if DEPTH_PACKING == 1
+			return unpackRGBAToDepth( texture2D( tDepth, screenPosition ) );
+			#else
+			return texture2D( tDepth, screenPosition ).x;
+			#endif
+		}
+
+		float getViewZ( const in float depth ) {
+			#if PERSPECTIVE_CAMERA == 1
+			return perspectiveDepthToViewZ( depth, cameraNear, cameraFar );
+			#else
+			return orthographicDepthToViewZ( depth, cameraNear, cameraFar );
+			#endif
+		}
+
+		vec3 getViewPosition( const in vec2 screenPosition, const in float depth, const in float viewZ ) {
+			float clipW = cameraProjectionMatrix[2][3] * viewZ + cameraProjectionMatrix[3][3];
+			vec4 clipPosition = vec4( ( vec3( screenPosition, depth ) - 0.5 ) * 2.0, 1.0 );
+			clipPosition *= clipW; // unprojection.
+
+			return ( cameraInverseProjectionMatrix * clipPosition ).xyz;
+		}
+
+		vec3 getViewNormal( const in vec3 viewPosition, const in vec2 screenPosition ) {
+			#if NORMAL_TEXTURE == 1
+			return unpackRGBToNormal( texture2D( tNormal, screenPosition ).xyz );
+			#else
+			return normalize( cross( dFdx( viewPosition ), dFdy( viewPosition ) ) );
+			#endif
+		}
+
+		float scaleDividedByCameraFar;
+		float minResolutionMultipliedByCameraFar;
+
+		float getOcclusion( const in vec3 centerViewPosition, const in vec3 centerViewNormal, const in vec3 sampleViewPosition ) {
+			vec3 viewDelta = sampleViewPosition - centerViewPosition;
+			float viewDistance = length( viewDelta );
+			float scaledScreenDistance = scaleDividedByCameraFar * viewDistance;
+
+			return max(0.0, (dot(centerViewNormal, viewDelta) - minResolutionMultipliedByCameraFar) / scaledScreenDistance - bias) / (1.0 + pow2( scaledScreenDistance ) );
+		}
+
+		// moving costly divides into consts
+		const float ANGLE_STEP = PI2 * float( NUM_RINGS ) / float( NUM_SAMPLES );
+		const float INV_NUM_SAMPLES = 1.0 / float( NUM_SAMPLES );
+
+		float getAmbientOcclusion( const in vec3 centerViewPosition ) {
+			// precompute some variables require in getOcclusion.
+			scaleDividedByCameraFar = scale / cameraFar;
+			minResolutionMultipliedByCameraFar = minResolution * cameraFar;
+			vec3 centerViewNormal = getViewNormal( centerViewPosition, vUv );
+
+			// jsfiddle that shows sample pattern: https://jsfiddle.net/a16ff1p7/
+			float angle = rand( vUv + randomSeed ) * PI2;
+			vec2 radius = vec2( kernelRadius * INV_NUM_SAMPLES ) / size;
+			vec2 radiusStep = radius;
+
+			float occlusionSum = 0.0;
+			float weightSum = 0.0;
+
+			for( int i = 0; i < NUM_SAMPLES; i ++ ) {
+				vec2 sampleUv = vUv + vec2( cos( angle ), sin( angle ) ) * radius;
+				radius += radiusStep;
+				angle += ANGLE_STEP;
+
+				float sampleDepth = getDepth( sampleUv );
+				if( sampleDepth >= ( 1.0 - EPSILON ) ) {
+					continue;
+				}
+
+				float sampleViewZ = getViewZ( sampleDepth );
+				vec3 sampleViewPosition = getViewPosition( sampleUv, sampleDepth, sampleViewZ );
+				occlusionSum += getOcclusion( centerViewPosition, centerViewNormal, sampleViewPosition );
+				weightSum += 1.0;
+			}
+
+			if( weightSum == 0.0 ) discard;
+
+			return occlusionSum * ( intensity / weightSum );
+		}
+
+		void main() {
+			float centerDepth = getDepth( vUv );
+			if( centerDepth >= ( 1.0 - EPSILON ) ) {
+				discard;
+			}
+
+			float centerViewZ = getViewZ( centerDepth );
+			vec3 viewPosition = getViewPosition( vUv, centerDepth, centerViewZ );
+
+			float ambientOcclusion = getAmbientOcclusion( viewPosition );
+
+			gl_FragColor = getDefaultColor( vUv );
+			gl_FragColor.xyz *=  1.0 - ambientOcclusion;
+		}`
+
+};
+
+/**
+ * TODO
+ */
+
+const DepthLimitedBlurShader = {
+	defines: {
+		'KERNEL_RADIUS': 4,
+		'DEPTH_PACKING': 1,
+		'PERSPECTIVE_CAMERA': 1
+	},
+	uniforms: {
+		'tDiffuse': { value: null },
+		'size': { value: new Vector2$1( 512, 512 ) },
+		'sampleUvOffsets': { value: [ new Vector2$1( 0, 0 ) ] },
+		'sampleWeights': { value: [ 1.0 ] },
+		'tDepth': { value: null },
+		'cameraNear': { value: 10 },
+		'cameraFar': { value: 1000 },
+		'depthCutoff': { value: 10 },
+	},
+	vertexShader: /* glsl */`
+
+		#include <common>
+
+		uniform vec2 size;
+
+		varying vec2 vUv;
+		varying vec2 vInvSize;
+
+		void main() {
+			vUv = uv;
+			vInvSize = 1.0 / size;
+
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		#include <common>
+		#include <packing>
+
+		uniform sampler2D tDiffuse;
+		uniform sampler2D tDepth;
+
+		uniform float cameraNear;
+		uniform float cameraFar;
+		uniform float depthCutoff;
+
+		uniform vec2 sampleUvOffsets[ KERNEL_RADIUS + 1 ];
+		uniform float sampleWeights[ KERNEL_RADIUS + 1 ];
+
+		varying vec2 vUv;
+		varying vec2 vInvSize;
+
+		float getDepth( const in vec2 screenPosition ) {
+			#if DEPTH_PACKING == 1
+			return unpackRGBAToDepth( texture2D( tDepth, screenPosition ) );
+			#else
+			return texture2D( tDepth, screenPosition ).x;
+			#endif
+		}
+
+		float getViewZ( const in float depth ) {
+			#if PERSPECTIVE_CAMERA == 1
+			return perspectiveDepthToViewZ( depth, cameraNear, cameraFar );
+			#else
+			return orthographicDepthToViewZ( depth, cameraNear, cameraFar );
+			#endif
+		}
+
+		void main() {
+			float depth = getDepth( vUv );
+			if( depth >= ( 1.0 - EPSILON ) ) {
+				discard;
+			}
+
+			float centerViewZ = -getViewZ( depth );
+			bool rBreak = false, lBreak = false;
+
+			float weightSum = sampleWeights[0];
+			vec4 diffuseSum = texture2D( tDiffuse, vUv ) * weightSum;
+
+			for( int i = 1; i <= KERNEL_RADIUS; i ++ ) {
+
+				float sampleWeight = sampleWeights[i];
+				vec2 sampleUvOffset = sampleUvOffsets[i] * vInvSize;
+
+				vec2 sampleUv = vUv + sampleUvOffset;
+				float viewZ = -getViewZ( getDepth( sampleUv ) );
+
+				if( abs( viewZ - centerViewZ ) > depthCutoff ) rBreak = true;
+
+				if( ! rBreak ) {
+					diffuseSum += texture2D( tDiffuse, sampleUv ) * sampleWeight;
+					weightSum += sampleWeight;
+				}
+
+				sampleUv = vUv - sampleUvOffset;
+				viewZ = -getViewZ( getDepth( sampleUv ) );
+
+				if( abs( viewZ - centerViewZ ) > depthCutoff ) lBreak = true;
+
+				if( ! lBreak ) {
+					diffuseSum += texture2D( tDiffuse, sampleUv ) * sampleWeight;
+					weightSum += sampleWeight;
+				}
+
+			}
+
+			gl_FragColor = diffuseSum / weightSum;
+		}`
+
+};
+
+const BlurShaderUtils = {
+
+	createSampleWeights: function ( kernelRadius, stdDev ) {
+
+		const weights = [];
+
+		for ( let i = 0; i <= kernelRadius; i ++ ) {
+
+			weights.push( gaussian( i, stdDev ) );
+
+		}
+
+		return weights;
+
+	},
+
+	createSampleOffsets: function ( kernelRadius, uvIncrement ) {
+
+		const offsets = [];
+
+		for ( let i = 0; i <= kernelRadius; i ++ ) {
+
+			offsets.push( uvIncrement.clone().multiplyScalar( i ) );
+
+		}
+
+		return offsets;
+
+	},
+
+	configure: function ( material, kernelRadius, stdDev, uvIncrement ) {
+
+		material.defines[ 'KERNEL_RADIUS' ] = kernelRadius;
+		material.uniforms[ 'sampleUvOffsets' ].value = BlurShaderUtils.createSampleOffsets( kernelRadius, uvIncrement );
+		material.uniforms[ 'sampleWeights' ].value = BlurShaderUtils.createSampleWeights( kernelRadius, stdDev );
+		material.needsUpdate = true;
+
+	}
+
+};
+
+function gaussian( x, stdDev ) {
+
+	return Math.exp( - ( x * x ) / ( 2.0 * ( stdDev * stdDev ) ) ) / ( Math.sqrt( 2.0 * Math.PI ) * stdDev );
+
+}
+
+/**
+ * Unpack RGBA depth shader
+ * - show RGBA encoded depth as monochrome color
+ */
+
+const UnpackDepthRGBAShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'opacity': { value: 1.0 }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform float opacity;
+
+		uniform sampler2D tDiffuse;
+
+		varying vec2 vUv;
+
+		#include <packing>
+
+		void main() {
+
+			float depth = 1.0 - unpackRGBAToDepth( texture2D( tDiffuse, vUv ) );
+			gl_FragColor = vec4( vec3( depth ), opacity );
+
+		}`
+
+};
+
+/**
+ * SAO implementation inspired from bhouston previous SAO work
+ */
+
+class SAOPass extends Pass {
+
+	constructor( scene, camera, useDepthTexture = false, useNormals = false, resolution = new Vector2$1( 256, 256 ) ) {
+
+		super();
+
+		this.scene = scene;
+		this.camera = camera;
+
+		this.clear = true;
+		this.needsSwap = false;
+
+		this.supportsDepthTextureExtension = useDepthTexture;
+		this.supportsNormalTexture = useNormals;
+
+		this.originalClearColor = new Color$1();
+		this._oldClearColor = new Color$1();
+		this.oldClearAlpha = 1;
+
+		this.params = {
+			output: 0,
+			saoBias: 0.5,
+			saoIntensity: 0.18,
+			saoScale: 1,
+			saoKernelRadius: 100,
+			saoMinResolution: 0,
+			saoBlur: true,
+			saoBlurRadius: 8,
+			saoBlurStdDev: 4,
+			saoBlurDepthCutoff: 0.01
+		};
+
+		this.resolution = new Vector2$1( resolution.x, resolution.y );
+
+		this.saoRenderTarget = new WebGLRenderTarget( this.resolution.x, this.resolution.y, {
+			minFilter: LinearFilter,
+			magFilter: LinearFilter,
+			format: RGBAFormat
+		} );
+		this.blurIntermediateRenderTarget = this.saoRenderTarget.clone();
+		this.beautyRenderTarget = this.saoRenderTarget.clone();
+
+		this.normalRenderTarget = new WebGLRenderTarget( this.resolution.x, this.resolution.y, {
+			minFilter: NearestFilter,
+			magFilter: NearestFilter,
+			format: RGBAFormat
+		} );
+		this.depthRenderTarget = this.normalRenderTarget.clone();
+		
+		let depthTexture;
+
+		if ( this.supportsDepthTextureExtension ) {
+
+			depthTexture = new DepthTexture();
+			depthTexture.type = UnsignedShortType;
+
+			this.beautyRenderTarget.depthTexture = depthTexture;
+			this.beautyRenderTarget.depthBuffer = true;
+
+		}
+
+		this.depthMaterial = new MeshDepthMaterial();
+		this.depthMaterial.depthPacking = RGBADepthPacking;
+		this.depthMaterial.blending = NoBlending;
+
+		this.normalMaterial = new MeshNormalMaterial();
+		this.normalMaterial.blending = NoBlending;
+
+		if ( SAOShader === undefined ) {
+
+			console.error( 'THREE.SAOPass relies on SAOShader' );
+
+		}
+
+		this.saoMaterial = new ShaderMaterial( {
+			defines: Object.assign( {}, SAOShader.defines ),
+			fragmentShader: SAOShader.fragmentShader,
+			vertexShader: SAOShader.vertexShader,
+			uniforms: UniformsUtils.clone( SAOShader.uniforms )
+		} );
+		this.saoMaterial.extensions.derivatives = true;
+		this.saoMaterial.defines[ 'DEPTH_PACKING' ] = this.supportsDepthTextureExtension ? 0 : 1;
+		this.saoMaterial.defines[ 'NORMAL_TEXTURE' ] = this.supportsNormalTexture ? 1 : 0;
+		this.saoMaterial.defines[ 'PERSPECTIVE_CAMERA' ] = this.camera.isPerspectiveCamera ? 1 : 0;
+		this.saoMaterial.uniforms[ 'tDepth' ].value = ( this.supportsDepthTextureExtension ) ? depthTexture : this.depthRenderTarget.texture;
+		this.saoMaterial.uniforms[ 'tNormal' ].value = this.normalRenderTarget.texture;
+		this.saoMaterial.uniforms[ 'size' ].value.set( this.resolution.x, this.resolution.y );
+		this.saoMaterial.uniforms[ 'cameraInverseProjectionMatrix' ].value.copy( this.camera.projectionMatrixInverse );
+		this.saoMaterial.uniforms[ 'cameraProjectionMatrix' ].value = this.camera.projectionMatrix;
+		this.saoMaterial.blending = NoBlending;
+
+		if ( DepthLimitedBlurShader === undefined ) {
+
+			console.error( 'THREE.SAOPass relies on DepthLimitedBlurShader' );
+
+		}
+
+		this.vBlurMaterial = new ShaderMaterial( {
+			uniforms: UniformsUtils.clone( DepthLimitedBlurShader.uniforms ),
+			defines: Object.assign( {}, DepthLimitedBlurShader.defines ),
+			vertexShader: DepthLimitedBlurShader.vertexShader,
+			fragmentShader: DepthLimitedBlurShader.fragmentShader
+		} );
+		this.vBlurMaterial.defines[ 'DEPTH_PACKING' ] = this.supportsDepthTextureExtension ? 0 : 1;
+		this.vBlurMaterial.defines[ 'PERSPECTIVE_CAMERA' ] = this.camera.isPerspectiveCamera ? 1 : 0;
+		this.vBlurMaterial.uniforms[ 'tDiffuse' ].value = this.saoRenderTarget.texture;
+		this.vBlurMaterial.uniforms[ 'tDepth' ].value = ( this.supportsDepthTextureExtension ) ? depthTexture : this.depthRenderTarget.texture;
+		this.vBlurMaterial.uniforms[ 'size' ].value.set( this.resolution.x, this.resolution.y );
+		this.vBlurMaterial.blending = NoBlending;
+
+		this.hBlurMaterial = new ShaderMaterial( {
+			uniforms: UniformsUtils.clone( DepthLimitedBlurShader.uniforms ),
+			defines: Object.assign( {}, DepthLimitedBlurShader.defines ),
+			vertexShader: DepthLimitedBlurShader.vertexShader,
+			fragmentShader: DepthLimitedBlurShader.fragmentShader
+		} );
+		this.hBlurMaterial.defines[ 'DEPTH_PACKING' ] = this.supportsDepthTextureExtension ? 0 : 1;
+		this.hBlurMaterial.defines[ 'PERSPECTIVE_CAMERA' ] = this.camera.isPerspectiveCamera ? 1 : 0;
+		this.hBlurMaterial.uniforms[ 'tDiffuse' ].value = this.blurIntermediateRenderTarget.texture;
+		this.hBlurMaterial.uniforms[ 'tDepth' ].value = ( this.supportsDepthTextureExtension ) ? depthTexture : this.depthRenderTarget.texture;
+		this.hBlurMaterial.uniforms[ 'size' ].value.set( this.resolution.x, this.resolution.y );
+		this.hBlurMaterial.blending = NoBlending;
+
+		if ( CopyShader === undefined ) {
+
+			console.error( 'THREE.SAOPass relies on CopyShader' );
+
+		}
+
+		this.materialCopy = new ShaderMaterial( {
+			uniforms: UniformsUtils.clone( CopyShader.uniforms ),
+			vertexShader: CopyShader.vertexShader,
+			fragmentShader: CopyShader.fragmentShader,
+			blending: NoBlending
+		} );
+		this.materialCopy.transparent = true;
+		this.materialCopy.depthTest = false;
+		this.materialCopy.depthWrite = false;
+		this.materialCopy.blending = CustomBlending;
+		this.materialCopy.blendSrc = DstColorFactor;
+		this.materialCopy.blendDst = ZeroFactor;
+		this.materialCopy.blendEquation = AddEquation;
+		this.materialCopy.blendSrcAlpha = DstAlphaFactor;
+		this.materialCopy.blendDstAlpha = ZeroFactor;
+		this.materialCopy.blendEquationAlpha = AddEquation;
+
+		if ( UnpackDepthRGBAShader === undefined ) {
+
+			console.error( 'THREE.SAOPass relies on UnpackDepthRGBAShader' );
+
+		}
+
+		this.depthCopy = new ShaderMaterial( {
+			uniforms: UniformsUtils.clone( UnpackDepthRGBAShader.uniforms ),
+			vertexShader: UnpackDepthRGBAShader.vertexShader,
+			fragmentShader: UnpackDepthRGBAShader.fragmentShader,
+			blending: NoBlending
+		} );
+
+		this.fsQuad = new FullScreenQuad( null );
+
+	}
+
+	render( renderer, writeBuffer, readBuffer/*, deltaTime, maskActive*/ ) {
+
+		// Rendering readBuffer first when rendering to screen
+		if ( this.renderToScreen ) {
+
+			this.materialCopy.blending = NoBlending;
+			this.materialCopy.uniforms[ 'tDiffuse' ].value = readBuffer.texture;
+			this.materialCopy.needsUpdate = true;
+			this.renderPass( renderer, this.materialCopy, null );
+
+		}
+
+		if ( this.params.output === 1 ) {
+
+			return;
+
+		}
+
+		renderer.getClearColor( this._oldClearColor );
+		this.oldClearAlpha = renderer.getClearAlpha();
+		const oldAutoClear = renderer.autoClear;
+		renderer.autoClear = false;
+
+		renderer.setRenderTarget( this.depthRenderTarget );
+		renderer.clear();
+
+		this.saoMaterial.uniforms[ 'bias' ].value = this.params.saoBias;
+		this.saoMaterial.uniforms[ 'intensity' ].value = this.params.saoIntensity;
+		this.saoMaterial.uniforms[ 'scale' ].value = this.params.saoScale;
+		this.saoMaterial.uniforms[ 'kernelRadius' ].value = this.params.saoKernelRadius;
+		this.saoMaterial.uniforms[ 'minResolution' ].value = this.params.saoMinResolution;
+		this.saoMaterial.uniforms[ 'cameraNear' ].value = this.camera.near;
+		this.saoMaterial.uniforms[ 'cameraFar' ].value = this.camera.far;
+		// this.saoMaterial.uniforms['randomSeed'].value = Math.random();
+
+		const depthCutoff = this.params.saoBlurDepthCutoff * ( this.camera.far - this.camera.near );
+		this.vBlurMaterial.uniforms[ 'depthCutoff' ].value = depthCutoff;
+		this.hBlurMaterial.uniforms[ 'depthCutoff' ].value = depthCutoff;
+
+		this.vBlurMaterial.uniforms[ 'cameraNear' ].value = this.camera.near;
+		this.vBlurMaterial.uniforms[ 'cameraFar' ].value = this.camera.far;
+		this.hBlurMaterial.uniforms[ 'cameraNear' ].value = this.camera.near;
+		this.hBlurMaterial.uniforms[ 'cameraFar' ].value = this.camera.far;
+
+		this.params.saoBlurRadius = Math.floor( this.params.saoBlurRadius );
+		if ( ( this.prevStdDev !== this.params.saoBlurStdDev ) || ( this.prevNumSamples !== this.params.saoBlurRadius ) ) {
+
+			BlurShaderUtils.configure( this.vBlurMaterial, this.params.saoBlurRadius, this.params.saoBlurStdDev, new Vector2$1( 0, 1 ) );
+			BlurShaderUtils.configure( this.hBlurMaterial, this.params.saoBlurRadius, this.params.saoBlurStdDev, new Vector2$1( 1, 0 ) );
+			this.prevStdDev = this.params.saoBlurStdDev;
+			this.prevNumSamples = this.params.saoBlurRadius;
+
+		}
+
+		// Rendering scene to depth texture
+		renderer.setClearColor( 0x000000 );
+		renderer.setRenderTarget( this.beautyRenderTarget );
+		renderer.clear();
+		renderer.render( this.scene, this.camera );
+
+		// Re-render scene if depth texture extension is not supported
+		if ( ! this.supportsDepthTextureExtension ) {
+
+			// Clear rule : far clipping plane in both RGBA and Basic encoding
+			this.renderOverride( renderer, this.depthMaterial, this.depthRenderTarget, 0x000000, 1.0 );
+
+		}
+
+		if ( this.supportsNormalTexture ) {
+
+			// Clear rule : default normal is facing the camera
+			this.renderOverride( renderer, this.normalMaterial, this.normalRenderTarget, 0x7777ff, 1.0 );
+
+		}
+
+		// Rendering SAO texture
+		this.renderPass( renderer, this.saoMaterial, this.saoRenderTarget, 0xffffff, 1.0 );
+
+		// Blurring SAO texture
+		if ( this.params.saoBlur ) {
+
+			this.renderPass( renderer, this.vBlurMaterial, this.blurIntermediateRenderTarget, 0xffffff, 1.0 );
+			this.renderPass( renderer, this.hBlurMaterial, this.saoRenderTarget, 0xffffff, 1.0 );
+
+		}
+
+		let outputMaterial = this.materialCopy;
+		// Setting up SAO rendering
+		if ( this.params.output === 3 ) {
+
+			if ( this.supportsDepthTextureExtension ) {
+
+				this.materialCopy.uniforms[ 'tDiffuse' ].value = this.beautyRenderTarget.depthTexture;
+				this.materialCopy.needsUpdate = true;
+
+			} else {
+
+				this.depthCopy.uniforms[ 'tDiffuse' ].value = this.depthRenderTarget.texture;
+				this.depthCopy.needsUpdate = true;
+				outputMaterial = this.depthCopy;
+
+			}
+
+		} else if ( this.params.output === 4 ) {
+
+			this.materialCopy.uniforms[ 'tDiffuse' ].value = this.normalRenderTarget.texture;
+			this.materialCopy.needsUpdate = true;
+
+		} else {
+
+			this.materialCopy.uniforms[ 'tDiffuse' ].value = this.saoRenderTarget.texture;
+			this.materialCopy.needsUpdate = true;
+
+		}
+
+		// Blending depends on output, only want a CustomBlending when showing SAO
+		if ( this.params.output === 0 ) {
+
+			outputMaterial.blending = CustomBlending;
+
+		} else {
+
+			outputMaterial.blending = NoBlending;
+
+		}
+
+		// Rendering SAOPass result on top of previous pass
+		this.renderPass( renderer, outputMaterial, this.renderToScreen ? null : readBuffer );
+
+		renderer.setClearColor( this._oldClearColor, this.oldClearAlpha );
+		renderer.autoClear = oldAutoClear;
+
+	}
+
+	renderPass( renderer, passMaterial, renderTarget, clearColor, clearAlpha ) {
+
+		// save original state
+		renderer.getClearColor( this.originalClearColor );
+		const originalClearAlpha = renderer.getClearAlpha();
+		const originalAutoClear = renderer.autoClear;
+
+		renderer.setRenderTarget( renderTarget );
+
+		// setup pass state
+		renderer.autoClear = false;
+		if ( ( clearColor !== undefined ) && ( clearColor !== null ) ) {
+
+			renderer.setClearColor( clearColor );
+			renderer.setClearAlpha( clearAlpha || 0.0 );
+			renderer.clear();
+
+		}
+
+		this.fsQuad.material = passMaterial;
+		this.fsQuad.render( renderer );
+
+		// restore original state
+		renderer.autoClear = originalAutoClear;
+		renderer.setClearColor( this.originalClearColor );
+		renderer.setClearAlpha( originalClearAlpha );
+
+	}
+
+	renderOverride( renderer, overrideMaterial, renderTarget, clearColor, clearAlpha ) {
+
+		renderer.getClearColor( this.originalClearColor );
+		const originalClearAlpha = renderer.getClearAlpha();
+		const originalAutoClear = renderer.autoClear;
+
+		renderer.setRenderTarget( renderTarget );
+		renderer.autoClear = false;
+
+		clearColor = overrideMaterial.clearColor || clearColor;
+		clearAlpha = overrideMaterial.clearAlpha || clearAlpha;
+		if ( ( clearColor !== undefined ) && ( clearColor !== null ) ) {
+
+			renderer.setClearColor( clearColor );
+			renderer.setClearAlpha( clearAlpha || 0.0 );
+			renderer.clear();
+
+		}
+
+		this.scene.overrideMaterial = overrideMaterial;
+		renderer.render( this.scene, this.camera );
+		this.scene.overrideMaterial = null;
+
+		// restore original state
+		renderer.autoClear = originalAutoClear;
+		renderer.setClearColor( this.originalClearColor );
+		renderer.setClearAlpha( originalClearAlpha );
+
+	}
+
+	setSize( width, height ) {
+
+		this.beautyRenderTarget.setSize( width, height );
+		this.saoRenderTarget.setSize( width, height );
+		this.blurIntermediateRenderTarget.setSize( width, height );
+		this.normalRenderTarget.setSize( width, height );
+		this.depthRenderTarget.setSize( width, height );
+
+		this.saoMaterial.uniforms[ 'size' ].value.set( width, height );
+		this.saoMaterial.uniforms[ 'cameraInverseProjectionMatrix' ].value.copy( this.camera.projectionMatrixInverse );
+		this.saoMaterial.uniforms[ 'cameraProjectionMatrix' ].value = this.camera.projectionMatrix;
+		this.saoMaterial.needsUpdate = true;
+
+		this.vBlurMaterial.uniforms[ 'size' ].value.set( width, height );
+		this.vBlurMaterial.needsUpdate = true;
+
+		this.hBlurMaterial.uniforms[ 'size' ].value.set( width, height );
+		this.hBlurMaterial.needsUpdate = true;
+
+	}
+
+}
+
+SAOPass.OUTPUT = {
+	'Beauty': 1,
+	'Default': 0,
+	'SAO': 2,
+	'Depth': 3,
+	'Normal': 4
+};
+
+/**
+ * NVIDIA FXAA by Timothy Lottes
+ * http://timothylottes.blogspot.com/2011/06/fxaa3-source-released.html
+ * - WebGL port by @supereggbert
+ * http://www.glge.org/demos/fxaa/
+ */
+
+const FXAAShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'resolution': { value: new Vector2$1( 1 / 1024, 1 / 512 ) }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader:
+
+	// FXAA 3.11 implementation by NVIDIA, ported to WebGL by Agost Biro (biro@archilogic.com)
+
+	//----------------------------------------------------------------------------------
+	// File:				es3-kepler\FXAA\assets\shaders/FXAA_DefaultES.frag
+	// SDK Version: v3.00
+	// Email:			 gameworks@nvidia.com
+	// Site:				http://developer.nvidia.com/
+	//
+	// Copyright (c) 2014-2015, NVIDIA CORPORATION. All rights reserved.
+	//
+	// Redistribution and use in source and binary forms, with or without
+	// modification, are permitted provided that the following conditions
+	// are met:
+	//	* Redistributions of source code must retain the above copyright
+	//		notice, this list of conditions and the following disclaimer.
+	//	* Redistributions in binary form must reproduce the above copyright
+	//		notice, this list of conditions and the following disclaimer in the
+	//		documentation and/or other materials provided with the distribution.
+	//	* Neither the name of NVIDIA CORPORATION nor the names of its
+	//		contributors may be used to endorse or promote products derived
+	//		from this software without specific prior written permission.
+	//
+	// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS\'\' AND ANY
+	// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+	// PURPOSE ARE DISCLAIMED.	IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+	// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+	// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+	// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+	// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+	// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+	//
+	//----------------------------------------------------------------------------------
+
+	/* glsl */`
+
+		precision highp float;
+
+		uniform sampler2D tDiffuse;
+
+		uniform vec2 resolution;
+
+		varying vec2 vUv;
+
+		#define FXAA_PC 1
+		#define FXAA_GLSL_100 1
+		#define FXAA_QUALITY_PRESET 12
+
+		#define FXAA_GREEN_AS_LUMA 1
+
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_PC_CONSOLE
+				//
+				// The console algorithm for PC is included
+				// for developers targeting really low spec machines.
+				// Likely better to just run FXAA_PC, and use a really low preset.
+				//
+				#define FXAA_PC_CONSOLE 0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_GLSL_120
+				#define FXAA_GLSL_120 0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_GLSL_130
+				#define FXAA_GLSL_130 0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_HLSL_3
+				#define FXAA_HLSL_3 0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_HLSL_4
+				#define FXAA_HLSL_4 0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_HLSL_5
+				#define FXAA_HLSL_5 0
+		#endif
+		/*==========================================================================*/
+		#ifndef FXAA_GREEN_AS_LUMA
+				//
+				// For those using non-linear color,
+				// and either not able to get luma in alpha, or not wanting to,
+				// this enables FXAA to run using green as a proxy for luma.
+				// So with this enabled, no need to pack luma in alpha.
+				//
+				// This will turn off AA on anything which lacks some amount of green.
+				// Pure red and blue or combination of only R and B, will get no AA.
+				//
+				// Might want to lower the settings for both,
+				//		fxaaConsoleEdgeThresholdMin
+				//		fxaaQualityEdgeThresholdMin
+				// In order to insure AA does not get turned off on colors
+				// which contain a minor amount of green.
+				//
+				// 1 = On.
+				// 0 = Off.
+				//
+				#define FXAA_GREEN_AS_LUMA 0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_EARLY_EXIT
+				//
+				// Controls algorithm\'s early exit path.
+				// On PS3 turning this ON adds 2 cycles to the shader.
+				// On 360 turning this OFF adds 10ths of a millisecond to the shader.
+				// Turning this off on console will result in a more blurry image.
+				// So this defaults to on.
+				//
+				// 1 = On.
+				// 0 = Off.
+				//
+				#define FXAA_EARLY_EXIT 1
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_DISCARD
+				//
+				// Only valid for PC OpenGL currently.
+				// Probably will not work when FXAA_GREEN_AS_LUMA = 1.
+				//
+				// 1 = Use discard on pixels which don\'t need AA.
+				//		 For APIs which enable concurrent TEX+ROP from same surface.
+				// 0 = Return unchanged color on pixels which don\'t need AA.
+				//
+				#define FXAA_DISCARD 0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_FAST_PIXEL_OFFSET
+				//
+				// Used for GLSL 120 only.
+				//
+				// 1 = GL API supports fast pixel offsets
+				// 0 = do not use fast pixel offsets
+				//
+				#ifdef GL_EXT_gpu_shader4
+						#define FXAA_FAST_PIXEL_OFFSET 1
+				#endif
+				#ifdef GL_NV_gpu_shader5
+						#define FXAA_FAST_PIXEL_OFFSET 1
+				#endif
+				#ifdef GL_ARB_gpu_shader5
+						#define FXAA_FAST_PIXEL_OFFSET 1
+				#endif
+				#ifndef FXAA_FAST_PIXEL_OFFSET
+						#define FXAA_FAST_PIXEL_OFFSET 0
+				#endif
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#ifndef FXAA_GATHER4_ALPHA
+				//
+				// 1 = API supports gather4 on alpha channel.
+				// 0 = API does not support gather4 on alpha channel.
+				//
+				#if (FXAA_HLSL_5 == 1)
+						#define FXAA_GATHER4_ALPHA 1
+				#endif
+				#ifdef GL_ARB_gpu_shader5
+						#define FXAA_GATHER4_ALPHA 1
+				#endif
+				#ifdef GL_NV_gpu_shader5
+						#define FXAA_GATHER4_ALPHA 1
+				#endif
+				#ifndef FXAA_GATHER4_ALPHA
+						#define FXAA_GATHER4_ALPHA 0
+				#endif
+		#endif
+
+
+		/*============================================================================
+														FXAA QUALITY - TUNING KNOBS
+		------------------------------------------------------------------------------
+		NOTE the other tuning knobs are now in the shader function inputs!
+		============================================================================*/
+		#ifndef FXAA_QUALITY_PRESET
+				//
+				// Choose the quality preset.
+				// This needs to be compiled into the shader as it effects code.
+				// Best option to include multiple presets is to
+				// in each shader define the preset, then include this file.
+				//
+				// OPTIONS
+				// -----------------------------------------------------------------------
+				// 10 to 15 - default medium dither (10=fastest, 15=highest quality)
+				// 20 to 29 - less dither, more expensive (20=fastest, 29=highest quality)
+				// 39			 - no dither, very expensive
+				//
+				// NOTES
+				// -----------------------------------------------------------------------
+				// 12 = slightly faster then FXAA 3.9 and higher edge quality (default)
+				// 13 = about same speed as FXAA 3.9 and better than 12
+				// 23 = closest to FXAA 3.9 visually and performance wise
+				//	_ = the lowest digit is directly related to performance
+				// _	= the highest digit is directly related to style
+				//
+				#define FXAA_QUALITY_PRESET 12
+		#endif
+
+
+		/*============================================================================
+
+															 FXAA QUALITY - PRESETS
+
+		============================================================================*/
+
+		/*============================================================================
+												 FXAA QUALITY - MEDIUM DITHER PRESETS
+		============================================================================*/
+		#if (FXAA_QUALITY_PRESET == 10)
+				#define FXAA_QUALITY_PS 3
+				#define FXAA_QUALITY_P0 1.5
+				#define FXAA_QUALITY_P1 3.0
+				#define FXAA_QUALITY_P2 12.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 11)
+				#define FXAA_QUALITY_PS 4
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 3.0
+				#define FXAA_QUALITY_P3 12.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 12)
+				#define FXAA_QUALITY_PS 5
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 4.0
+				#define FXAA_QUALITY_P4 12.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 13)
+				#define FXAA_QUALITY_PS 6
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 4.0
+				#define FXAA_QUALITY_P5 12.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 14)
+				#define FXAA_QUALITY_PS 7
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 4.0
+				#define FXAA_QUALITY_P6 12.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 15)
+				#define FXAA_QUALITY_PS 8
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 2.0
+				#define FXAA_QUALITY_P6 4.0
+				#define FXAA_QUALITY_P7 12.0
+		#endif
+
+		/*============================================================================
+												 FXAA QUALITY - LOW DITHER PRESETS
+		============================================================================*/
+		#if (FXAA_QUALITY_PRESET == 20)
+				#define FXAA_QUALITY_PS 3
+				#define FXAA_QUALITY_P0 1.5
+				#define FXAA_QUALITY_P1 2.0
+				#define FXAA_QUALITY_P2 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 21)
+				#define FXAA_QUALITY_PS 4
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 22)
+				#define FXAA_QUALITY_PS 5
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 23)
+				#define FXAA_QUALITY_PS 6
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 24)
+				#define FXAA_QUALITY_PS 7
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 3.0
+				#define FXAA_QUALITY_P6 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 25)
+				#define FXAA_QUALITY_PS 8
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 2.0
+				#define FXAA_QUALITY_P6 4.0
+				#define FXAA_QUALITY_P7 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 26)
+				#define FXAA_QUALITY_PS 9
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 2.0
+				#define FXAA_QUALITY_P6 2.0
+				#define FXAA_QUALITY_P7 4.0
+				#define FXAA_QUALITY_P8 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 27)
+				#define FXAA_QUALITY_PS 10
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 2.0
+				#define FXAA_QUALITY_P6 2.0
+				#define FXAA_QUALITY_P7 2.0
+				#define FXAA_QUALITY_P8 4.0
+				#define FXAA_QUALITY_P9 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 28)
+				#define FXAA_QUALITY_PS 11
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 2.0
+				#define FXAA_QUALITY_P6 2.0
+				#define FXAA_QUALITY_P7 2.0
+				#define FXAA_QUALITY_P8 2.0
+				#define FXAA_QUALITY_P9 4.0
+				#define FXAA_QUALITY_P10 8.0
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_QUALITY_PRESET == 29)
+				#define FXAA_QUALITY_PS 12
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.5
+				#define FXAA_QUALITY_P2 2.0
+				#define FXAA_QUALITY_P3 2.0
+				#define FXAA_QUALITY_P4 2.0
+				#define FXAA_QUALITY_P5 2.0
+				#define FXAA_QUALITY_P6 2.0
+				#define FXAA_QUALITY_P7 2.0
+				#define FXAA_QUALITY_P8 2.0
+				#define FXAA_QUALITY_P9 2.0
+				#define FXAA_QUALITY_P10 4.0
+				#define FXAA_QUALITY_P11 8.0
+		#endif
+
+		/*============================================================================
+												 FXAA QUALITY - EXTREME QUALITY
+		============================================================================*/
+		#if (FXAA_QUALITY_PRESET == 39)
+				#define FXAA_QUALITY_PS 12
+				#define FXAA_QUALITY_P0 1.0
+				#define FXAA_QUALITY_P1 1.0
+				#define FXAA_QUALITY_P2 1.0
+				#define FXAA_QUALITY_P3 1.0
+				#define FXAA_QUALITY_P4 1.0
+				#define FXAA_QUALITY_P5 1.5
+				#define FXAA_QUALITY_P6 2.0
+				#define FXAA_QUALITY_P7 2.0
+				#define FXAA_QUALITY_P8 2.0
+				#define FXAA_QUALITY_P9 2.0
+				#define FXAA_QUALITY_P10 4.0
+				#define FXAA_QUALITY_P11 8.0
+		#endif
+
+
+
+		/*============================================================================
+
+																		API PORTING
+
+		============================================================================*/
+		#if (FXAA_GLSL_100 == 1) || (FXAA_GLSL_120 == 1) || (FXAA_GLSL_130 == 1)
+				#define FxaaBool bool
+				#define FxaaDiscard discard
+				#define FxaaFloat float
+				#define FxaaFloat2 vec2
+				#define FxaaFloat3 vec3
+				#define FxaaFloat4 vec4
+				#define FxaaHalf float
+				#define FxaaHalf2 vec2
+				#define FxaaHalf3 vec3
+				#define FxaaHalf4 vec4
+				#define FxaaInt2 ivec2
+				#define FxaaSat(x) clamp(x, 0.0, 1.0)
+				#define FxaaTex sampler2D
+		#else
+				#define FxaaBool bool
+				#define FxaaDiscard clip(-1)
+				#define FxaaFloat float
+				#define FxaaFloat2 float2
+				#define FxaaFloat3 float3
+				#define FxaaFloat4 float4
+				#define FxaaHalf half
+				#define FxaaHalf2 half2
+				#define FxaaHalf3 half3
+				#define FxaaHalf4 half4
+				#define FxaaSat(x) saturate(x)
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_GLSL_100 == 1)
+			#define FxaaTexTop(t, p) texture2D(t, p, 0.0)
+			#define FxaaTexOff(t, p, o, r) texture2D(t, p + (o * r), 0.0)
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_GLSL_120 == 1)
+				// Requires,
+				//	#version 120
+				// And at least,
+				//	#extension GL_EXT_gpu_shader4 : enable
+				//	(or set FXAA_FAST_PIXEL_OFFSET 1 to work like DX9)
+				#define FxaaTexTop(t, p) texture2DLod(t, p, 0.0)
+				#if (FXAA_FAST_PIXEL_OFFSET == 1)
+						#define FxaaTexOff(t, p, o, r) texture2DLodOffset(t, p, 0.0, o)
+				#else
+						#define FxaaTexOff(t, p, o, r) texture2DLod(t, p + (o * r), 0.0)
+				#endif
+				#if (FXAA_GATHER4_ALPHA == 1)
+						// use #extension GL_ARB_gpu_shader5 : enable
+						#define FxaaTexAlpha4(t, p) textureGather(t, p, 3)
+						#define FxaaTexOffAlpha4(t, p, o) textureGatherOffset(t, p, o, 3)
+						#define FxaaTexGreen4(t, p) textureGather(t, p, 1)
+						#define FxaaTexOffGreen4(t, p, o) textureGatherOffset(t, p, o, 1)
+				#endif
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_GLSL_130 == 1)
+				// Requires "#version 130" or better
+				#define FxaaTexTop(t, p) textureLod(t, p, 0.0)
+				#define FxaaTexOff(t, p, o, r) textureLodOffset(t, p, 0.0, o)
+				#if (FXAA_GATHER4_ALPHA == 1)
+						// use #extension GL_ARB_gpu_shader5 : enable
+						#define FxaaTexAlpha4(t, p) textureGather(t, p, 3)
+						#define FxaaTexOffAlpha4(t, p, o) textureGatherOffset(t, p, o, 3)
+						#define FxaaTexGreen4(t, p) textureGather(t, p, 1)
+						#define FxaaTexOffGreen4(t, p, o) textureGatherOffset(t, p, o, 1)
+				#endif
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_HLSL_3 == 1)
+				#define FxaaInt2 float2
+				#define FxaaTex sampler2D
+				#define FxaaTexTop(t, p) tex2Dlod(t, float4(p, 0.0, 0.0))
+				#define FxaaTexOff(t, p, o, r) tex2Dlod(t, float4(p + (o * r), 0, 0))
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_HLSL_4 == 1)
+				#define FxaaInt2 int2
+				struct FxaaTex { SamplerState smpl; Texture2D tex; };
+				#define FxaaTexTop(t, p) t.tex.SampleLevel(t.smpl, p, 0.0)
+				#define FxaaTexOff(t, p, o, r) t.tex.SampleLevel(t.smpl, p, 0.0, o)
+		#endif
+		/*--------------------------------------------------------------------------*/
+		#if (FXAA_HLSL_5 == 1)
+				#define FxaaInt2 int2
+				struct FxaaTex { SamplerState smpl; Texture2D tex; };
+				#define FxaaTexTop(t, p) t.tex.SampleLevel(t.smpl, p, 0.0)
+				#define FxaaTexOff(t, p, o, r) t.tex.SampleLevel(t.smpl, p, 0.0, o)
+				#define FxaaTexAlpha4(t, p) t.tex.GatherAlpha(t.smpl, p)
+				#define FxaaTexOffAlpha4(t, p, o) t.tex.GatherAlpha(t.smpl, p, o)
+				#define FxaaTexGreen4(t, p) t.tex.GatherGreen(t.smpl, p)
+				#define FxaaTexOffGreen4(t, p, o) t.tex.GatherGreen(t.smpl, p, o)
+		#endif
+
+
+		/*============================================================================
+											 GREEN AS LUMA OPTION SUPPORT FUNCTION
+		============================================================================*/
+		#if (FXAA_GREEN_AS_LUMA == 0)
+				FxaaFloat FxaaLuma(FxaaFloat4 rgba) { return rgba.w; }
+		#else
+				FxaaFloat FxaaLuma(FxaaFloat4 rgba) { return rgba.y; }
+		#endif
+
+
+
+
+		/*============================================================================
+
+																 FXAA3 QUALITY - PC
+
+		============================================================================*/
+		#if (FXAA_PC == 1)
+		/*--------------------------------------------------------------------------*/
+		FxaaFloat4 FxaaPixelShader(
+				//
+				// Use noperspective interpolation here (turn off perspective interpolation).
+				// {xy} = center of pixel
+				FxaaFloat2 pos,
+				//
+				// Used only for FXAA Console, and not used on the 360 version.
+				// Use noperspective interpolation here (turn off perspective interpolation).
+				// {xy_} = upper left of pixel
+				// {_zw} = lower right of pixel
+				FxaaFloat4 fxaaConsolePosPos,
+				//
+				// Input color texture.
+				// {rgb_} = color in linear or perceptual color space
+				// if (FXAA_GREEN_AS_LUMA == 0)
+				//		 {__a} = luma in perceptual color space (not linear)
+				FxaaTex tex,
+				//
+				// Only used on the optimized 360 version of FXAA Console.
+				// For everything but 360, just use the same input here as for "tex".
+				// For 360, same texture, just alias with a 2nd sampler.
+				// This sampler needs to have an exponent bias of -1.
+				FxaaTex fxaaConsole360TexExpBiasNegOne,
+				//
+				// Only used on the optimized 360 version of FXAA Console.
+				// For everything but 360, just use the same input here as for "tex".
+				// For 360, same texture, just alias with a 3nd sampler.
+				// This sampler needs to have an exponent bias of -2.
+				FxaaTex fxaaConsole360TexExpBiasNegTwo,
+				//
+				// Only used on FXAA Quality.
+				// This must be from a constant/uniform.
+				// {x_} = 1.0/screenWidthInPixels
+				// {_y} = 1.0/screenHeightInPixels
+				FxaaFloat2 fxaaQualityRcpFrame,
+				//
+				// Only used on FXAA Console.
+				// This must be from a constant/uniform.
+				// This effects sub-pixel AA quality and inversely sharpness.
+				//	 Where N ranges between,
+				//		 N = 0.50 (default)
+				//		 N = 0.33 (sharper)
+				// {x__} = -N/screenWidthInPixels
+				// {_y_} = -N/screenHeightInPixels
+				// {_z_} =	N/screenWidthInPixels
+				// {__w} =	N/screenHeightInPixels
+				FxaaFloat4 fxaaConsoleRcpFrameOpt,
+				//
+				// Only used on FXAA Console.
+				// Not used on 360, but used on PS3 and PC.
+				// This must be from a constant/uniform.
+				// {x__} = -2.0/screenWidthInPixels
+				// {_y_} = -2.0/screenHeightInPixels
+				// {_z_} =	2.0/screenWidthInPixels
+				// {__w} =	2.0/screenHeightInPixels
+				FxaaFloat4 fxaaConsoleRcpFrameOpt2,
+				//
+				// Only used on FXAA Console.
+				// Only used on 360 in place of fxaaConsoleRcpFrameOpt2.
+				// This must be from a constant/uniform.
+				// {x__} =	8.0/screenWidthInPixels
+				// {_y_} =	8.0/screenHeightInPixels
+				// {_z_} = -4.0/screenWidthInPixels
+				// {__w} = -4.0/screenHeightInPixels
+				FxaaFloat4 fxaaConsole360RcpFrameOpt2,
+				//
+				// Only used on FXAA Quality.
+				// This used to be the FXAA_QUALITY_SUBPIX define.
+				// It is here now to allow easier tuning.
+				// Choose the amount of sub-pixel aliasing removal.
+				// This can effect sharpness.
+				//	 1.00 - upper limit (softer)
+				//	 0.75 - default amount of filtering
+				//	 0.50 - lower limit (sharper, less sub-pixel aliasing removal)
+				//	 0.25 - almost off
+				//	 0.00 - completely off
+				FxaaFloat fxaaQualitySubpix,
+				//
+				// Only used on FXAA Quality.
+				// This used to be the FXAA_QUALITY_EDGE_THRESHOLD define.
+				// It is here now to allow easier tuning.
+				// The minimum amount of local contrast required to apply algorithm.
+				//	 0.333 - too little (faster)
+				//	 0.250 - low quality
+				//	 0.166 - default
+				//	 0.125 - high quality
+				//	 0.063 - overkill (slower)
+				FxaaFloat fxaaQualityEdgeThreshold,
+				//
+				// Only used on FXAA Quality.
+				// This used to be the FXAA_QUALITY_EDGE_THRESHOLD_MIN define.
+				// It is here now to allow easier tuning.
+				// Trims the algorithm from processing darks.
+				//	 0.0833 - upper limit (default, the start of visible unfiltered edges)
+				//	 0.0625 - high quality (faster)
+				//	 0.0312 - visible limit (slower)
+				// Special notes when using FXAA_GREEN_AS_LUMA,
+				//	 Likely want to set this to zero.
+				//	 As colors that are mostly not-green
+				//	 will appear very dark in the green channel!
+				//	 Tune by looking at mostly non-green content,
+				//	 then start at zero and increase until aliasing is a problem.
+				FxaaFloat fxaaQualityEdgeThresholdMin,
+				//
+				// Only used on FXAA Console.
+				// This used to be the FXAA_CONSOLE_EDGE_SHARPNESS define.
+				// It is here now to allow easier tuning.
+				// This does not effect PS3, as this needs to be compiled in.
+				//	 Use FXAA_CONSOLE_PS3_EDGE_SHARPNESS for PS3.
+				//	 Due to the PS3 being ALU bound,
+				//	 there are only three safe values here: 2 and 4 and 8.
+				//	 These options use the shaders ability to a free *|/ by 2|4|8.
+				// For all other platforms can be a non-power of two.
+				//	 8.0 is sharper (default!!!)
+				//	 4.0 is softer
+				//	 2.0 is really soft (good only for vector graphics inputs)
+				FxaaFloat fxaaConsoleEdgeSharpness,
+				//
+				// Only used on FXAA Console.
+				// This used to be the FXAA_CONSOLE_EDGE_THRESHOLD define.
+				// It is here now to allow easier tuning.
+				// This does not effect PS3, as this needs to be compiled in.
+				//	 Use FXAA_CONSOLE_PS3_EDGE_THRESHOLD for PS3.
+				//	 Due to the PS3 being ALU bound,
+				//	 there are only two safe values here: 1/4 and 1/8.
+				//	 These options use the shaders ability to a free *|/ by 2|4|8.
+				// The console setting has a different mapping than the quality setting.
+				// Other platforms can use other values.
+				//	 0.125 leaves less aliasing, but is softer (default!!!)
+				//	 0.25 leaves more aliasing, and is sharper
+				FxaaFloat fxaaConsoleEdgeThreshold,
+				//
+				// Only used on FXAA Console.
+				// This used to be the FXAA_CONSOLE_EDGE_THRESHOLD_MIN define.
+				// It is here now to allow easier tuning.
+				// Trims the algorithm from processing darks.
+				// The console setting has a different mapping than the quality setting.
+				// This only applies when FXAA_EARLY_EXIT is 1.
+				// This does not apply to PS3,
+				// PS3 was simplified to avoid more shader instructions.
+				//	 0.06 - faster but more aliasing in darks
+				//	 0.05 - default
+				//	 0.04 - slower and less aliasing in darks
+				// Special notes when using FXAA_GREEN_AS_LUMA,
+				//	 Likely want to set this to zero.
+				//	 As colors that are mostly not-green
+				//	 will appear very dark in the green channel!
+				//	 Tune by looking at mostly non-green content,
+				//	 then start at zero and increase until aliasing is a problem.
+				FxaaFloat fxaaConsoleEdgeThresholdMin,
+				//
+				// Extra constants for 360 FXAA Console only.
+				// Use zeros or anything else for other platforms.
+				// These must be in physical constant registers and NOT immediates.
+				// Immediates will result in compiler un-optimizing.
+				// {xyzw} = float4(1.0, -1.0, 0.25, -0.25)
+				FxaaFloat4 fxaaConsole360ConstDir
+		) {
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat2 posM;
+				posM.x = pos.x;
+				posM.y = pos.y;
+				#if (FXAA_GATHER4_ALPHA == 1)
+						#if (FXAA_DISCARD == 0)
+								FxaaFloat4 rgbyM = FxaaTexTop(tex, posM);
+								#if (FXAA_GREEN_AS_LUMA == 0)
+										#define lumaM rgbyM.w
+								#else
+										#define lumaM rgbyM.y
+								#endif
+						#endif
+						#if (FXAA_GREEN_AS_LUMA == 0)
+								FxaaFloat4 luma4A = FxaaTexAlpha4(tex, posM);
+								FxaaFloat4 luma4B = FxaaTexOffAlpha4(tex, posM, FxaaInt2(-1, -1));
+						#else
+								FxaaFloat4 luma4A = FxaaTexGreen4(tex, posM);
+								FxaaFloat4 luma4B = FxaaTexOffGreen4(tex, posM, FxaaInt2(-1, -1));
+						#endif
+						#if (FXAA_DISCARD == 1)
+								#define lumaM luma4A.w
+						#endif
+						#define lumaE luma4A.z
+						#define lumaS luma4A.x
+						#define lumaSE luma4A.y
+						#define lumaNW luma4B.w
+						#define lumaN luma4B.z
+						#define lumaW luma4B.x
+				#else
+						FxaaFloat4 rgbyM = FxaaTexTop(tex, posM);
+						#if (FXAA_GREEN_AS_LUMA == 0)
+								#define lumaM rgbyM.w
+						#else
+								#define lumaM rgbyM.y
+						#endif
+						#if (FXAA_GLSL_100 == 1)
+							FxaaFloat lumaS = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2( 0.0, 1.0), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaE = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2( 1.0, 0.0), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaN = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2( 0.0,-1.0), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaW = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2(-1.0, 0.0), fxaaQualityRcpFrame.xy));
+						#else
+							FxaaFloat lumaS = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2( 0, 1), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaE = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2( 1, 0), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaN = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2( 0,-1), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaW = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2(-1, 0), fxaaQualityRcpFrame.xy));
+						#endif
+				#endif
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat maxSM = max(lumaS, lumaM);
+				FxaaFloat minSM = min(lumaS, lumaM);
+				FxaaFloat maxESM = max(lumaE, maxSM);
+				FxaaFloat minESM = min(lumaE, minSM);
+				FxaaFloat maxWN = max(lumaN, lumaW);
+				FxaaFloat minWN = min(lumaN, lumaW);
+				FxaaFloat rangeMax = max(maxWN, maxESM);
+				FxaaFloat rangeMin = min(minWN, minESM);
+				FxaaFloat rangeMaxScaled = rangeMax * fxaaQualityEdgeThreshold;
+				FxaaFloat range = rangeMax - rangeMin;
+				FxaaFloat rangeMaxClamped = max(fxaaQualityEdgeThresholdMin, rangeMaxScaled);
+				FxaaBool earlyExit = range < rangeMaxClamped;
+		/*--------------------------------------------------------------------------*/
+				if(earlyExit)
+						#if (FXAA_DISCARD == 1)
+								FxaaDiscard;
+						#else
+								return rgbyM;
+						#endif
+		/*--------------------------------------------------------------------------*/
+				#if (FXAA_GATHER4_ALPHA == 0)
+						#if (FXAA_GLSL_100 == 1)
+							FxaaFloat lumaNW = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2(-1.0,-1.0), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaSE = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2( 1.0, 1.0), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaNE = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2( 1.0,-1.0), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaSW = FxaaLuma(FxaaTexOff(tex, posM, FxaaFloat2(-1.0, 1.0), fxaaQualityRcpFrame.xy));
+						#else
+							FxaaFloat lumaNW = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2(-1,-1), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaSE = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2( 1, 1), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaNE = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2( 1,-1), fxaaQualityRcpFrame.xy));
+							FxaaFloat lumaSW = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2(-1, 1), fxaaQualityRcpFrame.xy));
+						#endif
+				#else
+						FxaaFloat lumaNE = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2(1, -1), fxaaQualityRcpFrame.xy));
+						FxaaFloat lumaSW = FxaaLuma(FxaaTexOff(tex, posM, FxaaInt2(-1, 1), fxaaQualityRcpFrame.xy));
+				#endif
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat lumaNS = lumaN + lumaS;
+				FxaaFloat lumaWE = lumaW + lumaE;
+				FxaaFloat subpixRcpRange = 1.0/range;
+				FxaaFloat subpixNSWE = lumaNS + lumaWE;
+				FxaaFloat edgeHorz1 = (-2.0 * lumaM) + lumaNS;
+				FxaaFloat edgeVert1 = (-2.0 * lumaM) + lumaWE;
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat lumaNESE = lumaNE + lumaSE;
+				FxaaFloat lumaNWNE = lumaNW + lumaNE;
+				FxaaFloat edgeHorz2 = (-2.0 * lumaE) + lumaNESE;
+				FxaaFloat edgeVert2 = (-2.0 * lumaN) + lumaNWNE;
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat lumaNWSW = lumaNW + lumaSW;
+				FxaaFloat lumaSWSE = lumaSW + lumaSE;
+				FxaaFloat edgeHorz4 = (abs(edgeHorz1) * 2.0) + abs(edgeHorz2);
+				FxaaFloat edgeVert4 = (abs(edgeVert1) * 2.0) + abs(edgeVert2);
+				FxaaFloat edgeHorz3 = (-2.0 * lumaW) + lumaNWSW;
+				FxaaFloat edgeVert3 = (-2.0 * lumaS) + lumaSWSE;
+				FxaaFloat edgeHorz = abs(edgeHorz3) + edgeHorz4;
+				FxaaFloat edgeVert = abs(edgeVert3) + edgeVert4;
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat subpixNWSWNESE = lumaNWSW + lumaNESE;
+				FxaaFloat lengthSign = fxaaQualityRcpFrame.x;
+				FxaaBool horzSpan = edgeHorz >= edgeVert;
+				FxaaFloat subpixA = subpixNSWE * 2.0 + subpixNWSWNESE;
+		/*--------------------------------------------------------------------------*/
+				if(!horzSpan) lumaN = lumaW;
+				if(!horzSpan) lumaS = lumaE;
+				if(horzSpan) lengthSign = fxaaQualityRcpFrame.y;
+				FxaaFloat subpixB = (subpixA * (1.0/12.0)) - lumaM;
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat gradientN = lumaN - lumaM;
+				FxaaFloat gradientS = lumaS - lumaM;
+				FxaaFloat lumaNN = lumaN + lumaM;
+				FxaaFloat lumaSS = lumaS + lumaM;
+				FxaaBool pairN = abs(gradientN) >= abs(gradientS);
+				FxaaFloat gradient = max(abs(gradientN), abs(gradientS));
+				if(pairN) lengthSign = -lengthSign;
+				FxaaFloat subpixC = FxaaSat(abs(subpixB) * subpixRcpRange);
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat2 posB;
+				posB.x = posM.x;
+				posB.y = posM.y;
+				FxaaFloat2 offNP;
+				offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;
+				offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;
+				if(!horzSpan) posB.x += lengthSign * 0.5;
+				if( horzSpan) posB.y += lengthSign * 0.5;
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat2 posN;
+				posN.x = posB.x - offNP.x * FXAA_QUALITY_P0;
+				posN.y = posB.y - offNP.y * FXAA_QUALITY_P0;
+				FxaaFloat2 posP;
+				posP.x = posB.x + offNP.x * FXAA_QUALITY_P0;
+				posP.y = posB.y + offNP.y * FXAA_QUALITY_P0;
+				FxaaFloat subpixD = ((-2.0)*subpixC) + 3.0;
+				FxaaFloat lumaEndN = FxaaLuma(FxaaTexTop(tex, posN));
+				FxaaFloat subpixE = subpixC * subpixC;
+				FxaaFloat lumaEndP = FxaaLuma(FxaaTexTop(tex, posP));
+		/*--------------------------------------------------------------------------*/
+				if(!pairN) lumaNN = lumaSS;
+				FxaaFloat gradientScaled = gradient * 1.0/4.0;
+				FxaaFloat lumaMM = lumaM - lumaNN * 0.5;
+				FxaaFloat subpixF = subpixD * subpixE;
+				FxaaBool lumaMLTZero = lumaMM < 0.0;
+		/*--------------------------------------------------------------------------*/
+				lumaEndN -= lumaNN * 0.5;
+				lumaEndP -= lumaNN * 0.5;
+				FxaaBool doneN = abs(lumaEndN) >= gradientScaled;
+				FxaaBool doneP = abs(lumaEndP) >= gradientScaled;
+				if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P1;
+				if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P1;
+				FxaaBool doneNP = (!doneN) || (!doneP);
+				if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P1;
+				if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P1;
+		/*--------------------------------------------------------------------------*/
+				if(doneNP) {
+						if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+						if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+						if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+						if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+						doneN = abs(lumaEndN) >= gradientScaled;
+						doneP = abs(lumaEndP) >= gradientScaled;
+						if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P2;
+						if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P2;
+						doneNP = (!doneN) || (!doneP);
+						if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P2;
+						if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P2;
+		/*--------------------------------------------------------------------------*/
+						#if (FXAA_QUALITY_PS > 3)
+						if(doneNP) {
+								if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+								if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+								if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+								if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+								doneN = abs(lumaEndN) >= gradientScaled;
+								doneP = abs(lumaEndP) >= gradientScaled;
+								if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P3;
+								if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P3;
+								doneNP = (!doneN) || (!doneP);
+								if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P3;
+								if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P3;
+		/*--------------------------------------------------------------------------*/
+								#if (FXAA_QUALITY_PS > 4)
+								if(doneNP) {
+										if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+										if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+										if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+										if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+										doneN = abs(lumaEndN) >= gradientScaled;
+										doneP = abs(lumaEndP) >= gradientScaled;
+										if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P4;
+										if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P4;
+										doneNP = (!doneN) || (!doneP);
+										if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P4;
+										if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P4;
+		/*--------------------------------------------------------------------------*/
+										#if (FXAA_QUALITY_PS > 5)
+										if(doneNP) {
+												if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+												if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+												if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+												if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+												doneN = abs(lumaEndN) >= gradientScaled;
+												doneP = abs(lumaEndP) >= gradientScaled;
+												if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P5;
+												if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P5;
+												doneNP = (!doneN) || (!doneP);
+												if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P5;
+												if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P5;
+		/*--------------------------------------------------------------------------*/
+												#if (FXAA_QUALITY_PS > 6)
+												if(doneNP) {
+														if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+														if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+														if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+														if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+														doneN = abs(lumaEndN) >= gradientScaled;
+														doneP = abs(lumaEndP) >= gradientScaled;
+														if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P6;
+														if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P6;
+														doneNP = (!doneN) || (!doneP);
+														if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P6;
+														if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P6;
+		/*--------------------------------------------------------------------------*/
+														#if (FXAA_QUALITY_PS > 7)
+														if(doneNP) {
+																if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+																if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+																if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+																if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+																doneN = abs(lumaEndN) >= gradientScaled;
+																doneP = abs(lumaEndP) >= gradientScaled;
+																if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P7;
+																if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P7;
+																doneNP = (!doneN) || (!doneP);
+																if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P7;
+																if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P7;
+		/*--------------------------------------------------------------------------*/
+				#if (FXAA_QUALITY_PS > 8)
+				if(doneNP) {
+						if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+						if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+						if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+						if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+						doneN = abs(lumaEndN) >= gradientScaled;
+						doneP = abs(lumaEndP) >= gradientScaled;
+						if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P8;
+						if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P8;
+						doneNP = (!doneN) || (!doneP);
+						if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P8;
+						if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P8;
+		/*--------------------------------------------------------------------------*/
+						#if (FXAA_QUALITY_PS > 9)
+						if(doneNP) {
+								if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+								if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+								if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+								if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+								doneN = abs(lumaEndN) >= gradientScaled;
+								doneP = abs(lumaEndP) >= gradientScaled;
+								if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P9;
+								if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P9;
+								doneNP = (!doneN) || (!doneP);
+								if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P9;
+								if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P9;
+		/*--------------------------------------------------------------------------*/
+								#if (FXAA_QUALITY_PS > 10)
+								if(doneNP) {
+										if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+										if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+										if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+										if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+										doneN = abs(lumaEndN) >= gradientScaled;
+										doneP = abs(lumaEndP) >= gradientScaled;
+										if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P10;
+										if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P10;
+										doneNP = (!doneN) || (!doneP);
+										if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P10;
+										if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P10;
+		/*--------------------------------------------------------------------------*/
+										#if (FXAA_QUALITY_PS > 11)
+										if(doneNP) {
+												if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+												if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+												if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+												if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+												doneN = abs(lumaEndN) >= gradientScaled;
+												doneP = abs(lumaEndP) >= gradientScaled;
+												if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P11;
+												if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P11;
+												doneNP = (!doneN) || (!doneP);
+												if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P11;
+												if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P11;
+		/*--------------------------------------------------------------------------*/
+												#if (FXAA_QUALITY_PS > 12)
+												if(doneNP) {
+														if(!doneN) lumaEndN = FxaaLuma(FxaaTexTop(tex, posN.xy));
+														if(!doneP) lumaEndP = FxaaLuma(FxaaTexTop(tex, posP.xy));
+														if(!doneN) lumaEndN = lumaEndN - lumaNN * 0.5;
+														if(!doneP) lumaEndP = lumaEndP - lumaNN * 0.5;
+														doneN = abs(lumaEndN) >= gradientScaled;
+														doneP = abs(lumaEndP) >= gradientScaled;
+														if(!doneN) posN.x -= offNP.x * FXAA_QUALITY_P12;
+														if(!doneN) posN.y -= offNP.y * FXAA_QUALITY_P12;
+														doneNP = (!doneN) || (!doneP);
+														if(!doneP) posP.x += offNP.x * FXAA_QUALITY_P12;
+														if(!doneP) posP.y += offNP.y * FXAA_QUALITY_P12;
+		/*--------------------------------------------------------------------------*/
+												}
+												#endif
+		/*--------------------------------------------------------------------------*/
+										}
+										#endif
+		/*--------------------------------------------------------------------------*/
+								}
+								#endif
+		/*--------------------------------------------------------------------------*/
+						}
+						#endif
+		/*--------------------------------------------------------------------------*/
+				}
+				#endif
+		/*--------------------------------------------------------------------------*/
+														}
+														#endif
+		/*--------------------------------------------------------------------------*/
+												}
+												#endif
+		/*--------------------------------------------------------------------------*/
+										}
+										#endif
+		/*--------------------------------------------------------------------------*/
+								}
+								#endif
+		/*--------------------------------------------------------------------------*/
+						}
+						#endif
+		/*--------------------------------------------------------------------------*/
+				}
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat dstN = posM.x - posN.x;
+				FxaaFloat dstP = posP.x - posM.x;
+				if(!horzSpan) dstN = posM.y - posN.y;
+				if(!horzSpan) dstP = posP.y - posM.y;
+		/*--------------------------------------------------------------------------*/
+				FxaaBool goodSpanN = (lumaEndN < 0.0) != lumaMLTZero;
+				FxaaFloat spanLength = (dstP + dstN);
+				FxaaBool goodSpanP = (lumaEndP < 0.0) != lumaMLTZero;
+				FxaaFloat spanLengthRcp = 1.0/spanLength;
+		/*--------------------------------------------------------------------------*/
+				FxaaBool directionN = dstN < dstP;
+				FxaaFloat dst = min(dstN, dstP);
+				FxaaBool goodSpan = directionN ? goodSpanN : goodSpanP;
+				FxaaFloat subpixG = subpixF * subpixF;
+				FxaaFloat pixelOffset = (dst * (-spanLengthRcp)) + 0.5;
+				FxaaFloat subpixH = subpixG * fxaaQualitySubpix;
+		/*--------------------------------------------------------------------------*/
+				FxaaFloat pixelOffsetGood = goodSpan ? pixelOffset : 0.0;
+				FxaaFloat pixelOffsetSubpix = max(pixelOffsetGood, subpixH);
+				if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;
+				if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;
+				#if (FXAA_DISCARD == 1)
+						return FxaaTexTop(tex, posM);
+				#else
+						return FxaaFloat4(FxaaTexTop(tex, posM).xyz, lumaM);
+				#endif
+		}
+		/*==========================================================================*/
+		#endif
+
+		void main() {
+			gl_FragColor = FxaaPixelShader(
+				vUv,
+				vec4(0.0),
+				tDiffuse,
+				tDiffuse,
+				tDiffuse,
+				resolution,
+				vec4(0.0),
+				vec4(0.0),
+				vec4(0.0),
+				0.75,
+				0.166,
+				0.0833,
+				0.0,
+				0.0,
+				0.0,
+				vec4(0.0)
+			);
+
+			// TODO avoid querying texture twice for same texel
+			gl_FragColor.a = texture2D(tDiffuse, vUv).a;
+		}`
+
+};
+
+// source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
+// Follows the structure of
+// 		https://github.com/mrdoob/three.js/blob/master/examples/jsm/postprocessing/OutlinePass.js
+class CustomOutlinePass extends Pass {
+    constructor(resolution, scene, camera) {
+        super();
+        this.renderScene = scene;
+        this.camera = camera;
+        this.resolution = new Vector2$1(resolution.x, resolution.y);
+        // @ts-ignore
+        this.fsQuad = new FullScreenQuad(null);
+        this.fsQuad.material = this.createOutlinePostProcessMaterial();
+        // Create a buffer to store the normals of the scene onto
+        const normalTarget = new WebGLRenderTarget(this.resolution.x, this.resolution.y);
+        normalTarget.texture.format = RGBFormat;
+        normalTarget.texture.minFilter = NearestFilter;
+        normalTarget.texture.magFilter = NearestFilter;
+        normalTarget.texture.generateMipmaps = false;
+        normalTarget.stencilBuffer = false;
+        this.normalTarget = normalTarget;
+        this.normalOverrideMaterial = new MeshNormalMaterial();
+    }
+    dispose() {
+        this.normalTarget.dispose();
+        this.normalTarget = null;
+        this.fsQuad.dispose();
+        this.fsQuad = null;
+    }
+    setSize(width, height) {
+        this.normalTarget.setSize(width, height);
+        this.resolution.set(width * 2, height * 2);
+        // @ts-ignore
+        this.fsQuad.material.uniforms.screenSize.value.set(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y);
+    }
+    render(renderer, writeBuffer, readBuffer) {
+        // Turn off writing to the depth buffer
+        // because we need to read from it in the subsequent passes.
+        const depthBufferValue = writeBuffer.depthBuffer;
+        writeBuffer.depthBuffer = false;
+        // 1. Re-render the scene to capture all normals in texture.
+        // Ideally we could capture this in the first render pass along with
+        // the depth texture.
+        renderer.setRenderTarget(this.normalTarget);
+        const overrideMaterialValue = this.renderScene.overrideMaterial;
+        this.renderScene.overrideMaterial = this.normalOverrideMaterial;
+        renderer.render(this.renderScene, this.camera);
+        this.renderScene.overrideMaterial = overrideMaterialValue;
+        // @ts-ignore
+        this.fsQuad.material.uniforms.depthBuffer.value = readBuffer.depthTexture;
+        // @ts-ignore
+        this.fsQuad.material.uniforms.normalBuffer.value =
+            this.normalTarget.texture;
+        // @ts-ignore
+        this.fsQuad.material.uniforms.sceneColorBuffer.value = readBuffer.texture;
+        // 2. Draw the outlines using the depth texture and normal texture
+        // and combine it with the scene color
+        if (this.renderToScreen) {
+            // If this is the last effect, then renderToScreen is true.
+            // So we should render to the screen by setting target null
+            // Otherwise, just render into the writeBuffer that the next effect will use as its read buffer.
+            renderer.setRenderTarget(null);
+            this.fsQuad.render(renderer);
+        }
+        else {
+            renderer.setRenderTarget(writeBuffer);
+            this.fsQuad.render(renderer);
+        }
+        // Reset the depthBuffer value so we continue writing to it in the next render.
+        writeBuffer.depthBuffer = depthBufferValue;
+    }
+    get vertexShader() {
+        return `
+			varying vec2 vUv;
+			void main() {
+			  vUv = uv;
+			  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+			}
+			`;
+    }
+    get fragmentShader() {
+        return `
+			#include <packing>
+			// The above include imports "perspectiveDepthToViewZ"
+			// and other GLSL functions from ThreeJS we need for reading depth.
+			uniform sampler2D sceneColorBuffer;
+			uniform sampler2D depthBuffer;
+			uniform sampler2D normalBuffer;
+			uniform float cameraNear;
+  		uniform float cameraFar;
+  		uniform vec4 screenSize;
+      uniform vec3 outlineColor;
+      uniform vec4 multiplierParameters;
+      uniform int debugVisualize;
+
+			varying vec2 vUv;
+
+			// Helper functions for reading from depth buffer.
+			float readDepth (sampler2D depthSampler, vec2 coord) {
+				float fragCoordZ = texture2D(depthSampler, coord).x;
+				float viewZ = perspectiveDepthToViewZ( fragCoordZ, cameraNear, cameraFar );
+				return viewZToOrthographicDepth( viewZ, cameraNear, cameraFar );
+			}
+			float getLinearDepth(vec3 pos) {
+				return -(viewMatrix * vec4(pos, 1.0)).z;
+			}
+
+			float getLinearScreenDepth(sampler2D map) {
+		    	vec2 uv = gl_FragCoord.xy * screenSize.zw;
+		    	return readDepth(map,uv);
+			}
+			// Helper functions for reading normals and depth of neighboring pixels.
+			float getPixelDepth(int x, int y) {
+				// screenSize.zw is pixel size 
+				// vUv is current position
+				return readDepth(depthBuffer, vUv + screenSize.zw * vec2(x, y));
+			}
+			vec3 getPixelNormal(int x, int y) {
+				return texture2D(normalBuffer, vUv + screenSize.zw * vec2(x, y)).rgb;
+			}
+
+      float saturate(float num) {
+        return clamp(num, 0.0, 1.0);
+      }
+
+			void main() {
+				vec4 sceneColor = texture2D(sceneColorBuffer, vUv);
+				float depth = getPixelDepth(0, 0);
+				vec3 normal = getPixelNormal(0, 0);
+
+				// Get the difference between depth of neighboring pixels and current.
+				float depthDiff = 0.0;
+		  	depthDiff += abs(depth - getPixelDepth(1, 0));
+		  	depthDiff += abs(depth - getPixelDepth(-1, 0));
+		  	depthDiff += abs(depth - getPixelDepth(0, 1));
+		  	depthDiff += abs(depth - getPixelDepth(0, -1));
+
+		  	// Get the difference between normals of neighboring pixels and current
+		  	float normalDiff = 0.0;
+		  	normalDiff += distance(normal, getPixelNormal(1, 0));
+		  	normalDiff += distance(normal, getPixelNormal(0, 1));
+		  	normalDiff += distance(normal, getPixelNormal(0, 1));
+		  	normalDiff += distance(normal, getPixelNormal(0, -1));
+
+        normalDiff += distance(normal, getPixelNormal(1, 1));
+        normalDiff += distance(normal, getPixelNormal(1, -1));
+        normalDiff += distance(normal, getPixelNormal(-1, 1));
+        normalDiff += distance(normal, getPixelNormal(-1, -1));
+
+        // Apply multiplier & bias to each 
+        float depthBias = multiplierParameters.x;
+        float depthMultiplier = multiplierParameters.y;
+        float normalBias = multiplierParameters.z;
+        float normalMultiplier = multiplierParameters.w;
+
+        depthDiff = depthDiff * depthMultiplier;
+        depthDiff = saturate(depthDiff);
+        depthDiff = pow(depthDiff, depthBias);
+
+        normalDiff = normalDiff * normalMultiplier;
+        normalDiff = saturate(normalDiff);
+        normalDiff = pow(normalDiff, normalBias);
+
+
+		  	float outline = normalDiff + depthDiff;
+			
+		  	// Combine outline with scene color.
+		  	vec4 outlineColor = vec4(outlineColor, 1.0);
+		  	gl_FragColor = vec4(mix(sceneColor, outlineColor, outline));
+
+        // For debug visualization of the different inputs to this shader.
+        if (debugVisualize == 1) {
+          gl_FragColor = sceneColor;
+        }
+        if (debugVisualize == 2) {
+          gl_FragColor = vec4(vec3(depth), 1.0);
+        }
+        if (debugVisualize == 3) {
+          gl_FragColor = vec4(normal, 1.0);
+        }
+        if (debugVisualize == 4) {
+          gl_FragColor = vec4(vec3(outline * outlineColor), 1.0);
+        }
+			}
+			`;
+    }
+    createOutlinePostProcessMaterial() {
+        return new ShaderMaterial({
+            uniforms: {
+                debugVisualize: { value: 0 },
+                // @ts-ignore
+                sceneColorBuffer: {},
+                // @ts-ignore
+                depthBuffer: {},
+                // @ts-ignore
+                normalBuffer: {},
+                outlineColor: { value: new Color$1(0xffffff) },
+                // 4 scalar values packed in one uniform: depth multiplier, depth bias, and same for normals.
+                multiplierParameters: { value: new Vector4$1(1, 1, 1, 1) },
+                cameraNear: { value: this.camera.near },
+                cameraFar: { value: this.camera.far },
+                screenSize: {
+                    value: new Vector4$1(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y),
+                },
+            },
+            vertexShader: this.vertexShader,
+            fragmentShader: this.fragmentShader,
+        });
+    }
+}
+
+// TODO: Clean up and document this
+// source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
+class Postproduction {
+    constructor(components, renderer) {
+        this.components = components;
+        this.renderer = renderer;
+        this.htmlOverlay = document.createElement("img");
+        this.excludedItems = new Set();
+        this.initialized = false;
+        this.visibilityField = "ifcjsPostproductionVisible";
+        this.isUserControllingCamera = false;
+        this.isControlSleeping = true;
+        this.lastWheelUsed = 0;
+        this.lastResized = 0;
+        this.resizeDelay = 500;
+        this.isActive = false;
+        this.isVisible = false;
+        this.white = new THREE$1.Color(255, 255, 255);
+        this.tempMaterial = new THREE$1.MeshLambertMaterial({
+            colorWrite: false,
+            opacity: 0,
+            transparent: true,
+        });
+        this.outlineParams = {
+            mode: { Mode: 0 },
+            FXAA: true,
+            outlineColor: 0x777777,
+            depthBias: 1,
+            depthMult: 1,
+            normalBias: 5,
+            normalMult: 1,
+        };
+        this.onControlStart = () => (this.isUserControllingCamera = true);
+        this.onWake = () => (this.isControlSleeping = false);
+        this.onResize = () => {
+            this.lastResized = performance.now();
+            this.visible = false;
+            setTimeout(() => {
+                if (performance.now() - this.lastResized >= this.resizeDelay) {
+                    this.visible = true;
+                }
+            }, this.resizeDelay);
+        };
+        this.onControl = () => {
+            this.visible = false;
+        };
+        this.onControlEnd = () => {
+            this.isUserControllingCamera = false;
+            if (!this.isUserControllingCamera && this.isControlSleeping) {
+                this.visible = true;
+            }
+        };
+        this.onWheel = () => {
+            this.lastWheelUsed = performance.now();
+        };
+        this.onSleep = () => {
+            // This prevents that this gets triggered a million times when zooming with the wheel
+            this.isControlSleeping = true;
+            const currentWheel = performance.now();
+            setTimeout(() => {
+                if (this.lastWheelUsed > currentWheel)
+                    return;
+                if (!this.isUserControllingCamera && this.isControlSleeping) {
+                    this.visible = true;
+                }
+            }, 200);
+        };
+        this.renderTarget = this.newRenderTarget();
+        this.composer = new EffectComposer(this.renderer, this.renderTarget);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
+    get active() {
+        return this.isActive;
+    }
+    set active(active) {
+        if (this.isActive === active)
+            return;
+        if (!this.initialized)
+            this.tryToInitialize();
+        this.visible = active;
+        this.isActive = active;
+    }
+    get visible() {
+        return this.isVisible;
+    }
+    set visible(visible) {
+        if (!this.isActive)
+            return;
+        this.isVisible = visible;
+        if (visible)
+            this.update();
+        this.htmlOverlay.style.visibility = visible ? "visible" : "collapse";
+    }
+    get outlineColor() {
+        return this.outlineParams.outlineColor;
+    }
+    set outlineColor(color) {
+        this.outlineParams.outlineColor = color;
+        if (this.outlineUniforms) {
+            this.outlineUniforms.outlineColor.value.set(color);
+        }
+    }
+    get sao() {
+        var _a;
+        return (_a = this.saoPass) === null || _a === void 0 ? void 0 : _a.params;
+    }
+    dispose() {
+        var _a, _b;
+        this.active = false;
+        window.removeEventListener("resize", this.onResize);
+        this.renderTarget.dispose();
+        (_a = this.depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
+        (_b = this.customOutline) === null || _b === void 0 ? void 0 : _b.dispose();
+        this.excludedItems.clear();
+        this.htmlOverlay.remove();
+    }
+    setSize(width, height) {
+        this.composer.setSize(width, height);
+    }
+    update() {
+        var _a, _b, _c;
+        if (!this.initialized || !this.isActive)
+            return;
+        this.hideExcludedItems();
+        const scene = this.components.scene.get();
+        scene.traverse((object) => {
+            // @ts-ignore
+            object.userData.prevMaterial = object.material;
+            // @ts-ignore
+            object.material = this.tempMaterial;
+        });
+        const background = (_a = this.scene) === null || _a === void 0 ? void 0 : _a.background;
+        if (((_b = this.scene) === null || _b === void 0 ? void 0 : _b.background) && background)
+            this.scene.background = this.white;
+        this.composer.render();
+        if (((_c = this.scene) === null || _c === void 0 ? void 0 : _c.background) && background)
+            this.scene.background = background;
+        scene.traverse((object) => {
+            // @ts-ignore
+            object.material = object.userData.prevMaterial;
+            delete object.userData.prevMaterial;
+        });
+        this.htmlOverlay.src = this.renderer.domElement.toDataURL();
+        this.showExcludedItems();
+    }
+    hideExcludedItems() {
+        for (const object of this.excludedItems) {
+            object.userData[this.visibilityField] = object.visible;
+            object.visible = false;
+        }
+    }
+    showExcludedItems() {
+        for (const object of this.excludedItems) {
+            if (object.userData[this.visibilityField] !== undefined) {
+                object.visible = object.userData[this.visibilityField];
+            }
+        }
+    }
+    tryToInitialize() {
+        const scene = this.components.scene.get();
+        const camera = this.components.camera.get();
+        if (!scene || !camera)
+            return;
+        this.scene = scene;
+        const renderer = this.components.renderer;
+        this.renderer.clippingPlanes = renderer.clippingPlanes;
+        this.addBasePass(scene, camera);
+        this.addSaoPass(scene, camera);
+        this.addOutlinePass(scene, camera);
+        this.addAntialiasPass();
+        this.setupHtmlOverlay();
+        this.initialized = true;
+    }
+    setup(controls) {
+        const domElement = this.components.renderer.get().domElement;
+        controls.addEventListener("control", this.onControl);
+        controls.addEventListener("controlstart", this.onControlStart);
+        controls.addEventListener("wake", this.onWake);
+        controls.addEventListener("controlend", this.onControlEnd);
+        domElement.addEventListener("wheel", this.onWheel);
+        controls.addEventListener("sleep", this.onSleep);
+        window.addEventListener("resize", this.onResize);
+    }
+    updateProjection(camera) {
+        this.composer.passes.forEach((pass) => {
+            // @ts-ignore
+            pass.camera = camera;
+        });
+        this.update();
+    }
+    setupHtmlOverlay() {
+        const dom = this.components.renderer.get().domElement;
+        if (!dom.parentElement) {
+            throw new Error("The viewer container has no HTML parent");
+        }
+        dom.parentElement.appendChild(this.htmlOverlay);
+        // @ts-ignore
+        this.htmlOverlay.style.mixBlendMode = "multiply";
+        this.htmlOverlay.style.position = "absolute";
+        this.htmlOverlay.style.height = "100%";
+        this.htmlOverlay.style.userSelect = "none";
+        this.htmlOverlay.style.pointerEvents = "none";
+        this.htmlOverlay.style.top = "0";
+        this.htmlOverlay.style.left = "0";
+    }
+    addAntialiasPass() {
+        this.fxaaPass = new ShaderPass(FXAAShader);
+        this.fxaaPass.uniforms.resolution.value.set((1 / this.renderer.domElement.offsetWidth) *
+            this.renderer.getPixelRatio(), (1 / this.renderer.domElement.offsetHeight) *
+            this.renderer.getPixelRatio());
+        this.composer.addPass(this.fxaaPass);
+    }
+    addOutlinePass(scene, camera) {
+        this.customOutline = new CustomOutlinePass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+        // Initial values
+        // @ts-ignore
+        this.outlineUniforms = this.customOutline.fsQuad.material.uniforms;
+        this.outlineUniforms.outlineColor.value.set(this.outlineParams.outlineColor);
+        this.outlineUniforms.multiplierParameters.value.x =
+            this.outlineParams.depthBias;
+        this.outlineUniforms.multiplierParameters.value.y =
+            this.outlineParams.depthMult;
+        this.outlineUniforms.multiplierParameters.value.z =
+            this.outlineParams.normalBias;
+        this.outlineUniforms.multiplierParameters.value.w =
+            this.outlineParams.normalMult;
+        this.composer.addPass(this.customOutline);
+    }
+    addSaoPass(scene, camera) {
+        this.saoPass = new SAOPass(scene, camera, false, true);
+        this.composer.addPass(this.saoPass);
+        this.saoPass.enabled = true;
+        this.saoPass.params.saoIntensity = 0.02;
+        this.saoPass.params.saoBias = 0.5;
+        this.saoPass.params.saoBlurRadius = 8;
+        this.saoPass.params.saoBlurDepthCutoff = 0.0015;
+        this.saoPass.params.saoScale = 30;
+        this.saoPass.params.saoKernelRadius = 30;
+    }
+    addBasePass(scene, camera) {
+        this.basePass = new RenderPass(scene, camera);
+        this.composer.addPass(this.basePass);
+    }
+    newRenderTarget() {
+        this.depthTexture = new THREE$1.DepthTexture(window.innerWidth, window.innerHeight);
+        return new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+            depthTexture: this.depthTexture,
+            depthBuffer: true,
+        });
+    }
+}
+
+/**
+ * Renderer that uses efficient postproduction effects (e.g. Ambient Occlusion).
+ */
+class PostproductionRenderer extends SimpleRenderer {
+    constructor(components, container) {
+        super(components, container);
+        this.postproduction = new Postproduction(components, this._renderer);
+        this.resize();
+    }
+    /** {@link Disposable.dispose}. */
+    dispose() {
+        super.dispose();
+        this.postproduction.dispose();
+    }
+    /** {@link Resizeable.resize}. */
+    resize() {
+        var _a;
+        super.resize();
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
+        (_a = this.postproduction) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
+    }
+}
+
+export { BaseRenderer, Button, CloudProcessor, Component, Components, DataConverter, Disposer, EdgesClipper, EdgesPlane, Event, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, IfcFragmentSettings, LocalCacher, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesProcessor, ScreenCuller, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, SimpleUIComponent, ToolComponent, Toolbar, TreeView, UIManager };
