@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.135.0/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, BufferAttribute as BufferAttribute$1, Vector2 as Vector2$1, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, PropertyBinding, InterpolateLinear, RGBAFormat, RGBFormat, MathUtils, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, InstancedMesh, Color as Color$1, Interpolant } from 'https://unpkg.com/three@0.135.0/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, BufferAttribute as BufferAttribute$1, Vector2 as Vector2$1, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, PropertyBinding, InterpolateLinear, RGBAFormat, RGBFormat, MathUtils, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, InstancedMesh, Color as Color$1, Interpolant, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 as Vector4$1 } from 'https://unpkg.com/three@0.135.0/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -375,7 +375,7 @@ CSS2DObject.prototype.isCSS2DObject = true;
 
 //
 
-const _vector$2 = new Vector3$1();
+const _vector$3 = new Vector3$1();
 const _viewMatrix = new Matrix4();
 const _viewProjectionMatrix = new Matrix4();
 const _a = new Vector3$1();
@@ -441,23 +441,23 @@ class CSS2DRenderer {
 
 				object.onBeforeRender( _this, scene, camera );
 
-				_vector$2.setFromMatrixPosition( object.matrixWorld );
-				_vector$2.applyMatrix4( _viewProjectionMatrix );
+				_vector$3.setFromMatrixPosition( object.matrixWorld );
+				_vector$3.applyMatrix4( _viewProjectionMatrix );
 
 				const element = object.element;
 
 				if ( /apple/i.test( navigator.vendor ) ) {
 
 					// https://github.com/mrdoob/three.js/issues/21415
-					element.style.transform = 'translate(-50%,-50%) translate(' + Math.round( _vector$2.x * _widthHalf + _widthHalf ) + 'px,' + Math.round( - _vector$2.y * _heightHalf + _heightHalf ) + 'px)';
+					element.style.transform = 'translate(-50%,-50%) translate(' + Math.round( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + Math.round( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
 
 				} else {
 
-					element.style.transform = 'translate(-50%,-50%) translate(' + ( _vector$2.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$2.y * _heightHalf + _heightHalf ) + 'px)';
+					element.style.transform = 'translate(-50%,-50%) translate(' + ( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
 
 				}
 
-				element.style.display = ( object.visible && _vector$2.z >= - 1 && _vector$2.z <= 1 ) ? '' : 'none';
+				element.style.display = ( object.visible && _vector$3.z >= - 1 && _vector$3.z <= 1 ) ? '' : 'none';
 
 				const objectData = {
 					distanceToCameraSquared: getDistanceToSquared( camera, object )
@@ -794,7 +794,7 @@ let _sphericalA;
 let _sphericalB;
 let _box3A;
 let _box3B;
-let _sphere;
+let _sphere$1;
 let _quaternionA;
 let _quaternionB;
 let _rotationMatrix;
@@ -1547,7 +1547,7 @@ class CameraControls extends EventDispatcher {
         _sphericalB = new THREE.Spherical();
         _box3A = new THREE.Box3();
         _box3B = new THREE.Box3();
-        _sphere = new THREE.Sphere();
+        _sphere$1 = new THREE.Sphere();
         _quaternionA = new THREE.Quaternion();
         _quaternionB = new THREE.Quaternion();
         _rotationMatrix = new THREE.Matrix4();
@@ -2020,8 +2020,8 @@ class CameraControls extends EventDispatcher {
         const promises = [];
         const isSphere = sphereOrMesh instanceof THREE.Sphere;
         const boundingSphere = isSphere ?
-            _sphere.copy(sphereOrMesh) :
-            createBoundingSphere(sphereOrMesh, _sphere);
+            _sphere$1.copy(sphereOrMesh) :
+            createBoundingSphere(sphereOrMesh, _sphere$1);
         promises.push(this.moveTo(boundingSphere.center.x, boundingSphere.center.y, boundingSphere.center.z, enableTransition));
         if (isPerspectiveCamera(this._camera)) {
             const distanceToFit = this.getDistanceToFitSphere(boundingSphere.radius);
@@ -22067,9 +22067,9 @@ class Vector3 {
 
 	projectOnPlane( planeNormal ) {
 
-		_vector$1.copy( this ).projectOnVector( planeNormal );
+		_vector$2.copy( this ).projectOnVector( planeNormal );
 
-		return this.sub( _vector$1 );
+		return this.sub( _vector$2 );
 
 	}
 
@@ -22078,7 +22078,7 @@ class Vector3 {
 		// reflect incident vector off plane orthogonal to normal
 		// normal is assumed to have unit length
 
-		return this.sub( _vector$1.copy( normal ).multiplyScalar( 2 * this.dot( normal ) ) );
+		return this.sub( _vector$2.copy( normal ).multiplyScalar( 2 * this.dot( normal ) ) );
 
 	}
 
@@ -22268,7 +22268,7 @@ class Vector3 {
 
 Vector3.prototype.isVector3 = true;
 
-const _vector$1 = /*@__PURE__*/ new Vector3();
+const _vector$2 = /*@__PURE__*/ new Vector3();
 const _quaternion = /*@__PURE__*/ new Quaternion();
 
 class Vector2 {
@@ -23357,7 +23357,7 @@ Color.prototype.b = 1;
 
 const StaticDrawUsage = 35044;
 
-const _vector = /*@__PURE__*/ new Vector3();
+const _vector$1 = /*@__PURE__*/ new Vector3();
 const _vector2 = /*@__PURE__*/ new Vector2();
 
 class BufferAttribute {
@@ -23558,10 +23558,10 @@ class BufferAttribute {
 
 			for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-				_vector.fromBufferAttribute( this, i );
-				_vector.applyMatrix3( m );
+				_vector$1.fromBufferAttribute( this, i );
+				_vector$1.applyMatrix3( m );
 
-				this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+				this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 			}
 
@@ -23575,13 +23575,13 @@ class BufferAttribute {
 
 		for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-			_vector.x = this.getX( i );
-			_vector.y = this.getY( i );
-			_vector.z = this.getZ( i );
+			_vector$1.x = this.getX( i );
+			_vector$1.y = this.getY( i );
+			_vector$1.z = this.getZ( i );
 
-			_vector.applyMatrix4( m );
+			_vector$1.applyMatrix4( m );
 
-			this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 		}
 
@@ -23593,13 +23593,13 @@ class BufferAttribute {
 
 		for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-			_vector.x = this.getX( i );
-			_vector.y = this.getY( i );
-			_vector.z = this.getZ( i );
+			_vector$1.x = this.getX( i );
+			_vector$1.y = this.getY( i );
+			_vector$1.z = this.getZ( i );
 
-			_vector.applyNormalMatrix( m );
+			_vector$1.applyNormalMatrix( m );
 
-			this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 		}
 
@@ -23611,13 +23611,13 @@ class BufferAttribute {
 
 		for ( let i = 0, l = this.count; i < l; i ++ ) {
 
-			_vector.x = this.getX( i );
-			_vector.y = this.getY( i );
-			_vector.z = this.getZ( i );
+			_vector$1.x = this.getX( i );
+			_vector$1.y = this.getY( i );
+			_vector$1.z = this.getZ( i );
 
-			_vector.transformDirection( m );
+			_vector$1.transformDirection( m );
 
-			this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
 
 		}
 
@@ -90298,4 +90298,1528 @@ class OrthoPerspectiveCamera extends SimpleCamera {
     }
 }
 
-export { BaseRenderer, Button, CloudProcessor, Component, Components, Disposer, Event, FragmentHighlighter, FragmentIfcLoader, FragmentManager, LocalCacher, Mouse, OrthoPerspectiveCamera, ScreenCuller, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, ToolComponent, Toolbar, TreeView, UIManager };
+/**
+ * parameters = {
+ *  color: <hex>,
+ *  linewidth: <float>,
+ *  dashed: <boolean>,
+ *  dashScale: <float>,
+ *  dashSize: <float>,
+ *  dashOffset: <float>,
+ *  gapSize: <float>,
+ *  resolution: <Vector2>, // to be set by renderer
+ * }
+ */
+
+
+UniformsLib.line = {
+
+	worldUnits: { value: 1 },
+	linewidth: { value: 1 },
+	resolution: { value: new Vector2$1( 1, 1 ) },
+	dashOffset: { value: 0 },
+	dashScale: { value: 1 },
+	dashSize: { value: 1 },
+	gapSize: { value: 1 } // todo FIX - maybe change to totalSize
+
+};
+
+ShaderLib[ 'line' ] = {
+
+	uniforms: UniformsUtils.merge( [
+		UniformsLib.common,
+		UniformsLib.fog,
+		UniformsLib.line
+	] ),
+
+	vertexShader:
+	/* glsl */`
+		#include <common>
+		#include <color_pars_vertex>
+		#include <fog_pars_vertex>
+		#include <logdepthbuf_pars_vertex>
+		#include <clipping_planes_pars_vertex>
+
+		uniform float linewidth;
+		uniform vec2 resolution;
+
+		attribute vec3 instanceStart;
+		attribute vec3 instanceEnd;
+
+		attribute vec3 instanceColorStart;
+		attribute vec3 instanceColorEnd;
+
+		#ifdef WORLD_UNITS
+
+			varying vec4 worldPos;
+			varying vec3 worldStart;
+			varying vec3 worldEnd;
+
+			#ifdef USE_DASH
+
+				varying vec2 vUv;
+
+			#endif
+
+		#else
+
+			varying vec2 vUv;
+
+		#endif
+
+		#ifdef USE_DASH
+
+			uniform float dashScale;
+			attribute float instanceDistanceStart;
+			attribute float instanceDistanceEnd;
+			varying float vLineDistance;
+
+		#endif
+
+		void trimSegment( const in vec4 start, inout vec4 end ) {
+
+			// trim end segment so it terminates between the camera plane and the near plane
+
+			// conservative estimate of the near plane
+			float a = projectionMatrix[ 2 ][ 2 ]; // 3nd entry in 3th column
+			float b = projectionMatrix[ 3 ][ 2 ]; // 3nd entry in 4th column
+			float nearEstimate = - 0.5 * b / a;
+
+			float alpha = ( nearEstimate - start.z ) / ( end.z - start.z );
+
+			end.xyz = mix( start.xyz, end.xyz, alpha );
+
+		}
+
+		void main() {
+
+			#ifdef USE_COLOR
+
+				vColor.xyz = ( position.y < 0.5 ) ? instanceColorStart : instanceColorEnd;
+
+			#endif
+
+			#ifdef USE_DASH
+
+				vLineDistance = ( position.y < 0.5 ) ? dashScale * instanceDistanceStart : dashScale * instanceDistanceEnd;
+				vUv = uv;
+
+			#endif
+
+			float aspect = resolution.x / resolution.y;
+
+			// camera space
+			vec4 start = modelViewMatrix * vec4( instanceStart, 1.0 );
+			vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );
+
+			#ifdef WORLD_UNITS
+
+				worldStart = start.xyz;
+				worldEnd = end.xyz;
+
+			#else
+
+				vUv = uv;
+
+			#endif
+
+			// special case for perspective projection, and segments that terminate either in, or behind, the camera plane
+			// clearly the gpu firmware has a way of addressing this issue when projecting into ndc space
+			// but we need to perform ndc-space calculations in the shader, so we must address this issue directly
+			// perhaps there is a more elegant solution -- WestLangley
+
+			bool perspective = ( projectionMatrix[ 2 ][ 3 ] == - 1.0 ); // 4th entry in the 3rd column
+
+			if ( perspective ) {
+
+				if ( start.z < 0.0 && end.z >= 0.0 ) {
+
+					trimSegment( start, end );
+
+				} else if ( end.z < 0.0 && start.z >= 0.0 ) {
+
+					trimSegment( end, start );
+
+				}
+
+			}
+
+			// clip space
+			vec4 clipStart = projectionMatrix * start;
+			vec4 clipEnd = projectionMatrix * end;
+
+			// ndc space
+			vec3 ndcStart = clipStart.xyz / clipStart.w;
+			vec3 ndcEnd = clipEnd.xyz / clipEnd.w;
+
+			// direction
+			vec2 dir = ndcEnd.xy - ndcStart.xy;
+
+			// account for clip-space aspect ratio
+			dir.x *= aspect;
+			dir = normalize( dir );
+
+			#ifdef WORLD_UNITS
+
+				// get the offset direction as perpendicular to the view vector
+				vec3 worldDir = normalize( end.xyz - start.xyz );
+				vec3 offset;
+				if ( position.y < 0.5 ) {
+
+					offset = normalize( cross( start.xyz, worldDir ) );
+
+				} else {
+
+					offset = normalize( cross( end.xyz, worldDir ) );
+
+				}
+
+				// sign flip
+				if ( position.x < 0.0 ) offset *= - 1.0;
+
+				float forwardOffset = dot( worldDir, vec3( 0.0, 0.0, 1.0 ) );
+
+				// don't extend the line if we're rendering dashes because we
+				// won't be rendering the endcaps
+				#ifndef USE_DASH
+
+					// extend the line bounds to encompass  endcaps
+					start.xyz += - worldDir * linewidth * 0.5;
+					end.xyz += worldDir * linewidth * 0.5;
+
+					// shift the position of the quad so it hugs the forward edge of the line
+					offset.xy -= dir * forwardOffset;
+					offset.z += 0.5;
+
+				#endif
+
+				// endcaps
+				if ( position.y > 1.0 || position.y < 0.0 ) {
+
+					offset.xy += dir * 2.0 * forwardOffset;
+
+				}
+
+				// adjust for linewidth
+				offset *= linewidth * 0.5;
+
+				// set the world position
+				worldPos = ( position.y < 0.5 ) ? start : end;
+				worldPos.xyz += offset;
+
+				// project the worldpos
+				vec4 clip = projectionMatrix * worldPos;
+
+				// shift the depth of the projected points so the line
+				// segements overlap neatly
+				vec3 clipPose = ( position.y < 0.5 ) ? ndcStart : ndcEnd;
+				clip.z = clipPose.z * clip.w;
+
+			#else
+
+				vec2 offset = vec2( dir.y, - dir.x );
+				// undo aspect ratio adjustment
+				dir.x /= aspect;
+				offset.x /= aspect;
+
+				// sign flip
+				if ( position.x < 0.0 ) offset *= - 1.0;
+
+				// endcaps
+				if ( position.y < 0.0 ) {
+
+					offset += - dir;
+
+				} else if ( position.y > 1.0 ) {
+
+					offset += dir;
+
+				}
+
+				// adjust for linewidth
+				offset *= linewidth;
+
+				// adjust for clip-space to screen-space conversion // maybe resolution should be based on viewport ...
+				offset /= resolution.y;
+
+				// select end
+				vec4 clip = ( position.y < 0.5 ) ? clipStart : clipEnd;
+
+				// back to clip space
+				offset *= clip.w;
+
+				clip.xy += offset;
+
+			#endif
+
+			gl_Position = clip;
+
+			vec4 mvPosition = ( position.y < 0.5 ) ? start : end; // this is an approximation
+
+			#include <logdepthbuf_vertex>
+			#include <clipping_planes_vertex>
+			#include <fog_vertex>
+
+		}
+		`,
+
+	fragmentShader:
+	/* glsl */`
+		uniform vec3 diffuse;
+		uniform float opacity;
+		uniform float linewidth;
+
+		#ifdef USE_DASH
+
+			uniform float dashOffset;
+			uniform float dashSize;
+			uniform float gapSize;
+
+		#endif
+
+		varying float vLineDistance;
+
+		#ifdef WORLD_UNITS
+
+			varying vec4 worldPos;
+			varying vec3 worldStart;
+			varying vec3 worldEnd;
+
+			#ifdef USE_DASH
+
+				varying vec2 vUv;
+
+			#endif
+
+		#else
+
+			varying vec2 vUv;
+
+		#endif
+
+		#include <common>
+		#include <color_pars_fragment>
+		#include <fog_pars_fragment>
+		#include <logdepthbuf_pars_fragment>
+		#include <clipping_planes_pars_fragment>
+
+		vec2 closestLineToLine(vec3 p1, vec3 p2, vec3 p3, vec3 p4) {
+
+			float mua;
+			float mub;
+
+			vec3 p13 = p1 - p3;
+			vec3 p43 = p4 - p3;
+
+			vec3 p21 = p2 - p1;
+
+			float d1343 = dot( p13, p43 );
+			float d4321 = dot( p43, p21 );
+			float d1321 = dot( p13, p21 );
+			float d4343 = dot( p43, p43 );
+			float d2121 = dot( p21, p21 );
+
+			float denom = d2121 * d4343 - d4321 * d4321;
+
+			float numer = d1343 * d4321 - d1321 * d4343;
+
+			mua = numer / denom;
+			mua = clamp( mua, 0.0, 1.0 );
+			mub = ( d1343 + d4321 * ( mua ) ) / d4343;
+			mub = clamp( mub, 0.0, 1.0 );
+
+			return vec2( mua, mub );
+
+		}
+
+		void main() {
+
+			#include <clipping_planes_fragment>
+
+			#ifdef USE_DASH
+
+				if ( vUv.y < - 1.0 || vUv.y > 1.0 ) discard; // discard endcaps
+
+				if ( mod( vLineDistance + dashOffset, dashSize + gapSize ) > dashSize ) discard; // todo - FIX
+
+			#endif
+
+			float alpha = opacity;
+
+			#ifdef WORLD_UNITS
+
+				// Find the closest points on the view ray and the line segment
+				vec3 rayEnd = normalize( worldPos.xyz ) * 1e5;
+				vec3 lineDir = worldEnd - worldStart;
+				vec2 params = closestLineToLine( worldStart, worldEnd, vec3( 0.0, 0.0, 0.0 ), rayEnd );
+
+				vec3 p1 = worldStart + lineDir * params.x;
+				vec3 p2 = rayEnd * params.y;
+				vec3 delta = p1 - p2;
+				float len = length( delta );
+				float norm = len / linewidth;
+
+				#ifndef USE_DASH
+
+					#ifdef USE_ALPHA_TO_COVERAGE
+
+						float dnorm = fwidth( norm );
+						alpha = 1.0 - smoothstep( 0.5 - dnorm, 0.5 + dnorm, norm );
+
+					#else
+
+						if ( norm > 0.5 ) {
+
+							discard;
+
+						}
+
+					#endif
+
+				#endif
+
+			#else
+
+				#ifdef USE_ALPHA_TO_COVERAGE
+
+					// artifacts appear on some hardware if a derivative is taken within a conditional
+					float a = vUv.x;
+					float b = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
+					float len2 = a * a + b * b;
+					float dlen = fwidth( len2 );
+
+					if ( abs( vUv.y ) > 1.0 ) {
+
+						alpha = 1.0 - smoothstep( 1.0 - dlen, 1.0 + dlen, len2 );
+
+					}
+
+				#else
+
+					if ( abs( vUv.y ) > 1.0 ) {
+
+						float a = vUv.x;
+						float b = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
+						float len2 = a * a + b * b;
+
+						if ( len2 > 1.0 ) discard;
+
+					}
+
+				#endif
+
+			#endif
+
+			vec4 diffuseColor = vec4( diffuse, alpha );
+
+			#include <logdepthbuf_fragment>
+			#include <color_fragment>
+
+			gl_FragColor = vec4( diffuseColor.rgb, alpha );
+
+			#include <tonemapping_fragment>
+			#include <encodings_fragment>
+			#include <fog_fragment>
+			#include <premultiplied_alpha_fragment>
+
+		}
+		`
+};
+
+class LineMaterial extends ShaderMaterial {
+
+	constructor( parameters ) {
+
+		super( {
+
+			type: 'LineMaterial',
+
+			uniforms: UniformsUtils.clone( ShaderLib[ 'line' ].uniforms ),
+
+			vertexShader: ShaderLib[ 'line' ].vertexShader,
+			fragmentShader: ShaderLib[ 'line' ].fragmentShader,
+
+			clipping: true // required for clipping support
+
+		} );
+
+		Object.defineProperties( this, {
+
+			color: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.diffuse.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.diffuse.value = value;
+
+				}
+
+			},
+
+			worldUnits: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return 'WORLD_UNITS' in this.defines;
+
+				},
+
+				set: function ( value ) {
+
+					if ( value === true ) {
+
+						this.defines.WORLD_UNITS = '';
+
+					} else {
+
+						delete this.defines.WORLD_UNITS;
+
+					}
+
+				}
+
+			},
+
+			linewidth: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.linewidth.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.linewidth.value = value;
+
+				}
+
+			},
+
+			dashed: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return Boolean( 'USE_DASH' in this.defines );
+
+				},
+
+				set( value ) {
+
+					if ( Boolean( value ) !== Boolean( 'USE_DASH' in this.defines ) ) {
+
+						this.needsUpdate = true;
+
+					}
+
+					if ( value === true ) {
+
+						this.defines.USE_DASH = '';
+
+					} else {
+
+						delete this.defines.USE_DASH;
+
+					}
+
+				}
+
+			},
+
+			dashScale: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.dashScale.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.dashScale.value = value;
+
+				}
+
+			},
+
+			dashSize: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.dashSize.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.dashSize.value = value;
+
+				}
+
+			},
+
+			dashOffset: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.dashOffset.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.dashOffset.value = value;
+
+				}
+
+			},
+
+			gapSize: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.gapSize.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.gapSize.value = value;
+
+				}
+
+			},
+
+			opacity: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.opacity.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.opacity.value = value;
+
+				}
+
+			},
+
+			resolution: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return this.uniforms.resolution.value;
+
+				},
+
+				set: function ( value ) {
+
+					this.uniforms.resolution.value.copy( value );
+
+				}
+
+			},
+
+			alphaToCoverage: {
+
+				enumerable: true,
+
+				get: function () {
+
+					return Boolean( 'USE_ALPHA_TO_COVERAGE' in this.defines );
+
+				},
+
+				set: function ( value ) {
+
+					if ( Boolean( value ) !== Boolean( 'USE_ALPHA_TO_COVERAGE' in this.defines ) ) {
+
+						this.needsUpdate = true;
+
+					}
+
+					if ( value === true ) {
+
+						this.defines.USE_ALPHA_TO_COVERAGE = '';
+						this.extensions.derivatives = true;
+
+					} else {
+
+						delete this.defines.USE_ALPHA_TO_COVERAGE;
+						this.extensions.derivatives = false;
+
+					}
+
+				}
+
+			}
+
+		} );
+
+		this.setValues( parameters );
+
+	}
+
+}
+
+LineMaterial.prototype.isLineMaterial = true;
+
+class EdgesStyles extends Component {
+    constructor(components) {
+        super();
+        this.components = components;
+        this.name = "EdgesStyles";
+        this.enabled = true;
+        this._styles = {};
+        this._defaultMaterial = new LineMaterial({
+            color: 0x000000,
+            linewidth: 0.001,
+        });
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+    }
+    get() {
+        return this._styles;
+    }
+    update(_delta) {
+        this.beforeUpdate.trigger(this._styles);
+        this.afterUpdate.trigger(this._styles);
+    }
+    // Creates a new style that applies to all clipping edges for generic models
+    async create(name, meshes, material = this._defaultMaterial) {
+        for (const mesh of meshes) {
+            if (!mesh.geometry.boundsTree)
+                mesh.geometry.computeBoundsTree();
+        }
+        const renderer = this.components.renderer;
+        material.clippingPlanes = renderer.clippingPlanes;
+        this._styles[name] = {
+            name,
+            material,
+            meshes,
+        };
+    }
+    dispose() {
+        const styles = Object.values(this._styles);
+        for (const style of styles) {
+            style.meshes.length = 0;
+            style.material.dispose();
+        }
+        this._styles = {};
+    }
+}
+
+const _box$1 = new Box3();
+const _vector = new Vector3$1();
+
+class LineSegmentsGeometry extends InstancedBufferGeometry {
+
+	constructor() {
+
+		super();
+
+		this.type = 'LineSegmentsGeometry';
+
+		const positions = [ - 1, 2, 0, 1, 2, 0, - 1, 1, 0, 1, 1, 0, - 1, 0, 0, 1, 0, 0, - 1, - 1, 0, 1, - 1, 0 ];
+		const uvs = [ - 1, 2, 1, 2, - 1, 1, 1, 1, - 1, - 1, 1, - 1, - 1, - 2, 1, - 2 ];
+		const index = [ 0, 2, 1, 2, 3, 1, 2, 4, 3, 4, 5, 3, 4, 6, 5, 6, 7, 5 ];
+
+		this.setIndex( index );
+		this.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
+		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+
+	}
+
+	applyMatrix4( matrix ) {
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined ) {
+
+			start.applyMatrix4( matrix );
+
+			end.applyMatrix4( matrix );
+
+			start.needsUpdate = true;
+
+		}
+
+		if ( this.boundingBox !== null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		if ( this.boundingSphere !== null ) {
+
+			this.computeBoundingSphere();
+
+		}
+
+		return this;
+
+	}
+
+	setPositions( array ) {
+
+		let lineSegments;
+
+		if ( array instanceof Float32Array ) {
+
+			lineSegments = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			lineSegments = new Float32Array( array );
+
+		}
+
+		const instanceBuffer = new InstancedInterleavedBuffer( lineSegments, 6, 1 ); // xyz, xyz
+
+		this.setAttribute( 'instanceStart', new InterleavedBufferAttribute( instanceBuffer, 3, 0 ) ); // xyz
+		this.setAttribute( 'instanceEnd', new InterleavedBufferAttribute( instanceBuffer, 3, 3 ) ); // xyz
+
+		//
+
+		this.computeBoundingBox();
+		this.computeBoundingSphere();
+
+		return this;
+
+	}
+
+	setColors( array ) {
+
+		let colors;
+
+		if ( array instanceof Float32Array ) {
+
+			colors = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			colors = new Float32Array( array );
+
+		}
+
+		const instanceColorBuffer = new InstancedInterleavedBuffer( colors, 6, 1 ); // rgb, rgb
+
+		this.setAttribute( 'instanceColorStart', new InterleavedBufferAttribute( instanceColorBuffer, 3, 0 ) ); // rgb
+		this.setAttribute( 'instanceColorEnd', new InterleavedBufferAttribute( instanceColorBuffer, 3, 3 ) ); // rgb
+
+		return this;
+
+	}
+
+	fromWireframeGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromEdgesGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromMesh( mesh ) {
+
+		this.fromWireframeGeometry( new WireframeGeometry( mesh.geometry ) );
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	fromLineSegments( lineSegments ) {
+
+		const geometry = lineSegments.geometry;
+
+		if ( geometry.isGeometry ) {
+
+			console.error( 'THREE.LineSegmentsGeometry no longer supports Geometry. Use THREE.BufferGeometry instead.' );
+			return;
+
+		} else if ( geometry.isBufferGeometry ) {
+
+			this.setPositions( geometry.attributes.position.array ); // assumes non-indexed
+
+		}
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	computeBoundingBox() {
+
+		if ( this.boundingBox === null ) {
+
+			this.boundingBox = new Box3();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			this.boundingBox.setFromBufferAttribute( start );
+
+			_box$1.setFromBufferAttribute( end );
+
+			this.boundingBox.union( _box$1 );
+
+		}
+
+	}
+
+	computeBoundingSphere() {
+
+		if ( this.boundingSphere === null ) {
+
+			this.boundingSphere = new Sphere();
+
+		}
+
+		if ( this.boundingBox === null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			const center = this.boundingSphere.center;
+
+			this.boundingBox.getCenter( center );
+
+			let maxRadiusSq = 0;
+
+			for ( let i = 0, il = start.count; i < il; i ++ ) {
+
+				_vector.fromBufferAttribute( start, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+				_vector.fromBufferAttribute( end, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+			}
+
+			this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
+
+			if ( isNaN( this.boundingSphere.radius ) ) {
+
+				console.error( 'THREE.LineSegmentsGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this );
+
+			}
+
+		}
+
+	}
+
+	toJSON() {
+
+		// todo
+
+	}
+
+	applyMatrix( matrix ) {
+
+		console.warn( 'THREE.LineSegmentsGeometry: applyMatrix() has been renamed to applyMatrix4().' );
+
+		return this.applyMatrix4( matrix );
+
+	}
+
+}
+
+LineSegmentsGeometry.prototype.isLineSegmentsGeometry = true;
+
+const _start = new Vector3$1();
+const _end = new Vector3$1();
+
+const _start4 = new Vector4$1();
+const _end4 = new Vector4$1();
+
+const _ssOrigin = new Vector4$1();
+const _ssOrigin3 = new Vector3$1();
+const _mvMatrix = new Matrix4();
+const _line = new Line3();
+const _closestPoint = new Vector3$1();
+
+const _box = new Box3();
+const _sphere = new Sphere();
+const _clipToWorldVector = new Vector4$1();
+
+// Returns the margin required to expand by in world space given the distance from the camera,
+// line width, resolution, and camera projection
+function getWorldSpaceHalfWidth( camera, distance, lineWidth, resolution ) {
+
+	// transform into clip space, adjust the x and y values by the pixel width offset, then
+	// transform back into world space to get world offset. Note clip space is [-1, 1] so full
+	// width does not need to be halved.
+	_clipToWorldVector.set( 0, 0, - distance, 1.0 ).applyMatrix4( camera.projectionMatrix );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+	_clipToWorldVector.x = lineWidth / resolution.width;
+	_clipToWorldVector.y = lineWidth / resolution.height;
+	_clipToWorldVector.applyMatrix4( camera.projectionMatrixInverse );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+
+	return Math.abs( Math.max( _clipToWorldVector.x, _clipToWorldVector.y ) );
+
+}
+
+class LineSegments2 extends Mesh {
+
+	constructor( geometry = new LineSegmentsGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
+
+		super( geometry, material );
+
+		this.type = 'LineSegments2';
+
+	}
+
+	// for backwards-compatability, but could be a method of LineSegmentsGeometry...
+
+	computeLineDistances() {
+
+		const geometry = this.geometry;
+
+		const instanceStart = geometry.attributes.instanceStart;
+		const instanceEnd = geometry.attributes.instanceEnd;
+		const lineDistances = new Float32Array( 2 * instanceStart.count );
+
+		for ( let i = 0, j = 0, l = instanceStart.count; i < l; i ++, j += 2 ) {
+
+			_start.fromBufferAttribute( instanceStart, i );
+			_end.fromBufferAttribute( instanceEnd, i );
+
+			lineDistances[ j ] = ( j === 0 ) ? 0 : lineDistances[ j - 1 ];
+			lineDistances[ j + 1 ] = lineDistances[ j ] + _start.distanceTo( _end );
+
+		}
+
+		const instanceDistanceBuffer = new InstancedInterleavedBuffer( lineDistances, 2, 1 ); // d0, d1
+
+		geometry.setAttribute( 'instanceDistanceStart', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 0 ) ); // d0
+		geometry.setAttribute( 'instanceDistanceEnd', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 1 ) ); // d1
+
+		return this;
+
+	}
+
+	raycast( raycaster, intersects ) {
+
+		if ( raycaster.camera === null ) {
+
+			console.error( 'LineSegments2: "Raycaster.camera" needs to be set in order to raycast against LineSegments2.' );
+
+		}
+
+		const threshold = ( raycaster.params.Line2 !== undefined ) ? raycaster.params.Line2.threshold || 0 : 0;
+
+		const ray = raycaster.ray;
+		const camera = raycaster.camera;
+		const projectionMatrix = camera.projectionMatrix;
+
+		const matrixWorld = this.matrixWorld;
+		const geometry = this.geometry;
+		const material = this.material;
+		const resolution = material.resolution;
+		const lineWidth = material.linewidth + threshold;
+
+		const instanceStart = geometry.attributes.instanceStart;
+		const instanceEnd = geometry.attributes.instanceEnd;
+
+		// camera forward is negative
+		const near = - camera.near;
+
+		//
+
+		// check if we intersect the sphere bounds
+		if ( geometry.boundingSphere === null ) {
+
+			geometry.computeBoundingSphere();
+
+		}
+
+		_sphere.copy( geometry.boundingSphere ).applyMatrix4( matrixWorld );
+		const distanceToSphere = Math.max( camera.near, _sphere.distanceToPoint( ray.origin ) );
+
+		// increase the sphere bounds by the worst case line screen space width
+		const sphereMargin = getWorldSpaceHalfWidth( camera, distanceToSphere, lineWidth, resolution );
+		_sphere.radius += sphereMargin;
+
+		if ( raycaster.ray.intersectsSphere( _sphere ) === false ) {
+
+			return;
+
+		}
+
+		//
+
+		// check if we intersect the box bounds
+		if ( geometry.boundingBox === null ) {
+
+			geometry.computeBoundingBox();
+
+		}
+
+		_box.copy( geometry.boundingBox ).applyMatrix4( matrixWorld );
+		const distanceToBox = Math.max( camera.near, _box.distanceToPoint( ray.origin ) );
+
+		// increase the box bounds by the worst case line screen space width
+		const boxMargin = getWorldSpaceHalfWidth( camera, distanceToBox, lineWidth, resolution );
+		_box.max.x += boxMargin;
+		_box.max.y += boxMargin;
+		_box.max.z += boxMargin;
+		_box.min.x -= boxMargin;
+		_box.min.y -= boxMargin;
+		_box.min.z -= boxMargin;
+
+		if ( raycaster.ray.intersectsBox( _box ) === false ) {
+
+			return;
+
+		}
+
+		//
+
+		// pick a point 1 unit out along the ray to avoid the ray origin
+		// sitting at the camera origin which will cause "w" to be 0 when
+		// applying the projection matrix.
+		ray.at( 1, _ssOrigin );
+
+		// ndc space [ - 1.0, 1.0 ]
+		_ssOrigin.w = 1;
+		_ssOrigin.applyMatrix4( camera.matrixWorldInverse );
+		_ssOrigin.applyMatrix4( projectionMatrix );
+		_ssOrigin.multiplyScalar( 1 / _ssOrigin.w );
+
+		// screen space
+		_ssOrigin.x *= resolution.x / 2;
+		_ssOrigin.y *= resolution.y / 2;
+		_ssOrigin.z = 0;
+
+		_ssOrigin3.copy( _ssOrigin );
+
+		_mvMatrix.multiplyMatrices( camera.matrixWorldInverse, matrixWorld );
+
+		for ( let i = 0, l = instanceStart.count; i < l; i ++ ) {
+
+			_start4.fromBufferAttribute( instanceStart, i );
+			_end4.fromBufferAttribute( instanceEnd, i );
+
+			_start4.w = 1;
+			_end4.w = 1;
+
+			// camera space
+			_start4.applyMatrix4( _mvMatrix );
+			_end4.applyMatrix4( _mvMatrix );
+
+			// skip the segment if it's entirely behind the camera
+			var isBehindCameraNear = _start4.z > near && _end4.z > near;
+			if ( isBehindCameraNear ) {
+
+				continue;
+
+			}
+
+			// trim the segment if it extends behind camera near
+			if ( _start4.z > near ) {
+
+				const deltaDist = _start4.z - _end4.z;
+				const t = ( _start4.z - near ) / deltaDist;
+				_start4.lerp( _end4, t );
+
+			} else if ( _end4.z > near ) {
+
+				const deltaDist = _end4.z - _start4.z;
+				const t = ( _end4.z - near ) / deltaDist;
+				_end4.lerp( _start4, t );
+
+			}
+
+			// clip space
+			_start4.applyMatrix4( projectionMatrix );
+			_end4.applyMatrix4( projectionMatrix );
+
+			// ndc space [ - 1.0, 1.0 ]
+			_start4.multiplyScalar( 1 / _start4.w );
+			_end4.multiplyScalar( 1 / _end4.w );
+
+			// screen space
+			_start4.x *= resolution.x / 2;
+			_start4.y *= resolution.y / 2;
+
+			_end4.x *= resolution.x / 2;
+			_end4.y *= resolution.y / 2;
+
+			// create 2d segment
+			_line.start.copy( _start4 );
+			_line.start.z = 0;
+
+			_line.end.copy( _end4 );
+			_line.end.z = 0;
+
+			// get closest point on ray to segment
+			const param = _line.closestPointToPointParameter( _ssOrigin3, true );
+			_line.at( param, _closestPoint );
+
+			// check if the intersection point is within clip space
+			const zPos = MathUtils.lerp( _start4.z, _end4.z, param );
+			const isInClipSpace = zPos >= - 1 && zPos <= 1;
+
+			const isInside = _ssOrigin3.distanceTo( _closestPoint ) < lineWidth * 0.5;
+
+			if ( isInClipSpace && isInside ) {
+
+				_line.start.fromBufferAttribute( instanceStart, i );
+				_line.end.fromBufferAttribute( instanceEnd, i );
+
+				_line.start.applyMatrix4( matrixWorld );
+				_line.end.applyMatrix4( matrixWorld );
+
+				const pointOnLine = new Vector3$1();
+				const point = new Vector3$1();
+
+				ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+
+				intersects.push( {
+
+					point: point,
+					pointOnLine: pointOnLine,
+					distance: ray.origin.distanceTo( point ),
+
+					object: this,
+					face: null,
+					faceIndex: i,
+					uv: null,
+					uv2: null,
+
+				} );
+
+			}
+
+		}
+
+	}
+
+}
+
+LineSegments2.prototype.isLineSegments2 = true;
+
+/**
+ * The edges that are drawn when the {@link EdgesPlane} sections a mesh.
+ */
+class ClippingEdges extends Component {
+    constructor(components, plane, styles) {
+        super();
+        /** {@link Component.name} */
+        this.name = "ClippingEdges";
+        /** {@link Component.enabled}. */
+        this.enabled = true;
+        this._edges = {};
+        this._disposer = new Disposer();
+        this._visible = true;
+        this._inverseMatrix = new THREE$1.Matrix4();
+        this._localPlane = new THREE$1.Plane();
+        this._tempLine = new THREE$1.Line3();
+        this._tempVector = new THREE$1.Vector3();
+        /** {@link Updateable.afterUpdate} */
+        this.afterUpdate = new Event();
+        /** {@link Updateable.beforeUpdate} */
+        this.beforeUpdate = new Event();
+        this._components = components;
+        this._plane = plane;
+        this._styles = styles;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        this._visible = visible;
+        const names = Object.keys(this._edges);
+        for (const edgeName of names) {
+            this.updateEdgesVisibility(edgeName, visible);
+        }
+        if (visible) {
+            this.update();
+        }
+    }
+    /** {@link Updateable.update} */
+    update() {
+        const styles = Object.values(this._styles.get());
+        for (const style of styles) {
+            this.drawEdges(style.name);
+        }
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._edges;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        const edges = Object.values(this._edges);
+        for (const edge of edges) {
+            this._disposer.disposeGeometry(edge.generatorGeometry);
+            this._disposer.dispose(edge.mesh, false);
+        }
+        ClippingEdges._basicEdges.removeFromParent();
+        ClippingEdges._basicEdges.geometry.dispose();
+        ClippingEdges._basicEdges = new THREE$1.LineSegments();
+    }
+    // Initializes the helper geometry used to compute the vertices
+    static newGeneratorGeometry() {
+        // create line geometry with enough data to hold 100000 segments
+        const generatorGeometry = new THREE$1.BufferGeometry();
+        const buffer = new Float32Array(300000);
+        const linePosAttr = new THREE$1.BufferAttribute(buffer, 3, false);
+        linePosAttr.setUsage(THREE$1.DynamicDrawUsage);
+        generatorGeometry.setAttribute("position", linePosAttr);
+        return generatorGeometry;
+    }
+    // Creates the geometry of the clipping edges
+    newThickEdges(styleName) {
+        const styles = this._styles.get();
+        const material = styles[styleName].material;
+        const thickLineGeometry = new LineSegmentsGeometry();
+        const thickEdges = new LineSegments2(thickLineGeometry, material);
+        thickEdges.material.polygonOffset = true;
+        thickEdges.material.polygonOffsetFactor = -2;
+        thickEdges.material.polygonOffsetUnits = 1;
+        thickEdges.renderOrder = 3;
+        return thickEdges;
+    }
+    // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
+    drawEdges(styleName) {
+        const style = this._styles.get()[styleName];
+        if (!this._edges[styleName]) {
+            this.initializeStyle(styleName);
+        }
+        const edges = this._edges[styleName];
+        let index = 0;
+        const posAttr = edges.generatorGeometry.attributes.position;
+        // @ts-ignore
+        posAttr.array.fill(0);
+        const notEmptyMeshes = style.meshes.filter((mesh) => mesh.geometry);
+        notEmptyMeshes.forEach((mesh) => {
+            if (!mesh.geometry.boundsTree) {
+                throw new Error("Boundstree not found for clipping edges subset.");
+            }
+            const instanced = mesh;
+            if (instanced.count > 1) {
+                for (let i = 0; i < instanced.count; i++) {
+                    const tempMesh = new THREE$1.Mesh(mesh.geometry);
+                    tempMesh.matrix.copy(mesh.matrix);
+                    const tempMatrix = new THREE$1.Matrix4();
+                    instanced.getMatrixAt(i, tempMatrix);
+                    tempMesh.applyMatrix4(tempMatrix);
+                    tempMesh.applyMatrix4(mesh.matrix);
+                    tempMesh.updateMatrix();
+                    tempMesh.updateMatrixWorld();
+                    this._inverseMatrix.copy(tempMesh.matrixWorld).invert();
+                    this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
+                    index = this.shapecast(tempMesh, posAttr, index);
+                }
+            }
+            else {
+                this._inverseMatrix.copy(mesh.matrixWorld).invert();
+                this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
+                index = this.shapecast(mesh, posAttr, index);
+            }
+        });
+        // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
+        edges.mesh.geometry.setDrawRange(0, index);
+        edges.mesh.position.copy(this._plane.normal).multiplyScalar(0.0001);
+        posAttr.needsUpdate = true;
+        // Update the edges geometry only if there is no NaN in the output (which means there's been an error)
+        if (!Number.isNaN(edges.generatorGeometry.attributes.position.array[0])) {
+            ClippingEdges._basicEdges.geometry = edges.generatorGeometry;
+            edges.mesh.geometry.fromLineSegments(ClippingEdges._basicEdges);
+            const scene = this._components.scene.get();
+            scene.add(edges.mesh);
+        }
+    }
+    initializeStyle(styleName) {
+        this._edges[styleName] = {
+            name: styleName,
+            generatorGeometry: ClippingEdges.newGeneratorGeometry(),
+            mesh: this.newThickEdges(styleName),
+        };
+    }
+    shapecast(mesh, posAttr, index) {
+        // @ts-ignore
+        mesh.geometry.boundsTree.shapecast({
+            intersectsBounds: (box) => {
+                return this._localPlane.intersectsBox(box);
+            },
+            // @ts-ignore
+            intersectsTriangle: (tri) => {
+                // check each triangle edge to see if it intersects with the plane. If so then
+                // add it to the list of segments.
+                let count = 0;
+                this._tempLine.start.copy(tri.a);
+                this._tempLine.end.copy(tri.b);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                this._tempLine.start.copy(tri.b);
+                this._tempLine.end.copy(tri.c);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                this._tempLine.start.copy(tri.c);
+                this._tempLine.end.copy(tri.a);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                // If we only intersected with one or three sides then just remove it. This could be handled
+                // more gracefully.
+                if (count !== 2) {
+                    index -= count;
+                }
+            },
+        });
+        return index;
+    }
+    updateEdgesVisibility(edgeName, visible) {
+        const edges = this._edges[edgeName];
+        edges.mesh.visible = visible;
+        if (visible) {
+            const scene = this._components.scene.get();
+            scene.add(edges.mesh);
+        }
+        else {
+            edges.mesh.removeFromParent();
+        }
+    }
+}
+ClippingEdges._basicEdges = new THREE$1.LineSegments();
+
+/**
+ * A more advanced version of {@link SimpleClipper} that also includes
+ * {@link ClippingEdges} with customizable lines.
+ */
+class EdgesPlane extends SimplePlane {
+    constructor(components, origin, normal, material, styles) {
+        super(components, origin, normal, material);
+        /**
+         * The max rate in milliseconds at which edges can be regenerated.
+         * To disable this behaviour set this to 0.
+         */
+        this.edgesMaxUpdateRate = 50;
+        this.lastUpdate = -1;
+        this.updateTimeout = -1;
+        /** {@link Updateable.update} */
+        this.update = () => {
+            // Rate limited edges update
+            const now = Date.now();
+            if (this.lastUpdate + this.edgesMaxUpdateRate < now) {
+                this.lastUpdate = now;
+                this.edges.update();
+            }
+            else if (this.updateTimeout === -1) {
+                this.updateTimeout = window.setTimeout(() => {
+                    this.update();
+                    this.updateTimeout = -1;
+                }, this.edgesMaxUpdateRate);
+            }
+        };
+        this.edges = new ClippingEdges(components, this._plane, styles);
+        this.visible = true;
+    }
+    /** {@link Hideable.visible} */
+    set visible(state) {
+        super.visible = state;
+        this.edges.visible = state;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        super.dispose();
+        this.edges.dispose();
+    }
+}
+
+/**
+ * A more advanced version of {@link SimpleClipper} that also supports
+ * {@link ClippingEdges} with customizable lines.
+ */
+class EdgesClipper extends SimpleClipper {
+    constructor(components, PlaneType) {
+        super(components, PlaneType);
+        /** {@link Component.name} */
+        this.name = "EdgesClipper";
+        this.styles = new EdgesStyles(components);
+    }
+    /** {@link Component.get} */
+    dispose() {
+        super.dispose();
+        this.styles.dispose();
+    }
+    /**
+     * Updates all the lines of the {@link ClippingEdges}.
+     */
+    updateEdges() {
+        if (!this.enabled)
+            return;
+        for (const plane of this._planes) {
+            plane.update();
+        }
+    }
+    newPlaneInstance(point, normal) {
+        return new this.PlaneType(this.components, point, normal, this._material, this.styles);
+    }
+}
+
+export { BaseRenderer, Button, CloudProcessor, Component, Components, Disposer, EdgesClipper, EdgesPlane, Event, FragmentHighlighter, FragmentIfcLoader, FragmentManager, LocalCacher, Mouse, OrthoPerspectiveCamera, ScreenCuller, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, ToolComponent, Toolbar, TreeView, UIManager };
