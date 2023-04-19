@@ -246,19 +246,23 @@ class SimpleScene extends Component {
     }
 }
 
-const urls = {
-    base: "https://2fomw59q4h.execute-api.eu-central-1.amazonaws.com/v1/tools/",
-    path: "/contents/index.js?accessToken=",
-};
-
 /**
  * An object to easily handle all the tools used (e.g. updating them, retrieving
  * them, performing batch operations, etc). A tool is a feature that achieves
  * something through user interaction (e.g. clipping planes, dimensions, etc).
  */
-class ToolComponent {
+class ToolComponent extends Component {
     constructor() {
+        super(...arguments);
         this.tools = [];
+        /** {@link Component.name} */
+        this.name = "ToolComponent";
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        this._urls = {
+            base: "https://2fomw59q4h.execute-api.eu-central-1.amazonaws.com/v1/tools/",
+            path: "/contents/index.js?accessToken=",
+        };
     }
     /**
      * Registers a new tool component.
@@ -294,7 +298,7 @@ class ToolComponent {
      * @param id The ID of the tool you want to get
      */
     async use(token, id) {
-        const { base, path } = urls;
+        const { base, path } = this._urls;
         const url = base + id + path + token;
         const imported = await import(url);
         return imported.get();
@@ -11396,6 +11400,7 @@ class SimpleClipper extends Component {
 }
 
 // TODO: Clean up and document
+// TODO: Work at the instance level instead of the mesh level
 class ScreenCuller {
     constructor(components, updateInterval = 1000, rtWidth = 512, rtHeight = 512, autoUpdate = true) {
         this.components = components;
