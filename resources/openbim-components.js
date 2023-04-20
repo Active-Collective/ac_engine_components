@@ -11857,6 +11857,14 @@ class SimpleDimensions extends Component {
         htmlPreview.className = DimensionPreviewClassName;
         this.previewElement = new CSS2DObject(htmlPreview);
         this.previewElement.visible = false;
+        this.uiElement = new Button(components, {
+            materialIconName: "straighten",
+        });
+        this.uiElement.onclick = () => {
+            this.enabled = !this.enabled;
+            this.visible = !this.visible;
+        };
+        this.uiElement.active = this.enabled;
     }
     /** {@link Component.enabled} */
     get enabled() {
@@ -11865,6 +11873,7 @@ class SimpleDimensions extends Component {
     /** {@link Component.enabled} */
     set enabled(state) {
         this._enabled = state;
+        this.uiElement.active = state;
         this.previewVisible = state;
     }
     /** {@link Hideable.visible} */
@@ -79387,9 +79396,12 @@ class PropertiesProcessor extends Component {
      * @param prefix
      */
     processAttributes(model, expressID, options) {
+        const props = model.properties[expressID];
+        if (!props) {
+            return null;
+        }
         const _options = { group: "Attributes", prefix: "", ...options };
         const { group, prefix } = _options;
-        const props = model.properties[expressID];
         const attributes = {
             globalId: {
                 name: `${prefix}GlobalId`,
@@ -79449,23 +79461,51 @@ class PropertiesProcessor extends Component {
     processElements(model, props) {
         const properties = model.properties;
         const arrayProperties = Object.values(properties);
+        //#region Building properties
+        let buildingAttributes;
         const building = arrayProperties.find((prop) => prop.type === IFCBUILDING);
-        const { globalId, type, tag, ifcEntity, ...buildingAttributes } = this.processAttributes(model, building.expressID, {
-            group: "Building",
-            prefix: "Building",
-        });
+        if (building) {
+            buildingAttributes = this.processAttributes(model, building.expressID, {
+                group: "Building",
+                prefix: "Building",
+            });
+        }
+        //#endregion
+        //#region Site properties
+        let siteAttributes;
+        const site = arrayProperties.find((prop) => prop.type === IFCSITE);
+        if (site) {
+            siteAttributes = this.processAttributes(model, site.expressID, {
+                group: "Site",
+                prefix: "Site",
+            });
+        }
+        //#endregion
         model.fragments.forEach((fragment) => {
             fragment.items.forEach((expressID) => {
                 const elementAttributes = this.processAttributes(model, Number(expressID));
-                for (const name in elementAttributes) {
-                    // @ts-ignore
-                    const attribute = elementAttributes[name];
-                    this.storeProperty(props, Number(expressID), attribute);
+                if (elementAttributes) {
+                    for (const name in elementAttributes) {
+                        // @ts-ignore
+                        const attribute = elementAttributes[name];
+                        this.storeProperty(props, Number(expressID), attribute);
+                    }
                 }
-                for (const name in buildingAttributes) {
-                    // @ts-ignore
-                    const attribute = buildingAttributes[name];
-                    this.storeProperty(props, Number(expressID), attribute);
+                if (buildingAttributes) {
+                    const { globalId, type, tag, ifcEntity, ...attrs } = buildingAttributes;
+                    for (const name in attrs) {
+                        // @ts-ignore
+                        const attribute = attrs[name];
+                        this.storeProperty(props, Number(expressID), attribute);
+                    }
+                }
+                if (siteAttributes) {
+                    const { globalId, type, tag, ifcEntity, ...attrs } = siteAttributes;
+                    for (const name in attrs) {
+                        // @ts-ignore
+                        const attribute = attrs[name];
+                        this.storeProperty(props, Number(expressID), attribute);
+                    }
                 }
             });
         });
@@ -79548,30 +79588,36 @@ class PropertiesProcessor extends Component {
             return prop.type === IFCRELCONTAINEDINSPATIALSTRUCTURE;
         });
         spatialRelations.forEach((rel) => {
+            const structure = properties[rel.RelatingStructure.value];
+            if (structure.type !== IFCBUILDINGSTOREY) {
+                return;
+            }
             const elements = rel.RelatedElements.map((el) => {
                 return el.value;
             });
-            const structure = properties[rel.RelatingStructure.value];
-            if (structure.type === IFCBUILDINGSTOREY) {
-                const { globalId, type, tag, ifcEntity, ...storeyAttributes } = this.processAttributes(model, structure.expressID, {
-                    group: "Storey",
-                    prefix: "Storey",
-                });
-                const elevation = {
-                    name: "StoreyElevation",
-                    group: "Storey",
-                    value: structure.Elevation.value,
-                    type: structure.Elevation.type,
-                };
-                elements.forEach((expressID) => {
+            const storeyAttributes = this.processAttributes(model, structure.expressID, {
+                group: "Storey",
+                prefix: "Storey",
+            });
+            elements.forEach((expressID) => {
+                if (structure.Elevation) {
+                    const elevation = {
+                        name: "StoreyElevation",
+                        group: "Storey",
+                        value: structure.Elevation.value,
+                        type: structure.Elevation.type,
+                    };
                     this.storeProperty(props, expressID, elevation);
-                    for (const name in storeyAttributes) {
+                }
+                if (storeyAttributes) {
+                    const { globalId, type, tag, ifcEntity, ...attrs } = storeyAttributes;
+                    for (const name in attrs) {
                         // @ts-ignore
-                        const attribute = storeyAttributes[name];
+                        const attribute = attrs[name];
                         this.storeProperty(props, expressID, attribute);
                     }
-                });
-            }
+                }
+            });
         });
     }
 }
@@ -88052,6 +88098,7 @@ class FragmentManager extends Component {
         this.enabled = true;
         /** All the created [fragments](https://github.com/ifcjs/fragment). */
         this.list = {};
+        this.onFragmentsLoaded = new Event();
         this._loader = new Serializer();
         this._components = components;
     }
@@ -88091,6 +88138,7 @@ class FragmentManager extends Component {
             ids.push(fragment.id);
             this._components.meshes.push(fragment.mesh);
         }
+        this.onFragmentsLoaded.trigger(ids);
         return ids;
     }
     /**
@@ -89998,7 +90046,9 @@ class FragmentIfcLoader extends Component {
     /** Loads the IFC file and converts it to a set of fragments. */
     async load(data) {
         await this.initializeWebIfc();
-        this._webIfc.OpenModel(data, this.settings.webIfc);
+        const id = this._webIfc.OpenModel(data, this.settings.webIfc);
+        const result = this._webIfc.GetLine(id, 2);
+        console.log(result);
         return this.loadAllGeometry();
     }
     setupOpenButton() {
@@ -90461,6 +90511,9 @@ class FragmentGroups {
         elements.forEach((element) => {
             var _a;
             const entity = model.properties[element];
+            if (!entity) {
+                return;
+            }
             const fragmentID = model.expressIDFragmentIDMap[entity.expressID];
             const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
             if (!group[predefinedType]) {
