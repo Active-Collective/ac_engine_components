@@ -11468,6 +11468,7 @@ class ScreenCuller extends Component {
         this.meshColorMap = new Map();
         this.renderDebugFrame = false;
         this.visibleMeshes = [];
+        this.colorMeshes = new Map();
         this.meshes = new Map();
         this._previouslyVisibleMeshes = new Set();
         this._transparentMat = new THREE$1.MeshBasicMaterial({
@@ -11572,18 +11573,18 @@ class ScreenCuller extends Component {
                 material.dispose();
             }
         }
-        for (const id in this.meshes) {
-            const mesh = this.meshes.get(id);
+        for (const id in this.colorMeshes) {
+            const mesh = this.colorMeshes.get(id);
             if (mesh) {
                 this._disposer.dispose(mesh);
             }
         }
+        this.colorMeshes.clear();
         this.meshes.clear();
     }
     add(mesh) {
         if (!this.enabled)
             return;
-        mesh.visible = false;
         const isInstanced = mesh instanceof THREE$1.InstancedMesh;
         const { geometry, material } = mesh;
         const { r, g, b, code } = this.getNextColor();
@@ -11625,10 +11626,12 @@ class ScreenCuller extends Component {
         else {
             colorMesh.setMatrixAt(0, new THREE$1.Matrix4());
         }
+        mesh.visible = false;
         colorMesh.applyMatrix4(mesh.matrix);
         colorMesh.updateMatrix();
         this._scene.add(colorMesh);
-        this.meshes.set(mesh.uuid, colorMesh);
+        this.colorMeshes.set(mesh.uuid, colorMesh);
+        this.meshes.set(mesh.uuid, mesh);
     }
     getMaterial(r, g, b) {
         const code = `rgb(${r}, ${g}, ${b})`;
