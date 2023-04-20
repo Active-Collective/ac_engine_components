@@ -17204,6 +17204,7 @@ class ModelDatabase extends Dexie$1 {
 class LocalCacher extends Component {
     constructor(components) {
         super();
+        this.components = components;
         this.name = "LocalCacher";
         this.enabled = true;
         this._storedModels = "open-bim-components-stored-files";
@@ -79461,7 +79462,7 @@ class PropertiesProcessor extends Component {
     processElements(model, props) {
         const properties = model.properties;
         const arrayProperties = Object.values(properties);
-        //#region Building properties
+        // #region Building properties
         let buildingAttributes;
         const building = arrayProperties.find((prop) => prop.type === IFCBUILDING);
         if (building) {
@@ -79470,8 +79471,8 @@ class PropertiesProcessor extends Component {
                 prefix: "Building",
             });
         }
-        //#endregion
-        //#region Site properties
+        // #endregion
+        // #region Site properties
         let siteAttributes;
         const site = arrayProperties.find((prop) => prop.type === IFCSITE);
         if (site) {
@@ -79480,7 +79481,7 @@ class PropertiesProcessor extends Component {
                 prefix: "Site",
             });
         }
-        //#endregion
+        // #endregion
         model.fragments.forEach((fragment) => {
             fragment.items.forEach((expressID) => {
                 const elementAttributes = this.processAttributes(model, Number(expressID));
@@ -88123,6 +88124,14 @@ class FragmentManager extends Component {
         }
         this.list = {};
     }
+    /** Disposes all existing fragments */
+    reset() {
+        for (const id in this.list) {
+            const fragment = this.list[id];
+            fragment.dispose();
+        }
+        this.list = {};
+    }
     /**
      * Loads one or many fragments into the scene.
      * @param data - the bytes containing the data for the fragments to load.
@@ -90046,9 +90055,7 @@ class FragmentIfcLoader extends Component {
     /** Loads the IFC file and converts it to a set of fragments. */
     async load(data) {
         await this.initializeWebIfc();
-        const id = this._webIfc.OpenModel(data, this.settings.webIfc);
-        const result = this._webIfc.GetLine(id, 2);
-        console.log(result);
+        this._webIfc.OpenModel(data, this.settings.webIfc);
         return this.loadAllGeometry();
     }
     setupOpenButton() {
@@ -90571,6 +90578,71 @@ class FragmentGroups {
             group[storeyName] = fragmentMap;
         });
         return group;
+    }
+}
+
+class FragmentCacher extends LocalCacher {
+    async getFragmentGroup(id, fragments) {
+        const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
+        if (!fragmentsCacheID || !propertiesCacheID) {
+            return null;
+        }
+        const fragmentFile = await this.get(fragmentsCacheID);
+        if (fragmentFile === null) {
+            throw new Error("Loading error");
+        }
+        const fragmentsData = await fragmentFile.arrayBuffer();
+        const buffer = new Uint8Array(fragmentsData);
+        fragments.load(buffer);
+        const propertiesFile = await this.get(propertiesCacheID);
+        if (propertiesFile === null) {
+            throw new Error("Loading error");
+        }
+        const propertiesData = await propertiesFile.text();
+        const properties = JSON.parse(propertiesData);
+        const loadedModel = new THREE$1.Mesh();
+        this.components.scene.get().add(loadedModel);
+        for (const id in properties) {
+            loadedModel[id] = properties[id];
+        }
+        loadedModel.fragments = Object.values(fragments.list);
+        for (const id in fragments.list) {
+            const fragment = fragments.list[id];
+            loadedModel.attach(fragment.mesh);
+        }
+        return loadedModel;
+    }
+    async saveFragmentGroup(group, id) {
+        const fragments = new FragmentManager(this.components);
+        for (const fragment of group.fragments) {
+            fragments.list[fragment.id] = fragment;
+        }
+        const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
+        const exported = fragments.export();
+        const fragmentsFile = this.newFile(exported, fragmentsCacheID);
+        const fragmentsUrl = URL.createObjectURL(fragmentsFile);
+        await this.save(fragmentsCacheID, fragmentsUrl);
+        const { properties, itemTypes, allTypes, expressIDFragmentIDMap } = group;
+        const data = {
+            properties,
+            itemTypes,
+            allTypes,
+            expressIDFragmentIDMap,
+        };
+        const json = JSON.stringify(data);
+        const jsonFile = this.newFile(json, propertiesCacheID);
+        const propertiesUrl = URL.createObjectURL(jsonFile);
+        await this.save(propertiesCacheID, propertiesUrl);
+        fragments.list = {};
+    }
+    getIDs(id) {
+        return {
+            fragmentsCacheID: `${id}-fragments`,
+            propertiesCacheID: `${id}-properties`,
+        };
+    }
+    newFile(data, name) {
+        return new File([new Blob([data])], name);
     }
 }
 
@@ -95889,4 +95961,4 @@ class ShadowDropper extends Component {
     }
 }
 
-export { BaseRenderer, Button, CloudProcessor, Component, Components, DataConverter, Disposer, EdgesClipper, EdgesPlane, Event, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, IfcFragmentSettings, LocalCacher, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesProcessor, ScreenCuller, ShadowDropper, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, SimpleUIComponent, ToolComponent, Toolbar, TreeView, UIManager };
+export { BaseRenderer, Button, CloudProcessor, Component, Components, DataConverter, Disposer, EdgesClipper, EdgesPlane, Event, FragmentCacher, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, IfcFragmentSettings, LocalCacher, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesProcessor, ScreenCuller, ShadowDropper, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleScene, SimpleUIComponent, ToolComponent, Toolbar, TreeView, UIManager };
