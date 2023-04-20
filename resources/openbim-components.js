@@ -8992,6 +8992,7 @@ class Button extends Component {
     constructor(components, options) {
         var _a, _b;
         super();
+        this.clicked = new Event();
         this._closeOnClick = true;
         this._enabled = true;
         this._visible = true;
@@ -11201,6 +11202,7 @@ class SimplePlane extends Component {
     }
 }
 
+// TODO: Clean up UI element
 /**
  * A lightweight component to easily create and handle
  * [clipping planes](https://threejs.org/docs/#api/en/materials/Material.clippingPlanes).
@@ -11254,6 +11256,14 @@ class SimpleClipper extends Component {
         this._onEndDragging = () => {
             this.afterDrag.trigger();
         };
+        this.uiElement = new Button(components, {
+            materialIconName: "content_cut",
+        });
+        this.uiElement.onclick = () => {
+            this.enabled = !this.enabled;
+            this.visible = !this.visible;
+        };
+        this.uiElement.active = this.enabled;
     }
     /** {@link Component.enabled} */
     get enabled() {
@@ -11262,6 +11272,7 @@ class SimpleClipper extends Component {
     /** {@link Component.enabled} */
     set enabled(state) {
         this._enabled = state;
+        this.uiElement.active = state;
         for (const plane of this._planes) {
             plane.enabled = state;
         }
@@ -17180,10 +17191,24 @@ class ModelDatabase extends Dexie$1 {
     }
 }
 
-class LocalCacher {
-    constructor() {
+// TODO: Clean up UI logic and component type
+class LocalCacher extends Component {
+    constructor(components) {
+        super();
+        this.name = "LocalCacher";
+        this.enabled = true;
         this._storedModels = "open-bim-components-stored-files";
         this._db = new ModelDatabase();
+        this.uiElement = new Toolbar(components, {
+            name: "Local cacher toolbar",
+            position: "bottom",
+        });
+        this.saveButton = new Button(components, { materialIconName: "save" });
+        this.uiElement.addButton(this.saveButton);
+        this.loadButton = new Button(components, { materialIconName: "download" });
+        this.uiElement.addButton(this.loadButton);
+        this.wipeButton = new Button(components, { materialIconName: "delete" });
+        this.uiElement.addButton(this.wipeButton);
     }
     async get(id) {
         if (this.exists(id)) {
@@ -89931,6 +89956,7 @@ class IfcFragmentSettings {
     }
 }
 
+// TODO: Clean up UI logic and component type
 /**
  * Reads all the geometry of the IFC file and generates a set of
  * [fragments](https://github.com/ifcjs/fragment). It can also return the
@@ -89938,7 +89964,7 @@ class IfcFragmentSettings {
  * the IFC file.
  */
 class FragmentIfcLoader extends Component {
-    constructor(fragments) {
+    constructor(components, fragments) {
         super();
         this.name = "FragmentIfcLoader";
         this.enabled = true;
@@ -89949,7 +89975,12 @@ class FragmentIfcLoader extends Component {
         this._materials = {};
         this._geometry = new Geometry(this._webIfc, this._items, this._materials);
         this._converter = new DataConverter(this._items, this._materials, this.settings);
+        this._components = components;
         this._fragments = fragments;
+        this.uiElement = new Button(components, {
+            materialIconName: "upload_file",
+        });
+        this.setupOpenButton();
     }
     get() {
         return null;
@@ -89969,6 +90000,28 @@ class FragmentIfcLoader extends Component {
         await this.initializeWebIfc();
         this._webIfc.OpenModel(data, this.settings.webIfc);
         return this.loadAllGeometry();
+    }
+    setupOpenButton() {
+        this.uiElement.onclick = () => {
+            const fileOpener = document.createElement("input");
+            fileOpener.type = "file";
+            fileOpener.style.visibility = "collapse";
+            document.body.appendChild(fileOpener);
+            fileOpener.onchange = async () => {
+                if (fileOpener.files === null)
+                    return;
+                const file = fileOpener.files[0];
+                const buffer = await file.arrayBuffer();
+                const data = new Uint8Array(buffer);
+                const result = await this.load(data);
+                const scene = this._components.scene.get();
+                scene.add(result);
+                this.uiElement.clicked.trigger(result);
+                fileOpener.remove();
+            };
+            fileOpener.onclose = () => fileOpener.remove();
+            fileOpener.click();
+        };
     }
     async initializeWebIfc() {
         const { path, absolute } = this.settings.wasm;
