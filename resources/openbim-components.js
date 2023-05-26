@@ -2808,7 +2808,7 @@ class SimpleRaycaster extends Component {
         this._raycaster = new THREE$1.Raycaster();
         const scene = components.renderer.get();
         const dom = scene.domElement;
-        this._mouse = new Mouse(dom);
+        this.mouse = new Mouse(dom);
     }
     /** {@link Component.get} */
     get() {
@@ -2825,7 +2825,7 @@ class SimpleRaycaster extends Component {
      */
     castRay(items = this.components.meshes) {
         const camera = this.components.camera.get();
-        this._raycaster.setFromCamera(this._mouse.position, camera);
+        this._raycaster.setFromCamera(this.mouse.position, camera);
         const result = this._raycaster.intersectObjects(items);
         const filtered = this.filterClippingPlanes(result);
         return filtered.length > 0 ? filtered[0] : null;
