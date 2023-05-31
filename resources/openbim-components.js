@@ -12287,7 +12287,7 @@ class SimpleDimensions extends Component {
  *
  * Apache License Version 2.0, January 2004, http://www.apache.org/licenses/
  */
-
+ 
 const _global = typeof globalThis !== 'undefined' ? globalThis :
     typeof self !== 'undefined' ? self :
         typeof window !== 'undefined' ? window :
@@ -93847,7 +93847,7 @@ class SAOPass extends Pass {
 			format: RGBAFormat
 		} );
 		this.depthRenderTarget = this.normalRenderTarget.clone();
-
+		
 		let depthTexture;
 
 		if ( this.supportsDepthTextureExtension ) {
@@ -95411,7 +95411,7 @@ class CustomOutlinePass extends Pass {
 			}
 			// Helper functions for reading normals and depth of neighboring pixels.
 			float getPixelDepth(int x, int y) {
-				// screenSize.zw is pixel size
+				// screenSize.zw is pixel size 
 				// vUv is current position
 				return readDepth(depthBuffer, vUv + screenSize.zw * vec2(x, y));
 			}
@@ -95447,7 +95447,7 @@ class CustomOutlinePass extends Pass {
         normalDiff += distance(normal, getPixelNormal(-1, 1));
         normalDiff += distance(normal, getPixelNormal(-1, -1));
 
-        // Apply multiplier & bias to each
+        // Apply multiplier & bias to each 
         float depthBias = multiplierParameters.x;
         float depthMultiplier = multiplierParameters.y;
         float normalBias = multiplierParameters.z;
@@ -95463,7 +95463,7 @@ class CustomOutlinePass extends Pass {
 
 
 		  	float outline = normalDiff + depthDiff;
-
+			
 		  	// Combine outline with scene color.
 		  	vec4 outlineColor = vec4(outlineColor, 1.0);
 		  	gl_FragColor = vec4(mix(sceneColor, outlineColor, outline));
