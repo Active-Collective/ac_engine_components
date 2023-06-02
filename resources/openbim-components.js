@@ -2396,7 +2396,7 @@ class SimpleScene extends Component {
         this.name = "SimpleScene";
         this._disposer = new Disposer();
         this._scene = new THREE$1.Scene();
-        this._scene.background = new THREE$1.Color(0xcccccc);
+        this._scene.background = new THREE$1.Color(0x202932);
     }
     /** {@link Component.get} */
     get() {
@@ -94356,22 +94356,30 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         this.setUI();
     }
     setUI() {
-        const mainButton = new Button(this.components, { materialIconName: "video_camera_back" });
-        const projection = new Button(this.components, { materialIconName: "camera", name: "Projection" });
+        const mainButton = new Button(this.components, {
+            materialIconName: "video_camera_back",
+        });
+        const projection = new Button(this.components, {
+            materialIconName: "camera",
+            name: "Projection",
+        });
         const perspective = new Button(this.components, { name: "Perspective" });
         perspective.active = true;
         perspective.onclick = () => this.setProjection("Perspective");
         const orthographic = new Button(this.components, { name: "Orthographic" });
         orthographic.onclick = () => this.setProjection("Orthographic");
         projection.addButton(perspective, orthographic);
-        const navigation = new Button(this.components, { materialIconName: "open_with", name: "Navigation" });
+        const navigation = new Button(this.components, {
+            materialIconName: "open_with",
+            name: "Navigation",
+        });
         const orbit = new Button(this.components, { name: "Orbit Around" });
         orbit.onclick = () => this.setNavigationMode("Orbit");
         const plan = new Button(this.components, { name: "Plan View" });
         plan.onclick = () => this.setNavigationMode("Plan");
         navigation.addButton(orbit, plan);
         mainButton.addButton(navigation, projection);
-        this.projectionChanged.on(camera => {
+        this.projectionChanged.on((camera) => {
             if (camera instanceof THREE$1.PerspectiveCamera) {
                 perspective.active = true;
                 orthographic.active = false;
@@ -94464,10 +94472,11 @@ class OrthoPerspectiveCamera extends SimpleCamera {
     /**
      * Make the camera view fit all the specified meshes.
      *
-     * @param meshes - the meshes to fit. If it is not defined, it will
+     * @param meshes the meshes to fit. If it is not defined, it will
      * evaluate {@link Components.meshes}.
+     * @param offset the distance to the fit object
      */
-    async fitModelToFrame(meshes = this.components.meshes) {
+    async fit(meshes = this.components.meshes, offset = 1.5) {
         if (!this.enabled)
             return;
         const maxNum = Number.MAX_VALUE;
@@ -94494,8 +94503,7 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         box.getSize(sceneSize);
         const sceneCenter = new THREE$1.Vector3();
         box.getCenter(sceneCenter);
-        const nearFactor = 0.5;
-        const radius = Math.max(sceneSize.x, sceneSize.y, sceneSize.z) * nearFactor;
+        const radius = Math.max(sceneSize.x, sceneSize.y, sceneSize.z) * offset;
         const sphere = new THREE$1.Sphere(sceneCenter, radius);
         await this.controls.fitToSphere(sphere, true);
     }
@@ -96661,11 +96669,13 @@ class CubeMap extends Component {
         this.enabled = true;
         this.afterUpdate = new Event();
         this.beforeUpdate = new Event();
-        this._cubeFaceClass = "flex justify-center font-bold hover:bg-ifcjs-200 hover:text-ifcjs-100 text-white select-none text-xl items-center cursor-pointer text-center bg-ifcjs-100 text-ifcjs-100 absolute w-[120px] h-[120px] border-2 border-solid border-ifcjs-120";
+        this._cubeFaceClass = "flex justify-center font-bold hover:bg-ifcjs-200 hover:text-ifcjs-100 text-white select-none text-xl items-center cursor-pointer text-center text-ifcjs-100 absolute w-[60px] h-[60px] border-solid border-ifcjs-120";
+        this._cyan = "bg-[#3CE6FEDD]";
+        this._pink = "bg-[#BD4BF3DD]";
+        this._blue = "bg-[#201491DD]";
         this._cube = document.createElement("div");
         this._cubeWrapper = document.createElement("div");
         this._matrix = new Matrix4();
-        this._raycaster = new Raycaster();
         this._faceOrientations = {
             front: new Vector3$1(0, 0, 1),
             top: new Vector3$1(0, 1, 0),
@@ -96676,9 +96686,10 @@ class CubeMap extends Component {
         };
         this._components = components;
         this._cubeWrapper.id = "tooeen-cube-map";
-        this._cubeWrapper.className = "absolute right-4 bottom-4 z-10";
-        this._cubeWrapper.style.perspective = "350px";
-        this._cube.className = "w-[120px] h-[120px] relative";
+        this._cubeWrapper.className = "absolute z-10";
+        this.setPosition("bottom-right");
+        this._cube.className = "w-[60px] h-[60px] relative";
+        this.setSize("400");
         this._cube.style.transformStyle = "preserve-3d";
         this._cube.style.transform = "translateZ(-300px)";
         this._cube.style.textTransform = "uppercase";
@@ -96686,54 +96697,40 @@ class CubeMap extends Component {
         // #region Cube faces
         const frontFace = document.createElement("div");
         frontFace.id = "cube-map-front";
-        frontFace.className = this._cubeFaceClass;
-        frontFace.textContent = "Front";
-        frontFace.style.transform = "rotateX(180deg) translateZ(-60px)";
+        frontFace.className = `${this._cubeFaceClass} ${this._cyan}`;
+        frontFace.style.transform = "rotateX(180deg) translateZ(-30px)";
         frontFace.style.transition = "all 0.2s";
         frontFace.onclick = () => this.orientToFace("front");
         const topFace = document.createElement("div");
-        topFace.className = this._cubeFaceClass;
-        topFace.textContent = "Top";
-        topFace.style.transform = "rotateX(90deg) translateZ(-60px)";
+        topFace.className = `${this._cubeFaceClass} ${this._pink}`;
+        topFace.style.transform = "rotateX(90deg) translateZ(-30px)";
         topFace.style.transition = "all 0.2s";
         topFace.onclick = () => this.orientToFace("top");
         const bottomFace = document.createElement("div");
-        bottomFace.className = this._cubeFaceClass;
-        bottomFace.textContent = "Bottom";
-        bottomFace.style.transform = "rotateX(270deg) translateZ(-60px)";
+        bottomFace.className = `${this._cubeFaceClass} ${this._pink}`;
+        bottomFace.style.transform = "rotateX(270deg) translateZ(-30px)";
         bottomFace.style.transition = "all 0.2s";
         bottomFace.onclick = () => this.orientToFace("bottom");
         const rightFace = document.createElement("div");
-        rightFace.className = this._cubeFaceClass;
-        rightFace.textContent = "Right";
+        rightFace.className = `${this._cubeFaceClass} ${this._blue}`;
         rightFace.style.transform =
-            "rotateY(-270deg) rotateX(180deg) translateZ(-60px)";
+            "rotateY(-270deg) rotateX(180deg) translateZ(-30px)";
         rightFace.style.transition = "all 0.2s";
         rightFace.onclick = () => this.orientToFace("right");
         const leftFace = document.createElement("div");
-        leftFace.className = this._cubeFaceClass;
-        leftFace.textContent = "Left";
+        leftFace.className = `${this._cubeFaceClass} ${this._blue}`;
         leftFace.style.transform =
-            "rotateY(-90deg) rotateX(180deg) translateZ(-60px)";
+            "rotateY(-90deg) rotateX(180deg) translateZ(-30px)";
         leftFace.style.transition = "all 0.2s";
         leftFace.onclick = () => this.orientToFace("left");
         const backFace = document.createElement("div");
-        backFace.className = this._cubeFaceClass;
-        backFace.textContent = "Back";
-        backFace.style.transform = "translateZ(-60px) rotateZ(180deg)";
+        backFace.className = `${this._cubeFaceClass} ${this._cyan}`;
+        backFace.style.transform = "translateZ(-30px) rotateZ(180deg)";
         backFace.style.transition = "all 0.2s";
         backFace.onclick = () => this.orientToFace("back");
         // #endregion
         this._cube.append(frontFace, topFace, bottomFace, rightFace, leftFace, backFace);
         (_a = this._viewerContainer) === null || _a === void 0 ? void 0 : _a.append(this._cubeWrapper);
-        this._lastHitpoints = {
-            front: null,
-            top: null,
-            bottom: null,
-            right: null,
-            left: null,
-            back: null,
-        };
         this.visible = true;
     }
     set visible(value) {
@@ -96745,31 +96742,28 @@ class CubeMap extends Component {
             this._cubeWrapper.classList.add("hidden");
         }
     }
+    setSize(value = "350") {
+        this._cubeWrapper.style.perspective = `${value}px`;
+    }
+    setPosition(corner) {
+        this._cubeWrapper.classList.remove("top-4", "bottom-4", "left-4", "right-4");
+        const wrapperPositions = {
+            "top-left": ["top-4", "left-4"],
+            "top-right": ["top-4", "right-4"],
+            "bottom-right": ["bottom-4", "right-4"],
+            "bottom-left": ["bottom-4", "left-4"],
+        };
+        this._cubeWrapper.classList.add(...wrapperPositions[corner]);
+    }
     orientToFace(orientation) {
         const camera = this._camera.get();
-        this._raycaster.setFromCamera(new Vector2$1(0, 0), camera);
-        const intersection = this._raycaster.intersectObjects(this._components.meshes)[0];
-        if (!intersection && this._camera instanceof OrthoPerspectiveCamera) {
+        if (this._camera instanceof OrthoPerspectiveCamera) {
             const controls = this._camera.controls;
             const target = camera.position
                 .clone()
                 .add(this._faceOrientations[orientation].clone().multiplyScalar(-1));
             controls.setLookAt(camera.position.x, camera.position.y, camera.position.z, target.x, target.y, target.z, true);
-            this._camera.fitModelToFrame();
-            return;
-        }
-        const target = intersection.point;
-        this._lastHitpoints[orientation] = target;
-        const endPoint = target
-            .clone()
-            .add(this._faceOrientations[orientation]
-            .clone()
-            .multiplyScalar(intersection.distance));
-        if (this._camera instanceof OrthoPerspectiveCamera) {
-            const controls = this._camera.controls;
-            controls.setLookAt(endPoint.x, endPoint.y, endPoint.z, target.x, target.y, target.z, true);
-            this._camera.fitModelToFrame();
-            // this._camera.setProjection("Orthographic")
+            this._camera.fit();
         }
     }
     update() {
