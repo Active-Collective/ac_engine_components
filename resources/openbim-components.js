@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, Color, NearestFilter, DepthTexture, UnsignedShortType, MeshDepthMaterial, RGBADepthPacking, NoBlending, MeshNormalMaterial, CustomBlending, DstColorFactor, ZeroFactor, AddEquation, DstAlphaFactor, RGBAFormat, Vector4, Group, LineDashedMaterial, CatmullRomCurve3, ShapeUtils, Shape, ExtrudeGeometry, EdgesGeometry, LineSegments, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, InterpolateDiscrete, Scene, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, Color, NearestFilter, DepthTexture, UnsignedShortType, MeshDepthMaterial, RGBADepthPacking, NoBlending, MeshNormalMaterial, CustomBlending, DstColorFactor, ZeroFactor, AddEquation, DstAlphaFactor, RGBAFormat, Vector4, Group, LineDashedMaterial, CatmullRomCurve3, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, InterpolateDiscrete, Scene, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -2108,9 +2108,18 @@ class Button extends Component {
         this.domElement.setAttribute("data-active", String(active));
         this._active = active;
     }
-    set visible(visible) {
-        this._visible = visible;
-    } // Not implemented yet.
+    set visible(value) {
+        this._visible = value;
+        if (value) {
+            this.domElement.classList.remove("hidden");
+            // this.onVisible.trigger(this.get());
+        }
+        else {
+            this.domElement.classList.add("hidden");
+            // this.onHidden.trigger(this.get());
+        }
+        // this.onVisibilityChanged.trigger(value);
+    }
     get visible() {
         return this._visible;
     }
@@ -2183,6 +2192,45 @@ function tooeenRandomId() {
         id += characters.charAt(randomIndex);
     }
     return id;
+}
+function bufferGeometryToIndexed(geometry) {
+    const bufferAttribute = geometry.getAttribute("position");
+    const size = bufferAttribute.itemSize;
+    const positions = bufferAttribute.array;
+    const indices = [];
+    const vertices = [];
+    const outVertices = [];
+    for (let i = 0; i < positions.length; i += size) {
+        const x = positions[i];
+        const y = positions[i + 1];
+        let vertex = `${x},${y}`;
+        const z = positions[i + 2];
+        if (size >= 3) {
+            vertex += `,${z}`;
+        }
+        else {
+            vertex += `,0`;
+        }
+        const w = positions[i + 3];
+        if (size === 4) {
+            vertex += `,${w}`;
+        }
+        if (vertices.indexOf(vertex) === -1) {
+            vertices.push(vertex);
+            indices.push(vertices.length - 1);
+            const split = vertex.split(",");
+            split.forEach((component) => outVertices.push(Number(component)));
+        }
+        else {
+            const index = vertices.indexOf(vertex);
+            indices.push(index);
+        }
+    }
+    const outIndices = new Uint16Array(indices);
+    const realVertices = new Float32Array(outVertices);
+    geometry.setAttribute("position", new THREE$1.BufferAttribute(realVertices, size === 2 ? 3 : size));
+    geometry.setIndex(new THREE$1.BufferAttribute(outIndices, 1));
+    geometry.getAttribute("position").needsUpdate = true;
 }
 
 class BaseSVGAnnotation extends Component {
@@ -9090,236 +9138,6 @@ function disposeBoundsTree() {
 
 }
 
-class TreeView extends Component {
-    constructor(components, name) {
-        super();
-        this.enabled = true;
-        this.visible = true;
-        this.domElement = document.createElement("div");
-        this.children = [];
-        this._childrenContainer = document.createElement("div");
-        this._expanded = false;
-        this.components = components;
-        this.name = name;
-        this.domElement.className = "tooeen-tree-item";
-        const div = document.createElement("div");
-        div.className = "tooeen-tree-item-title";
-        const arrow = document.createElement("span");
-        arrow.onclick = () => this.toggle();
-        arrow.className = "material-icons";
-        arrow.innerText = "arrow_right";
-        const p = document.createElement("p");
-        p.innerText = name;
-        div.append(arrow, p);
-        this.domElement.append(div);
-        this._childrenContainer.className = "tooeen-tree-item-container";
-        this._childrenContainer.style.display = "none";
-        this.domElement.append(this._childrenContainer);
-    }
-    get expanded() {
-        return this._expanded;
-    }
-    set expanded(expanded) {
-        this._expanded = expanded;
-        if (expanded) {
-            this._childrenContainer.style.display = "block";
-        }
-        else {
-            this._childrenContainer.style.display = "none";
-        }
-    }
-    set onclick(listener) {
-        this.domElement.onclick = (e) => {
-            e.stopImmediatePropagation();
-            listener(e);
-        };
-    }
-    set onmouseover(listener) {
-        this.domElement.onmouseover = (e) => {
-            e.stopImmediatePropagation();
-            listener(e);
-        };
-    }
-    get() {
-        return this.domElement;
-    }
-    dispose(onlyChildren = false) {
-        this.children.forEach((child) => child.dispose());
-        if (!onlyChildren) {
-            this.domElement.remove();
-            this._childrenContainer.remove();
-        }
-    }
-    toggle(deep = false) {
-        if (deep) {
-            if (this.expanded) {
-                this.collapse();
-            }
-            else {
-                this.expand();
-            }
-        }
-        else {
-            this.expanded = !this.expanded;
-        }
-    }
-    addChild(...items) {
-        items.forEach((item) => {
-            this.children.push(item);
-            this._childrenContainer.append(item.domElement);
-        });
-    }
-    collapse(deep = true) {
-        this.expanded = false;
-        if (deep) {
-            this.children.forEach((child) => {
-                if (child instanceof TreeView) {
-                    child.collapse(deep);
-                }
-            });
-        }
-    }
-    expand(deep = true) {
-        this.expanded = true;
-        if (deep) {
-            this.children.forEach((child) => {
-                if (child instanceof TreeView) {
-                    child.expand(deep);
-                }
-            });
-        }
-    }
-}
-
-// @ts-ignore
-/**
- * A component that handles all UI components.
- */
-class UIManager extends Component {
-    constructor(components) {
-        super();
-        this.name = "UIManager";
-        this.enabled = true;
-        this.toolbars = [];
-        this.containers = {
-            top: document.createElement("div"),
-            right: document.createElement("div"),
-            bottom: document.createElement("div"),
-            left: document.createElement("div"),
-        };
-        this.contextMenu = new Toolbar(components);
-        this.contextMenu.setDirection("vertical");
-        this.contextMenu.position = "left";
-        this.components = components;
-        const containerClasses = {
-            top: ["top-0", "pt-4"],
-            right: ["top-0", "right-0", "pr-4"],
-            bottom: ["bottom-0", "pb-4"],
-            left: ["top-0", "left-0", "pl-4"],
-        };
-        for (const id in this.containers) {
-            const container = this.containers[id];
-            container.className =
-                "absolute flex gap-y-3 gap-x-3 pointer-events-none p-4";
-            container.classList.add(...containerClasses[id]);
-            container.id = `${id}-toolbar-container`;
-            this.setContainerAlignment(id, "center");
-        }
-        const hContainerClass = ["flex-row", "w-full"];
-        const vContainerClass = ["flex-column", "h-full"];
-        this.containers.top.classList.add(...hContainerClass);
-        this.containers.right.classList.add(...vContainerClass);
-        this.containers.bottom.classList.add(...hContainerClass);
-        this.containers.left.classList.add(...vContainerClass);
-    }
-    get() {
-        return this.toolbars;
-    }
-    setup() {
-        this.viewerContainer = this.components.renderer.get().domElement
-            .parentElement;
-        // #region Context menu
-        const contextParent = document.createElement("div");
-        contextParent.style.position = "absolute";
-        contextParent.append(this.contextMenu.domElement);
-        const popperInstance = createPopper(contextParent, this.contextMenu.domElement, {
-            placement: "bottom-start",
-            modifiers: [
-                {
-                    name: "preventOverflow",
-                    options: {
-                        boundary: this.viewerContainer,
-                    },
-                },
-            ],
-        });
-        let mouseMoved = false;
-        let mouseDown = false;
-        this.viewerContainer.addEventListener("contextmenu", (e) => {
-            if (mouseMoved) {
-                mouseMoved = false;
-                return;
-            }
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            this.closeMenus();
-            contextParent.style.left = `${e.offsetX}px`;
-            contextParent.style.top = `${e.offsetY}px`;
-            this.contextMenu.visible = true;
-            popperInstance.update();
-        });
-        this.viewerContainer.addEventListener("mousedown", (e) => {
-            mouseDown = true;
-            const canvas = this.components.renderer.get().domElement;
-            if (e.target === canvas) {
-                this.closeMenus();
-                this.contextMenu.visible = false;
-            }
-        });
-        this.viewerContainer.addEventListener("mousemove", () => {
-            if (mouseDown) {
-                mouseMoved = true;
-            }
-        });
-        this.viewerContainer.addEventListener("mouseup", () => {
-            mouseDown = false;
-        });
-        // #endregion
-        this.viewerContainer.append(this.containers.top, this.containers.right, this.containers.bottom, this.containers.left, contextParent);
-    }
-    closeMenus() {
-        this.toolbars.forEach((toolbar) => toolbar.closeMenus());
-        this.contextMenu.closeMenus();
-    }
-    setContainerAlignment(container, alingment) {
-        this.containers[container].style.justifyContent = alingment;
-        this.containers[container].style.alignItems = alingment;
-    }
-    addToolbar(...toolbar) {
-        toolbar.forEach((tlbr) => {
-            const container = this.containers[tlbr.position];
-            if (!container) {
-                return;
-            }
-            container.append(tlbr.domElement);
-            this.toolbars.push(tlbr);
-        });
-        this.updateToolbars();
-    }
-    updateToolbars() {
-        this.toolbars.forEach((toolbar) => {
-            toolbar.visible = true;
-            toolbar.updateElements();
-            if (toolbar.position === "bottom" || toolbar.position === "top") {
-                toolbar.setDirection("horizontal");
-            }
-            else {
-                toolbar.setDirection("vertical");
-            }
-        });
-    }
-}
-
 class LineIntersectionPicker extends Component {
     constructor(components, config) {
         super();
@@ -9565,9 +9383,9 @@ class SimpleUIComponent extends Component {
     get visible() {
         return this._visible;
     }
-    set visible(visible) {
-        this._visible = visible;
-        if (visible) {
+    set visible(value) {
+        this._visible = value;
+        if (value) {
             this.domElement.classList.remove("hidden");
             this.onVisible.trigger(this.get());
         }
@@ -9575,6 +9393,7 @@ class SimpleUIComponent extends Component {
             this.domElement.classList.add("hidden");
             this.onHidden.trigger(this.get());
         }
+        // this.onVisibilityChanged.trigger(value);
     }
     get enabled() {
         return this._enabled;
@@ -9587,6 +9406,7 @@ class SimpleUIComponent extends Component {
         else {
             this.onDisabled.trigger(this.get());
         }
+        // this.onVisibilityChanged.trigger(value);
     }
     get() {
         return this.domElement;
@@ -9601,6 +9421,247 @@ class SimpleUIComponent extends Component {
         items.forEach((item) => {
             this.children.push(item);
             this.domElement.append(item.domElement);
+        });
+    }
+}
+
+class VerticalStack extends SimpleUIComponent {
+    constructor(components) {
+        const stack = document.createElement("div");
+        stack.className = "flex flex-col";
+        super(components, stack);
+        this.name = "VerticalStack";
+    }
+}
+
+class TreeView extends Component {
+    constructor(components, name) {
+        super();
+        this.enabled = true;
+        this.visible = true;
+        this.domElement = document.createElement("div");
+        this.children = [];
+        this._expanded = false;
+        this.components = components;
+        this.name = name;
+        this.domElement.className = "tooeen-tree-item";
+        const div = document.createElement("div");
+        div.className = "tooeen-tree-item-title";
+        const arrow = document.createElement("span");
+        arrow.onclick = () => this.toggle();
+        arrow.className = "material-icons";
+        arrow.innerText = "arrow_right";
+        const p = document.createElement("p");
+        p.innerText = name;
+        div.append(arrow, p);
+        this.domElement.append(div);
+        this._childrenContainer = new VerticalStack(components);
+        this._childrenContainer.get().classList.add("ml-[14px]");
+        this.domElement.append(this._childrenContainer.get());
+    }
+    get expanded() {
+        return this._expanded;
+    }
+    set expanded(expanded) {
+        this._expanded = expanded;
+        this._childrenContainer.visible = expanded;
+    }
+    set onclick(listener) {
+        this.domElement.onclick = (e) => {
+            e.stopImmediatePropagation();
+            listener(e);
+        };
+    }
+    set onmouseover(listener) {
+        this.domElement.onmouseover = (e) => {
+            e.stopImmediatePropagation();
+            listener(e);
+        };
+    }
+    get() {
+        return this.domElement;
+    }
+    dispose(onlyChildren = false) {
+        this.children.forEach((child) => child.dispose());
+        if (!onlyChildren) {
+            this.domElement.remove();
+            this._childrenContainer.dispose();
+        }
+    }
+    toggle(deep = false) {
+        if (deep) {
+            if (this.expanded) {
+                this.collapse();
+            }
+            else {
+                this.expand();
+            }
+        }
+        else {
+            this.expanded = !this.expanded;
+        }
+    }
+    addChild(...items) {
+        items.forEach((item) => {
+            this.children.push(item);
+            this._childrenContainer.addChild(item);
+        });
+    }
+    collapse(deep = true) {
+        this.expanded = false;
+        if (deep) {
+            this.children.forEach((child) => {
+                if (child instanceof TreeView) {
+                    child.collapse(deep);
+                }
+            });
+        }
+    }
+    expand(deep = true) {
+        this.expanded = true;
+        if (deep) {
+            this.children.forEach((child) => {
+                if (child instanceof TreeView) {
+                    child.expand(deep);
+                }
+            });
+        }
+    }
+}
+
+// @ts-ignore
+/**
+ * A component that handles all UI components.
+ */
+class UIManager extends Component {
+    constructor(components) {
+        super();
+        this.name = "UIManager";
+        this.enabled = true;
+        this.toolbars = [];
+        this.containers = {
+            top: document.createElement("div"),
+            right: document.createElement("div"),
+            bottom: document.createElement("div"),
+            left: document.createElement("div"),
+        };
+        this.contextMenu = new Toolbar(components);
+        this.contextMenu.setDirection("vertical");
+        this.contextMenu.position = "left";
+        this.components = components;
+        const containerClasses = {
+            top: ["top-0", "pt-4"],
+            right: ["top-0", "right-0", "pr-4"],
+            bottom: ["bottom-0", "pb-4"],
+            left: ["top-0", "left-0", "pl-4"],
+        };
+        for (const id in this.containers) {
+            const container = this.containers[id];
+            container.className =
+                "absolute flex gap-y-3 gap-x-3 pointer-events-none p-4";
+            container.classList.add(...containerClasses[id]);
+            container.id = `${id}-toolbar-container`;
+            this.setContainerAlignment(id, "center");
+        }
+        const hContainerClass = ["flex-row", "w-full"];
+        const vContainerClass = ["flex-column", "h-full"];
+        this.containers.top.classList.add(...hContainerClass);
+        this.containers.right.classList.add(...vContainerClass);
+        this.containers.bottom.classList.add(...hContainerClass);
+        this.containers.left.classList.add(...vContainerClass);
+    }
+    get() {
+        return this.toolbars;
+    }
+    setup() {
+        this.viewerContainer = this.components.renderer.get().domElement
+            .parentElement;
+        // #region Context menu
+        const contextParent = document.createElement("div");
+        contextParent.style.position = "absolute";
+        contextParent.append(this.contextMenu.domElement);
+        const popperInstance = createPopper(contextParent, this.contextMenu.domElement, {
+            placement: "bottom-start",
+            modifiers: [
+                {
+                    name: "preventOverflow",
+                    options: {
+                        boundary: this.viewerContainer,
+                    },
+                },
+            ],
+        });
+        let mouseMoved = false;
+        let mouseDown = false;
+        this.viewerContainer.addEventListener("contextmenu", (e) => {
+            if (mouseMoved) {
+                mouseMoved = false;
+                return;
+            }
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.closeMenus();
+            contextParent.style.left = `${e.offsetX}px`;
+            contextParent.style.top = `${e.offsetY}px`;
+            this.contextMenu.visible = true;
+            popperInstance.update();
+        });
+        this.viewerContainer.addEventListener("mousedown", (e) => {
+            mouseDown = true;
+            const canvas = this.components.renderer.get().domElement;
+            if (e.target === canvas) {
+                this.closeMenus();
+                this.contextMenu.visible = false;
+            }
+        });
+        this.viewerContainer.addEventListener("mousemove", () => {
+            if (mouseDown) {
+                mouseMoved = true;
+            }
+        });
+        this.viewerContainer.addEventListener("mouseup", () => {
+            mouseDown = false;
+        });
+        // #endregion
+        this.viewerContainer.append(this.containers.top, this.containers.right, this.containers.bottom, this.containers.left, contextParent);
+    }
+    add(...uiComponents) {
+        uiComponents.forEach((component) => {
+            if (!this.viewerContainer) {
+                return;
+            }
+            this.viewerContainer.append(component.domElement);
+        });
+    }
+    closeMenus() {
+        this.toolbars.forEach((toolbar) => toolbar.closeMenus());
+        this.contextMenu.closeMenus();
+    }
+    setContainerAlignment(container, alingment) {
+        this.containers[container].style.justifyContent = alingment;
+        this.containers[container].style.alignItems = alingment;
+    }
+    addToolbar(...toolbar) {
+        toolbar.forEach((tlbr) => {
+            const container = this.containers[tlbr.position];
+            if (!container) {
+                return;
+            }
+            container.append(tlbr.domElement);
+            this.toolbars.push(tlbr);
+        });
+        this.updateToolbars();
+    }
+    updateToolbars() {
+        this.toolbars.forEach((toolbar) => {
+            toolbar.visible = true;
+            toolbar.updateElements();
+            if (toolbar.position === "bottom" || toolbar.position === "top") {
+                toolbar.setDirection("horizontal");
+            }
+            else {
+                toolbar.setDirection("vertical");
+            }
         });
     }
 }
@@ -9715,7 +9776,7 @@ class SimpleUICard extends SimpleUIComponent {
 }
 
 class FloatingWindow extends SimpleUIComponent {
-    constructor(components, config = {}) {
+    constructor(components, config = { title: "Tooeen Floting Window" }) {
         var _a;
         const { title, description, initialWidth } = config;
         const window = document.createElement("div");
@@ -9724,7 +9785,7 @@ class FloatingWindow extends SimpleUIComponent {
         const id = (_a = config.id) !== null && _a !== void 0 ? _a : generateUUID().toLowerCase();
         window.id = id;
         window.innerHTML = `
-        <div id="${id}-title-container" class="bg-ifcjs-120 relative select-none cursor-move px-5 py-3 text-center ${!title && !description ? "hidden" : ""}">
+        <div id="${id}-title-container" class="bg-ifcjs-120 sticky top-0 select-none cursor-move px-5 py-3 text-center ${!title && !description ? "hidden" : ""}">
             <h3 id="${id}-title" class="${!title ? "hidden" : ""} text-lg font-bold">${title}</h3>
             <p id="${id}-description" class="${!description ? "hidden" : ""}">${description}</p>
             <span id="${id}-close" class="material-icons md-16 absolute right-2 top-2 z-20 hover:cursor-pointer hover:text-ifcjs-200">close</span>
@@ -9750,6 +9811,7 @@ class FloatingWindow extends SimpleUIComponent {
                 }
                 this.domElement.style.left = `${e.clientX - offsetX}px`;
                 this.domElement.style.top = `${e.clientY - offsetY}px`;
+                this.onMoved.trigger(this);
             });
             viewerContainer.addEventListener("mouseup", () => (isMouseDown = false));
             const closeButton = document.getElementById(`${id}-close`);
@@ -9758,8 +9820,12 @@ class FloatingWindow extends SimpleUIComponent {
             };
         });
         super(components, window, id);
-        this.onHidden = new Event();
-        this.onVisible = new Event();
+        this.onMoved = new Event();
+        this.onResized = new Event();
+        const observer = new ResizeObserver(() => {
+            this.onResized.trigger(this);
+        });
+        observer.observe(window);
         this.referencePoints = {
             topLeft: new Vector2$1(),
             top: new Vector2$1(),
@@ -9772,6 +9838,20 @@ class FloatingWindow extends SimpleUIComponent {
             bottomRight: new Vector2$1(),
         };
         this._components = components;
+    }
+    set description(value) {
+        const descriptionElement = document.getElementById(`${this.id}-description`);
+        if (descriptionElement && value) {
+            descriptionElement.textContent = value;
+            descriptionElement.classList.remove("hidden");
+        }
+        else {
+            descriptionElement === null || descriptionElement === void 0 ? void 0 : descriptionElement.classList.add("hidden");
+        }
+    }
+    get description() {
+        const descriptionElement = document.getElementById(`${this.id}-description`);
+        return descriptionElement.textContent;
     }
     addChild(...items) {
         const contentDiv = document.getElementById(`${this.id}-content`);
@@ -9876,7 +9956,7 @@ class InfoCard extends Component {
 class InputLabel extends SimpleUIComponent {
     constructor(components, value) {
         const label = document.createElement("label");
-        label.className = `block leading-6 text-gray-300`;
+        label.className = `block leading-6 text-gray-300 text-sm`;
         label.textContent = value;
         super(components, label);
         this.name = "InputLabel";
@@ -9886,7 +9966,7 @@ class InputLabel extends SimpleUIComponent {
 class BaseInput extends SimpleUIComponent {
     constructor(components, inputElement, config) {
         const div = document.createElement("div");
-        div.className = "flex flex-col gap-y-1 gap-x-2";
+        div.className = "flex flex-col";
         const _config = {
             name: "Tooeen Input",
             ...config,
@@ -9908,6 +9988,9 @@ class BaseInput extends SimpleUIComponent {
     }
     get inputValue() {
         return this.inputElement.value;
+    }
+    set inputValue(value) {
+        this.inputElement.value = value;
     }
     addChild() {
         console.warn("Input components doesn't allow children.");
@@ -10025,6 +10108,15 @@ class RangeInput extends BaseInput {
         input.oninput = () => {
             this.onChange.trigger(this.inputValue);
         };
+    }
+}
+
+class UIComponentsStack extends SimpleUIComponent {
+    constructor(components, direction) {
+        const stack = document.createElement("div");
+        stack.className = `flex ${direction === "Vertical" ? "flex-col" : "flex-row"}`;
+        super(components, stack);
+        this.name = "UIComponentsStack";
     }
 }
 
@@ -12402,6 +12494,12 @@ class SimpleDimensionLine {
         this.updateEndpointMeshes(point);
         this.updateLabel();
     }
+    set startPoint(point) {
+        this.start = point;
+        this.updateStartpointPosition(point);
+        // this.updateEndpointMeshes(point);
+        this.updateLabel();
+    }
     dispose() {
         this.visible = false;
         this._disposer.dispose(this._root);
@@ -12434,6 +12532,12 @@ class SimpleDimensionLine {
         this._endpoints[1].position.copy(point);
         this._endpoints[1].lookAt(this.start);
         this._endpoints[0].lookAt(this.end);
+    }
+    updateStartpointPosition(point) {
+        const position = this._line.geometry.attributes
+            .position;
+        position.setXYZ(0, point.x, point.y, point.z);
+        position.needsUpdate = true;
     }
     updateEndpointPosition(point) {
         const position = this._line.geometry.attributes
@@ -27748,6 +27852,143 @@ var require_web_ifc = __commonJS({
       exports["WebIFCWasm"] = WebIFCWasm2;
   }
 });
+
+// dist/ifc-schema.ts
+var IFCURIREFERENCE = 950732822;
+var IFCTIME = 4075327185;
+var IFCTEMPERATURERATEOFCHANGEMEASURE = 1209108979;
+var IFCSOUNDPRESSURELEVELMEASURE = 3457685358;
+var IFCSOUNDPOWERLEVELMEASURE = 4157543285;
+var IFCPROPERTYSETDEFINITIONSET = 2798247006;
+var IFCPOSITIVEINTEGER = 1790229001;
+var IFCNONNEGATIVELENGTHMEASURE = 525895558;
+var IFCLINEINDEX = 1774176899;
+var IFCLANGUAGEID = 1275358634;
+var IFCDURATION = 2541165894;
+var IFCDAYINWEEKNUMBER = 3701338814;
+var IFCDATETIME = 2195413836;
+var IFCDATE = 937566702;
+var IFCCARDINALPOINTREFERENCE = 1683019596;
+var IFCBINARY = 2314439260;
+var IFCAREADENSITYMEASURE = 1500781891;
+var IFCARCINDEX = 3683503648;
+var IFCYEARNUMBER = 4065007721;
+var IFCWARPINGMOMENTMEASURE = 1718600412;
+var IFCWARPINGCONSTANTMEASURE = 51269191;
+var IFCVOLUMETRICFLOWRATEMEASURE = 2593997549;
+var IFCVOLUMEMEASURE = 3458127941;
+var IFCVAPORPERMEABILITYMEASURE = 3345633955;
+var IFCTORQUEMEASURE = 1278329552;
+var IFCTIMESTAMP = 2591213694;
+var IFCTIMEMEASURE = 2726807636;
+var IFCTHERMODYNAMICTEMPERATUREMEASURE = 743184107;
+var IFCTHERMALTRANSMITTANCEMEASURE = 2016195849;
+var IFCTHERMALRESISTANCEMEASURE = 857959152;
+var IFCTHERMALEXPANSIONCOEFFICIENTMEASURE = 2281867870;
+var IFCTHERMALCONDUCTIVITYMEASURE = 2645777649;
+var IFCTHERMALADMITTANCEMEASURE = 232962298;
+var IFCTEXTTRANSFORMATION = 296282323;
+var IFCTEXTFONTNAME = 603696268;
+var IFCTEXTDECORATION = 3490877962;
+var IFCTEXTALIGNMENT = 1460886941;
+var IFCTEXT = 2801250643;
+var IFCTEMPERATUREGRADIENTMEASURE = 58845555;
+var IFCSPECULARROUGHNESS = 361837227;
+var IFCSPECULAREXPONENT = 2757832317;
+var IFCSPECIFICHEATCAPACITYMEASURE = 3477203348;
+var IFCSOUNDPRESSUREMEASURE = 993287707;
+var IFCSOUNDPOWERMEASURE = 846465480;
+var IFCSOLIDANGLEMEASURE = 3471399674;
+var IFCSHEARMODULUSMEASURE = 408310005;
+var IFCSECTIONALAREAINTEGRALMEASURE = 2190458107;
+var IFCSECTIONMODULUSMEASURE = 3467162246;
+var IFCSECONDINMINUTE = 2766185779;
+var IFCROTATIONALSTIFFNESSMEASURE = 3211557302;
+var IFCROTATIONALMASSMEASURE = 1755127002;
+var IFCROTATIONALFREQUENCYMEASURE = 2133746277;
+var IFCREAL = 200335297;
+var IFCRATIOMEASURE = 96294661;
+var IFCRADIOACTIVITYMEASURE = 3972513137;
+var IFCPRESSUREMEASURE = 3665567075;
+var IFCPRESENTABLETEXT = 2169031380;
+var IFCPOWERMEASURE = 1364037233;
+var IFCPOSITIVERATIOMEASURE = 1245737093;
+var IFCPOSITIVEPLANEANGLEMEASURE = 3054510233;
+var IFCPOSITIVELENGTHMEASURE = 2815919920;
+var IFCPLANEANGLEMEASURE = 4042175685;
+var IFCPLANARFORCEMEASURE = 2642773653;
+var IFCPARAMETERVALUE = 2260317790;
+var IFCPHMEASURE = 929793134;
+var IFCNUMERICMEASURE = 2395907400;
+var IFCNORMALISEDRATIOMEASURE = 2095195183;
+var IFCMONTHINYEARNUMBER = 765770214;
+var IFCMONETARYMEASURE = 2615040989;
+var IFCMOMENTOFINERTIAMEASURE = 3114022597;
+var IFCMOLECULARWEIGHTMEASURE = 1648970520;
+var IFCMOISTUREDIFFUSIVITYMEASURE = 3177669450;
+var IFCMODULUSOFSUBGRADEREACTIONMEASURE = 1753493141;
+var IFCMODULUSOFROTATIONALSUBGRADEREACTIONMEASURE = 1052454078;
+var IFCMODULUSOFLINEARSUBGRADEREACTIONMEASURE = 2173214787;
+var IFCMODULUSOFELASTICITYMEASURE = 3341486342;
+var IFCMINUTEINHOUR = 102610177;
+var IFCMASSPERLENGTHMEASURE = 3531705166;
+var IFCMASSMEASURE = 3124614049;
+var IFCMASSFLOWRATEMEASURE = 4017473158;
+var IFCMASSDENSITYMEASURE = 1477762836;
+var IFCMAGNETICFLUXMEASURE = 2486716878;
+var IFCMAGNETICFLUXDENSITYMEASURE = 286949696;
+var IFCLUMINOUSINTENSITYMEASURE = 151039812;
+var IFCLUMINOUSINTENSITYDISTRIBUTIONMEASURE = 2755797622;
+var IFCLUMINOUSFLUXMEASURE = 2095003142;
+var IFCLOGICAL = 503418787;
+var IFCLINEARVELOCITYMEASURE = 3086160713;
+var IFCLINEARSTIFFNESSMEASURE = 1307019551;
+var IFCLINEARMOMENTMEASURE = 2128979029;
+var IFCLINEARFORCEMEASURE = 191860431;
+var IFCLENGTHMEASURE = 1243674935;
+var IFCLABEL = 3258342251;
+var IFCKINEMATICVISCOSITYMEASURE = 2054016361;
+var IFCISOTHERMALMOISTURECAPACITYMEASURE = 3192672207;
+var IFCIONCONCENTRATIONMEASURE = 3686016028;
+var IFCINTEGERCOUNTRATEMEASURE = 3809634241;
+var IFCINTEGER = 1939436016;
+var IFCINDUCTANCEMEASURE = 2679005408;
+var IFCILLUMINANCEMEASURE = 3358199106;
+var IFCIDENTIFIER = 983778844;
+var IFCHOURINDAY = 2589826445;
+var IFCHEATINGVALUEMEASURE = 1158859006;
+var IFCHEATFLUXDENSITYMEASURE = 3113092358;
+var IFCGLOBALLYUNIQUEID = 3064340077;
+var IFCFREQUENCYMEASURE = 3044325142;
+var IFCFORCEMEASURE = 1361398929;
+var IFCFONTWEIGHT = 2590844177;
+var IFCFONTVARIANT = 2715512545;
+var IFCFONTSTYLE = 1102727119;
+var IFCENERGYMEASURE = 2078135608;
+var IFCELECTRICVOLTAGEMEASURE = 2506197118;
+var IFCELECTRICRESISTANCEMEASURE = 2951915441;
+var IFCELECTRICCURRENTMEASURE = 3790457270;
+var IFCELECTRICCONDUCTANCEMEASURE = 2093906313;
+var IFCELECTRICCHARGEMEASURE = 3818826038;
+var IFCELECTRICCAPACITANCEMEASURE = 1827137117;
+var IFCDYNAMICVISCOSITYMEASURE = 69416015;
+var IFCDOSEEQUIVALENTMEASURE = 524656162;
+var IFCDIMENSIONCOUNT = 4134073009;
+var IFCDESCRIPTIVEMEASURE = 1514641115;
+var IFCDAYLIGHTSAVINGHOUR = 300323983;
+var IFCDAYINMONTHNUMBER = 86635668;
+var IFCCURVATUREMEASURE = 94842927;
+var IFCCOUNTMEASURE = 1778710042;
+var IFCCONTEXTDEPENDENTMEASURE = 3238673880;
+var IFCCOMPOUNDPLANEANGLEMEASURE = 3812528620;
+var IFCCOMPLEXNUMBER = 2991860651;
+var IFCBOXALIGNMENT = 1867003952;
+var IFCBOOLEAN = 2735952531;
+var IFCAREAMEASURE = 2650437152;
+var IFCANGULARVELOCITYMEASURE = 632304761;
+var IFCAMOUNTOFSUBSTANCEMEASURE = 360377573;
+var IFCACCELERATIONMEASURE = 4182062534;
+var IFCABSORBEDDOSEMEASURE = 3699917729;
 var IFCBEAMSTANDARDCASE = 2906023776;
 var IFCWINDOWSTANDARDCASE = 486154966;
 var IFCWALLELEMENTEDCASE = 4156078855;
@@ -28066,24 +28307,37 @@ var IFCCOLOURRGBLIST = 3285139300;
 var IFCALIGNMENTHORIZONTALSEGMENT = 536804194;
 var IFCALIGNMENTCANTSEGMENT = 3752311538;
 var IFCWORKTIME = 1236880293;
+var IFCTIMEPERIOD = 1199560280;
 var IFCTEXTUREVERTEXLIST = 3611470254;
 var IFCTEXTURECOORDINATEINDICESWITHVOIDS = 1010789467;
 var IFCTEXTURECOORDINATEINDICES = 222769930;
 var IFCTASKTIMERECURRING = 2771591690;
 var IFCTASKTIME = 1549132990;
+var IFCTABLECOLUMN = 2043862942;
 var IFCSURFACEREINFORCEMENTAREA = 2934153892;
 var IFCSTRUCTURALLOADORRESULT = 609421318;
 var IFCSTRUCTURALLOADCONFIGURATION = 3478079324;
+var IFCSCHEDULINGTIME = 1054537805;
+var IFCRESOURCELEVELRELATIONSHIP = 2439245199;
+var IFCREFERENCE = 2433181523;
+var IFCRECURRENCEPATTERN = 3915482550;
 var IFCQUANTITYNUMBER = 2691318326;
+var IFCPROPERTYABSTRACTION = 986844984;
 var IFCPROJECTEDCRS = 3843373140;
+var IFCPRESENTATIONITEM = 677532197;
+var IFCMATERIALUSAGEDEFINITION = 1507914824;
 var IFCMATERIALPROFILEWITHOFFSETS = 552965576;
 var IFCMATERIALPROFILESET = 164193824;
 var IFCMATERIALPROFILE = 2235152071;
 var IFCMATERIALLAYERWITHOFFSETS = 1847252529;
+var IFCMATERIALDEFINITION = 760658860;
 var IFCMAPCONVERSION = 3057273783;
+var IFCEXTERNALINFORMATION = 4294318154;
+var IFCCOORDINATEREFERENCESYSTEM = 1466758467;
 var IFCCOORDINATEOPERATION = 1785450214;
 var IFCCONNECTIONVOLUMEGEOMETRY = 775493141;
 var IFCALIGNMENTVERTICALSEGMENT = 3633395639;
+var IFCALIGNMENTPARAMETERSEGMENT = 2879124712;
 var IFCREINFORCINGBAR = 979691226;
 var IFCELECTRICDISTRIBUTIONPOINT = 3700593921;
 var IFCDISTRIBUTIONCONTROLELEMENT = 1062813311;
@@ -28584,21 +28838,26 @@ var IFCANNOTATIONOCCURRENCE = 2442683028;
 var IFCWATERPROPERTIES = 1065908215;
 var IFCVIRTUALGRIDINTERSECTION = 891718957;
 var IFCVERTEXPOINT = 1907098498;
+var IFCVERTEXBASEDTEXTUREMAP = 3304826586;
 var IFCVERTEX = 2799835756;
 var IFCUNITASSIGNMENT = 180925521;
 var IFCTOPOLOGYREPRESENTATION = 1735638870;
 var IFCTOPOLOGICALREPRESENTATIONITEM = 1377556343;
+var IFCTIMESERIESVALUE = 581633288;
 var IFCTIMESERIESREFERENCERELATIONSHIP = 1718945513;
+var IFCTIMESERIES = 3101149627;
 var IFCTHERMALMATERIALPROPERTIES = 3317419933;
 var IFCTEXTUREVERTEX = 1210645708;
 var IFCTEXTUREMAP = 2552916305;
 var IFCTEXTURECOORDINATEGENERATOR = 1742049831;
 var IFCTEXTURECOORDINATE = 280115917;
+var IFCTEXTSTYLEWITHBOXCHARACTERISTICS = 1484833681;
 var IFCTEXTSTYLETEXTMODEL = 1640371178;
 var IFCTEXTSTYLEFORDEFINEDFONT = 2636378356;
 var IFCTEXTSTYLEFONTMODEL = 1983826977;
 var IFCTEXTSTYLE = 1447204868;
 var IFCTELECOMADDRESS = 912023232;
+var IFCTABLEROW = 531007025;
 var IFCTABLE = 985171141;
 var IFCSYMBOLSTYLE = 1290481447;
 var IFCSURFACETEXTURE = 626085974;
@@ -28612,6 +28871,8 @@ var IFCSTYLEDITEM = 3958052878;
 var IFCSTYLEMODEL = 2830218821;
 var IFCSTRUCTURALLOADTEMPERATURE = 3408363356;
 var IFCSTRUCTURALLOADSTATIC = 2525727697;
+var IFCSTRUCTURALLOAD = 2162789131;
+var IFCSTRUCTURALCONNECTIONCONDITION = 2273995522;
 var IFCSIMPLEPROPERTY = 3692461612;
 var IFCSHAPEREPRESENTATION = 4240577450;
 var IFCSHAPEMODEL = 3982875396;
@@ -28619,9 +28880,13 @@ var IFCSHAPEASPECT = 867548509;
 var IFCSECTIONREINFORCEMENTPROPERTIES = 4165799628;
 var IFCSECTIONPROPERTIES = 2042790032;
 var IFCSIUNIT = 448429030;
+var IFCROOT = 2341007311;
 var IFCRIBPLATEPROFILEPROPERTIES = 3679540991;
 var IFCREPRESENTATIONMAP = 1660063152;
+var IFCREPRESENTATIONITEM = 3008791417;
+var IFCREPRESENTATIONCONTEXT = 3377609919;
 var IFCREPRESENTATION = 1076942058;
+var IFCRELAXATION = 1222501353;
 var IFCREINFORCEMENTBARPROPERTIES = 1580146022;
 var IFCREFERENCESVALUEDOCUMENT = 2692823254;
 var IFCQUANTITYWEIGHT = 825690147;
@@ -28635,8 +28900,11 @@ var IFCPROPERTYDEPENDENCYRELATIONSHIP = 148025276;
 var IFCPROPERTYCONSTRAINTRELATIONSHIP = 3896028662;
 var IFCPROPERTY = 2598011224;
 var IFCPROFILEPROPERTIES = 2802850158;
+var IFCPROFILEDEF = 3958567839;
 var IFCPRODUCTSOFCOMBUSTIONPROPERTIES = 2267347899;
 var IFCPRODUCTREPRESENTATION = 2095639259;
+var IFCPRESENTATIONSTYLEASSIGNMENT = 2417041796;
+var IFCPRESENTATIONSTYLE = 3119450353;
 var IFCPRESENTATIONLAYERWITHSTYLE = 1304840413;
 var IFCPRESENTATIONLAYERASSIGNMENT = 2022622350;
 var IFCPREDEFINEDTEXTFONT = 1775413392;
@@ -28645,54 +28913,84 @@ var IFCPREDEFINEDSYMBOL = 990879717;
 var IFCPREDEFINEDITEM = 3727388367;
 var IFCPOSTALADDRESS = 3355820592;
 var IFCPHYSICALSIMPLEQUANTITY = 2226359599;
+var IFCPHYSICALQUANTITY = 2483315170;
 var IFCPERSONANDORGANIZATION = 101040310;
 var IFCPERSON = 2077209135;
+var IFCOWNERHISTORY = 1207048766;
 var IFCORGANIZATIONRELATIONSHIP = 1411181986;
 var IFCORGANIZATION = 4251960020;
 var IFCOPTICALMATERIALPROPERTIES = 1227763645;
 var IFCOBJECTIVE = 2251480897;
 var IFCOBJECTPLACEMENT = 3701648758;
+var IFCNAMEDUNIT = 1918398963;
+var IFCMONETARYUNIT = 2706619895;
 var IFCMETRIC = 3368373690;
 var IFCMECHANICALSTEELMATERIALPROPERTIES = 677618848;
 var IFCMECHANICALMATERIALPROPERTIES = 4256014907;
+var IFCMEASUREWITHUNIT = 2597039031;
 var IFCMATERIALPROPERTIES = 3265635763;
+var IFCMATERIALLIST = 2199411900;
 var IFCMATERIALLAYERSETUSAGE = 1303795690;
 var IFCMATERIALLAYERSET = 3303938423;
 var IFCMATERIALLAYER = 248100487;
 var IFCMATERIALCLASSIFICATIONRELATIONSHIP = 1847130766;
 var IFCMATERIAL = 1838606355;
+var IFCLOCALTIME = 30780891;
+var IFCLIGHTINTENSITYDISTRIBUTION = 1566485204;
+var IFCLIGHTDISTRIBUTIONDATA = 4162380809;
 var IFCLIBRARYREFERENCE = 3452421091;
 var IFCLIBRARYINFORMATION = 2655187982;
+var IFCIRREGULARTIMESERIESVALUE = 3020489413;
+var IFCGRIDAXIS = 852622518;
 var IFCEXTERNALLYDEFINEDTEXTFONT = 3548104201;
 var IFCEXTERNALLYDEFINEDSYMBOL = 3207319532;
 var IFCEXTERNALLYDEFINEDSURFACESTYLE = 1040185647;
 var IFCEXTERNALLYDEFINEDHATCHSTYLE = 2242383968;
+var IFCEXTERNALREFERENCE = 3200245327;
 var IFCENVIRONMENTALIMPACTVALUE = 1648886627;
 var IFCDRAUGHTINGCALLOUTRELATIONSHIP = 3796139169;
 var IFCDOCUMENTINFORMATIONRELATIONSHIP = 770865208;
 var IFCDOCUMENTINFORMATION = 1154170062;
+var IFCDOCUMENTELECTRONICFORMAT = 1376555844;
+var IFCDIMENSIONALEXPONENTS = 2949456006;
+var IFCDERIVEDUNITELEMENT = 1045800335;
+var IFCDERIVEDUNIT = 1765591967;
+var IFCDATEANDTIME = 1072939445;
 var IFCCURVESTYLEFONTPATTERN = 3510044353;
 var IFCCURVESTYLEFONTANDSCALING = 2367409068;
 var IFCCURVESTYLEFONT = 1105321065;
 var IFCCURRENCYRELATIONSHIP = 539742890;
 var IFCCOSTVALUE = 602808272;
+var IFCCOORDINATEDUNIVERSALTIMEOFFSET = 1065062679;
 var IFCCONSTRAINTRELATIONSHIP = 347226245;
 var IFCCONSTRAINTCLASSIFICATIONRELATIONSHIP = 613356794;
 var IFCCONSTRAINTAGGREGATIONRELATIONSHIP = 1658513725;
+var IFCCONSTRAINT = 1959218052;
 var IFCCONNECTIONSURFACEGEOMETRY = 2732653382;
 var IFCCONNECTIONPORTGEOMETRY = 4257277454;
 var IFCCONNECTIONPOINTGEOMETRY = 2614616156;
+var IFCCONNECTIONGEOMETRY = 2859738748;
 var IFCCOLOURSPECIFICATION = 3264961684;
+var IFCCLASSIFICATIONNOTATIONFACET = 3639012971;
+var IFCCLASSIFICATIONNOTATION = 938368621;
 var IFCCLASSIFICATIONITEMRELATIONSHIP = 1098599126;
 var IFCCLASSIFICATIONITEM = 1767535486;
 var IFCCLASSIFICATION = 747523909;
+var IFCCALENDARDATE = 622194075;
 var IFCBOUNDARYNODECONDITIONWARPING = 2069777674;
 var IFCBOUNDARYNODECONDITION = 1387855156;
 var IFCBOUNDARYFACECONDITION = 3367102660;
 var IFCBOUNDARYEDGECONDITION = 1560379544;
+var IFCBOUNDARYCONDITION = 4037036970;
 var IFCAPPROVALRELATIONSHIP = 3869604511;
+var IFCAPPROVALPROPERTYRELATIONSHIP = 390851274;
 var IFCAPPROVALACTORRELATIONSHIP = 2080292479;
+var IFCAPPROVAL = 130549933;
 var IFCAPPLIEDVALUERELATIONSHIP = 1110488051;
+var IFCAPPLIEDVALUE = 411424972;
+var IFCAPPLICATION = 639542469;
+var IFCADDRESS = 618182010;
+var IFCACTORROLE = 3630933823;
 var FILE_DESCRIPTION = 599546466;
 var FILE_NAME = 1390159747;
 var FILE_SCHEMA = 1109904537;
@@ -79638,7 +79936,19 @@ if (typeof self !== "undefined" && self.crossOriginIsolated) {
 } else {
   WebIFCWasm = require_web_ifc();
 }
+var UNKNOWN = 0;
 var STRING = 1;
+var LABEL = 2;
+var ENUM = 3;
+var REAL = 4;
+var REF = 5;
+var EMPTY = 6;
+var SET_BEGIN = 7;
+var SET_END = 8;
+var LINE_END = 9;
+function ms() {
+  return new Date().getTime();
+}
 var IfcAPI2 = class {
   constructor() {
     this.wasmModule = void 0;
@@ -79967,22 +80277,1271 @@ var IfcAPI2 = class {
   }
 };
 
+var WEBIFC = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    Constructors: Constructors,
+    EMPTY: EMPTY,
+    ENUM: ENUM,
+    FILE_DESCRIPTION: FILE_DESCRIPTION,
+    FILE_NAME: FILE_NAME,
+    FILE_SCHEMA: FILE_SCHEMA,
+    FromRawLineData: FromRawLineData,
+    Handle: Handle,
+    IFC2DCOMPOSITECURVE: IFC2DCOMPOSITECURVE,
+    get IFC2X3 () { return IFC2X3; },
+    get IFC4 () { return IFC4; },
+    get IFC4_3 () { return IFC4_3; },
+    IFCABSORBEDDOSEMEASURE: IFCABSORBEDDOSEMEASURE,
+    IFCACCELERATIONMEASURE: IFCACCELERATIONMEASURE,
+    IFCACTIONREQUEST: IFCACTIONREQUEST,
+    IFCACTOR: IFCACTOR,
+    IFCACTORROLE: IFCACTORROLE,
+    IFCACTUATOR: IFCACTUATOR,
+    IFCACTUATORTYPE: IFCACTUATORTYPE,
+    IFCADDRESS: IFCADDRESS,
+    IFCADVANCEDBREP: IFCADVANCEDBREP,
+    IFCADVANCEDBREPWITHVOIDS: IFCADVANCEDBREPWITHVOIDS,
+    IFCADVANCEDFACE: IFCADVANCEDFACE,
+    IFCAIRTERMINAL: IFCAIRTERMINAL,
+    IFCAIRTERMINALBOX: IFCAIRTERMINALBOX,
+    IFCAIRTERMINALBOXTYPE: IFCAIRTERMINALBOXTYPE,
+    IFCAIRTERMINALTYPE: IFCAIRTERMINALTYPE,
+    IFCAIRTOAIRHEATRECOVERY: IFCAIRTOAIRHEATRECOVERY,
+    IFCAIRTOAIRHEATRECOVERYTYPE: IFCAIRTOAIRHEATRECOVERYTYPE,
+    IFCALARM: IFCALARM,
+    IFCALARMTYPE: IFCALARMTYPE,
+    IFCALIGNMENT: IFCALIGNMENT,
+    IFCALIGNMENTCANT: IFCALIGNMENTCANT,
+    IFCALIGNMENTCANTSEGMENT: IFCALIGNMENTCANTSEGMENT,
+    IFCALIGNMENTHORIZONTAL: IFCALIGNMENTHORIZONTAL,
+    IFCALIGNMENTHORIZONTALSEGMENT: IFCALIGNMENTHORIZONTALSEGMENT,
+    IFCALIGNMENTPARAMETERSEGMENT: IFCALIGNMENTPARAMETERSEGMENT,
+    IFCALIGNMENTSEGMENT: IFCALIGNMENTSEGMENT,
+    IFCALIGNMENTVERTICAL: IFCALIGNMENTVERTICAL,
+    IFCALIGNMENTVERTICALSEGMENT: IFCALIGNMENTVERTICALSEGMENT,
+    IFCAMOUNTOFSUBSTANCEMEASURE: IFCAMOUNTOFSUBSTANCEMEASURE,
+    IFCANGULARDIMENSION: IFCANGULARDIMENSION,
+    IFCANGULARVELOCITYMEASURE: IFCANGULARVELOCITYMEASURE,
+    IFCANNOTATION: IFCANNOTATION,
+    IFCANNOTATIONCURVEOCCURRENCE: IFCANNOTATIONCURVEOCCURRENCE,
+    IFCANNOTATIONFILLAREA: IFCANNOTATIONFILLAREA,
+    IFCANNOTATIONFILLAREAOCCURRENCE: IFCANNOTATIONFILLAREAOCCURRENCE,
+    IFCANNOTATIONOCCURRENCE: IFCANNOTATIONOCCURRENCE,
+    IFCANNOTATIONSURFACE: IFCANNOTATIONSURFACE,
+    IFCANNOTATIONSURFACEOCCURRENCE: IFCANNOTATIONSURFACEOCCURRENCE,
+    IFCANNOTATIONSYMBOLOCCURRENCE: IFCANNOTATIONSYMBOLOCCURRENCE,
+    IFCANNOTATIONTEXTOCCURRENCE: IFCANNOTATIONTEXTOCCURRENCE,
+    IFCAPPLICATION: IFCAPPLICATION,
+    IFCAPPLIEDVALUE: IFCAPPLIEDVALUE,
+    IFCAPPLIEDVALUERELATIONSHIP: IFCAPPLIEDVALUERELATIONSHIP,
+    IFCAPPROVAL: IFCAPPROVAL,
+    IFCAPPROVALACTORRELATIONSHIP: IFCAPPROVALACTORRELATIONSHIP,
+    IFCAPPROVALPROPERTYRELATIONSHIP: IFCAPPROVALPROPERTYRELATIONSHIP,
+    IFCAPPROVALRELATIONSHIP: IFCAPPROVALRELATIONSHIP,
+    IFCARBITRARYCLOSEDPROFILEDEF: IFCARBITRARYCLOSEDPROFILEDEF,
+    IFCARBITRARYOPENPROFILEDEF: IFCARBITRARYOPENPROFILEDEF,
+    IFCARBITRARYPROFILEDEFWITHVOIDS: IFCARBITRARYPROFILEDEFWITHVOIDS,
+    IFCARCINDEX: IFCARCINDEX,
+    IFCAREADENSITYMEASURE: IFCAREADENSITYMEASURE,
+    IFCAREAMEASURE: IFCAREAMEASURE,
+    IFCASSET: IFCASSET,
+    IFCASYMMETRICISHAPEPROFILEDEF: IFCASYMMETRICISHAPEPROFILEDEF,
+    IFCAUDIOVISUALAPPLIANCE: IFCAUDIOVISUALAPPLIANCE,
+    IFCAUDIOVISUALAPPLIANCETYPE: IFCAUDIOVISUALAPPLIANCETYPE,
+    IFCAXIS1PLACEMENT: IFCAXIS1PLACEMENT,
+    IFCAXIS2PLACEMENT2D: IFCAXIS2PLACEMENT2D,
+    IFCAXIS2PLACEMENT3D: IFCAXIS2PLACEMENT3D,
+    IFCAXIS2PLACEMENTLINEAR: IFCAXIS2PLACEMENTLINEAR,
+    IFCBEAM: IFCBEAM,
+    IFCBEAMSTANDARDCASE: IFCBEAMSTANDARDCASE,
+    IFCBEAMTYPE: IFCBEAMTYPE,
+    IFCBEARING: IFCBEARING,
+    IFCBEARINGTYPE: IFCBEARINGTYPE,
+    IFCBEZIERCURVE: IFCBEZIERCURVE,
+    IFCBINARY: IFCBINARY,
+    IFCBLOBTEXTURE: IFCBLOBTEXTURE,
+    IFCBLOCK: IFCBLOCK,
+    IFCBOILER: IFCBOILER,
+    IFCBOILERTYPE: IFCBOILERTYPE,
+    IFCBOOLEAN: IFCBOOLEAN,
+    IFCBOOLEANCLIPPINGRESULT: IFCBOOLEANCLIPPINGRESULT,
+    IFCBOOLEANRESULT: IFCBOOLEANRESULT,
+    IFCBOREHOLE: IFCBOREHOLE,
+    IFCBOUNDARYCONDITION: IFCBOUNDARYCONDITION,
+    IFCBOUNDARYCURVE: IFCBOUNDARYCURVE,
+    IFCBOUNDARYEDGECONDITION: IFCBOUNDARYEDGECONDITION,
+    IFCBOUNDARYFACECONDITION: IFCBOUNDARYFACECONDITION,
+    IFCBOUNDARYNODECONDITION: IFCBOUNDARYNODECONDITION,
+    IFCBOUNDARYNODECONDITIONWARPING: IFCBOUNDARYNODECONDITIONWARPING,
+    IFCBOUNDEDCURVE: IFCBOUNDEDCURVE,
+    IFCBOUNDEDSURFACE: IFCBOUNDEDSURFACE,
+    IFCBOUNDINGBOX: IFCBOUNDINGBOX,
+    IFCBOXALIGNMENT: IFCBOXALIGNMENT,
+    IFCBOXEDHALFSPACE: IFCBOXEDHALFSPACE,
+    IFCBRIDGE: IFCBRIDGE,
+    IFCBRIDGEPART: IFCBRIDGEPART,
+    IFCBSPLINECURVE: IFCBSPLINECURVE,
+    IFCBSPLINECURVEWITHKNOTS: IFCBSPLINECURVEWITHKNOTS,
+    IFCBSPLINESURFACE: IFCBSPLINESURFACE,
+    IFCBSPLINESURFACEWITHKNOTS: IFCBSPLINESURFACEWITHKNOTS,
+    IFCBUILDING: IFCBUILDING,
+    IFCBUILDINGELEMENT: IFCBUILDINGELEMENT,
+    IFCBUILDINGELEMENTCOMPONENT: IFCBUILDINGELEMENTCOMPONENT,
+    IFCBUILDINGELEMENTPART: IFCBUILDINGELEMENTPART,
+    IFCBUILDINGELEMENTPARTTYPE: IFCBUILDINGELEMENTPARTTYPE,
+    IFCBUILDINGELEMENTPROXY: IFCBUILDINGELEMENTPROXY,
+    IFCBUILDINGELEMENTPROXYTYPE: IFCBUILDINGELEMENTPROXYTYPE,
+    IFCBUILDINGELEMENTTYPE: IFCBUILDINGELEMENTTYPE,
+    IFCBUILDINGSTOREY: IFCBUILDINGSTOREY,
+    IFCBUILDINGSYSTEM: IFCBUILDINGSYSTEM,
+    IFCBUILTELEMENT: IFCBUILTELEMENT,
+    IFCBUILTELEMENTTYPE: IFCBUILTELEMENTTYPE,
+    IFCBUILTSYSTEM: IFCBUILTSYSTEM,
+    IFCBURNER: IFCBURNER,
+    IFCBURNERTYPE: IFCBURNERTYPE,
+    IFCCABLECARRIERFITTING: IFCCABLECARRIERFITTING,
+    IFCCABLECARRIERFITTINGTYPE: IFCCABLECARRIERFITTINGTYPE,
+    IFCCABLECARRIERSEGMENT: IFCCABLECARRIERSEGMENT,
+    IFCCABLECARRIERSEGMENTTYPE: IFCCABLECARRIERSEGMENTTYPE,
+    IFCCABLEFITTING: IFCCABLEFITTING,
+    IFCCABLEFITTINGTYPE: IFCCABLEFITTINGTYPE,
+    IFCCABLESEGMENT: IFCCABLESEGMENT,
+    IFCCABLESEGMENTTYPE: IFCCABLESEGMENTTYPE,
+    IFCCAISSONFOUNDATION: IFCCAISSONFOUNDATION,
+    IFCCAISSONFOUNDATIONTYPE: IFCCAISSONFOUNDATIONTYPE,
+    IFCCALENDARDATE: IFCCALENDARDATE,
+    IFCCARDINALPOINTREFERENCE: IFCCARDINALPOINTREFERENCE,
+    IFCCARTESIANPOINT: IFCCARTESIANPOINT,
+    IFCCARTESIANPOINTLIST: IFCCARTESIANPOINTLIST,
+    IFCCARTESIANPOINTLIST2D: IFCCARTESIANPOINTLIST2D,
+    IFCCARTESIANPOINTLIST3D: IFCCARTESIANPOINTLIST3D,
+    IFCCARTESIANTRANSFORMATIONOPERATOR: IFCCARTESIANTRANSFORMATIONOPERATOR,
+    IFCCARTESIANTRANSFORMATIONOPERATOR2D: IFCCARTESIANTRANSFORMATIONOPERATOR2D,
+    IFCCARTESIANTRANSFORMATIONOPERATOR2DNONUNIFORM: IFCCARTESIANTRANSFORMATIONOPERATOR2DNONUNIFORM,
+    IFCCARTESIANTRANSFORMATIONOPERATOR3D: IFCCARTESIANTRANSFORMATIONOPERATOR3D,
+    IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM: IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM,
+    IFCCENTERLINEPROFILEDEF: IFCCENTERLINEPROFILEDEF,
+    IFCCHAMFEREDGEFEATURE: IFCCHAMFEREDGEFEATURE,
+    IFCCHILLER: IFCCHILLER,
+    IFCCHILLERTYPE: IFCCHILLERTYPE,
+    IFCCHIMNEY: IFCCHIMNEY,
+    IFCCHIMNEYTYPE: IFCCHIMNEYTYPE,
+    IFCCIRCLE: IFCCIRCLE,
+    IFCCIRCLEHOLLOWPROFILEDEF: IFCCIRCLEHOLLOWPROFILEDEF,
+    IFCCIRCLEPROFILEDEF: IFCCIRCLEPROFILEDEF,
+    IFCCIVILELEMENT: IFCCIVILELEMENT,
+    IFCCIVILELEMENTTYPE: IFCCIVILELEMENTTYPE,
+    IFCCLASSIFICATION: IFCCLASSIFICATION,
+    IFCCLASSIFICATIONITEM: IFCCLASSIFICATIONITEM,
+    IFCCLASSIFICATIONITEMRELATIONSHIP: IFCCLASSIFICATIONITEMRELATIONSHIP,
+    IFCCLASSIFICATIONNOTATION: IFCCLASSIFICATIONNOTATION,
+    IFCCLASSIFICATIONNOTATIONFACET: IFCCLASSIFICATIONNOTATIONFACET,
+    IFCCLASSIFICATIONREFERENCE: IFCCLASSIFICATIONREFERENCE,
+    IFCCLOSEDSHELL: IFCCLOSEDSHELL,
+    IFCCLOTHOID: IFCCLOTHOID,
+    IFCCOIL: IFCCOIL,
+    IFCCOILTYPE: IFCCOILTYPE,
+    IFCCOLOURRGB: IFCCOLOURRGB,
+    IFCCOLOURRGBLIST: IFCCOLOURRGBLIST,
+    IFCCOLOURSPECIFICATION: IFCCOLOURSPECIFICATION,
+    IFCCOLUMN: IFCCOLUMN,
+    IFCCOLUMNSTANDARDCASE: IFCCOLUMNSTANDARDCASE,
+    IFCCOLUMNTYPE: IFCCOLUMNTYPE,
+    IFCCOMMUNICATIONSAPPLIANCE: IFCCOMMUNICATIONSAPPLIANCE,
+    IFCCOMMUNICATIONSAPPLIANCETYPE: IFCCOMMUNICATIONSAPPLIANCETYPE,
+    IFCCOMPLEXNUMBER: IFCCOMPLEXNUMBER,
+    IFCCOMPLEXPROPERTY: IFCCOMPLEXPROPERTY,
+    IFCCOMPLEXPROPERTYTEMPLATE: IFCCOMPLEXPROPERTYTEMPLATE,
+    IFCCOMPOSITECURVE: IFCCOMPOSITECURVE,
+    IFCCOMPOSITECURVEONSURFACE: IFCCOMPOSITECURVEONSURFACE,
+    IFCCOMPOSITECURVESEGMENT: IFCCOMPOSITECURVESEGMENT,
+    IFCCOMPOSITEPROFILEDEF: IFCCOMPOSITEPROFILEDEF,
+    IFCCOMPOUNDPLANEANGLEMEASURE: IFCCOMPOUNDPLANEANGLEMEASURE,
+    IFCCOMPRESSOR: IFCCOMPRESSOR,
+    IFCCOMPRESSORTYPE: IFCCOMPRESSORTYPE,
+    IFCCONDENSER: IFCCONDENSER,
+    IFCCONDENSERTYPE: IFCCONDENSERTYPE,
+    IFCCONDITION: IFCCONDITION,
+    IFCCONDITIONCRITERION: IFCCONDITIONCRITERION,
+    IFCCONIC: IFCCONIC,
+    IFCCONNECTEDFACESET: IFCCONNECTEDFACESET,
+    IFCCONNECTIONCURVEGEOMETRY: IFCCONNECTIONCURVEGEOMETRY,
+    IFCCONNECTIONGEOMETRY: IFCCONNECTIONGEOMETRY,
+    IFCCONNECTIONPOINTECCENTRICITY: IFCCONNECTIONPOINTECCENTRICITY,
+    IFCCONNECTIONPOINTGEOMETRY: IFCCONNECTIONPOINTGEOMETRY,
+    IFCCONNECTIONPORTGEOMETRY: IFCCONNECTIONPORTGEOMETRY,
+    IFCCONNECTIONSURFACEGEOMETRY: IFCCONNECTIONSURFACEGEOMETRY,
+    IFCCONNECTIONVOLUMEGEOMETRY: IFCCONNECTIONVOLUMEGEOMETRY,
+    IFCCONSTRAINT: IFCCONSTRAINT,
+    IFCCONSTRAINTAGGREGATIONRELATIONSHIP: IFCCONSTRAINTAGGREGATIONRELATIONSHIP,
+    IFCCONSTRAINTCLASSIFICATIONRELATIONSHIP: IFCCONSTRAINTCLASSIFICATIONRELATIONSHIP,
+    IFCCONSTRAINTRELATIONSHIP: IFCCONSTRAINTRELATIONSHIP,
+    IFCCONSTRUCTIONEQUIPMENTRESOURCE: IFCCONSTRUCTIONEQUIPMENTRESOURCE,
+    IFCCONSTRUCTIONEQUIPMENTRESOURCETYPE: IFCCONSTRUCTIONEQUIPMENTRESOURCETYPE,
+    IFCCONSTRUCTIONMATERIALRESOURCE: IFCCONSTRUCTIONMATERIALRESOURCE,
+    IFCCONSTRUCTIONMATERIALRESOURCETYPE: IFCCONSTRUCTIONMATERIALRESOURCETYPE,
+    IFCCONSTRUCTIONPRODUCTRESOURCE: IFCCONSTRUCTIONPRODUCTRESOURCE,
+    IFCCONSTRUCTIONPRODUCTRESOURCETYPE: IFCCONSTRUCTIONPRODUCTRESOURCETYPE,
+    IFCCONSTRUCTIONRESOURCE: IFCCONSTRUCTIONRESOURCE,
+    IFCCONSTRUCTIONRESOURCETYPE: IFCCONSTRUCTIONRESOURCETYPE,
+    IFCCONTEXT: IFCCONTEXT,
+    IFCCONTEXTDEPENDENTMEASURE: IFCCONTEXTDEPENDENTMEASURE,
+    IFCCONTEXTDEPENDENTUNIT: IFCCONTEXTDEPENDENTUNIT,
+    IFCCONTROL: IFCCONTROL,
+    IFCCONTROLLER: IFCCONTROLLER,
+    IFCCONTROLLERTYPE: IFCCONTROLLERTYPE,
+    IFCCONVERSIONBASEDUNIT: IFCCONVERSIONBASEDUNIT,
+    IFCCONVERSIONBASEDUNITWITHOFFSET: IFCCONVERSIONBASEDUNITWITHOFFSET,
+    IFCCONVEYORSEGMENT: IFCCONVEYORSEGMENT,
+    IFCCONVEYORSEGMENTTYPE: IFCCONVEYORSEGMENTTYPE,
+    IFCCOOLEDBEAM: IFCCOOLEDBEAM,
+    IFCCOOLEDBEAMTYPE: IFCCOOLEDBEAMTYPE,
+    IFCCOOLINGTOWER: IFCCOOLINGTOWER,
+    IFCCOOLINGTOWERTYPE: IFCCOOLINGTOWERTYPE,
+    IFCCOORDINATEDUNIVERSALTIMEOFFSET: IFCCOORDINATEDUNIVERSALTIMEOFFSET,
+    IFCCOORDINATEOPERATION: IFCCOORDINATEOPERATION,
+    IFCCOORDINATEREFERENCESYSTEM: IFCCOORDINATEREFERENCESYSTEM,
+    IFCCOSINESPIRAL: IFCCOSINESPIRAL,
+    IFCCOSTITEM: IFCCOSTITEM,
+    IFCCOSTSCHEDULE: IFCCOSTSCHEDULE,
+    IFCCOSTVALUE: IFCCOSTVALUE,
+    IFCCOUNTMEASURE: IFCCOUNTMEASURE,
+    IFCCOURSE: IFCCOURSE,
+    IFCCOURSETYPE: IFCCOURSETYPE,
+    IFCCOVERING: IFCCOVERING,
+    IFCCOVERINGTYPE: IFCCOVERINGTYPE,
+    IFCCRANERAILASHAPEPROFILEDEF: IFCCRANERAILASHAPEPROFILEDEF,
+    IFCCRANERAILFSHAPEPROFILEDEF: IFCCRANERAILFSHAPEPROFILEDEF,
+    IFCCREWRESOURCE: IFCCREWRESOURCE,
+    IFCCREWRESOURCETYPE: IFCCREWRESOURCETYPE,
+    IFCCSGPRIMITIVE3D: IFCCSGPRIMITIVE3D,
+    IFCCSGSOLID: IFCCSGSOLID,
+    IFCCSHAPEPROFILEDEF: IFCCSHAPEPROFILEDEF,
+    IFCCURRENCYRELATIONSHIP: IFCCURRENCYRELATIONSHIP,
+    IFCCURTAINWALL: IFCCURTAINWALL,
+    IFCCURTAINWALLTYPE: IFCCURTAINWALLTYPE,
+    IFCCURVATUREMEASURE: IFCCURVATUREMEASURE,
+    IFCCURVE: IFCCURVE,
+    IFCCURVEBOUNDEDPLANE: IFCCURVEBOUNDEDPLANE,
+    IFCCURVEBOUNDEDSURFACE: IFCCURVEBOUNDEDSURFACE,
+    IFCCURVESEGMENT: IFCCURVESEGMENT,
+    IFCCURVESTYLE: IFCCURVESTYLE,
+    IFCCURVESTYLEFONT: IFCCURVESTYLEFONT,
+    IFCCURVESTYLEFONTANDSCALING: IFCCURVESTYLEFONTANDSCALING,
+    IFCCURVESTYLEFONTPATTERN: IFCCURVESTYLEFONTPATTERN,
+    IFCCYLINDRICALSURFACE: IFCCYLINDRICALSURFACE,
+    IFCDAMPER: IFCDAMPER,
+    IFCDAMPERTYPE: IFCDAMPERTYPE,
+    IFCDATE: IFCDATE,
+    IFCDATEANDTIME: IFCDATEANDTIME,
+    IFCDATETIME: IFCDATETIME,
+    IFCDAYINMONTHNUMBER: IFCDAYINMONTHNUMBER,
+    IFCDAYINWEEKNUMBER: IFCDAYINWEEKNUMBER,
+    IFCDAYLIGHTSAVINGHOUR: IFCDAYLIGHTSAVINGHOUR,
+    IFCDEEPFOUNDATION: IFCDEEPFOUNDATION,
+    IFCDEEPFOUNDATIONTYPE: IFCDEEPFOUNDATIONTYPE,
+    IFCDEFINEDSYMBOL: IFCDEFINEDSYMBOL,
+    IFCDERIVEDPROFILEDEF: IFCDERIVEDPROFILEDEF,
+    IFCDERIVEDUNIT: IFCDERIVEDUNIT,
+    IFCDERIVEDUNITELEMENT: IFCDERIVEDUNITELEMENT,
+    IFCDESCRIPTIVEMEASURE: IFCDESCRIPTIVEMEASURE,
+    IFCDIAMETERDIMENSION: IFCDIAMETERDIMENSION,
+    IFCDIMENSIONALEXPONENTS: IFCDIMENSIONALEXPONENTS,
+    IFCDIMENSIONCALLOUTRELATIONSHIP: IFCDIMENSIONCALLOUTRELATIONSHIP,
+    IFCDIMENSIONCOUNT: IFCDIMENSIONCOUNT,
+    IFCDIMENSIONCURVE: IFCDIMENSIONCURVE,
+    IFCDIMENSIONCURVEDIRECTEDCALLOUT: IFCDIMENSIONCURVEDIRECTEDCALLOUT,
+    IFCDIMENSIONCURVETERMINATOR: IFCDIMENSIONCURVETERMINATOR,
+    IFCDIMENSIONPAIR: IFCDIMENSIONPAIR,
+    IFCDIRECTION: IFCDIRECTION,
+    IFCDIRECTRIXCURVESWEPTAREASOLID: IFCDIRECTRIXCURVESWEPTAREASOLID,
+    IFCDIRECTRIXDERIVEDREFERENCESWEPTAREASOLID: IFCDIRECTRIXDERIVEDREFERENCESWEPTAREASOLID,
+    IFCDISCRETEACCESSORY: IFCDISCRETEACCESSORY,
+    IFCDISCRETEACCESSORYTYPE: IFCDISCRETEACCESSORYTYPE,
+    IFCDISTRIBUTIONBOARD: IFCDISTRIBUTIONBOARD,
+    IFCDISTRIBUTIONBOARDTYPE: IFCDISTRIBUTIONBOARDTYPE,
+    IFCDISTRIBUTIONCHAMBERELEMENT: IFCDISTRIBUTIONCHAMBERELEMENT,
+    IFCDISTRIBUTIONCHAMBERELEMENTTYPE: IFCDISTRIBUTIONCHAMBERELEMENTTYPE,
+    IFCDISTRIBUTIONCIRCUIT: IFCDISTRIBUTIONCIRCUIT,
+    IFCDISTRIBUTIONCONTROLELEMENT: IFCDISTRIBUTIONCONTROLELEMENT,
+    IFCDISTRIBUTIONCONTROLELEMENTTYPE: IFCDISTRIBUTIONCONTROLELEMENTTYPE,
+    IFCDISTRIBUTIONELEMENT: IFCDISTRIBUTIONELEMENT,
+    IFCDISTRIBUTIONELEMENTTYPE: IFCDISTRIBUTIONELEMENTTYPE,
+    IFCDISTRIBUTIONFLOWELEMENT: IFCDISTRIBUTIONFLOWELEMENT,
+    IFCDISTRIBUTIONFLOWELEMENTTYPE: IFCDISTRIBUTIONFLOWELEMENTTYPE,
+    IFCDISTRIBUTIONPORT: IFCDISTRIBUTIONPORT,
+    IFCDISTRIBUTIONSYSTEM: IFCDISTRIBUTIONSYSTEM,
+    IFCDOCUMENTELECTRONICFORMAT: IFCDOCUMENTELECTRONICFORMAT,
+    IFCDOCUMENTINFORMATION: IFCDOCUMENTINFORMATION,
+    IFCDOCUMENTINFORMATIONRELATIONSHIP: IFCDOCUMENTINFORMATIONRELATIONSHIP,
+    IFCDOCUMENTREFERENCE: IFCDOCUMENTREFERENCE,
+    IFCDOOR: IFCDOOR,
+    IFCDOORLININGPROPERTIES: IFCDOORLININGPROPERTIES,
+    IFCDOORPANELPROPERTIES: IFCDOORPANELPROPERTIES,
+    IFCDOORSTANDARDCASE: IFCDOORSTANDARDCASE,
+    IFCDOORSTYLE: IFCDOORSTYLE,
+    IFCDOORTYPE: IFCDOORTYPE,
+    IFCDOSEEQUIVALENTMEASURE: IFCDOSEEQUIVALENTMEASURE,
+    IFCDRAUGHTINGCALLOUT: IFCDRAUGHTINGCALLOUT,
+    IFCDRAUGHTINGCALLOUTRELATIONSHIP: IFCDRAUGHTINGCALLOUTRELATIONSHIP,
+    IFCDRAUGHTINGPREDEFINEDCOLOUR: IFCDRAUGHTINGPREDEFINEDCOLOUR,
+    IFCDRAUGHTINGPREDEFINEDCURVEFONT: IFCDRAUGHTINGPREDEFINEDCURVEFONT,
+    IFCDRAUGHTINGPREDEFINEDTEXTFONT: IFCDRAUGHTINGPREDEFINEDTEXTFONT,
+    IFCDUCTFITTING: IFCDUCTFITTING,
+    IFCDUCTFITTINGTYPE: IFCDUCTFITTINGTYPE,
+    IFCDUCTSEGMENT: IFCDUCTSEGMENT,
+    IFCDUCTSEGMENTTYPE: IFCDUCTSEGMENTTYPE,
+    IFCDUCTSILENCER: IFCDUCTSILENCER,
+    IFCDUCTSILENCERTYPE: IFCDUCTSILENCERTYPE,
+    IFCDURATION: IFCDURATION,
+    IFCDYNAMICVISCOSITYMEASURE: IFCDYNAMICVISCOSITYMEASURE,
+    IFCEARTHWORKSCUT: IFCEARTHWORKSCUT,
+    IFCEARTHWORKSELEMENT: IFCEARTHWORKSELEMENT,
+    IFCEARTHWORKSFILL: IFCEARTHWORKSFILL,
+    IFCEDGE: IFCEDGE,
+    IFCEDGECURVE: IFCEDGECURVE,
+    IFCEDGEFEATURE: IFCEDGEFEATURE,
+    IFCEDGELOOP: IFCEDGELOOP,
+    IFCELECTRICALBASEPROPERTIES: IFCELECTRICALBASEPROPERTIES,
+    IFCELECTRICALCIRCUIT: IFCELECTRICALCIRCUIT,
+    IFCELECTRICALELEMENT: IFCELECTRICALELEMENT,
+    IFCELECTRICAPPLIANCE: IFCELECTRICAPPLIANCE,
+    IFCELECTRICAPPLIANCETYPE: IFCELECTRICAPPLIANCETYPE,
+    IFCELECTRICCAPACITANCEMEASURE: IFCELECTRICCAPACITANCEMEASURE,
+    IFCELECTRICCHARGEMEASURE: IFCELECTRICCHARGEMEASURE,
+    IFCELECTRICCONDUCTANCEMEASURE: IFCELECTRICCONDUCTANCEMEASURE,
+    IFCELECTRICCURRENTMEASURE: IFCELECTRICCURRENTMEASURE,
+    IFCELECTRICDISTRIBUTIONBOARD: IFCELECTRICDISTRIBUTIONBOARD,
+    IFCELECTRICDISTRIBUTIONBOARDTYPE: IFCELECTRICDISTRIBUTIONBOARDTYPE,
+    IFCELECTRICDISTRIBUTIONPOINT: IFCELECTRICDISTRIBUTIONPOINT,
+    IFCELECTRICFLOWSTORAGEDEVICE: IFCELECTRICFLOWSTORAGEDEVICE,
+    IFCELECTRICFLOWSTORAGEDEVICETYPE: IFCELECTRICFLOWSTORAGEDEVICETYPE,
+    IFCELECTRICFLOWTREATMENTDEVICE: IFCELECTRICFLOWTREATMENTDEVICE,
+    IFCELECTRICFLOWTREATMENTDEVICETYPE: IFCELECTRICFLOWTREATMENTDEVICETYPE,
+    IFCELECTRICGENERATOR: IFCELECTRICGENERATOR,
+    IFCELECTRICGENERATORTYPE: IFCELECTRICGENERATORTYPE,
+    IFCELECTRICHEATERTYPE: IFCELECTRICHEATERTYPE,
+    IFCELECTRICMOTOR: IFCELECTRICMOTOR,
+    IFCELECTRICMOTORTYPE: IFCELECTRICMOTORTYPE,
+    IFCELECTRICRESISTANCEMEASURE: IFCELECTRICRESISTANCEMEASURE,
+    IFCELECTRICTIMECONTROL: IFCELECTRICTIMECONTROL,
+    IFCELECTRICTIMECONTROLTYPE: IFCELECTRICTIMECONTROLTYPE,
+    IFCELECTRICVOLTAGEMEASURE: IFCELECTRICVOLTAGEMEASURE,
+    IFCELEMENT: IFCELEMENT,
+    IFCELEMENTARYSURFACE: IFCELEMENTARYSURFACE,
+    IFCELEMENTASSEMBLY: IFCELEMENTASSEMBLY,
+    IFCELEMENTASSEMBLYTYPE: IFCELEMENTASSEMBLYTYPE,
+    IFCELEMENTCOMPONENT: IFCELEMENTCOMPONENT,
+    IFCELEMENTCOMPONENTTYPE: IFCELEMENTCOMPONENTTYPE,
+    IFCELEMENTQUANTITY: IFCELEMENTQUANTITY,
+    IFCELEMENTTYPE: IFCELEMENTTYPE,
+    IFCELLIPSE: IFCELLIPSE,
+    IFCELLIPSEPROFILEDEF: IFCELLIPSEPROFILEDEF,
+    IFCENERGYCONVERSIONDEVICE: IFCENERGYCONVERSIONDEVICE,
+    IFCENERGYCONVERSIONDEVICETYPE: IFCENERGYCONVERSIONDEVICETYPE,
+    IFCENERGYMEASURE: IFCENERGYMEASURE,
+    IFCENERGYPROPERTIES: IFCENERGYPROPERTIES,
+    IFCENGINE: IFCENGINE,
+    IFCENGINETYPE: IFCENGINETYPE,
+    IFCENVIRONMENTALIMPACTVALUE: IFCENVIRONMENTALIMPACTVALUE,
+    IFCEQUIPMENTELEMENT: IFCEQUIPMENTELEMENT,
+    IFCEQUIPMENTSTANDARD: IFCEQUIPMENTSTANDARD,
+    IFCEVAPORATIVECOOLER: IFCEVAPORATIVECOOLER,
+    IFCEVAPORATIVECOOLERTYPE: IFCEVAPORATIVECOOLERTYPE,
+    IFCEVAPORATOR: IFCEVAPORATOR,
+    IFCEVAPORATORTYPE: IFCEVAPORATORTYPE,
+    IFCEVENT: IFCEVENT,
+    IFCEVENTTIME: IFCEVENTTIME,
+    IFCEVENTTYPE: IFCEVENTTYPE,
+    IFCEXTENDEDMATERIALPROPERTIES: IFCEXTENDEDMATERIALPROPERTIES,
+    IFCEXTENDEDPROPERTIES: IFCEXTENDEDPROPERTIES,
+    IFCEXTERNALINFORMATION: IFCEXTERNALINFORMATION,
+    IFCEXTERNALLYDEFINEDHATCHSTYLE: IFCEXTERNALLYDEFINEDHATCHSTYLE,
+    IFCEXTERNALLYDEFINEDSURFACESTYLE: IFCEXTERNALLYDEFINEDSURFACESTYLE,
+    IFCEXTERNALLYDEFINEDSYMBOL: IFCEXTERNALLYDEFINEDSYMBOL,
+    IFCEXTERNALLYDEFINEDTEXTFONT: IFCEXTERNALLYDEFINEDTEXTFONT,
+    IFCEXTERNALREFERENCE: IFCEXTERNALREFERENCE,
+    IFCEXTERNALREFERENCERELATIONSHIP: IFCEXTERNALREFERENCERELATIONSHIP,
+    IFCEXTERNALSPATIALELEMENT: IFCEXTERNALSPATIALELEMENT,
+    IFCEXTERNALSPATIALSTRUCTUREELEMENT: IFCEXTERNALSPATIALSTRUCTUREELEMENT,
+    IFCEXTRUDEDAREASOLID: IFCEXTRUDEDAREASOLID,
+    IFCEXTRUDEDAREASOLIDTAPERED: IFCEXTRUDEDAREASOLIDTAPERED,
+    IFCFACE: IFCFACE,
+    IFCFACEBASEDSURFACEMODEL: IFCFACEBASEDSURFACEMODEL,
+    IFCFACEBOUND: IFCFACEBOUND,
+    IFCFACEOUTERBOUND: IFCFACEOUTERBOUND,
+    IFCFACESURFACE: IFCFACESURFACE,
+    IFCFACETEDBREP: IFCFACETEDBREP,
+    IFCFACETEDBREPWITHVOIDS: IFCFACETEDBREPWITHVOIDS,
+    IFCFACILITY: IFCFACILITY,
+    IFCFACILITYPART: IFCFACILITYPART,
+    IFCFACILITYPARTCOMMON: IFCFACILITYPARTCOMMON,
+    IFCFAILURECONNECTIONCONDITION: IFCFAILURECONNECTIONCONDITION,
+    IFCFAN: IFCFAN,
+    IFCFANTYPE: IFCFANTYPE,
+    IFCFASTENER: IFCFASTENER,
+    IFCFASTENERTYPE: IFCFASTENERTYPE,
+    IFCFEATUREELEMENT: IFCFEATUREELEMENT,
+    IFCFEATUREELEMENTADDITION: IFCFEATUREELEMENTADDITION,
+    IFCFEATUREELEMENTSUBTRACTION: IFCFEATUREELEMENTSUBTRACTION,
+    IFCFILLAREASTYLE: IFCFILLAREASTYLE,
+    IFCFILLAREASTYLEHATCHING: IFCFILLAREASTYLEHATCHING,
+    IFCFILLAREASTYLETILES: IFCFILLAREASTYLETILES,
+    IFCFILLAREASTYLETILESYMBOLWITHSTYLE: IFCFILLAREASTYLETILESYMBOLWITHSTYLE,
+    IFCFILTER: IFCFILTER,
+    IFCFILTERTYPE: IFCFILTERTYPE,
+    IFCFIRESUPPRESSIONTERMINAL: IFCFIRESUPPRESSIONTERMINAL,
+    IFCFIRESUPPRESSIONTERMINALTYPE: IFCFIRESUPPRESSIONTERMINALTYPE,
+    IFCFIXEDREFERENCESWEPTAREASOLID: IFCFIXEDREFERENCESWEPTAREASOLID,
+    IFCFLOWCONTROLLER: IFCFLOWCONTROLLER,
+    IFCFLOWCONTROLLERTYPE: IFCFLOWCONTROLLERTYPE,
+    IFCFLOWFITTING: IFCFLOWFITTING,
+    IFCFLOWFITTINGTYPE: IFCFLOWFITTINGTYPE,
+    IFCFLOWINSTRUMENT: IFCFLOWINSTRUMENT,
+    IFCFLOWINSTRUMENTTYPE: IFCFLOWINSTRUMENTTYPE,
+    IFCFLOWMETER: IFCFLOWMETER,
+    IFCFLOWMETERTYPE: IFCFLOWMETERTYPE,
+    IFCFLOWMOVINGDEVICE: IFCFLOWMOVINGDEVICE,
+    IFCFLOWMOVINGDEVICETYPE: IFCFLOWMOVINGDEVICETYPE,
+    IFCFLOWSEGMENT: IFCFLOWSEGMENT,
+    IFCFLOWSEGMENTTYPE: IFCFLOWSEGMENTTYPE,
+    IFCFLOWSTORAGEDEVICE: IFCFLOWSTORAGEDEVICE,
+    IFCFLOWSTORAGEDEVICETYPE: IFCFLOWSTORAGEDEVICETYPE,
+    IFCFLOWTERMINAL: IFCFLOWTERMINAL,
+    IFCFLOWTERMINALTYPE: IFCFLOWTERMINALTYPE,
+    IFCFLOWTREATMENTDEVICE: IFCFLOWTREATMENTDEVICE,
+    IFCFLOWTREATMENTDEVICETYPE: IFCFLOWTREATMENTDEVICETYPE,
+    IFCFLUIDFLOWPROPERTIES: IFCFLUIDFLOWPROPERTIES,
+    IFCFONTSTYLE: IFCFONTSTYLE,
+    IFCFONTVARIANT: IFCFONTVARIANT,
+    IFCFONTWEIGHT: IFCFONTWEIGHT,
+    IFCFOOTING: IFCFOOTING,
+    IFCFOOTINGTYPE: IFCFOOTINGTYPE,
+    IFCFORCEMEASURE: IFCFORCEMEASURE,
+    IFCFREQUENCYMEASURE: IFCFREQUENCYMEASURE,
+    IFCFUELPROPERTIES: IFCFUELPROPERTIES,
+    IFCFURNISHINGELEMENT: IFCFURNISHINGELEMENT,
+    IFCFURNISHINGELEMENTTYPE: IFCFURNISHINGELEMENTTYPE,
+    IFCFURNITURE: IFCFURNITURE,
+    IFCFURNITURESTANDARD: IFCFURNITURESTANDARD,
+    IFCFURNITURETYPE: IFCFURNITURETYPE,
+    IFCGASTERMINALTYPE: IFCGASTERMINALTYPE,
+    IFCGENERALMATERIALPROPERTIES: IFCGENERALMATERIALPROPERTIES,
+    IFCGENERALPROFILEPROPERTIES: IFCGENERALPROFILEPROPERTIES,
+    IFCGEOGRAPHICELEMENT: IFCGEOGRAPHICELEMENT,
+    IFCGEOGRAPHICELEMENTTYPE: IFCGEOGRAPHICELEMENTTYPE,
+    IFCGEOMETRICCURVESET: IFCGEOMETRICCURVESET,
+    IFCGEOMETRICREPRESENTATIONCONTEXT: IFCGEOMETRICREPRESENTATIONCONTEXT,
+    IFCGEOMETRICREPRESENTATIONITEM: IFCGEOMETRICREPRESENTATIONITEM,
+    IFCGEOMETRICREPRESENTATIONSUBCONTEXT: IFCGEOMETRICREPRESENTATIONSUBCONTEXT,
+    IFCGEOMETRICSET: IFCGEOMETRICSET,
+    IFCGEOMODEL: IFCGEOMODEL,
+    IFCGEOSLICE: IFCGEOSLICE,
+    IFCGEOTECHNICALASSEMBLY: IFCGEOTECHNICALASSEMBLY,
+    IFCGEOTECHNICALELEMENT: IFCGEOTECHNICALELEMENT,
+    IFCGEOTECHNICALSTRATUM: IFCGEOTECHNICALSTRATUM,
+    IFCGLOBALLYUNIQUEID: IFCGLOBALLYUNIQUEID,
+    IFCGRADIENTCURVE: IFCGRADIENTCURVE,
+    IFCGRID: IFCGRID,
+    IFCGRIDAXIS: IFCGRIDAXIS,
+    IFCGRIDPLACEMENT: IFCGRIDPLACEMENT,
+    IFCGROUP: IFCGROUP,
+    IFCHALFSPACESOLID: IFCHALFSPACESOLID,
+    IFCHEATEXCHANGER: IFCHEATEXCHANGER,
+    IFCHEATEXCHANGERTYPE: IFCHEATEXCHANGERTYPE,
+    IFCHEATFLUXDENSITYMEASURE: IFCHEATFLUXDENSITYMEASURE,
+    IFCHEATINGVALUEMEASURE: IFCHEATINGVALUEMEASURE,
+    IFCHOURINDAY: IFCHOURINDAY,
+    IFCHUMIDIFIER: IFCHUMIDIFIER,
+    IFCHUMIDIFIERTYPE: IFCHUMIDIFIERTYPE,
+    IFCHYGROSCOPICMATERIALPROPERTIES: IFCHYGROSCOPICMATERIALPROPERTIES,
+    IFCIDENTIFIER: IFCIDENTIFIER,
+    IFCILLUMINANCEMEASURE: IFCILLUMINANCEMEASURE,
+    IFCIMAGETEXTURE: IFCIMAGETEXTURE,
+    IFCIMPACTPROTECTIONDEVICE: IFCIMPACTPROTECTIONDEVICE,
+    IFCIMPACTPROTECTIONDEVICETYPE: IFCIMPACTPROTECTIONDEVICETYPE,
+    IFCINDEXEDCOLOURMAP: IFCINDEXEDCOLOURMAP,
+    IFCINDEXEDPOLYCURVE: IFCINDEXEDPOLYCURVE,
+    IFCINDEXEDPOLYGONALFACE: IFCINDEXEDPOLYGONALFACE,
+    IFCINDEXEDPOLYGONALFACEWITHVOIDS: IFCINDEXEDPOLYGONALFACEWITHVOIDS,
+    IFCINDEXEDPOLYGONALTEXTUREMAP: IFCINDEXEDPOLYGONALTEXTUREMAP,
+    IFCINDEXEDTEXTUREMAP: IFCINDEXEDTEXTUREMAP,
+    IFCINDEXEDTRIANGLETEXTUREMAP: IFCINDEXEDTRIANGLETEXTUREMAP,
+    IFCINDUCTANCEMEASURE: IFCINDUCTANCEMEASURE,
+    IFCINTEGER: IFCINTEGER,
+    IFCINTEGERCOUNTRATEMEASURE: IFCINTEGERCOUNTRATEMEASURE,
+    IFCINTERCEPTOR: IFCINTERCEPTOR,
+    IFCINTERCEPTORTYPE: IFCINTERCEPTORTYPE,
+    IFCINTERSECTIONCURVE: IFCINTERSECTIONCURVE,
+    IFCINVENTORY: IFCINVENTORY,
+    IFCIONCONCENTRATIONMEASURE: IFCIONCONCENTRATIONMEASURE,
+    IFCIRREGULARTIMESERIES: IFCIRREGULARTIMESERIES,
+    IFCIRREGULARTIMESERIESVALUE: IFCIRREGULARTIMESERIESVALUE,
+    IFCISHAPEPROFILEDEF: IFCISHAPEPROFILEDEF,
+    IFCISOTHERMALMOISTURECAPACITYMEASURE: IFCISOTHERMALMOISTURECAPACITYMEASURE,
+    IFCJUNCTIONBOX: IFCJUNCTIONBOX,
+    IFCJUNCTIONBOXTYPE: IFCJUNCTIONBOXTYPE,
+    IFCKERB: IFCKERB,
+    IFCKERBTYPE: IFCKERBTYPE,
+    IFCKINEMATICVISCOSITYMEASURE: IFCKINEMATICVISCOSITYMEASURE,
+    IFCLABEL: IFCLABEL,
+    IFCLABORRESOURCE: IFCLABORRESOURCE,
+    IFCLABORRESOURCETYPE: IFCLABORRESOURCETYPE,
+    IFCLAGTIME: IFCLAGTIME,
+    IFCLAMP: IFCLAMP,
+    IFCLAMPTYPE: IFCLAMPTYPE,
+    IFCLANGUAGEID: IFCLANGUAGEID,
+    IFCLENGTHMEASURE: IFCLENGTHMEASURE,
+    IFCLIBRARYINFORMATION: IFCLIBRARYINFORMATION,
+    IFCLIBRARYREFERENCE: IFCLIBRARYREFERENCE,
+    IFCLIGHTDISTRIBUTIONDATA: IFCLIGHTDISTRIBUTIONDATA,
+    IFCLIGHTFIXTURE: IFCLIGHTFIXTURE,
+    IFCLIGHTFIXTURETYPE: IFCLIGHTFIXTURETYPE,
+    IFCLIGHTINTENSITYDISTRIBUTION: IFCLIGHTINTENSITYDISTRIBUTION,
+    IFCLIGHTSOURCE: IFCLIGHTSOURCE,
+    IFCLIGHTSOURCEAMBIENT: IFCLIGHTSOURCEAMBIENT,
+    IFCLIGHTSOURCEDIRECTIONAL: IFCLIGHTSOURCEDIRECTIONAL,
+    IFCLIGHTSOURCEGONIOMETRIC: IFCLIGHTSOURCEGONIOMETRIC,
+    IFCLIGHTSOURCEPOSITIONAL: IFCLIGHTSOURCEPOSITIONAL,
+    IFCLIGHTSOURCESPOT: IFCLIGHTSOURCESPOT,
+    IFCLINE: IFCLINE,
+    IFCLINEARDIMENSION: IFCLINEARDIMENSION,
+    IFCLINEARELEMENT: IFCLINEARELEMENT,
+    IFCLINEARFORCEMEASURE: IFCLINEARFORCEMEASURE,
+    IFCLINEARMOMENTMEASURE: IFCLINEARMOMENTMEASURE,
+    IFCLINEARPLACEMENT: IFCLINEARPLACEMENT,
+    IFCLINEARPOSITIONINGELEMENT: IFCLINEARPOSITIONINGELEMENT,
+    IFCLINEARSTIFFNESSMEASURE: IFCLINEARSTIFFNESSMEASURE,
+    IFCLINEARVELOCITYMEASURE: IFCLINEARVELOCITYMEASURE,
+    IFCLINEINDEX: IFCLINEINDEX,
+    IFCLIQUIDTERMINAL: IFCLIQUIDTERMINAL,
+    IFCLIQUIDTERMINALTYPE: IFCLIQUIDTERMINALTYPE,
+    IFCLOCALPLACEMENT: IFCLOCALPLACEMENT,
+    IFCLOCALTIME: IFCLOCALTIME,
+    IFCLOGICAL: IFCLOGICAL,
+    IFCLOOP: IFCLOOP,
+    IFCLSHAPEPROFILEDEF: IFCLSHAPEPROFILEDEF,
+    IFCLUMINOUSFLUXMEASURE: IFCLUMINOUSFLUXMEASURE,
+    IFCLUMINOUSINTENSITYDISTRIBUTIONMEASURE: IFCLUMINOUSINTENSITYDISTRIBUTIONMEASURE,
+    IFCLUMINOUSINTENSITYMEASURE: IFCLUMINOUSINTENSITYMEASURE,
+    IFCMAGNETICFLUXDENSITYMEASURE: IFCMAGNETICFLUXDENSITYMEASURE,
+    IFCMAGNETICFLUXMEASURE: IFCMAGNETICFLUXMEASURE,
+    IFCMANIFOLDSOLIDBREP: IFCMANIFOLDSOLIDBREP,
+    IFCMAPCONVERSION: IFCMAPCONVERSION,
+    IFCMAPPEDITEM: IFCMAPPEDITEM,
+    IFCMARINEFACILITY: IFCMARINEFACILITY,
+    IFCMARINEPART: IFCMARINEPART,
+    IFCMASSDENSITYMEASURE: IFCMASSDENSITYMEASURE,
+    IFCMASSFLOWRATEMEASURE: IFCMASSFLOWRATEMEASURE,
+    IFCMASSMEASURE: IFCMASSMEASURE,
+    IFCMASSPERLENGTHMEASURE: IFCMASSPERLENGTHMEASURE,
+    IFCMATERIAL: IFCMATERIAL,
+    IFCMATERIALCLASSIFICATIONRELATIONSHIP: IFCMATERIALCLASSIFICATIONRELATIONSHIP,
+    IFCMATERIALCONSTITUENT: IFCMATERIALCONSTITUENT,
+    IFCMATERIALCONSTITUENTSET: IFCMATERIALCONSTITUENTSET,
+    IFCMATERIALDEFINITION: IFCMATERIALDEFINITION,
+    IFCMATERIALDEFINITIONREPRESENTATION: IFCMATERIALDEFINITIONREPRESENTATION,
+    IFCMATERIALLAYER: IFCMATERIALLAYER,
+    IFCMATERIALLAYERSET: IFCMATERIALLAYERSET,
+    IFCMATERIALLAYERSETUSAGE: IFCMATERIALLAYERSETUSAGE,
+    IFCMATERIALLAYERWITHOFFSETS: IFCMATERIALLAYERWITHOFFSETS,
+    IFCMATERIALLIST: IFCMATERIALLIST,
+    IFCMATERIALPROFILE: IFCMATERIALPROFILE,
+    IFCMATERIALPROFILESET: IFCMATERIALPROFILESET,
+    IFCMATERIALPROFILESETUSAGE: IFCMATERIALPROFILESETUSAGE,
+    IFCMATERIALPROFILESETUSAGETAPERING: IFCMATERIALPROFILESETUSAGETAPERING,
+    IFCMATERIALPROFILEWITHOFFSETS: IFCMATERIALPROFILEWITHOFFSETS,
+    IFCMATERIALPROPERTIES: IFCMATERIALPROPERTIES,
+    IFCMATERIALRELATIONSHIP: IFCMATERIALRELATIONSHIP,
+    IFCMATERIALUSAGEDEFINITION: IFCMATERIALUSAGEDEFINITION,
+    IFCMEASUREWITHUNIT: IFCMEASUREWITHUNIT,
+    IFCMECHANICALCONCRETEMATERIALPROPERTIES: IFCMECHANICALCONCRETEMATERIALPROPERTIES,
+    IFCMECHANICALFASTENER: IFCMECHANICALFASTENER,
+    IFCMECHANICALFASTENERTYPE: IFCMECHANICALFASTENERTYPE,
+    IFCMECHANICALMATERIALPROPERTIES: IFCMECHANICALMATERIALPROPERTIES,
+    IFCMECHANICALSTEELMATERIALPROPERTIES: IFCMECHANICALSTEELMATERIALPROPERTIES,
+    IFCMEDICALDEVICE: IFCMEDICALDEVICE,
+    IFCMEDICALDEVICETYPE: IFCMEDICALDEVICETYPE,
+    IFCMEMBER: IFCMEMBER,
+    IFCMEMBERSTANDARDCASE: IFCMEMBERSTANDARDCASE,
+    IFCMEMBERTYPE: IFCMEMBERTYPE,
+    IFCMETRIC: IFCMETRIC,
+    IFCMINUTEINHOUR: IFCMINUTEINHOUR,
+    IFCMIRROREDPROFILEDEF: IFCMIRROREDPROFILEDEF,
+    IFCMOBILETELECOMMUNICATIONSAPPLIANCE: IFCMOBILETELECOMMUNICATIONSAPPLIANCE,
+    IFCMOBILETELECOMMUNICATIONSAPPLIANCETYPE: IFCMOBILETELECOMMUNICATIONSAPPLIANCETYPE,
+    IFCMODULUSOFELASTICITYMEASURE: IFCMODULUSOFELASTICITYMEASURE,
+    IFCMODULUSOFLINEARSUBGRADEREACTIONMEASURE: IFCMODULUSOFLINEARSUBGRADEREACTIONMEASURE,
+    IFCMODULUSOFROTATIONALSUBGRADEREACTIONMEASURE: IFCMODULUSOFROTATIONALSUBGRADEREACTIONMEASURE,
+    IFCMODULUSOFSUBGRADEREACTIONMEASURE: IFCMODULUSOFSUBGRADEREACTIONMEASURE,
+    IFCMOISTUREDIFFUSIVITYMEASURE: IFCMOISTUREDIFFUSIVITYMEASURE,
+    IFCMOLECULARWEIGHTMEASURE: IFCMOLECULARWEIGHTMEASURE,
+    IFCMOMENTOFINERTIAMEASURE: IFCMOMENTOFINERTIAMEASURE,
+    IFCMONETARYMEASURE: IFCMONETARYMEASURE,
+    IFCMONETARYUNIT: IFCMONETARYUNIT,
+    IFCMONTHINYEARNUMBER: IFCMONTHINYEARNUMBER,
+    IFCMOORINGDEVICE: IFCMOORINGDEVICE,
+    IFCMOORINGDEVICETYPE: IFCMOORINGDEVICETYPE,
+    IFCMOTORCONNECTION: IFCMOTORCONNECTION,
+    IFCMOTORCONNECTIONTYPE: IFCMOTORCONNECTIONTYPE,
+    IFCMOVE: IFCMOVE,
+    IFCNAMEDUNIT: IFCNAMEDUNIT,
+    IFCNAVIGATIONELEMENT: IFCNAVIGATIONELEMENT,
+    IFCNAVIGATIONELEMENTTYPE: IFCNAVIGATIONELEMENTTYPE,
+    IFCNONNEGATIVELENGTHMEASURE: IFCNONNEGATIVELENGTHMEASURE,
+    IFCNORMALISEDRATIOMEASURE: IFCNORMALISEDRATIOMEASURE,
+    IFCNUMERICMEASURE: IFCNUMERICMEASURE,
+    IFCOBJECT: IFCOBJECT,
+    IFCOBJECTDEFINITION: IFCOBJECTDEFINITION,
+    IFCOBJECTIVE: IFCOBJECTIVE,
+    IFCOBJECTPLACEMENT: IFCOBJECTPLACEMENT,
+    IFCOCCUPANT: IFCOCCUPANT,
+    IFCOFFSETCURVE: IFCOFFSETCURVE,
+    IFCOFFSETCURVE2D: IFCOFFSETCURVE2D,
+    IFCOFFSETCURVE3D: IFCOFFSETCURVE3D,
+    IFCOFFSETCURVEBYDISTANCES: IFCOFFSETCURVEBYDISTANCES,
+    IFCONEDIRECTIONREPEATFACTOR: IFCONEDIRECTIONREPEATFACTOR,
+    IFCOPENCROSSPROFILEDEF: IFCOPENCROSSPROFILEDEF,
+    IFCOPENINGELEMENT: IFCOPENINGELEMENT,
+    IFCOPENINGSTANDARDCASE: IFCOPENINGSTANDARDCASE,
+    IFCOPENSHELL: IFCOPENSHELL,
+    IFCOPTICALMATERIALPROPERTIES: IFCOPTICALMATERIALPROPERTIES,
+    IFCORDERACTION: IFCORDERACTION,
+    IFCORGANIZATION: IFCORGANIZATION,
+    IFCORGANIZATIONRELATIONSHIP: IFCORGANIZATIONRELATIONSHIP,
+    IFCORIENTEDEDGE: IFCORIENTEDEDGE,
+    IFCOUTERBOUNDARYCURVE: IFCOUTERBOUNDARYCURVE,
+    IFCOUTLET: IFCOUTLET,
+    IFCOUTLETTYPE: IFCOUTLETTYPE,
+    IFCOWNERHISTORY: IFCOWNERHISTORY,
+    IFCPARAMETERIZEDPROFILEDEF: IFCPARAMETERIZEDPROFILEDEF,
+    IFCPARAMETERVALUE: IFCPARAMETERVALUE,
+    IFCPATH: IFCPATH,
+    IFCPAVEMENT: IFCPAVEMENT,
+    IFCPAVEMENTTYPE: IFCPAVEMENTTYPE,
+    IFCPCURVE: IFCPCURVE,
+    IFCPERFORMANCEHISTORY: IFCPERFORMANCEHISTORY,
+    IFCPERMEABLECOVERINGPROPERTIES: IFCPERMEABLECOVERINGPROPERTIES,
+    IFCPERMIT: IFCPERMIT,
+    IFCPERSON: IFCPERSON,
+    IFCPERSONANDORGANIZATION: IFCPERSONANDORGANIZATION,
+    IFCPHMEASURE: IFCPHMEASURE,
+    IFCPHYSICALCOMPLEXQUANTITY: IFCPHYSICALCOMPLEXQUANTITY,
+    IFCPHYSICALQUANTITY: IFCPHYSICALQUANTITY,
+    IFCPHYSICALSIMPLEQUANTITY: IFCPHYSICALSIMPLEQUANTITY,
+    IFCPILE: IFCPILE,
+    IFCPILETYPE: IFCPILETYPE,
+    IFCPIPEFITTING: IFCPIPEFITTING,
+    IFCPIPEFITTINGTYPE: IFCPIPEFITTINGTYPE,
+    IFCPIPESEGMENT: IFCPIPESEGMENT,
+    IFCPIPESEGMENTTYPE: IFCPIPESEGMENTTYPE,
+    IFCPIXELTEXTURE: IFCPIXELTEXTURE,
+    IFCPLACEMENT: IFCPLACEMENT,
+    IFCPLANARBOX: IFCPLANARBOX,
+    IFCPLANAREXTENT: IFCPLANAREXTENT,
+    IFCPLANARFORCEMEASURE: IFCPLANARFORCEMEASURE,
+    IFCPLANE: IFCPLANE,
+    IFCPLANEANGLEMEASURE: IFCPLANEANGLEMEASURE,
+    IFCPLATE: IFCPLATE,
+    IFCPLATESTANDARDCASE: IFCPLATESTANDARDCASE,
+    IFCPLATETYPE: IFCPLATETYPE,
+    IFCPOINT: IFCPOINT,
+    IFCPOINTBYDISTANCEEXPRESSION: IFCPOINTBYDISTANCEEXPRESSION,
+    IFCPOINTONCURVE: IFCPOINTONCURVE,
+    IFCPOINTONSURFACE: IFCPOINTONSURFACE,
+    IFCPOLYGONALBOUNDEDHALFSPACE: IFCPOLYGONALBOUNDEDHALFSPACE,
+    IFCPOLYGONALFACESET: IFCPOLYGONALFACESET,
+    IFCPOLYLINE: IFCPOLYLINE,
+    IFCPOLYLOOP: IFCPOLYLOOP,
+    IFCPOLYNOMIALCURVE: IFCPOLYNOMIALCURVE,
+    IFCPORT: IFCPORT,
+    IFCPOSITIONINGELEMENT: IFCPOSITIONINGELEMENT,
+    IFCPOSITIVEINTEGER: IFCPOSITIVEINTEGER,
+    IFCPOSITIVELENGTHMEASURE: IFCPOSITIVELENGTHMEASURE,
+    IFCPOSITIVEPLANEANGLEMEASURE: IFCPOSITIVEPLANEANGLEMEASURE,
+    IFCPOSITIVERATIOMEASURE: IFCPOSITIVERATIOMEASURE,
+    IFCPOSTALADDRESS: IFCPOSTALADDRESS,
+    IFCPOWERMEASURE: IFCPOWERMEASURE,
+    IFCPREDEFINEDCOLOUR: IFCPREDEFINEDCOLOUR,
+    IFCPREDEFINEDCURVEFONT: IFCPREDEFINEDCURVEFONT,
+    IFCPREDEFINEDDIMENSIONSYMBOL: IFCPREDEFINEDDIMENSIONSYMBOL,
+    IFCPREDEFINEDITEM: IFCPREDEFINEDITEM,
+    IFCPREDEFINEDPOINTMARKERSYMBOL: IFCPREDEFINEDPOINTMARKERSYMBOL,
+    IFCPREDEFINEDPROPERTIES: IFCPREDEFINEDPROPERTIES,
+    IFCPREDEFINEDPROPERTYSET: IFCPREDEFINEDPROPERTYSET,
+    IFCPREDEFINEDSYMBOL: IFCPREDEFINEDSYMBOL,
+    IFCPREDEFINEDTERMINATORSYMBOL: IFCPREDEFINEDTERMINATORSYMBOL,
+    IFCPREDEFINEDTEXTFONT: IFCPREDEFINEDTEXTFONT,
+    IFCPRESENTABLETEXT: IFCPRESENTABLETEXT,
+    IFCPRESENTATIONITEM: IFCPRESENTATIONITEM,
+    IFCPRESENTATIONLAYERASSIGNMENT: IFCPRESENTATIONLAYERASSIGNMENT,
+    IFCPRESENTATIONLAYERWITHSTYLE: IFCPRESENTATIONLAYERWITHSTYLE,
+    IFCPRESENTATIONSTYLE: IFCPRESENTATIONSTYLE,
+    IFCPRESENTATIONSTYLEASSIGNMENT: IFCPRESENTATIONSTYLEASSIGNMENT,
+    IFCPRESSUREMEASURE: IFCPRESSUREMEASURE,
+    IFCPROCEDURE: IFCPROCEDURE,
+    IFCPROCEDURETYPE: IFCPROCEDURETYPE,
+    IFCPROCESS: IFCPROCESS,
+    IFCPRODUCT: IFCPRODUCT,
+    IFCPRODUCTDEFINITIONSHAPE: IFCPRODUCTDEFINITIONSHAPE,
+    IFCPRODUCTREPRESENTATION: IFCPRODUCTREPRESENTATION,
+    IFCPRODUCTSOFCOMBUSTIONPROPERTIES: IFCPRODUCTSOFCOMBUSTIONPROPERTIES,
+    IFCPROFILEDEF: IFCPROFILEDEF,
+    IFCPROFILEPROPERTIES: IFCPROFILEPROPERTIES,
+    IFCPROJECT: IFCPROJECT,
+    IFCPROJECTEDCRS: IFCPROJECTEDCRS,
+    IFCPROJECTIONCURVE: IFCPROJECTIONCURVE,
+    IFCPROJECTIONELEMENT: IFCPROJECTIONELEMENT,
+    IFCPROJECTLIBRARY: IFCPROJECTLIBRARY,
+    IFCPROJECTORDER: IFCPROJECTORDER,
+    IFCPROJECTORDERRECORD: IFCPROJECTORDERRECORD,
+    IFCPROPERTY: IFCPROPERTY,
+    IFCPROPERTYABSTRACTION: IFCPROPERTYABSTRACTION,
+    IFCPROPERTYBOUNDEDVALUE: IFCPROPERTYBOUNDEDVALUE,
+    IFCPROPERTYCONSTRAINTRELATIONSHIP: IFCPROPERTYCONSTRAINTRELATIONSHIP,
+    IFCPROPERTYDEFINITION: IFCPROPERTYDEFINITION,
+    IFCPROPERTYDEPENDENCYRELATIONSHIP: IFCPROPERTYDEPENDENCYRELATIONSHIP,
+    IFCPROPERTYENUMERATEDVALUE: IFCPROPERTYENUMERATEDVALUE,
+    IFCPROPERTYENUMERATION: IFCPROPERTYENUMERATION,
+    IFCPROPERTYLISTVALUE: IFCPROPERTYLISTVALUE,
+    IFCPROPERTYREFERENCEVALUE: IFCPROPERTYREFERENCEVALUE,
+    IFCPROPERTYSET: IFCPROPERTYSET,
+    IFCPROPERTYSETDEFINITION: IFCPROPERTYSETDEFINITION,
+    IFCPROPERTYSETDEFINITIONSET: IFCPROPERTYSETDEFINITIONSET,
+    IFCPROPERTYSETTEMPLATE: IFCPROPERTYSETTEMPLATE,
+    IFCPROPERTYSINGLEVALUE: IFCPROPERTYSINGLEVALUE,
+    IFCPROPERTYTABLEVALUE: IFCPROPERTYTABLEVALUE,
+    IFCPROPERTYTEMPLATE: IFCPROPERTYTEMPLATE,
+    IFCPROPERTYTEMPLATEDEFINITION: IFCPROPERTYTEMPLATEDEFINITION,
+    IFCPROTECTIVEDEVICE: IFCPROTECTIVEDEVICE,
+    IFCPROTECTIVEDEVICETRIPPINGUNIT: IFCPROTECTIVEDEVICETRIPPINGUNIT,
+    IFCPROTECTIVEDEVICETRIPPINGUNITTYPE: IFCPROTECTIVEDEVICETRIPPINGUNITTYPE,
+    IFCPROTECTIVEDEVICETYPE: IFCPROTECTIVEDEVICETYPE,
+    IFCPROXY: IFCPROXY,
+    IFCPUMP: IFCPUMP,
+    IFCPUMPTYPE: IFCPUMPTYPE,
+    IFCQUANTITYAREA: IFCQUANTITYAREA,
+    IFCQUANTITYCOUNT: IFCQUANTITYCOUNT,
+    IFCQUANTITYLENGTH: IFCQUANTITYLENGTH,
+    IFCQUANTITYNUMBER: IFCQUANTITYNUMBER,
+    IFCQUANTITYSET: IFCQUANTITYSET,
+    IFCQUANTITYTIME: IFCQUANTITYTIME,
+    IFCQUANTITYVOLUME: IFCQUANTITYVOLUME,
+    IFCQUANTITYWEIGHT: IFCQUANTITYWEIGHT,
+    IFCRADIOACTIVITYMEASURE: IFCRADIOACTIVITYMEASURE,
+    IFCRADIUSDIMENSION: IFCRADIUSDIMENSION,
+    IFCRAIL: IFCRAIL,
+    IFCRAILING: IFCRAILING,
+    IFCRAILINGTYPE: IFCRAILINGTYPE,
+    IFCRAILTYPE: IFCRAILTYPE,
+    IFCRAILWAY: IFCRAILWAY,
+    IFCRAILWAYPART: IFCRAILWAYPART,
+    IFCRAMP: IFCRAMP,
+    IFCRAMPFLIGHT: IFCRAMPFLIGHT,
+    IFCRAMPFLIGHTTYPE: IFCRAMPFLIGHTTYPE,
+    IFCRAMPTYPE: IFCRAMPTYPE,
+    IFCRATIOMEASURE: IFCRATIOMEASURE,
+    IFCRATIONALBEZIERCURVE: IFCRATIONALBEZIERCURVE,
+    IFCRATIONALBSPLINECURVEWITHKNOTS: IFCRATIONALBSPLINECURVEWITHKNOTS,
+    IFCRATIONALBSPLINESURFACEWITHKNOTS: IFCRATIONALBSPLINESURFACEWITHKNOTS,
+    IFCREAL: IFCREAL,
+    IFCRECTANGLEHOLLOWPROFILEDEF: IFCRECTANGLEHOLLOWPROFILEDEF,
+    IFCRECTANGLEPROFILEDEF: IFCRECTANGLEPROFILEDEF,
+    IFCRECTANGULARPYRAMID: IFCRECTANGULARPYRAMID,
+    IFCRECTANGULARTRIMMEDSURFACE: IFCRECTANGULARTRIMMEDSURFACE,
+    IFCRECURRENCEPATTERN: IFCRECURRENCEPATTERN,
+    IFCREFERENCE: IFCREFERENCE,
+    IFCREFERENCESVALUEDOCUMENT: IFCREFERENCESVALUEDOCUMENT,
+    IFCREFERENT: IFCREFERENT,
+    IFCREGULARTIMESERIES: IFCREGULARTIMESERIES,
+    IFCREINFORCEDSOIL: IFCREINFORCEDSOIL,
+    IFCREINFORCEMENTBARPROPERTIES: IFCREINFORCEMENTBARPROPERTIES,
+    IFCREINFORCEMENTDEFINITIONPROPERTIES: IFCREINFORCEMENTDEFINITIONPROPERTIES,
+    IFCREINFORCINGBAR: IFCREINFORCINGBAR,
+    IFCREINFORCINGBARTYPE: IFCREINFORCINGBARTYPE,
+    IFCREINFORCINGELEMENT: IFCREINFORCINGELEMENT,
+    IFCREINFORCINGELEMENTTYPE: IFCREINFORCINGELEMENTTYPE,
+    IFCREINFORCINGMESH: IFCREINFORCINGMESH,
+    IFCREINFORCINGMESHTYPE: IFCREINFORCINGMESHTYPE,
+    IFCRELADHERESTOELEMENT: IFCRELADHERESTOELEMENT,
+    IFCRELAGGREGATES: IFCRELAGGREGATES,
+    IFCRELASSIGNS: IFCRELASSIGNS,
+    IFCRELASSIGNSTASKS: IFCRELASSIGNSTASKS,
+    IFCRELASSIGNSTOACTOR: IFCRELASSIGNSTOACTOR,
+    IFCRELASSIGNSTOCONTROL: IFCRELASSIGNSTOCONTROL,
+    IFCRELASSIGNSTOGROUP: IFCRELASSIGNSTOGROUP,
+    IFCRELASSIGNSTOGROUPBYFACTOR: IFCRELASSIGNSTOGROUPBYFACTOR,
+    IFCRELASSIGNSTOPROCESS: IFCRELASSIGNSTOPROCESS,
+    IFCRELASSIGNSTOPRODUCT: IFCRELASSIGNSTOPRODUCT,
+    IFCRELASSIGNSTOPROJECTORDER: IFCRELASSIGNSTOPROJECTORDER,
+    IFCRELASSIGNSTORESOURCE: IFCRELASSIGNSTORESOURCE,
+    IFCRELASSOCIATES: IFCRELASSOCIATES,
+    IFCRELASSOCIATESAPPLIEDVALUE: IFCRELASSOCIATESAPPLIEDVALUE,
+    IFCRELASSOCIATESAPPROVAL: IFCRELASSOCIATESAPPROVAL,
+    IFCRELASSOCIATESCLASSIFICATION: IFCRELASSOCIATESCLASSIFICATION,
+    IFCRELASSOCIATESCONSTRAINT: IFCRELASSOCIATESCONSTRAINT,
+    IFCRELASSOCIATESDOCUMENT: IFCRELASSOCIATESDOCUMENT,
+    IFCRELASSOCIATESLIBRARY: IFCRELASSOCIATESLIBRARY,
+    IFCRELASSOCIATESMATERIAL: IFCRELASSOCIATESMATERIAL,
+    IFCRELASSOCIATESPROFILEDEF: IFCRELASSOCIATESPROFILEDEF,
+    IFCRELASSOCIATESPROFILEPROPERTIES: IFCRELASSOCIATESPROFILEPROPERTIES,
+    IFCRELATIONSHIP: IFCRELATIONSHIP,
+    IFCRELAXATION: IFCRELAXATION,
+    IFCRELCONNECTS: IFCRELCONNECTS,
+    IFCRELCONNECTSELEMENTS: IFCRELCONNECTSELEMENTS,
+    IFCRELCONNECTSPATHELEMENTS: IFCRELCONNECTSPATHELEMENTS,
+    IFCRELCONNECTSPORTS: IFCRELCONNECTSPORTS,
+    IFCRELCONNECTSPORTTOELEMENT: IFCRELCONNECTSPORTTOELEMENT,
+    IFCRELCONNECTSSTRUCTURALACTIVITY: IFCRELCONNECTSSTRUCTURALACTIVITY,
+    IFCRELCONNECTSSTRUCTURALELEMENT: IFCRELCONNECTSSTRUCTURALELEMENT,
+    IFCRELCONNECTSSTRUCTURALMEMBER: IFCRELCONNECTSSTRUCTURALMEMBER,
+    IFCRELCONNECTSWITHECCENTRICITY: IFCRELCONNECTSWITHECCENTRICITY,
+    IFCRELCONNECTSWITHREALIZINGELEMENTS: IFCRELCONNECTSWITHREALIZINGELEMENTS,
+    IFCRELCONTAINEDINSPATIALSTRUCTURE: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+    IFCRELCOVERSBLDGELEMENTS: IFCRELCOVERSBLDGELEMENTS,
+    IFCRELCOVERSSPACES: IFCRELCOVERSSPACES,
+    IFCRELDECLARES: IFCRELDECLARES,
+    IFCRELDECOMPOSES: IFCRELDECOMPOSES,
+    IFCRELDEFINES: IFCRELDEFINES,
+    IFCRELDEFINESBYOBJECT: IFCRELDEFINESBYOBJECT,
+    IFCRELDEFINESBYPROPERTIES: IFCRELDEFINESBYPROPERTIES,
+    IFCRELDEFINESBYTEMPLATE: IFCRELDEFINESBYTEMPLATE,
+    IFCRELDEFINESBYTYPE: IFCRELDEFINESBYTYPE,
+    IFCRELFILLSELEMENT: IFCRELFILLSELEMENT,
+    IFCRELFLOWCONTROLELEMENTS: IFCRELFLOWCONTROLELEMENTS,
+    IFCRELINTERACTIONREQUIREMENTS: IFCRELINTERACTIONREQUIREMENTS,
+    IFCRELINTERFERESELEMENTS: IFCRELINTERFERESELEMENTS,
+    IFCRELNESTS: IFCRELNESTS,
+    IFCRELOCCUPIESSPACES: IFCRELOCCUPIESSPACES,
+    IFCRELOVERRIDESPROPERTIES: IFCRELOVERRIDESPROPERTIES,
+    IFCRELPOSITIONS: IFCRELPOSITIONS,
+    IFCRELPROJECTSELEMENT: IFCRELPROJECTSELEMENT,
+    IFCRELREFERENCEDINSPATIALSTRUCTURE: IFCRELREFERENCEDINSPATIALSTRUCTURE,
+    IFCRELSCHEDULESCOSTITEMS: IFCRELSCHEDULESCOSTITEMS,
+    IFCRELSEQUENCE: IFCRELSEQUENCE,
+    IFCRELSERVICESBUILDINGS: IFCRELSERVICESBUILDINGS,
+    IFCRELSPACEBOUNDARY: IFCRELSPACEBOUNDARY,
+    IFCRELSPACEBOUNDARY1STLEVEL: IFCRELSPACEBOUNDARY1STLEVEL,
+    IFCRELSPACEBOUNDARY2NDLEVEL: IFCRELSPACEBOUNDARY2NDLEVEL,
+    IFCRELVOIDSELEMENT: IFCRELVOIDSELEMENT,
+    IFCREPARAMETRISEDCOMPOSITECURVESEGMENT: IFCREPARAMETRISEDCOMPOSITECURVESEGMENT,
+    IFCREPRESENTATION: IFCREPRESENTATION,
+    IFCREPRESENTATIONCONTEXT: IFCREPRESENTATIONCONTEXT,
+    IFCREPRESENTATIONITEM: IFCREPRESENTATIONITEM,
+    IFCREPRESENTATIONMAP: IFCREPRESENTATIONMAP,
+    IFCRESOURCE: IFCRESOURCE,
+    IFCRESOURCEAPPROVALRELATIONSHIP: IFCRESOURCEAPPROVALRELATIONSHIP,
+    IFCRESOURCECONSTRAINTRELATIONSHIP: IFCRESOURCECONSTRAINTRELATIONSHIP,
+    IFCRESOURCELEVELRELATIONSHIP: IFCRESOURCELEVELRELATIONSHIP,
+    IFCRESOURCETIME: IFCRESOURCETIME,
+    IFCREVOLVEDAREASOLID: IFCREVOLVEDAREASOLID,
+    IFCREVOLVEDAREASOLIDTAPERED: IFCREVOLVEDAREASOLIDTAPERED,
+    IFCRIBPLATEPROFILEPROPERTIES: IFCRIBPLATEPROFILEPROPERTIES,
+    IFCRIGHTCIRCULARCONE: IFCRIGHTCIRCULARCONE,
+    IFCRIGHTCIRCULARCYLINDER: IFCRIGHTCIRCULARCYLINDER,
+    IFCROAD: IFCROAD,
+    IFCROADPART: IFCROADPART,
+    IFCROOF: IFCROOF,
+    IFCROOFTYPE: IFCROOFTYPE,
+    IFCROOT: IFCROOT,
+    IFCROTATIONALFREQUENCYMEASURE: IFCROTATIONALFREQUENCYMEASURE,
+    IFCROTATIONALMASSMEASURE: IFCROTATIONALMASSMEASURE,
+    IFCROTATIONALSTIFFNESSMEASURE: IFCROTATIONALSTIFFNESSMEASURE,
+    IFCROUNDEDEDGEFEATURE: IFCROUNDEDEDGEFEATURE,
+    IFCROUNDEDRECTANGLEPROFILEDEF: IFCROUNDEDRECTANGLEPROFILEDEF,
+    IFCSANITARYTERMINAL: IFCSANITARYTERMINAL,
+    IFCSANITARYTERMINALTYPE: IFCSANITARYTERMINALTYPE,
+    IFCSCHEDULETIMECONTROL: IFCSCHEDULETIMECONTROL,
+    IFCSCHEDULINGTIME: IFCSCHEDULINGTIME,
+    IFCSEAMCURVE: IFCSEAMCURVE,
+    IFCSECONDINMINUTE: IFCSECONDINMINUTE,
+    IFCSECONDORDERPOLYNOMIALSPIRAL: IFCSECONDORDERPOLYNOMIALSPIRAL,
+    IFCSECTIONALAREAINTEGRALMEASURE: IFCSECTIONALAREAINTEGRALMEASURE,
+    IFCSECTIONEDSOLID: IFCSECTIONEDSOLID,
+    IFCSECTIONEDSOLIDHORIZONTAL: IFCSECTIONEDSOLIDHORIZONTAL,
+    IFCSECTIONEDSPINE: IFCSECTIONEDSPINE,
+    IFCSECTIONEDSURFACE: IFCSECTIONEDSURFACE,
+    IFCSECTIONMODULUSMEASURE: IFCSECTIONMODULUSMEASURE,
+    IFCSECTIONPROPERTIES: IFCSECTIONPROPERTIES,
+    IFCSECTIONREINFORCEMENTPROPERTIES: IFCSECTIONREINFORCEMENTPROPERTIES,
+    IFCSEGMENT: IFCSEGMENT,
+    IFCSEGMENTEDREFERENCECURVE: IFCSEGMENTEDREFERENCECURVE,
+    IFCSENSOR: IFCSENSOR,
+    IFCSENSORTYPE: IFCSENSORTYPE,
+    IFCSERVICELIFE: IFCSERVICELIFE,
+    IFCSERVICELIFEFACTOR: IFCSERVICELIFEFACTOR,
+    IFCSEVENTHORDERPOLYNOMIALSPIRAL: IFCSEVENTHORDERPOLYNOMIALSPIRAL,
+    IFCSHADINGDEVICE: IFCSHADINGDEVICE,
+    IFCSHADINGDEVICETYPE: IFCSHADINGDEVICETYPE,
+    IFCSHAPEASPECT: IFCSHAPEASPECT,
+    IFCSHAPEMODEL: IFCSHAPEMODEL,
+    IFCSHAPEREPRESENTATION: IFCSHAPEREPRESENTATION,
+    IFCSHEARMODULUSMEASURE: IFCSHEARMODULUSMEASURE,
+    IFCSHELLBASEDSURFACEMODEL: IFCSHELLBASEDSURFACEMODEL,
+    IFCSIGN: IFCSIGN,
+    IFCSIGNAL: IFCSIGNAL,
+    IFCSIGNALTYPE: IFCSIGNALTYPE,
+    IFCSIGNTYPE: IFCSIGNTYPE,
+    IFCSIMPLEPROPERTY: IFCSIMPLEPROPERTY,
+    IFCSIMPLEPROPERTYTEMPLATE: IFCSIMPLEPROPERTYTEMPLATE,
+    IFCSINESPIRAL: IFCSINESPIRAL,
+    IFCSITE: IFCSITE,
+    IFCSIUNIT: IFCSIUNIT,
+    IFCSLAB: IFCSLAB,
+    IFCSLABELEMENTEDCASE: IFCSLABELEMENTEDCASE,
+    IFCSLABSTANDARDCASE: IFCSLABSTANDARDCASE,
+    IFCSLABTYPE: IFCSLABTYPE,
+    IFCSLIPPAGECONNECTIONCONDITION: IFCSLIPPAGECONNECTIONCONDITION,
+    IFCSOLARDEVICE: IFCSOLARDEVICE,
+    IFCSOLARDEVICETYPE: IFCSOLARDEVICETYPE,
+    IFCSOLIDANGLEMEASURE: IFCSOLIDANGLEMEASURE,
+    IFCSOLIDMODEL: IFCSOLIDMODEL,
+    IFCSOUNDPOWERLEVELMEASURE: IFCSOUNDPOWERLEVELMEASURE,
+    IFCSOUNDPOWERMEASURE: IFCSOUNDPOWERMEASURE,
+    IFCSOUNDPRESSURELEVELMEASURE: IFCSOUNDPRESSURELEVELMEASURE,
+    IFCSOUNDPRESSUREMEASURE: IFCSOUNDPRESSUREMEASURE,
+    IFCSOUNDPROPERTIES: IFCSOUNDPROPERTIES,
+    IFCSOUNDVALUE: IFCSOUNDVALUE,
+    IFCSPACE: IFCSPACE,
+    IFCSPACEHEATER: IFCSPACEHEATER,
+    IFCSPACEHEATERTYPE: IFCSPACEHEATERTYPE,
+    IFCSPACEPROGRAM: IFCSPACEPROGRAM,
+    IFCSPACETHERMALLOADPROPERTIES: IFCSPACETHERMALLOADPROPERTIES,
+    IFCSPACETYPE: IFCSPACETYPE,
+    IFCSPATIALELEMENT: IFCSPATIALELEMENT,
+    IFCSPATIALELEMENTTYPE: IFCSPATIALELEMENTTYPE,
+    IFCSPATIALSTRUCTUREELEMENT: IFCSPATIALSTRUCTUREELEMENT,
+    IFCSPATIALSTRUCTUREELEMENTTYPE: IFCSPATIALSTRUCTUREELEMENTTYPE,
+    IFCSPATIALZONE: IFCSPATIALZONE,
+    IFCSPATIALZONETYPE: IFCSPATIALZONETYPE,
+    IFCSPECIFICHEATCAPACITYMEASURE: IFCSPECIFICHEATCAPACITYMEASURE,
+    IFCSPECULAREXPONENT: IFCSPECULAREXPONENT,
+    IFCSPECULARROUGHNESS: IFCSPECULARROUGHNESS,
+    IFCSPHERE: IFCSPHERE,
+    IFCSPHERICALSURFACE: IFCSPHERICALSURFACE,
+    IFCSPIRAL: IFCSPIRAL,
+    IFCSTACKTERMINAL: IFCSTACKTERMINAL,
+    IFCSTACKTERMINALTYPE: IFCSTACKTERMINALTYPE,
+    IFCSTAIR: IFCSTAIR,
+    IFCSTAIRFLIGHT: IFCSTAIRFLIGHT,
+    IFCSTAIRFLIGHTTYPE: IFCSTAIRFLIGHTTYPE,
+    IFCSTAIRTYPE: IFCSTAIRTYPE,
+    IFCSTRUCTURALACTION: IFCSTRUCTURALACTION,
+    IFCSTRUCTURALACTIVITY: IFCSTRUCTURALACTIVITY,
+    IFCSTRUCTURALANALYSISMODEL: IFCSTRUCTURALANALYSISMODEL,
+    IFCSTRUCTURALCONNECTION: IFCSTRUCTURALCONNECTION,
+    IFCSTRUCTURALCONNECTIONCONDITION: IFCSTRUCTURALCONNECTIONCONDITION,
+    IFCSTRUCTURALCURVEACTION: IFCSTRUCTURALCURVEACTION,
+    IFCSTRUCTURALCURVECONNECTION: IFCSTRUCTURALCURVECONNECTION,
+    IFCSTRUCTURALCURVEMEMBER: IFCSTRUCTURALCURVEMEMBER,
+    IFCSTRUCTURALCURVEMEMBERVARYING: IFCSTRUCTURALCURVEMEMBERVARYING,
+    IFCSTRUCTURALCURVEREACTION: IFCSTRUCTURALCURVEREACTION,
+    IFCSTRUCTURALITEM: IFCSTRUCTURALITEM,
+    IFCSTRUCTURALLINEARACTION: IFCSTRUCTURALLINEARACTION,
+    IFCSTRUCTURALLINEARACTIONVARYING: IFCSTRUCTURALLINEARACTIONVARYING,
+    IFCSTRUCTURALLOAD: IFCSTRUCTURALLOAD,
+    IFCSTRUCTURALLOADCASE: IFCSTRUCTURALLOADCASE,
+    IFCSTRUCTURALLOADCONFIGURATION: IFCSTRUCTURALLOADCONFIGURATION,
+    IFCSTRUCTURALLOADGROUP: IFCSTRUCTURALLOADGROUP,
+    IFCSTRUCTURALLOADLINEARFORCE: IFCSTRUCTURALLOADLINEARFORCE,
+    IFCSTRUCTURALLOADORRESULT: IFCSTRUCTURALLOADORRESULT,
+    IFCSTRUCTURALLOADPLANARFORCE: IFCSTRUCTURALLOADPLANARFORCE,
+    IFCSTRUCTURALLOADSINGLEDISPLACEMENT: IFCSTRUCTURALLOADSINGLEDISPLACEMENT,
+    IFCSTRUCTURALLOADSINGLEDISPLACEMENTDISTORTION: IFCSTRUCTURALLOADSINGLEDISPLACEMENTDISTORTION,
+    IFCSTRUCTURALLOADSINGLEFORCE: IFCSTRUCTURALLOADSINGLEFORCE,
+    IFCSTRUCTURALLOADSINGLEFORCEWARPING: IFCSTRUCTURALLOADSINGLEFORCEWARPING,
+    IFCSTRUCTURALLOADSTATIC: IFCSTRUCTURALLOADSTATIC,
+    IFCSTRUCTURALLOADTEMPERATURE: IFCSTRUCTURALLOADTEMPERATURE,
+    IFCSTRUCTURALMEMBER: IFCSTRUCTURALMEMBER,
+    IFCSTRUCTURALPLANARACTION: IFCSTRUCTURALPLANARACTION,
+    IFCSTRUCTURALPLANARACTIONVARYING: IFCSTRUCTURALPLANARACTIONVARYING,
+    IFCSTRUCTURALPOINTACTION: IFCSTRUCTURALPOINTACTION,
+    IFCSTRUCTURALPOINTCONNECTION: IFCSTRUCTURALPOINTCONNECTION,
+    IFCSTRUCTURALPOINTREACTION: IFCSTRUCTURALPOINTREACTION,
+    IFCSTRUCTURALPROFILEPROPERTIES: IFCSTRUCTURALPROFILEPROPERTIES,
+    IFCSTRUCTURALREACTION: IFCSTRUCTURALREACTION,
+    IFCSTRUCTURALRESULTGROUP: IFCSTRUCTURALRESULTGROUP,
+    IFCSTRUCTURALSTEELPROFILEPROPERTIES: IFCSTRUCTURALSTEELPROFILEPROPERTIES,
+    IFCSTRUCTURALSURFACEACTION: IFCSTRUCTURALSURFACEACTION,
+    IFCSTRUCTURALSURFACECONNECTION: IFCSTRUCTURALSURFACECONNECTION,
+    IFCSTRUCTURALSURFACEMEMBER: IFCSTRUCTURALSURFACEMEMBER,
+    IFCSTRUCTURALSURFACEMEMBERVARYING: IFCSTRUCTURALSURFACEMEMBERVARYING,
+    IFCSTRUCTURALSURFACEREACTION: IFCSTRUCTURALSURFACEREACTION,
+    IFCSTRUCTUREDDIMENSIONCALLOUT: IFCSTRUCTUREDDIMENSIONCALLOUT,
+    IFCSTYLEDITEM: IFCSTYLEDITEM,
+    IFCSTYLEDREPRESENTATION: IFCSTYLEDREPRESENTATION,
+    IFCSTYLEMODEL: IFCSTYLEMODEL,
+    IFCSUBCONTRACTRESOURCE: IFCSUBCONTRACTRESOURCE,
+    IFCSUBCONTRACTRESOURCETYPE: IFCSUBCONTRACTRESOURCETYPE,
+    IFCSUBEDGE: IFCSUBEDGE,
+    IFCSURFACE: IFCSURFACE,
+    IFCSURFACECURVE: IFCSURFACECURVE,
+    IFCSURFACECURVESWEPTAREASOLID: IFCSURFACECURVESWEPTAREASOLID,
+    IFCSURFACEFEATURE: IFCSURFACEFEATURE,
+    IFCSURFACEOFLINEAREXTRUSION: IFCSURFACEOFLINEAREXTRUSION,
+    IFCSURFACEOFREVOLUTION: IFCSURFACEOFREVOLUTION,
+    IFCSURFACEREINFORCEMENTAREA: IFCSURFACEREINFORCEMENTAREA,
+    IFCSURFACESTYLE: IFCSURFACESTYLE,
+    IFCSURFACESTYLELIGHTING: IFCSURFACESTYLELIGHTING,
+    IFCSURFACESTYLEREFRACTION: IFCSURFACESTYLEREFRACTION,
+    IFCSURFACESTYLERENDERING: IFCSURFACESTYLERENDERING,
+    IFCSURFACESTYLESHADING: IFCSURFACESTYLESHADING,
+    IFCSURFACESTYLEWITHTEXTURES: IFCSURFACESTYLEWITHTEXTURES,
+    IFCSURFACETEXTURE: IFCSURFACETEXTURE,
+    IFCSWEPTAREASOLID: IFCSWEPTAREASOLID,
+    IFCSWEPTDISKSOLID: IFCSWEPTDISKSOLID,
+    IFCSWEPTDISKSOLIDPOLYGONAL: IFCSWEPTDISKSOLIDPOLYGONAL,
+    IFCSWEPTSURFACE: IFCSWEPTSURFACE,
+    IFCSWITCHINGDEVICE: IFCSWITCHINGDEVICE,
+    IFCSWITCHINGDEVICETYPE: IFCSWITCHINGDEVICETYPE,
+    IFCSYMBOLSTYLE: IFCSYMBOLSTYLE,
+    IFCSYSTEM: IFCSYSTEM,
+    IFCSYSTEMFURNITUREELEMENT: IFCSYSTEMFURNITUREELEMENT,
+    IFCSYSTEMFURNITUREELEMENTTYPE: IFCSYSTEMFURNITUREELEMENTTYPE,
+    IFCTABLE: IFCTABLE,
+    IFCTABLECOLUMN: IFCTABLECOLUMN,
+    IFCTABLEROW: IFCTABLEROW,
+    IFCTANK: IFCTANK,
+    IFCTANKTYPE: IFCTANKTYPE,
+    IFCTASK: IFCTASK,
+    IFCTASKTIME: IFCTASKTIME,
+    IFCTASKTIMERECURRING: IFCTASKTIMERECURRING,
+    IFCTASKTYPE: IFCTASKTYPE,
+    IFCTELECOMADDRESS: IFCTELECOMADDRESS,
+    IFCTEMPERATUREGRADIENTMEASURE: IFCTEMPERATUREGRADIENTMEASURE,
+    IFCTEMPERATURERATEOFCHANGEMEASURE: IFCTEMPERATURERATEOFCHANGEMEASURE,
+    IFCTENDON: IFCTENDON,
+    IFCTENDONANCHOR: IFCTENDONANCHOR,
+    IFCTENDONANCHORTYPE: IFCTENDONANCHORTYPE,
+    IFCTENDONCONDUIT: IFCTENDONCONDUIT,
+    IFCTENDONCONDUITTYPE: IFCTENDONCONDUITTYPE,
+    IFCTENDONTYPE: IFCTENDONTYPE,
+    IFCTERMINATORSYMBOL: IFCTERMINATORSYMBOL,
+    IFCTESSELLATEDFACESET: IFCTESSELLATEDFACESET,
+    IFCTESSELLATEDITEM: IFCTESSELLATEDITEM,
+    IFCTEXT: IFCTEXT,
+    IFCTEXTALIGNMENT: IFCTEXTALIGNMENT,
+    IFCTEXTDECORATION: IFCTEXTDECORATION,
+    IFCTEXTFONTNAME: IFCTEXTFONTNAME,
+    IFCTEXTLITERAL: IFCTEXTLITERAL,
+    IFCTEXTLITERALWITHEXTENT: IFCTEXTLITERALWITHEXTENT,
+    IFCTEXTSTYLE: IFCTEXTSTYLE,
+    IFCTEXTSTYLEFONTMODEL: IFCTEXTSTYLEFONTMODEL,
+    IFCTEXTSTYLEFORDEFINEDFONT: IFCTEXTSTYLEFORDEFINEDFONT,
+    IFCTEXTSTYLETEXTMODEL: IFCTEXTSTYLETEXTMODEL,
+    IFCTEXTSTYLEWITHBOXCHARACTERISTICS: IFCTEXTSTYLEWITHBOXCHARACTERISTICS,
+    IFCTEXTTRANSFORMATION: IFCTEXTTRANSFORMATION,
+    IFCTEXTURECOORDINATE: IFCTEXTURECOORDINATE,
+    IFCTEXTURECOORDINATEGENERATOR: IFCTEXTURECOORDINATEGENERATOR,
+    IFCTEXTURECOORDINATEINDICES: IFCTEXTURECOORDINATEINDICES,
+    IFCTEXTURECOORDINATEINDICESWITHVOIDS: IFCTEXTURECOORDINATEINDICESWITHVOIDS,
+    IFCTEXTUREMAP: IFCTEXTUREMAP,
+    IFCTEXTUREVERTEX: IFCTEXTUREVERTEX,
+    IFCTEXTUREVERTEXLIST: IFCTEXTUREVERTEXLIST,
+    IFCTHERMALADMITTANCEMEASURE: IFCTHERMALADMITTANCEMEASURE,
+    IFCTHERMALCONDUCTIVITYMEASURE: IFCTHERMALCONDUCTIVITYMEASURE,
+    IFCTHERMALEXPANSIONCOEFFICIENTMEASURE: IFCTHERMALEXPANSIONCOEFFICIENTMEASURE,
+    IFCTHERMALMATERIALPROPERTIES: IFCTHERMALMATERIALPROPERTIES,
+    IFCTHERMALRESISTANCEMEASURE: IFCTHERMALRESISTANCEMEASURE,
+    IFCTHERMALTRANSMITTANCEMEASURE: IFCTHERMALTRANSMITTANCEMEASURE,
+    IFCTHERMODYNAMICTEMPERATUREMEASURE: IFCTHERMODYNAMICTEMPERATUREMEASURE,
+    IFCTHIRDORDERPOLYNOMIALSPIRAL: IFCTHIRDORDERPOLYNOMIALSPIRAL,
+    IFCTIME: IFCTIME,
+    IFCTIMEMEASURE: IFCTIMEMEASURE,
+    IFCTIMEPERIOD: IFCTIMEPERIOD,
+    IFCTIMESERIES: IFCTIMESERIES,
+    IFCTIMESERIESREFERENCERELATIONSHIP: IFCTIMESERIESREFERENCERELATIONSHIP,
+    IFCTIMESERIESSCHEDULE: IFCTIMESERIESSCHEDULE,
+    IFCTIMESERIESVALUE: IFCTIMESERIESVALUE,
+    IFCTIMESTAMP: IFCTIMESTAMP,
+    IFCTOPOLOGICALREPRESENTATIONITEM: IFCTOPOLOGICALREPRESENTATIONITEM,
+    IFCTOPOLOGYREPRESENTATION: IFCTOPOLOGYREPRESENTATION,
+    IFCTOROIDALSURFACE: IFCTOROIDALSURFACE,
+    IFCTORQUEMEASURE: IFCTORQUEMEASURE,
+    IFCTRACKELEMENT: IFCTRACKELEMENT,
+    IFCTRACKELEMENTTYPE: IFCTRACKELEMENTTYPE,
+    IFCTRANSFORMER: IFCTRANSFORMER,
+    IFCTRANSFORMERTYPE: IFCTRANSFORMERTYPE,
+    IFCTRANSPORTATIONDEVICE: IFCTRANSPORTATIONDEVICE,
+    IFCTRANSPORTATIONDEVICETYPE: IFCTRANSPORTATIONDEVICETYPE,
+    IFCTRANSPORTELEMENT: IFCTRANSPORTELEMENT,
+    IFCTRANSPORTELEMENTTYPE: IFCTRANSPORTELEMENTTYPE,
+    IFCTRAPEZIUMPROFILEDEF: IFCTRAPEZIUMPROFILEDEF,
+    IFCTRIANGULATEDFACESET: IFCTRIANGULATEDFACESET,
+    IFCTRIANGULATEDIRREGULARNETWORK: IFCTRIANGULATEDIRREGULARNETWORK,
+    IFCTRIMMEDCURVE: IFCTRIMMEDCURVE,
+    IFCTSHAPEPROFILEDEF: IFCTSHAPEPROFILEDEF,
+    IFCTUBEBUNDLE: IFCTUBEBUNDLE,
+    IFCTUBEBUNDLETYPE: IFCTUBEBUNDLETYPE,
+    IFCTWODIRECTIONREPEATFACTOR: IFCTWODIRECTIONREPEATFACTOR,
+    IFCTYPEOBJECT: IFCTYPEOBJECT,
+    IFCTYPEPROCESS: IFCTYPEPROCESS,
+    IFCTYPEPRODUCT: IFCTYPEPRODUCT,
+    IFCTYPERESOURCE: IFCTYPERESOURCE,
+    IFCUNITARYCONTROLELEMENT: IFCUNITARYCONTROLELEMENT,
+    IFCUNITARYCONTROLELEMENTTYPE: IFCUNITARYCONTROLELEMENTTYPE,
+    IFCUNITARYEQUIPMENT: IFCUNITARYEQUIPMENT,
+    IFCUNITARYEQUIPMENTTYPE: IFCUNITARYEQUIPMENTTYPE,
+    IFCUNITASSIGNMENT: IFCUNITASSIGNMENT,
+    IFCURIREFERENCE: IFCURIREFERENCE,
+    IFCUSHAPEPROFILEDEF: IFCUSHAPEPROFILEDEF,
+    IFCVALVE: IFCVALVE,
+    IFCVALVETYPE: IFCVALVETYPE,
+    IFCVAPORPERMEABILITYMEASURE: IFCVAPORPERMEABILITYMEASURE,
+    IFCVECTOR: IFCVECTOR,
+    IFCVEHICLE: IFCVEHICLE,
+    IFCVEHICLETYPE: IFCVEHICLETYPE,
+    IFCVERTEX: IFCVERTEX,
+    IFCVERTEXBASEDTEXTUREMAP: IFCVERTEXBASEDTEXTUREMAP,
+    IFCVERTEXLOOP: IFCVERTEXLOOP,
+    IFCVERTEXPOINT: IFCVERTEXPOINT,
+    IFCVIBRATIONDAMPER: IFCVIBRATIONDAMPER,
+    IFCVIBRATIONDAMPERTYPE: IFCVIBRATIONDAMPERTYPE,
+    IFCVIBRATIONISOLATOR: IFCVIBRATIONISOLATOR,
+    IFCVIBRATIONISOLATORTYPE: IFCVIBRATIONISOLATORTYPE,
+    IFCVIRTUALELEMENT: IFCVIRTUALELEMENT,
+    IFCVIRTUALGRIDINTERSECTION: IFCVIRTUALGRIDINTERSECTION,
+    IFCVOIDINGFEATURE: IFCVOIDINGFEATURE,
+    IFCVOLUMEMEASURE: IFCVOLUMEMEASURE,
+    IFCVOLUMETRICFLOWRATEMEASURE: IFCVOLUMETRICFLOWRATEMEASURE,
+    IFCWALL: IFCWALL,
+    IFCWALLELEMENTEDCASE: IFCWALLELEMENTEDCASE,
+    IFCWALLSTANDARDCASE: IFCWALLSTANDARDCASE,
+    IFCWALLTYPE: IFCWALLTYPE,
+    IFCWARPINGCONSTANTMEASURE: IFCWARPINGCONSTANTMEASURE,
+    IFCWARPINGMOMENTMEASURE: IFCWARPINGMOMENTMEASURE,
+    IFCWASTETERMINAL: IFCWASTETERMINAL,
+    IFCWASTETERMINALTYPE: IFCWASTETERMINALTYPE,
+    IFCWATERPROPERTIES: IFCWATERPROPERTIES,
+    IFCWINDOW: IFCWINDOW,
+    IFCWINDOWLININGPROPERTIES: IFCWINDOWLININGPROPERTIES,
+    IFCWINDOWPANELPROPERTIES: IFCWINDOWPANELPROPERTIES,
+    IFCWINDOWSTANDARDCASE: IFCWINDOWSTANDARDCASE,
+    IFCWINDOWSTYLE: IFCWINDOWSTYLE,
+    IFCWINDOWTYPE: IFCWINDOWTYPE,
+    IFCWORKCALENDAR: IFCWORKCALENDAR,
+    IFCWORKCONTROL: IFCWORKCONTROL,
+    IFCWORKPLAN: IFCWORKPLAN,
+    IFCWORKSCHEDULE: IFCWORKSCHEDULE,
+    IFCWORKTIME: IFCWORKTIME,
+    IFCYEARNUMBER: IFCYEARNUMBER,
+    IFCZONE: IFCZONE,
+    IFCZSHAPEPROFILEDEF: IFCZSHAPEPROFILEDEF,
+    IfcAPI: IfcAPI2,
+    IfcLineObject: IfcLineObject,
+    InheritanceDef: InheritanceDef,
+    InversePropertyDef: InversePropertyDef,
+    LABEL: LABEL,
+    LINE_END: LINE_END,
+    get LogLevel () { return LogLevel; },
+    REAL: REAL,
+    REF: REF,
+    SET_BEGIN: SET_BEGIN,
+    SET_END: SET_END,
+    STRING: STRING,
+    SchemaNames: SchemaNames,
+    get Schemas () { return Schemas; },
+    ToRawLineData: ToRawLineData,
+    TypeInitialisers: TypeInitialisers,
+    UNKNOWN: UNKNOWN,
+    ms: ms
+});
+
+class EditProp extends SimpleUIComponent {
+    constructor(components) {
+        const div = document.createElement("div");
+        div.className =
+            "absolute flex flex-col rounded-md top-5 left-5 p-4 bg-ifcjs-100 gap-y-2 items-center";
+        super(components, div);
+        this.name = "EditProp";
+        this.nameInput = new TextInput(components);
+        this.nameInput.labelElement.textContent = "Name";
+        this.valueInput = new TextInput(components);
+        this.valueInput.labelElement.textContent = "Value";
+        this.acceptButton = new Button(components, {
+            materialIconName: "check",
+            name: "Accept",
+        });
+        this.acceptButton.get().classList.remove("hover:bg-ifcjs-200");
+        this.acceptButton.get().classList.add("hover:bg-green-500");
+        this.cancelButton = new Button(components, {
+            materialIconName: "clear",
+            name: "Cancel",
+        });
+        this.cancelButton
+            .get()
+            .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
+        this.cancelButton.get().classList.add("hover:bg-red-500");
+        this.cancelButton.onclick = () => {
+            this.visible = false;
+        };
+        const buttonsStack = new UIComponentsStack(components, "Horizontal");
+        buttonsStack.get().classList.add("gap-x-2", "mt-2");
+        buttonsStack.addChild(this.acceptButton, this.cancelButton);
+        this.addChild(this.nameInput, this.valueInput, buttonsStack);
+    }
+}
+
+class PropertyTag extends SimpleUIComponent {
+    constructor(components, propLabel, propValue) {
+        const wrapper = document.createElement("div");
+        wrapper.className =
+            "flex gap-x-2 hover:bg-ifcjs-120 py-1 px-3 rounded-md items-center min-h-[40px]";
+        const tagInfo = document.createElement("div");
+        tagInfo.className = "flex flex-col grow";
+        super(components, wrapper);
+        this.name = "PropertyTag";
+        this._rightContainer = document.createElement("div");
+        this._labelElement = document.createElement("p");
+        this._valueElement = document.createElement("p");
+        this._label = "Property";
+        this._value = "Value";
+        this._labelElement.className = "text-sm text-gray-400 font-medium";
+        this.label = propLabel;
+        this.value = propValue;
+        tagInfo.append(this._labelElement, this._valueElement);
+        wrapper.append(tagInfo, this._rightContainer);
+        this._rightContainer.className = "flex gap-x-2";
+    }
+    get label() {
+        return this._label;
+    }
+    set label(value) {
+        this._label = value;
+        this._labelElement.textContent = value;
+    }
+    get value() {
+        return this._value;
+    }
+    set value(value) {
+        this._value = value;
+        this._valueElement.textContent = value.toString();
+    }
+    addChild(...items) {
+        items.forEach((item) => {
+            this.children.push(item);
+            this._rightContainer.append(item.domElement);
+        });
+    }
+}
+
 // eslint-disable-next-line max-classes-per-file
-class PropertiesContainer extends SimpleUIComponent {
-    constructor(components) {
-        const container = document.createElement("div");
-        super(components, container);
-        this.name = "PropertiesContainer";
-    }
-}
-class PropertiesTable extends SimpleUIComponent {
-    constructor(components) {
-        const table = document.createElement("table");
-        table.className = "ifcjs-table";
-        super(components, table);
-        this.name = "PropertiesTable";
-    }
-}
+// TODO: Clean up, decouple from fragments and
+//  move to IFC folder
+// @ts-ignore
+var IfcTokenType;
+(function (IfcTokenType) {
+    IfcTokenType[IfcTokenType["UNKNOWN"] = 0] = "UNKNOWN";
+    IfcTokenType[IfcTokenType["STRING"] = 1] = "STRING";
+    IfcTokenType[IfcTokenType["LABEL"] = 2] = "LABEL";
+    IfcTokenType[IfcTokenType["ENUM"] = 3] = "ENUM";
+    IfcTokenType[IfcTokenType["REAL"] = 4] = "REAL";
+    IfcTokenType[IfcTokenType["REF"] = 5] = "REF";
+    IfcTokenType[IfcTokenType["EMPTY"] = 6] = "EMPTY";
+    IfcTokenType[IfcTokenType["SET_BEGIN"] = 7] = "SET_BEGIN";
+    IfcTokenType[IfcTokenType["SET_END"] = 8] = "SET_END";
+    IfcTokenType[IfcTokenType["LINE_END"] = 9] = "LINE_END";
+})(IfcTokenType || (IfcTokenType = {}));
 class PropertiesProcessor extends Component {
     constructor(components, fragmentManager, fragmentHighlighter, config) {
         super();
@@ -79996,27 +81555,76 @@ class PropertiesProcessor extends Component {
         this._config = { ...this._config, ...config };
         this._fragmentsManager = fragmentManager;
         this._fragmentsHighlighter = fragmentHighlighter;
+        this._propsList = new VerticalStack(this.components);
+        this._editInput = new EditProp(this.components);
+        this._editInput.visible = false;
+        this._editInput.nameInput.visible = false;
+        this.components.ui.add(this._editInput);
         this.setEventListeners();
         this.setUI();
     }
     setUI() {
-        this.uiElement = new PropertiesContainer(this.components);
+        const container = new FloatingWindow(this.components, {
+            title: "Properties List",
+        });
+        this.components.ui.add(container);
+        container.visible = false;
+        container.addChild(this._propsList);
+        const showButton = new Button(this.components, {
+            materialIconName: "list",
+        });
+        container.onVisible.on(() => (showButton.active = true));
+        container.onHidden.on(() => (showButton.active = false));
+        showButton.onclick = () => {
+            container.visible = !container.visible;
+        };
+        this._editInputPopper = createPopper(container.get(), this._editInput.get(), {
+            modifiers: [
+                {
+                    name: "offset",
+                    options: { offset: [15, 15] },
+                },
+                {
+                    name: "preventOverflow",
+                    // @ts-ignore
+                    options: { boundary: this.components.ui.viewerContainer },
+                },
+            ],
+        });
+        this._editInputPopper.setOptions({ placement: "right" });
+        container.onMoved.on(() => {
+            this._editInputPopper.update();
+        });
+        container.onResized.on(() => {
+            this._editInputPopper.update();
+        });
+        container.onHidden.on(() => {
+            this._editInput.visible = false;
+        });
+        this.uiElement = {
+            container,
+            showButton,
+        };
     }
     setEventListeners() {
         var _a, _b;
         const highlighterEvents = this._fragmentsHighlighter.events;
-        (_a = highlighterEvents[this._config.selectionHighlighter]) === null || _a === void 0 ? void 0 : _a.onClear.on(() => this.uiElement.dispose(true));
+        (_a = highlighterEvents[this._config.selectionHighlighter]) === null || _a === void 0 ? void 0 : _a.onClear.on(() => {
+            this.uiElement.container.description = null;
+            this._editInput.visible = false;
+            this._propsList.dispose(true);
+        });
         (_b = highlighterEvents[this._config.selectionHighlighter]) === null || _b === void 0 ? void 0 : _b.onHighlight.on((selection) => {
             var _a;
             const fragmentIDs = Object.keys(selection);
             if (fragmentIDs.length !== 1) {
-                this.uiElement.dispose(true);
+                this._propsList.dispose(true);
                 return;
             }
             const fragmentID = fragmentIDs[0];
             const expressIDs = [...selection[fragmentID]];
             if (expressIDs.length !== 1) {
-                this.uiElement.dispose(true);
+                this._propsList.dispose(true);
                 return;
             }
             const expressID = expressIDs[0];
@@ -80051,7 +81659,8 @@ class PropertiesProcessor extends Component {
         return groups;
     }
     renderProperties(modelID, expressID) {
-        this.uiElement.dispose(true);
+        var _a;
+        this._propsList.dispose(true);
         const modelProperties = this.get()[modelID];
         if (!modelProperties) {
             return;
@@ -80061,48 +81670,63 @@ class PropertiesProcessor extends Component {
             return;
         }
         const groupedProperties = this.groupProperties(elementProperties);
+        const name = (_a = groupedProperties.Attributes) === null || _a === void 0 ? void 0 : _a.find((v) => v.name.value === "Name");
+        if (name) {
+            this.uiElement.container.description = name.value.value.toString();
+        }
         for (const groupName in groupedProperties) {
             const groupTree = new TreeView(this.components, groupName);
-            this.uiElement.addChild(groupTree);
+            this._propsList.addChild(groupTree);
             const props = groupedProperties[groupName];
-            // #region Group properties
-            const propsTable = new PropertiesTable(this.components);
-            const tableStructure = `
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Value</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-            `;
-            propsTable.domElement.innerHTML = tableStructure;
-            const tableBody = propsTable.domElement.querySelector("tbody");
-            // #endregion
-            groupTree.addChild(propsTable);
             props.forEach((prop) => {
-                const value = typeof prop.value === "number"
-                    ? prop.value.toPrecision(4)
-                    : prop.value;
-                const propRow = `<tr><td>${prop.name}</td><td>${value}</td></tr>`;
-                tableBody.innerHTML += propRow;
+                const value = typeof prop.value.value === "number"
+                    ? prop.value.value.toPrecision(4)
+                    : prop.value.value;
+                const propTag = new PropertyTag(this.components, prop.name.value, value);
+                groupTree.addChild(propTag);
+                const editButton = new Button(this.components, {
+                    materialIconName: "edit",
+                });
+                editButton.visible = false;
+                editButton.onclick = () => {
+                    this._editInput.nameInput.inputValue = prop.name.value;
+                    this._editInput.valueInput.labelElement.textContent = `${prop.name.prefix}: ${prop.name.value}`;
+                    this._editInput.valueInput.inputValue = value.toString();
+                    this._editInput.valueInput.get().focus();
+                    this._editInput.visible = true;
+                    this._editInputPopper.update();
+                    this._editInput.acceptButton.onclick = () => {
+                        this._editInput.visible = false;
+                        const inputValue = this._editInput.valueInput.inputValue;
+                        prop.value.value = inputValue;
+                        propTag.value = inputValue;
+                    };
+                    console.log(prop);
+                };
+                propTag.addChild(editButton);
+                propTag.get().onmouseover = () => {
+                    editButton.visible = true;
+                };
+                propTag.get().onmouseout = () => {
+                    editButton.visible = false;
+                };
             });
-            groupTree.expand(true);
+            groupTree.collapse(true);
         }
     }
     storeProperty(props, expressID, data) {
         if (!props[expressID]) {
             props[expressID] = {};
         }
-        props[expressID][data.name] = data;
+        props[expressID][`${data.name.prefix}${data.name.value}`] = data;
     }
     /**
      * @description Foundation function that returns basic entity information such as name, description, type, globalID and tag. That information is called attributes in the IFC Schema.
      * @param model
      * @param expressID
-     * @param prefix
      */
     processAttributes(model, expressID, options) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
         const props = model.properties[expressID];
         if (!props) {
             return null;
@@ -80111,56 +81735,113 @@ class PropertiesProcessor extends Component {
         const { group, prefix } = _options;
         const attributes = {
             globalId: {
-                name: `${prefix}GlobalId`,
-                value: props.GlobalId.value,
-                type: props.GlobalId.type,
+                name: {
+                    prefix,
+                    value: "GlobalId",
+                    type: 1,
+                    typeConstructor: null,
+                },
+                value: {
+                    ...props.GlobalId,
+                    typeConstructor: (_b = (_a = props.GlobalId) === null || _a === void 0 ? void 0 : _a.constructor.name) !== null && _b !== void 0 ? _b : null,
+                },
                 group,
+                expressID: props.expressID,
             },
             ifcEntity: {
-                name: `${prefix}IfcEntity`,
-                value: model.allTypes[props.type],
-                type: 1,
+                name: {
+                    prefix,
+                    value: "IfcEntity",
+                    type: 1,
+                    typeConstructor: null,
+                },
+                value: {
+                    value: model.allTypes[props.type],
+                    type: 1,
+                    typeConstructor: null,
+                },
                 group,
+                expressID: props.expressID,
             },
         };
         if (props.Name) {
             attributes.name = {
-                name: `${prefix}Name`,
-                value: props.Name.value,
-                type: props.Name.type,
+                name: {
+                    prefix,
+                    value: "Name",
+                    type: 1,
+                    typeConstructor: null,
+                },
+                value: {
+                    ...props.Name,
+                    typeConstructor: (_d = (_c = props.Name) === null || _c === void 0 ? void 0 : _c.constructor.name) !== null && _d !== void 0 ? _d : null,
+                },
                 group,
+                expressID: props.expressID,
             };
         }
         if (props.Description) {
             attributes.description = {
-                name: `${prefix}Description`,
-                value: props.Description.value,
-                type: props.Description.type,
+                name: {
+                    prefix,
+                    value: "Description",
+                    type: 1,
+                    typeConstructor: null,
+                },
+                value: {
+                    ...props.Description,
+                    typeConstructor: (_f = (_e = props.Description) === null || _e === void 0 ? void 0 : _e.constructor.name) !== null && _f !== void 0 ? _f : null,
+                },
                 group,
+                expressID: props.expressID,
             };
         }
         if (props.Tag) {
             attributes.tag = {
-                name: `${prefix}Tag`,
-                value: props.Tag.value,
-                type: props.Tag.type,
+                name: {
+                    prefix,
+                    value: "Tag",
+                    type: 1,
+                    typeConstructor: null,
+                },
+                value: {
+                    ...props.Tag,
+                    typeConstructor: (_h = (_g = props.Tag) === null || _g === void 0 ? void 0 : _g.constructor.name) !== null && _h !== void 0 ? _h : null,
+                },
                 group,
+                expressID: props.expressID,
             };
         }
         if (props.ObjectType) {
             attributes.type = {
-                name: `${prefix}Type`,
-                value: props.ObjectType.value,
-                type: props.ObjectType.type,
+                name: {
+                    prefix,
+                    value: "Type",
+                    type: 1,
+                    typeConstructor: null,
+                },
+                value: {
+                    ...props.ObjectType,
+                    typeConstructor: (_k = (_j = props.ObjectType) === null || _j === void 0 ? void 0 : _j.constructor.name) !== null && _k !== void 0 ? _k : null,
+                },
                 group,
+                expressID: props.expressID,
             };
         }
         if (props.LongName) {
             attributes.longName = {
-                name: `${prefix}LongName`,
-                value: props.LongName.value,
-                type: props.LongName.type,
+                name: {
+                    prefix,
+                    value: "LongName",
+                    type: 1,
+                    typeConstructor: null,
+                },
+                value: {
+                    ...props.LongName,
+                    typeConstructor: (_m = (_l = props.LongName) === null || _l === void 0 ? void 0 : _l.constructor.name) !== null && _m !== void 0 ? _m : null,
+                },
                 group,
+                expressID: props.expressID,
             };
         }
         return attributes;
@@ -80237,15 +81918,23 @@ class PropertiesProcessor extends Component {
                     return properties[prop.value];
                 });
                 definitionProperties.forEach((prop) => {
-                    var _a, _b, _c;
-                    const value = ((_a = prop.NominalValue) === null || _a === void 0 ? void 0 : _a.label) === "IFCBOOLEAN"
+                    var _a, _b, _c, _d, _e, _f, _g;
+                    const value = ((_a = prop.NominalValue) === null || _a === void 0 ? void 0 : _a.constructor.name) === "IfcBoolean"
                         ? prop.NominalValue.value === "T"
                         : (_b = prop.NominalValue) === null || _b === void 0 ? void 0 : _b.value;
                     const data = {
-                        name: prop.Name.value,
-                        value,
-                        type: (_c = prop.NominalValue) === null || _c === void 0 ? void 0 : _c.type,
+                        name: {
+                            prefix: "",
+                            ...prop.Name,
+                            typeConstructor: (_d = (_c = prop.Name) === null || _c === void 0 ? void 0 : _c.constructor.name) !== null && _d !== void 0 ? _d : null,
+                        },
+                        value: {
+                            value,
+                            type: (_e = prop.NominalValue) === null || _e === void 0 ? void 0 : _e.type,
+                            typeConstructor: (_g = (_f = prop.NominalValue) === null || _f === void 0 ? void 0 : _f.constructor.name) !== null && _g !== void 0 ? _g : null,
+                        },
                         group: definition.Name.value,
+                        expressID: prop.expressID,
                     };
                     this.storeProperty(props, expressID, data);
                 });
@@ -80272,16 +81961,24 @@ class PropertiesProcessor extends Component {
                     return properties[prop.value];
                 });
                 definitionQuantities.forEach((qto) => {
+                    var _a, _b, _c, _d;
                     const entityName = model.allTypes[qto.type];
                     let valuePropName = entityName
                         .replace(/IFCQUANTITY/, "")
                         .toLowerCase();
                     valuePropName = `${valuePropName[0].toUpperCase() + valuePropName.slice(1)}Value`;
                     const data = {
-                        name: qto.Name.value,
-                        value: qto[valuePropName].value,
-                        type: qto[valuePropName].type,
+                        name: {
+                            prefix: "",
+                            ...qto.Name,
+                            typeConstructor: (_b = (_a = qto.Name) === null || _a === void 0 ? void 0 : _a.constructor.name) !== null && _b !== void 0 ? _b : null,
+                        },
+                        value: {
+                            ...qto[valuePropName],
+                            typeConstructor: (_d = (_c = qto[valuePropName]) === null || _c === void 0 ? void 0 : _c.constructor.name) !== null && _d !== void 0 ? _d : null,
+                        },
                         group: definition.Name.value,
+                        expressID: qto.expressID,
                     };
                     this.storeProperty(props, expressID, data);
                 });
@@ -80307,12 +82004,21 @@ class PropertiesProcessor extends Component {
                 prefix: "Storey",
             });
             elements.forEach((expressID) => {
+                var _a, _b;
                 if (structure.Elevation) {
                     const elevation = {
-                        name: "StoreyElevation",
+                        name: {
+                            prefix: "",
+                            value: "StoreyElevation",
+                            type: 1,
+                            typeConstructor: null,
+                        },
+                        value: {
+                            ...structure.Elevation,
+                            typeConstructor: (_b = (_a = structure.Elevation) === null || _a === void 0 ? void 0 : _a.constructor.name) !== null && _b !== void 0 ? _b : null,
+                        },
                         group: "Storey",
-                        value: structure.Elevation.value,
-                        type: structure.Elevation.type,
+                        expressID: structure.expressID,
                     };
                     this.storeProperty(props, expressID, elevation);
                 }
@@ -83068,13 +84774,12 @@ class SimpleArea extends Component {
         this.beforeUpdate = new Event();
         /** {@link Updateable.afterUpdate} */
         this.afterUpdate = new Event();
-        /** @satisfies SimpleAreaSettings */
         const { color, dashSize, endPointSize, forceHorizontal, gapSize, lineOpacity, snapDistance, snapPointFixed, } = settings;
         this._components = components;
         /** The minimum distance to force the dimension cursor to a vertex. */
         this._snapDistance = snapDistance !== null && snapDistance !== void 0 ? snapDistance : 0.25;
         this._snapPointFixed = snapPointFixed || false;
-        this._lineMaterial = new LineDashedMaterial({
+        this._lineMaterial = new THREE$1.LineDashedMaterial({
             dashSize: dashSize || 1,
             depthTest: false,
             gapSize: gapSize || 0,
@@ -83082,7 +84787,7 @@ class SimpleArea extends Component {
         });
         this._enabled = false;
         this._visible = true;
-        this._root = new Group();
+        this._root = new THREE$1.Group();
         this._isHovering = false;
         this._endPointSize = endPointSize || 0.2;
         this._perimeter = 0;
@@ -83091,11 +84796,11 @@ class SimpleArea extends Component {
         this._areaLines = [];
         this._forceHorizontal = forceHorizontal !== null && forceHorizontal !== void 0 ? forceHorizontal : forceHorizontal;
         this._raycaster = new SimpleRaycaster(components);
-        this.color = new Color(color || "#222");
+        this.color = new THREE$1.Color(color || "#222");
         this._htmlPreview = document.createElement("div");
         this._htmlPreview.className = DimensionPreviewClassName;
         this._htmlPreview.style.backgroundColor = color
-            ? color instanceof Color
+            ? color instanceof THREE$1.Color
                 ? color.getHexString()
                 : color
             : "#0f0";
@@ -83186,27 +84891,15 @@ class SimpleArea extends Component {
         this._isHovering = true;
     }
     addHorizontalPlanes(point) {
-        // const uppedPoint = new Vector3(point.x, point.y + 0.1, point.z)
-        // this._areaCutPlane = new EdgesPlane(
-        //   this._components,
-        //   uppedPoint,
-        //   new Vector3(0, -1, 0),
-        //   new MeshBasicMaterial({
-        //     color: this.color,
-        //     transparent: true,
-        //     opacity: this._lineMaterial.opacity / 2
-        //   }),
-        //   new EdgesStyles(this._components)
-        // )
-        const plane = new PlaneGeometry(1000, 1000);
+        const plane = new THREE$1.PlaneGeometry(1000, 1000);
         plane.rotateX(Math.PI / 2);
-        const material = new MeshBasicMaterial({
+        const material = new THREE$1.MeshBasicMaterial({
             color: this.color,
             transparent: true,
             opacity: 0.1,
-            side: DoubleSide,
+            side: THREE$1.DoubleSide,
         });
-        this._outterCastPlane = new Mesh(plane, material);
+        this._outterCastPlane = new THREE$1.Mesh(plane, material);
         this._outterCastPlane.position.set(point.x, point.y, point.z);
     }
     continueArea() {
@@ -83266,7 +84959,7 @@ class SimpleArea extends Component {
         };
         if (this._outterCastPlane)
             this.removeFromScene(this._outterCastPlane);
-        const tagPointPerimeter = new Vector3$1(this._areaPoints[0].x, this._areaPoints[0].y - 0.1, this._areaPoints[0].z);
+        const tagPointPerimeter = new THREE$1.Vector3(this._areaPoints[0].x, this._areaPoints[0].y - 0.1, this._areaPoints[0].z);
         const perimeterTag = new SimpleTag(tagPointPerimeter, perimeter, "Perimeter");
         const areaTag = new SimpleTag(this._areaCenter, area, "Area m²");
         this._root.add(perimeterTag.get());
@@ -83283,7 +84976,7 @@ class SimpleArea extends Component {
         if (!origin) {
             return;
         }
-        const normal = new Vector3$1()
+        const normal = new THREE$1.Vector3()
             .crossVectors(this._areaPoints[1].clone().sub(this._areaPoints[0]), this._areaPoints[2].clone().sub(this._areaPoints[0]))
             .normalize();
         if ((normal.y > normal.x && normal.y > normal.z) ||
@@ -83291,26 +84984,15 @@ class SimpleArea extends Component {
             normal.negate();
         }
         this._outterCastNormal = normal;
-        // this._areaCutPlane = new EdgesPlane(
-        //   this._components,
-        //   origin,
-        //   normal,
-        //   new MeshBasicMaterial({
-        //     color: this.color,
-        //     transparent: true,
-        //     opacity: this._lineMaterial.opacity / 2
-        //   }),
-        //   new EdgesStyles(this._components)
-        // )
-        const plane = new PlaneGeometry(100, 100);
+        const plane = new THREE$1.PlaneGeometry(100, 100);
         plane.lookAt(normal);
-        const material = new MeshBasicMaterial({
+        const material = new THREE$1.MeshBasicMaterial({
             color: this.color,
             transparent: true,
             opacity: 0.0001,
-            side: DoubleSide,
+            side: THREE$1.DoubleSide,
         });
-        const meshPlane = new Mesh(plane, material);
+        const meshPlane = new THREE$1.Mesh(plane, material);
         meshPlane.position.set(this._areaPoints[0].x, this._areaPoints[0].y, this._areaPoints[0].z);
         meshPlane.renderOrder = Number.MAX_SAFE_INTEGER;
         this._outterCastPlane = meshPlane;
@@ -83381,12 +85063,12 @@ class SimpleArea extends Component {
         }
         if (this._snapPointFixed && this.closestVertex) {
             return this._forceHorizontal
-                ? new Vector3$1(this.closestVertex.x, this._outterCastPlane.position.y, this.closestVertex.z)
+                ? new THREE$1.Vector3(this.closestVertex.x, this._outterCastPlane.position.y, this.closestVertex.z)
                 : this.closestVertex;
         }
         if (this.cast) {
             return this._forceHorizontal
-                ? new Vector3$1(this.cast.point.x, this._outterCastPlane.position.y, this.cast.point.z)
+                ? new THREE$1.Vector3(this.cast.point.x, this._outterCastPlane.position.y, this.cast.point.z)
                 : this.cast.point;
         }
     }
@@ -83449,19 +85131,19 @@ class SimpleArea extends Component {
         }
     }
     get newEndpointMesh() {
-        const geometry = new SphereGeometry(this._endPointSize);
-        const material = new MeshBasicMaterial({
+        const geometry = new THREE$1.SphereGeometry(this._endPointSize);
+        const material = new THREE$1.MeshBasicMaterial({
             color: this.color,
             depthTest: false,
             transparent: true,
             opacity: 0.5,
         });
-        return new Mesh(geometry, material);
+        return new THREE$1.Mesh(geometry, material);
     }
     get closestVertex() {
         if (!this.cast)
             return;
-        let closestVertex = new Vector3$1();
+        let closestVertex = new THREE$1.Vector3();
         let vertexFound = false;
         let closestDistance = Number.MAX_SAFE_INTEGER;
         // @ts-ignore
@@ -83505,29 +85187,29 @@ class SimpleArea extends Component {
         if (!this._outterCastNormal || !this._outterCastPlane) {
             return;
         }
-        const group = new Group();
+        const group = new THREE$1.Group();
         group.add(this._outterCastPlane);
         for (const point of this._areaPoints) {
-            const mesh = new Mesh(new BoxGeometry(this._endPointSize, this._endPointSize, this._endPointSize), new MeshBasicMaterial({
+            const mesh = new THREE$1.Mesh(new THREE$1.BoxGeometry(this._endPointSize, this._endPointSize, this._endPointSize), new THREE$1.MeshBasicMaterial({
                 color: "#f00",
             }));
             mesh.position.set(point.x, point.y, point.z);
             group.add(mesh);
         }
-        const quaternion = new Quaternion$1();
-        quaternion.setFromUnitVectors(this._outterCastNormal.clone(), new Vector3$1(0, 1, 0));
-        const euler = new Euler();
+        const quaternion = new THREE$1.Quaternion();
+        quaternion.setFromUnitVectors(this._outterCastNormal.clone(), new THREE$1.Vector3(0, 1, 0));
+        const euler = new THREE$1.Euler();
         euler.setFromQuaternion(quaternion);
         group.rotation.copy(euler);
         const points = [];
         for (const child of group.children) {
-            points.push(child.getWorldPosition(new Vector3$1()));
+            points.push(child.getWorldPosition(new THREE$1.Vector3()));
         }
         return this.areaShape(points);
     }
     areaShape(points) {
         this._areaCenter = this.getAreaCenter(points);
-        const area = ShapeUtils.area(points.map((p) => {
+        const area = THREE$1.ShapeUtils.area(points.map((p) => {
             return {
                 x: p.x,
                 y: p.z,
@@ -83538,25 +85220,25 @@ class SimpleArea extends Component {
             : parseFloat(`-${area.toFixed(2)}`);
     }
     getAreaCenter(points) {
-        const centerPoint = new Vector3$1();
+        const centerPoint = new THREE$1.Vector3();
         for (const point of this._areaPoints) {
             centerPoint.add(point);
         }
         return centerPoint.divideScalar(points.length);
     }
     addVolumeMesh(depth) {
-        const shape = new Shape().setFromPoints(this._areaPoints.map((p) => {
-            return new Vector2$1(p.x, p.z);
+        const shape = new THREE$1.Shape().setFromPoints(this._areaPoints.map((p) => {
+            return new THREE$1.Vector2(p.x, p.z);
         }));
-        const extruded = new ExtrudeGeometry(shape, {
+        const extruded = new THREE$1.ExtrudeGeometry(shape, {
             depth,
             bevelEnabled: false,
         });
-        this._volumeMesh = new Mesh(extruded, new MeshBasicMaterial({
+        this._volumeMesh = new THREE$1.Mesh(extruded, new THREE$1.MeshBasicMaterial({
             color: this.color,
             transparent: true,
             opacity: 0.1,
-            side: DoubleSide,
+            side: THREE$1.DoubleSide,
         }));
         if (depth > 0) {
             this._volumeMesh.position.y = this._areaPoints[0].y + depth;
@@ -83567,8 +85249,8 @@ class SimpleArea extends Component {
         this._volumeMesh.rotation.set(Math.PI / 2, 0, 0);
         this._volumeMesh.renderOrder = Number.MAX_SAFE_INTEGER;
         this._components.scene.get().add(this._volumeMesh);
-        const lines = new EdgesGeometry(this._volumeMesh.geometry);
-        this._volumeEdges = new LineSegments(lines, this._lineMaterial);
+        const lines = new THREE$1.EdgesGeometry(this._volumeMesh.geometry);
+        this._volumeEdges = new THREE$1.LineSegments(lines, this._lineMaterial);
         this._volumeEdges.rotation.set(Math.PI / 2, 0, 0);
         this._volumeEdges.position.y = this._areaPoints[0].y + depth;
         this._volumeEdges.renderOrder = Number.MAX_SAFE_INTEGER;
@@ -83598,9 +85280,9 @@ class SimpleArea extends Component {
         };
         const position = geometry.attributes.position;
         let volume = 0;
-        const p1 = new Vector3$1();
-        const p2 = new Vector3$1();
-        const p3 = new Vector3$1();
+        const p1 = new THREE$1.Vector3();
+        const p2 = new THREE$1.Vector3();
+        const p3 = new THREE$1.Vector3();
         const faces = position.count / 3;
         for (let i = 0; i < faces; i++) {
             p1.fromBufferAttribute(position, i * 3 + 0);
@@ -83617,14 +85299,14 @@ class SimpleArea extends Component {
             this._heightTag.tagContent = parseFloat(depth.toFixed(2));
         }
         else {
-            const heightCenter = new Vector3$1(this._areaPoints[0].x, this._areaPoints[0].y + depth / 2, this._areaPoints[0].z);
+            const heightCenter = new THREE$1.Vector3(this._areaPoints[0].x, this._areaPoints[0].y + depth / 2, this._areaPoints[0].z);
             this._heightTag = new SimpleTag(heightCenter, parseFloat(depth.toFixed(2)), "Height m");
             (_a = this._root) === null || _a === void 0 ? void 0 : _a.add(this._heightTag.get());
         }
     }
     get volumeMeshCenter() {
-        const box = new Box3().setFromObject(this._volumeMesh);
-        return box.getCenter(new Vector3$1());
+        const box = new THREE$1.Box3().setFromObject(this._volumeMesh);
+        return box.getCenter(new THREE$1.Vector3());
     }
     addToScene(item) {
         this._components.scene.get().add(item);
@@ -83838,16 +85520,23 @@ class Simple2DMarker extends Component {
         super();
         this.name = "Simple2DMarker";
         this.enabled = true;
-        this.visible = true;
+        this._visible = true;
         this._components = components;
         const marker = document.createElement("div");
         marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
         this._marker = new CSS2DObject(marker);
-        this._marker.visible = this.visible;
+        this.visible = true;
         this._components.scene.get().add(this._marker);
         if (position) {
             this._marker.position.copy(position);
         }
+    }
+    set visible(value) {
+        this._visible = value;
+        this._marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
     }
     get() {
         return this._marker;
@@ -92234,6 +93923,44 @@ class IfcJsonExporter {
     }
 }
 
+class PropertiesManager extends Component {
+    constructor(components, ifcApi) {
+        super();
+        this.name = "PropertiesManager";
+        this.enabled = true;
+        this._changesList = [];
+        this._components = components;
+        this._ifcApi = ifcApi !== null && ifcApi !== void 0 ? ifcApi : new IfcAPI2();
+        this.addChange({
+            modelID: 0,
+            expressID: 1,
+            propName: "Name",
+            schema: "IFC4",
+            propType: "IfcLabel",
+            newValue: "Bimply",
+        });
+    }
+    addChange(change) {
+        this._changesList.push({
+            ...change,
+            changeID: `${change.modelID}-${change.expressID}-${change.propName}`,
+        });
+    }
+    modify() {
+        this._changesList.forEach((change) => {
+            const { modelID, expressID, propName, schema, propType, newValue } = change;
+            const line = this._ifcApi.GetLine(modelID, expressID);
+            // @ts-ignore
+            line[propName] = new WEBIFC[schema][propType](newValue);
+            this._ifcApi.WriteLine(modelID, line);
+            console.log(this._ifcApi.GetLine(modelID, expressID));
+        });
+    }
+    get() {
+        return this._changesList;
+    }
+}
+
 class SpatialStructure {
     constructor() {
         this.floorProperties = [];
@@ -93011,6 +94738,7 @@ class FragmentIfcLoader extends Component {
         this._webIfc = new IfcAPI2();
         this._items = {};
         this._materials = {};
+        this.onIfcLoaded = new Event();
         this._geometry = new Geometry(this._webIfc, this._items, this._materials);
         this._converter = new DataConverter(this._items, this._materials, this.settings);
         this._components = components;
@@ -93037,27 +94765,28 @@ class FragmentIfcLoader extends Component {
     async load(data) {
         await this.initializeWebIfc();
         this._webIfc.OpenModel(data, this.settings.webIfc);
-        return this.loadAllGeometry();
+        const model = await this.loadAllGeometry();
+        this.onIfcLoaded.trigger(model);
+        return model;
     }
     setupOpenButton() {
+        const fileOpener = document.createElement("input");
+        fileOpener.type = "file";
+        fileOpener.accept = ".ifc";
+        fileOpener.style.visibility = "collapse";
+        document.body.appendChild(fileOpener);
+        fileOpener.onchange = async () => {
+            if (fileOpener.files === null || fileOpener.files.length === 0)
+                return;
+            const file = fileOpener.files[0];
+            const buffer = await file.arrayBuffer();
+            const data = new Uint8Array(buffer);
+            const result = await this.load(data);
+            const scene = this._components.scene.get();
+            scene.add(result);
+            this.uiElement.clicked.trigger(result);
+        };
         this.uiElement.onclick = () => {
-            const fileOpener = document.createElement("input");
-            fileOpener.type = "file";
-            fileOpener.style.visibility = "collapse";
-            document.body.appendChild(fileOpener);
-            fileOpener.onchange = async () => {
-                if (fileOpener.files === null)
-                    return;
-                const file = fileOpener.files[0];
-                const buffer = await file.arrayBuffer();
-                const data = new Uint8Array(buffer);
-                const result = await this.load(data);
-                const scene = this._components.scene.get();
-                scene.add(result);
-                this.uiElement.clicked.trigger(result);
-                fileOpener.remove();
-            };
-            fileOpener.onclose = () => fileOpener.remove();
             fileOpener.click();
         };
     }
@@ -93072,6 +94801,7 @@ class FragmentIfcLoader extends Component {
         this.cleanUp();
         for (const fragment of model.fragments) {
             this._fragments.list[fragment.id] = fragment;
+            this._components.meshes.push(fragment.mesh);
         }
         return model;
     }
@@ -93173,7 +94903,7 @@ class FragmentHighlighter extends Component {
         this.selection[name] = {};
         this.events[name] = {
             onHighlight: new Event(),
-            onClear: new Event()
+            onClear: new Event(),
         };
         this.update();
     }
@@ -93259,16 +94989,16 @@ class FragmentHighlighter extends Component {
         const selection = fragment.fragments[name];
         if (!selection)
             return;
-        //#region Old child/parent code
+        // #region Old child/parent code
         // const scene = this._components.scene.get();
         // scene.add(selection.mesh); //If we add selection.mesh directly to the scene, it won't be coordinated unless we do so manually.
-        //#endregion
-        //#region New child/parent code
+        // #endregion
+        // #region New child/parent code
         const fragmentParent = fragment.mesh.parent;
         if (!fragmentParent)
             return;
         fragmentParent.add(selection.mesh);
-        //#endregion
+        // #endregion
         const isBlockFragment = selection.blocks.count > 1;
         if (isBlockFragment) {
             const blockIDs = [];
@@ -93482,6 +95212,108 @@ class FragmentGrouper {
             }
         }
         return result;
+    }
+}
+
+// TODO: Clean up and document
+class FragmentEdges {
+    constructor(components) {
+        this.edgesList = {};
+        this.edgesToUpdate = new Set();
+        this.threshold = 80;
+        this._mat4 = new Matrix4();
+        this._dummy = new Object3D();
+        this._pos = [];
+        this._rot = [];
+        this._scl = [];
+        this.lineMat = new LineBasicMaterial({
+            color: 0x555555,
+            // @ts-ignore
+            onBeforeCompile: (shader) => {
+                shader.vertexShader = `
+    attribute vec3 instT;
+    attribute vec4 instR;
+    attribute vec3 instS;
+    
+    // http://barradeau.com/blog/?p=1109
+    vec3 trs( inout vec3 position, vec3 T, vec4 R, vec3 S ) {
+        position *= S;
+        position += 2.0 * cross( R.xyz, cross( R.xyz, position ) + R.w * position );
+        position += T;
+        return position;
+    }
+    ${shader.vertexShader}
+`.replace(`#include <begin_vertex>`, `#include <begin_vertex>
+      transformed = trs(transformed, instT, instR, instS);
+`);
+            },
+        });
+        this.disposer = new Disposer();
+        this._components = components;
+    }
+    dispose() {
+        for (const guid in this.edgesList) {
+            const edges = this.edgesList[guid];
+            this.disposer.dispose(edges, true);
+        }
+        this.lineMat.dispose();
+        this.edgesList = {};
+        this.edgesToUpdate.clear();
+    }
+    generate(fragment) {
+        if (this.edgesList[fragment.id]) {
+            const previous = this.edgesList[fragment.id];
+            previous.removeFromParent();
+            previous.geometry.dispose();
+            previous.geometry = null;
+            delete this.edgesList[fragment.id];
+        }
+        this.getInstanceTransforms(fragment);
+        const edgesGeom = new EdgesGeometry(fragment.mesh.geometry, this.threshold);
+        // @ts-ignore
+        const lineGeom = new InstancedBufferGeometry().copy(edgesGeom);
+        lineGeom.instanceCount = Infinity;
+        this.setAttributes(lineGeom);
+        const lines = new LineSegments(lineGeom, this.lineMat);
+        lines.frustumCulled = false;
+        const scene = this._components.scene.get();
+        scene.add(lines);
+        this.edgesList[fragment.id] = lines;
+        this.updateInstancedEdges(fragment, lineGeom);
+        lines.visible = false;
+        return lines;
+    }
+    updateInstancedEdges(fragment, lineGeom) {
+        for (let i = 0; i < fragment.mesh.count; i++) {
+            fragment.mesh.getMatrixAt(i, this._mat4);
+            this._mat4.decompose(this._dummy.position, this._dummy.quaternion, this._dummy.scale);
+            this.linesTRS(i, this._dummy, lineGeom);
+        }
+    }
+    setAttributes(lineGeom) {
+        lineGeom.setAttribute("instT", new InstancedBufferAttribute(new Float32Array(this._pos), 3));
+        lineGeom.setAttribute("instR", new InstancedBufferAttribute(new Float32Array(this._rot), 4));
+        lineGeom.setAttribute("instS", new InstancedBufferAttribute(new Float32Array(this._scl), 3));
+        this._pos.length = 0;
+        this._rot.length = 0;
+        this._scl.length = 0;
+    }
+    getInstanceTransforms(fragment) {
+        for (let i = 0; i < fragment.mesh.count; i++) {
+            fragment.getInstance(i, this._dummy.matrix);
+            this._dummy.updateMatrix();
+            this._pos.push(this._dummy.position.x, this._dummy.position.y, this._dummy.position.z);
+            this._rot.push(this._dummy.quaternion.x, this._dummy.quaternion.y, this._dummy.quaternion.z, this._dummy.quaternion.w);
+            this._scl.push(this._dummy.scale.x, this._dummy.scale.y, this._dummy.scale.z);
+        }
+    }
+    linesTRS(index, o, lineGeom) {
+        lineGeom.attributes.instT.setXYZ(index, o.position.x, o.position.y, o.position.z);
+        lineGeom.attributes.instT.needsUpdate = true;
+        lineGeom.attributes.instR.setXYZW(index, o.quaternion.x, o.quaternion.y, o.quaternion.z, o.quaternion.w);
+        lineGeom.attributes.instR.needsUpdate = true;
+        lineGeom.attributes.instS.setXYZ(index, o.scale.x, o.scale.y, o.scale.z);
+        lineGeom.attributes.instS.needsUpdate = true;
     }
 }
 
@@ -96272,39 +98104,39 @@ class CubeMap extends Component {
         frontFace.textContent = "Front";
         frontFace.style.transform = "rotateX(180deg) translateZ(-60px)";
         frontFace.style.transition = "all 0.2s";
-        frontFace.onclick = () => this._onFaceClick("front");
+        frontFace.onclick = () => this.orientToFace("front");
         const topFace = document.createElement("div");
         topFace.className = this._cubeFaceClass;
         topFace.textContent = "Top";
         topFace.style.transform = "rotateX(90deg) translateZ(-60px)";
         topFace.style.transition = "all 0.2s";
-        topFace.onclick = () => this._onFaceClick("top");
+        topFace.onclick = () => this.orientToFace("top");
         const bottomFace = document.createElement("div");
         bottomFace.className = this._cubeFaceClass;
         bottomFace.textContent = "Bottom";
         bottomFace.style.transform = "rotateX(270deg) translateZ(-60px)";
         bottomFace.style.transition = "all 0.2s";
-        bottomFace.onclick = () => this._onFaceClick("bottom");
+        bottomFace.onclick = () => this.orientToFace("bottom");
         const rightFace = document.createElement("div");
         rightFace.className = this._cubeFaceClass;
         rightFace.textContent = "Right";
         rightFace.style.transform =
             "rotateY(-270deg) rotateX(180deg) translateZ(-60px)";
         rightFace.style.transition = "all 0.2s";
-        rightFace.onclick = () => this._onFaceClick("right");
+        rightFace.onclick = () => this.orientToFace("right");
         const leftFace = document.createElement("div");
         leftFace.className = this._cubeFaceClass;
         leftFace.textContent = "Left";
         leftFace.style.transform =
             "rotateY(-90deg) rotateX(180deg) translateZ(-60px)";
         leftFace.style.transition = "all 0.2s";
-        leftFace.onclick = () => this._onFaceClick("left");
+        leftFace.onclick = () => this.orientToFace("left");
         const backFace = document.createElement("div");
         backFace.className = this._cubeFaceClass;
         backFace.textContent = "Back";
         backFace.style.transform = "translateZ(-60px) rotateZ(180deg)";
         backFace.style.transition = "all 0.2s";
-        backFace.onclick = () => this._onFaceClick("back");
+        backFace.onclick = () => this.orientToFace("back");
         // #endregion
         this._cube.append(frontFace, topFace, bottomFace, rightFace, leftFace, backFace);
         (_a = this._viewerContainer) === null || _a === void 0 ? void 0 : _a.append(this._cubeWrapper);
@@ -96327,7 +98159,7 @@ class CubeMap extends Component {
             this._cubeWrapper.classList.add("hidden");
         }
     }
-    async _onFaceClick(orientation) {
+    orientToFace(orientation) {
         const camera = this._camera.get();
         this._raycaster.setFromCamera(new Vector2$1(0, 0), camera);
         const intersection = this._raycaster.intersectObjects(this._components.meshes)[0];
@@ -96390,6 +98222,79 @@ class CubeMap extends Component {
     }
     get() {
         return this._cubeWrapper;
+    }
+}
+
+class SelectionHandler extends Component {
+    constructor(components, fragmentHighlighter, config) {
+        var _a, _b;
+        super();
+        this.name = "SelectionHandler";
+        this.enabled = true;
+        this._config = {
+            selectionName: "select",
+            selectionMaterial: (_a = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _a !== void 0 ? _a : new THREE$1.MeshBasicMaterial({
+                color: "#BCF124",
+                transparent: true,
+                opacity: 0.6,
+                depthTest: true,
+            }),
+            highlightName: "highlight",
+            highlightMaterial: (_b = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _b !== void 0 ? _b : new THREE$1.MeshBasicMaterial({
+                color: "#6528D7",
+                transparent: true,
+                opacity: 0.2,
+                depthTest: true,
+            }),
+            ...config,
+        };
+        this.components = components;
+        this._fragmentHighlighter = fragmentHighlighter;
+        this.setup();
+    }
+    get _viewerContainer() {
+        const renderer = this.components.renderer.get();
+        return renderer.domElement.parentElement;
+    }
+    setup() {
+        this._fragmentHighlighter.enabled = true;
+        this._fragmentHighlighter.add(this._config.selectionName, [
+            this._config.selectionMaterial,
+        ]);
+        this._fragmentHighlighter.add(this._config.highlightName, [
+            this._config.highlightMaterial,
+        ]);
+        let mouseDown = false;
+        let mouseMoved = false;
+        this._viewerContainer.addEventListener("mousedown", () => {
+            mouseDown = true;
+        });
+        this._viewerContainer.addEventListener("mouseup", (e) => {
+            if (e.target !== this.components.renderer.get().domElement) {
+                return;
+            }
+            mouseDown = false;
+            if (mouseMoved || e.button !== 0) {
+                mouseMoved = false;
+                return;
+            }
+            mouseMoved = false;
+            this._fragmentHighlighter.highlight(this._config.selectionName, !e.ctrlKey);
+        });
+        this._viewerContainer.addEventListener("mousemove", () => {
+            if (mouseMoved) {
+                this._fragmentHighlighter.clear(this._config.highlightName);
+                return;
+            }
+            this._fragmentHighlighter.highlight(this._config.highlightName);
+            mouseMoved = true;
+            if (!mouseDown) {
+                mouseMoved = false;
+            }
+        });
+    }
+    get() {
+        return this._fragmentHighlighter.selection.select;
     }
 }
 
@@ -97004,4 +98909,4 @@ class DrawManager extends Component {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, IfcFragmentSettings, InfoCard, LineIntersectionPicker, LocalCacher, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, tooeenRandomId };
+export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentEdges, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, InfoCard, LineIntersectionPicker, LocalCacher, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesManager, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, VerticalStack, ViewpointsManager, bufferGeometryToIndexed, tooeenRandomId };
