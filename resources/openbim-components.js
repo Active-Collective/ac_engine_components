@@ -5017,18 +5017,103 @@ class SimpleRaycaster extends Component {
 }
 
 /**
- * A basic
- * [Three.js grid helper](https://threejs.org/docs/#api/en/helpers/GridHelper).
+ * An infinite grid. Created by
+ * [fyrestar](https://github.com/Fyrestar/THREE.InfiniteGridHelper)
+ * and translated to typescript by
+ * [dkaraush](https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts).
  */
 class SimpleGrid extends Component {
-    constructor(components) {
+    constructor(components, size1 = 1, size2 = 10, color = new THREE$1.Color("white"), distance = 8000) {
         super();
         /** {@link Component.name} */
         this.name = "SimpleGrid";
         /** {@link Component.enabled} */
         this.enabled = true;
         this._disposer = new Disposer();
-        this._grid = new THREE$1.GridHelper(50, 50);
+        // Source: https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts
+        // Author: Fyrestar https://mevedia.com (https://github.com/Fyrestar/THREE.InfiniteGridHelper)
+        const geometry = new THREE$1.PlaneGeometry(2, 2, 1, 1);
+        const material = new THREE$1.ShaderMaterial({
+            side: THREE$1.DoubleSide,
+            uniforms: {
+                uSize1: {
+                    value: size1,
+                },
+                uSize2: {
+                    value: size2,
+                },
+                uColor: {
+                    value: color,
+                },
+                uDistance: {
+                    value: distance,
+                },
+            },
+            transparent: true,
+            vertexShader: `
+            
+            varying vec3 worldPosition;
+            
+            uniform float uDistance;
+            
+            void main() {
+            
+                    vec3 pos = position.xzy * uDistance;
+                    pos.xz += cameraPosition.xz;
+                    
+                    worldPosition = pos;
+                    
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            
+            }
+            `,
+            fragmentShader: `
+            
+            varying vec3 worldPosition;
+            
+            uniform float uSize1;
+            uniform float uSize2;
+            uniform vec3 uColor;
+            uniform float uDistance;
+                
+                
+                
+                float getGrid(float size) {
+                
+                    vec2 r = worldPosition.xz / size;
+                    
+                    
+                    vec2 grid = abs(fract(r - 0.5) - 0.5) / fwidth(r);
+                    float line = min(grid.x, grid.y);
+                    
+                
+                    return 1.0 - min(line, 1.0);
+                }
+                
+            void main() {
+            
+                    
+                    float d = 1.0 - min(distance(cameraPosition.xz, worldPosition.xz) / uDistance, 1.0);
+                    
+                    float g1 = getGrid(uSize1);
+                    float g2 = getGrid(uSize2);
+                    
+                    
+                    gl_FragColor = vec4(uColor.rgb, mix(g2, g1, g1) * pow(d, 3.0));
+                    gl_FragColor.a = mix(0.5 * gl_FragColor.a, gl_FragColor.a, g2);
+                    
+                    if ( gl_FragColor.a <= 0.0 ) discard;
+                    
+            
+            }
+            
+            `,
+            extensions: {
+                derivatives: true,
+            },
+        });
+        this._grid = new THREE$1.Mesh(geometry, material);
+        this._grid.frustumCulled = false;
         const scene = components.scene.get();
         scene.add(this._grid);
     }
@@ -12405,7 +12490,7 @@ class ScreenCuller extends Component {
         const clippingPlanes = this.components.renderer.clippingPlanes;
         if (!material) {
             material = new THREE$1.MeshBasicMaterial({
-                color: new THREE$1.Color(code),
+                color: new THREE$1.Color(r, g, b).convertSRGBToLinear(),
                 clippingPlanes,
                 side: THREE$1.DoubleSide,
             });
@@ -91337,7 +91422,7 @@ class Serializer {
             const red = materials[i + 2];
             const green = materials[i + 3];
             const blue = materials[i + 4];
-            const color = new THREE$1.Color(red, green, blue);
+            const color = new THREE$1.Color().setRGB(red, green, blue, "srgb");
             const material = new THREE$1.MeshLambertMaterial({
                 color,
                 opacity,
@@ -96746,12 +96831,12 @@ class CubeMap extends Component {
         this._cubeWrapper.style.perspective = `${value}px`;
     }
     setPosition(corner) {
-        this._cubeWrapper.classList.remove("top-4", "bottom-4", "left-4", "right-4");
+        this._cubeWrapper.classList.remove("top-8", "bottom-8", "left-8", "right-8");
         const wrapperPositions = {
-            "top-left": ["top-4", "left-4"],
-            "top-right": ["top-4", "right-4"],
-            "bottom-right": ["bottom-4", "right-4"],
-            "bottom-left": ["bottom-4", "left-4"],
+            "top-left": ["top-8", "left-8"],
+            "top-right": ["top-8", "right-8"],
+            "bottom-right": ["bottom-8", "right-8"],
+            "bottom-left": ["bottom-8", "left-8"],
         };
         this._cubeWrapper.classList.add(...wrapperPositions[corner]);
     }
