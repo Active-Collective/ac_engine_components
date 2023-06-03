@@ -12490,7 +12490,7 @@ class ScreenCuller extends Component {
         const clippingPlanes = this.components.renderer.clippingPlanes;
         if (!material) {
             material = new THREE$1.MeshBasicMaterial({
-                color: new THREE$1.Color(r, g, b).convertSRGBToLinear(),
+                color: new THREE$1.Color().setRGB(r / 256, g / 256, b / 256),
                 clippingPlanes,
                 side: THREE$1.DoubleSide,
             });
