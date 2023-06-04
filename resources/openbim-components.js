@@ -12485,17 +12485,20 @@ class ScreenCuller extends Component {
         this.meshes.set(mesh.uuid, mesh);
     }
     getMaterial(r, g, b) {
+        THREE$1.ColorManagement.enabled = false;
         const code = `rgb(${r}, ${g}, ${b})`;
+        const color = new THREE$1.Color(code);
         let material = this.materialCache.get(code);
         const clippingPlanes = this.components.renderer.clippingPlanes;
         if (!material) {
             material = new THREE$1.MeshBasicMaterial({
-                color: new THREE$1.Color().setRGB(r / 256, g / 256, b / 256),
+                color,
                 clippingPlanes,
                 side: THREE$1.DoubleSide,
             });
             this.materialCache.set(code, material);
         }
+        THREE$1.ColorManagement.enabled = true;
         return material;
     }
     isTransparent(material) {
