@@ -1961,7 +1961,7 @@ class Toolbar extends Component {
         this.name = _options.name;
         this.domElement.id = _options.name;
         this.domElement.className =
-            "flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto bg-ifcjs-100 z-50";
+            "flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto bg-ifcjs-100 z-50 backdrop-blur-md";
         this.position = _options.position;
         this.visible = true;
     }
@@ -5023,7 +5023,7 @@ class SimpleRaycaster extends Component {
  * [dkaraush](https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts).
  */
 class SimpleGrid extends Component {
-    constructor(components, size1 = 1, size2 = 10, color = new THREE$1.Color("white"), distance = 8000) {
+    constructor(components, size1 = 1, size2 = 10, color = new THREE$1.Color(0xcccccc), distance = 100) {
         super();
         /** {@link Component.name} */
         this.name = "SimpleGrid";
