@@ -82760,10 +82760,11 @@ class Postproduction {
         }
     }
     dispose() {
-        var _a, _b;
+        var _a, _b, _c;
         this._renderTarget.dispose();
         (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
         (_b = this._customOutline) === null || _b === void 0 ? void 0 : _b.dispose();
+        (_c = this.n8ao) === null || _c === void 0 ? void 0 : _c.dispose();
         this.excludedItems.clear();
     }
     setSize(width, height) {
