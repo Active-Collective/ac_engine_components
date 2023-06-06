@@ -82768,8 +82768,9 @@ class Postproduction {
         this.excludedItems.clear();
     }
     setSize(width, height) {
+        var _a;
         this.composer.setSize(width, height);
-        console.log(this.n8ao);
+        (_a = this.n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
     }
     update() {
         if (!this._enabled)
@@ -82838,6 +82839,16 @@ class Postproduction {
         const { width, height } = this.components.renderer.getSize();
         this.n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
         this.composer.addPass(this.n8ao);
+        const { configuration } = this.n8ao;
+        configuration.aoSamples = 16;
+        configuration.denoiseSamples = 1;
+        configuration.denoiseRadius = 3;
+        configuration.aoRadius = 1;
+        configuration.distanceFalloff = 4;
+        configuration.aoRadius = 1;
+        configuration.intensity = 4;
+        configuration.halfRes = true;
+        configuration.color = new THREE$1.Color().setHex(0xcccccc, "srgb-linear");
     }
     addBasePass(scene, camera) {
         this._basePass = new RenderPass(scene, camera);
