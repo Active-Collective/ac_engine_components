@@ -96985,6 +96985,149 @@ class SelectionHandler extends Component {
     }
 }
 
+/**
+ * Helper to control the camera and easily define and navigate 2D floor plans.
+ */
+class PlanNavigator extends Component {
+    constructor(clipper, camera) {
+        super();
+        this.clipper = clipper;
+        this.camera = camera;
+        this.name = "PlanNavigator";
+        /** {@link Component.enabled} */
+        this.enabled = false;
+        /** The floorplan that is currently selected. */
+        this.currentPlan = null;
+        /** The offset from the clipping planes to their respective floor plan elevation. */
+        this.defaultSectionOffset = 1.5;
+        /** The offset of the 2D camera to the floor plan elevation. */
+        this.defaultCameraOffset = 30;
+        /** The created floor plans. */
+        this.storeys = [];
+        this.plans = [];
+        this.floorPlanViewCached = false;
+        this.previousCamera = new THREE$1.Vector3();
+        this.previousTarget = new THREE$1.Vector3();
+        this.previousProjection = "Perspective";
+    }
+    /** {@link Component.get} */
+    get() {
+        return this.plans;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        this.storeys = [];
+        this.plans = [];
+        this.clipper.dispose();
+    }
+    /**
+     * Creates a new floor plan in the navigator.
+     *
+     * @param config - Necessary data to initialize the floor plan.
+     */
+    async create(config) {
+        const previousPlan = this.plans.find((plan) => plan.id === config.id);
+        if (previousPlan) {
+            throw new Error(`There's already a plan with the id: ${config.id}`);
+        }
+        const plane = await this.createClippingPlane(config);
+        const plan = { ...config, plane };
+        this.plans.push(plan);
+    }
+    /**
+     * Make the navigator go to the specified floor plan.
+     *
+     * @param id - Floor plan to go to.
+     * @param animate - Whether to animate the camera transition.
+     */
+    async goTo(id, animate = false) {
+        var _a;
+        if (((_a = this.currentPlan) === null || _a === void 0 ? void 0 : _a.id) === id) {
+            return;
+        }
+        this.storeCameraPosition();
+        this.hidePreviousClippingPlane();
+        this.updateCurrentPlan(id);
+        this.activateCurrentPlan();
+        if (!this.enabled) {
+            await this.moveCameraTo2DPlanPosition(animate);
+            this.enabled = true;
+        }
+    }
+    /**
+     * Deactivate navigator and go back to the previous view.
+     *
+     * @param animate - Whether to animate the camera transition.
+     */
+    async exitPlanView(animate = false) {
+        if (!this.enabled)
+            return;
+        this.enabled = false;
+        this.cacheFloorplanView();
+        this.camera.setNavigationMode("Orbit");
+        await this.camera.setProjection(this.previousProjection);
+        if (this.currentPlan && this.currentPlan.plane) {
+            this.currentPlan.plane.enabled = false;
+        }
+        this.currentPlan = null;
+        await this.camera.controls.setLookAt(this.previousCamera.x, this.previousCamera.y, this.previousCamera.z, this.previousTarget.x, this.previousTarget.y, this.previousTarget.z, animate);
+    }
+    storeCameraPosition() {
+        if (this.enabled) {
+            this.cacheFloorplanView();
+        }
+        else {
+            this.store3dCameraPosition();
+        }
+    }
+    async createClippingPlane(config) {
+        const { normal, point } = config;
+        const plane = this.clipper.createFromNormalAndCoplanarPoint(normal, point);
+        plane.enabled = false;
+        await plane.edges.update();
+        plane.edges.visible = false;
+        return plane;
+    }
+    cacheFloorplanView() {
+        this.floorPlanViewCached = true;
+        this.camera.controls.saveState();
+    }
+    async moveCameraTo2DPlanPosition(animate) {
+        if (this.floorPlanViewCached)
+            await this.camera.controls.reset(animate);
+        else
+            await this.camera.controls.setLookAt(0, 100, 0, 0, 0, 0, animate);
+    }
+    activateCurrentPlan() {
+        if (!this.currentPlan)
+            throw new Error("Current plan is not defined.");
+        if (this.currentPlan.plane)
+            this.currentPlan.plane.enabled = true;
+        this.camera.setNavigationMode("Plan");
+        const projection = this.currentPlan.ortho ? "Orthographic" : "Perspective";
+        this.camera.setProjection(projection);
+    }
+    store3dCameraPosition() {
+        const camera = this.camera.get();
+        camera.getWorldPosition(this.previousCamera);
+        this.camera.controls.getTarget(this.previousTarget);
+        this.previousProjection = this.camera.getProjection();
+    }
+    updateCurrentPlan(id) {
+        const foundPlan = this.plans.find((plan) => plan.id === id);
+        if (!foundPlan) {
+            throw new Error("The specified plan is undefined!");
+        }
+        this.currentPlan = foundPlan;
+    }
+    hidePreviousClippingPlane() {
+        var _a;
+        const plane = (_a = this.currentPlan) === null || _a === void 0 ? void 0 : _a.plane;
+        if (plane)
+            plane.enabled = false;
+    }
+}
+
 class SVGArrow extends Component {
     constructor(components, startPoint, endPoint) {
         super();
@@ -97994,4 +98137,4 @@ class MapboxWindow {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentEdges, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, VerticalStack, ViewpointsManager, bufferGeometryToIndexed, tooeenRandomId };
+export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentEdges, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, VerticalStack, ViewpointsManager, bufferGeometryToIndexed, tooeenRandomId };
