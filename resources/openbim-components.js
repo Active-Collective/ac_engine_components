@@ -5266,12 +5266,21 @@ class SimpleGrid extends Component {
     set visible(visible) {
         this._grid.visible = visible;
     }
+    /** The material of the grid. */
     get material() {
         return this._grid.material;
     }
+    /**
+     * Whether the grid should fade away with distance. Recommended to be true for
+     * perspective cameras and false for orthographic cameras.
+     */
     get fade() {
         return this._fade === 3;
     }
+    /**
+     * Whether the grid should fade away with distance. Recommended to be true for
+     * perspective cameras and false for orthographic cameras.
+     */
     set fade(active) {
         this._fade = active ? 3 : 0;
         this.material.uniforms.uFade.value = this._fade;
