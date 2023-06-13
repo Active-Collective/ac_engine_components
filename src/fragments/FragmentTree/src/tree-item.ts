@@ -1,7 +1,8 @@
-import { Component, UI } from "../../base-types";
-import { TreeView } from "../../ui";
-import { FragmentGrouper, FragmentHighlighter } from "../index";
-import { Components } from "../../core";
+import { Component, UI } from "../../../base-types";
+import { TreeView } from "../../../ui";
+import { FragmentHighlighter } from "../../FragmentHighlighter";
+import { FragmentGrouper } from "../../FragmentGrouper";
+import { Components } from "../../../core/Components";
 
 interface TreeItem {
   name: string;

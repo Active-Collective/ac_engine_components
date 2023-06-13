@@ -1,5 +1,5 @@
 import { SimpleUIComponent } from "../../../ui/SimpleUIComponent";
-import { Components } from "../../Components";
+import { Components } from "../../../core/Components";
 import { UIComponent } from "../../../base-types/base-types";
 
 export class PropertyTag extends SimpleUIComponent {

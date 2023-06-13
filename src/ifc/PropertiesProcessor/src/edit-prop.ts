@@ -1,7 +1,7 @@
 import { UIComponentsStack } from "../../../ui/UIComponentsStack";
 import { Button, TextInput } from "../../../ui";
 import { SimpleUIComponent } from "../../../ui/SimpleUIComponent";
-import { Components } from "../../Components";
+import { Components } from "../../../core/Components";
 
 export class EditProp extends SimpleUIComponent<HTMLDivElement> {
   name = "EditProp";
