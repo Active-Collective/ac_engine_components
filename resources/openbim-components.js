@@ -5159,13 +5159,14 @@ class SimpleRaycaster extends Component {
  * [dkaraush](https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts).
  */
 class SimpleGrid extends Component {
-    constructor(components, size1 = 1, size2 = 10, color = new THREE$1.Color(0xcccccc), distance = 100) {
+    constructor(components, size1 = 1, size2 = 10, color = new THREE$1.Color(0xcccccc), distance = 500) {
         super();
         /** {@link Component.name} */
         this.name = "SimpleGrid";
         /** {@link Component.enabled} */
         this.enabled = true;
         this._disposer = new Disposer();
+        this._fade = 3;
         // Source: https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts
         // Author: Fyrestar https://mevedia.com (https://github.com/Fyrestar/THREE.InfiniteGridHelper)
         const geometry = new THREE$1.PlaneGeometry(2, 2, 1, 1);
@@ -5183,6 +5184,9 @@ class SimpleGrid extends Component {
                 },
                 uDistance: {
                     value: distance,
+                },
+                uFade: {
+                    value: this._fade,
                 },
             },
             transparent: true,
@@ -5207,6 +5211,7 @@ class SimpleGrid extends Component {
             
             varying vec3 worldPosition;
             
+            uniform float uFade;
             uniform float uSize1;
             uniform float uSize2;
             uniform vec3 uColor;
@@ -5235,7 +5240,7 @@ class SimpleGrid extends Component {
                     float g2 = getGrid(uSize2);
                     
                     
-                    gl_FragColor = vec4(uColor.rgb, mix(g2, g1, g1) * pow(d, 3.0));
+                    gl_FragColor = vec4(uColor.rgb, mix(g2, g1, g1) * pow(d, uFade));
                     gl_FragColor.a = mix(0.5 * gl_FragColor.a, gl_FragColor.a, g2);
                     
                     if ( gl_FragColor.a <= 0.0 ) discard;
@@ -5260,6 +5265,16 @@ class SimpleGrid extends Component {
     /** {@link Hideable.visible} */
     set visible(visible) {
         this._grid.visible = visible;
+    }
+    get material() {
+        return this._grid.material;
+    }
+    get fade() {
+        return this._fade === 3;
+    }
+    set fade(active) {
+        this._fade = active ? 3 : 0;
+        this.material.uniforms.uFade.value = this._fade;
     }
     /** {@link Component.get} */
     get() {
@@ -96131,7 +96146,7 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         this.currentMode.toggle(true, { preventTargetAdjustment: true });
         this.toggleEvents(true);
         this._projectionManager = new ProjectionManager(components, this);
-        this.setUI();
+        this.uiElement = this.setUI();
     }
     setUI() {
         const mainButton = new Button(this.components, {
@@ -96155,7 +96170,9 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         orbit.onclick = () => this.setNavigationMode("Orbit");
         const plan = new Button(this.components, { name: "Plan View" });
         plan.onclick = () => this.setNavigationMode("Plan");
-        navigation.addButton(orbit, plan);
+        const firstPerson = new Button(this.components, { name: "First person" });
+        firstPerson.onclick = () => this.setNavigationMode("FirstPerson");
+        navigation.addButton(orbit, plan, firstPerson);
         mainButton.addButton(navigation, projection);
         this.projectionChanged.on((camera) => {
             if (camera instanceof THREE$1.PerspectiveCamera) {
@@ -96167,7 +96184,7 @@ class OrthoPerspectiveCamera extends SimpleCamera {
                 orthographic.active = true;
             }
         });
-        this.uiElement = mainButton;
+        return mainButton;
     }
     /** {@link Disposable.dispose} */
     dispose() {
