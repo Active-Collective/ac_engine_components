@@ -91495,7 +91495,7 @@ class FragmentManager extends Component {
     constructor(components) {
         super();
         /** {@link Component.name} */
-        this.name = "FragmentsComponent";
+        this.name = "FragmentManager";
         /** {@link Component.enabled} */
         this.enabled = true;
         /** All the created [fragments](https://github.com/ifcjs/fragment). */
@@ -93767,11 +93767,11 @@ class FragmentTreeItem extends Component {
     }
     select() {
         const selectorName = this._options.selectionHighlighterName;
-        this._fragmentHighlighter.highlightByID(selectorName, this._fragmentGrouper.get(this.filter));
+        this._fragmentHighlighter.highlightByID(selectorName, this._fragmentGrouper.find(this.filter));
     }
     highlight() {
         const highlighterName = this._options.highlightHighlighterName;
-        this._fragmentHighlighter.highlightByID(highlighterName, this._fragmentGrouper.get(this.filter));
+        this._fragmentHighlighter.highlightByID(highlighterName, this._fragmentGrouper.find(this.filter));
     }
 }
 
@@ -93805,14 +93805,15 @@ class FragmentTree extends Component {
     process(groupSystemNames, result = {}) {
         const groups = [];
         const currentSystemName = groupSystemNames[0]; // storeys
-        const systemGroups = this._fragmentGrouper.groupSystems[currentSystemName];
+        const systems = this._fragmentGrouper.get();
+        const systemGroups = systems[currentSystemName];
         if (!currentSystemName || !systemGroups) {
             return groups;
         }
         for (const name in systemGroups) {
             // name is N00, N01, N02...
             const filter = { ...result, [currentSystemName]: name }; // { storeys: "N00" }, { storeys: "N01" }...
-            const hasElements = Object.keys(this._fragmentGrouper.get(filter)).length > 0;
+            const hasElements = Object.keys(this._fragmentGrouper.find(filter)).length > 0;
             if (hasElements) {
                 const treeItemName = currentSystemName[0].toUpperCase() + currentSystemName.slice(1); // Storeys
                 const treeItem = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentGrouper, `${treeItemName}: ${name}`); // Storeys: N01
@@ -93825,24 +93826,32 @@ class FragmentTree extends Component {
     }
 }
 
-// TODO: Clean up and document
-class FragmentGrouper {
+class FragmentGrouper extends Component {
     constructor(fragments) {
-        this.groupSystems = {
+        super();
+        /** {@link Component.name} */
+        this.name = "FragmentGrouper";
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        this._groupSystems = {
             category: {},
             floor: {},
         };
         this._fragments = fragments;
     }
+    /** {@link Component.get} */
+    get() {
+        return this._groupSystems;
+    }
     dispose() {
-        this.groupSystems = {};
+        this._groupSystems = {};
     }
     add(guid, groupsSystems) {
         for (const system in groupsSystems) {
-            if (!this.groupSystems[system]) {
-                this.groupSystems[system] = {};
+            if (!this._groupSystems[system]) {
+                this._groupSystems[system] = {};
             }
-            const existingGroups = this.groupSystems[system];
+            const existingGroups = this._groupSystems[system];
             const currentGroups = groupsSystems[system];
             for (const groupName in currentGroups) {
                 if (!existingGroups[groupName]) {
@@ -93853,7 +93862,7 @@ class FragmentGrouper {
         }
     }
     setVisibility(systemName, groupName, visible) {
-        const fragmentsMap = this.groupSystems[systemName][groupName];
+        const fragmentsMap = this._groupSystems[systemName][groupName];
         for (const fragmentId in fragmentsMap) {
             const fragment = this._fragments.list[fragmentId];
             const ids = fragmentsMap[fragmentId];
@@ -93861,20 +93870,20 @@ class FragmentGrouper {
         }
     }
     remove(guid) {
-        for (const systemName in this.groupSystems) {
-            const system = this.groupSystems[systemName];
+        for (const systemName in this._groupSystems) {
+            const system = this._groupSystems[systemName];
             for (const groupName in system) {
                 const group = system[groupName];
                 delete group[guid];
             }
         }
     }
-    get(filter) {
+    find(filter) {
         const size = Object.keys(filter).length;
         const models = {};
         for (const name in filter) {
             const value = filter[name];
-            const found = this.groupSystems[name][value];
+            const found = this._groupSystems[name][value];
             if (found) {
                 for (const guid in found) {
                     if (!models[guid]) {
@@ -94011,6 +94020,7 @@ class FragmentEdges {
 }
 
 // TODO: Clean up, add proper types and make this independent from fragments
+// TODO: Combine with fragment grouper?
 class FragmentGroups {
     groupByPredefinedType(model) {
         const group = {};
@@ -96189,6 +96199,10 @@ class EdgesPlane extends SimplePlane {
         this.updateTimeout = -1;
         /** {@link Updateable.update} */
         this.update = () => {
+            if (!this.enabled)
+                return;
+            this.beforeUpdate.trigger(this._plane);
+            this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
             // Rate limited edges update
             const now = Date.now();
             if (this.lastUpdate + this.edgesMaxUpdateRate < now) {
@@ -96201,6 +96215,7 @@ class EdgesPlane extends SimplePlane {
                     this.updateTimeout = -1;
                 }, this.edgesMaxUpdateRate);
             }
+            this.afterUpdate.trigger(this._plane);
         };
         this.edges = new ClippingEdges(components, this._plane, styles);
         this.visible = true;
