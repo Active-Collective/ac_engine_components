@@ -95454,7 +95454,7 @@ class FragmentTree extends Component {
 class FragmentGrouper extends Component {
     constructor(components, fragmentManager) {
         super();
-        this._groupSystems = { models: {} };
+        this._groupSystems = {};
         /** {@link Component.name} */
         this.name = "FragmentGrouper";
         /** {@link Component.enabled} */
@@ -95474,7 +95474,8 @@ class FragmentGrouper extends Component {
         for (const fragmentId in fragmentsMap) {
             const fragment = this._fragmentManager.list[fragmentId];
             const ids = fragmentsMap[fragmentId];
-            fragment.setVisibility(ids, visible);
+            const idsArray = Array.from(ids);
+            fragment.setVisibility(idsArray, visible);
         }
     }
     remove(guid) {
@@ -95523,9 +95524,29 @@ class FragmentGrouper extends Component {
         }
         return result;
     }
-    groupByPredefinedType(model) {
-        const group = {};
-        const arrayProperties = Object.values(model.properties);
+    groupByModel(modelID, expressIDFragmentIDMap) {
+        if (!this._groupSystems.model) {
+            this._groupSystems.model = {};
+        }
+        const currentModels = this._groupSystems.model;
+        if (!currentModels[modelID]) {
+            currentModels[modelID] = {};
+        }
+        const currentModel = currentModels[modelID];
+        for (const expressID in expressIDFragmentIDMap) {
+            const fragID = expressIDFragmentIDMap[expressID];
+            if (!currentModel[fragID]) {
+                currentModel[fragID] = new Set();
+            }
+            currentModel[fragID].add(expressID);
+        }
+    }
+    groupByPredefinedType(props, expressIDFragmentIDMap) {
+        const arrayProperties = Object.values(props);
+        if (!this._groupSystems.predefinedType) {
+            this._groupSystems.predefinedType = {};
+        }
+        const currentTypes = this._groupSystems.predefinedType;
         const levelRelations = arrayProperties.filter((prop) => prop.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
         const elements = [];
         levelRelations.forEach((rel) => {
@@ -95534,39 +95555,42 @@ class FragmentGrouper extends Component {
         });
         elements.forEach((element) => {
             var _a;
-            const entity = model.properties[element];
+            const entity = props[element];
             if (!entity) {
                 return;
             }
-            const fragmentID = model.expressIDFragmentIDMap[entity.expressID];
+            const fragmentID = expressIDFragmentIDMap[entity.expressID];
             const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
-            if (!group[predefinedType]) {
-                group[predefinedType] = {};
+            if (!currentTypes[predefinedType]) {
+                currentTypes[predefinedType] = {};
             }
-            if (!group[predefinedType][fragmentID]) {
-                group[predefinedType][fragmentID] = [];
+            const currentType = currentTypes[predefinedType];
+            if (!currentType[fragmentID]) {
+                currentType[fragmentID] = new Set();
             }
-            group[predefinedType][fragmentID].push(entity.expressID);
+            const currentFragment = currentType[fragmentID];
+            currentFragment.add(entity.expressID);
         });
-        return group;
     }
-    groupByEntity(model) {
-        const group = {};
-        for (const expressID in model.itemTypes) {
-            const entity = model.allTypes[model.itemTypes[expressID]];
-            const fragment = model.expressIDFragmentIDMap[expressID];
+    groupByEntity(itemTypes, allTypes, expressIDFragmentIDMap) {
+        if (!this._groupSystems.entity) {
+            this._groupSystems.entity = {};
+        }
+        const currentEntities = this._groupSystems.entity;
+        for (const expressID in itemTypes) {
+            const entity = allTypes[itemTypes[expressID]];
+            const fragment = expressIDFragmentIDMap[expressID];
             if (!fragment) {
                 continue;
             }
-            if (!group[entity]) {
-                group[entity] = {};
+            if (!currentEntities[entity]) {
+                currentEntities[entity] = {};
             }
-            if (!group[entity][fragment]) {
-                group[entity][fragment] = [];
+            if (!currentEntities[entity][fragment]) {
+                currentEntities[entity][fragment] = new Set();
             }
-            group[entity][fragment].push(expressID);
+            currentEntities[entity][fragment].add(expressID);
         }
-        return group;
     }
     groupByStorey(props, expressIDFragmentIDMap) {
         const properties = Object.values(props);
@@ -95594,9 +95618,9 @@ class FragmentGrouper extends Component {
                     return;
                 }
                 if (!storey[fragment]) {
-                    storey[fragment] = [];
+                    storey[fragment] = new Set();
                 }
-                storey[fragment].push(expressID);
+                storey[fragment].add(expressID);
             });
         });
     }
@@ -95819,29 +95843,22 @@ class FragmentExploder {
         this.height = 10;
         this.groupName = "storeys";
         this.enabled = false;
-        this.initialized = false;
         this.explodedFragments = new Set();
     }
     dispose() {
         this.explodedFragments.clear();
     }
     explode() {
-        this.initialized = true;
         this.enabled = true;
         this.update();
     }
     reset() {
-        this.initialized = true;
         this.enabled = false;
         this.update();
     }
     update() {
-        if (!this.initialized) {
-            return;
-        }
         const factor = this.enabled ? 1 : -1;
         let i = 0;
-        // TODO: Decouple groups from fragments
         const systems = this.groups.get();
         const groups = systems[this.groupName];
         for (const groupName in groups) {
@@ -95894,23 +95911,13 @@ class FragmentExploder {
         }
     }
     getOffsetY(y) {
+        const w = y * this.height;
+        // prettier-ignore
         return new THREE$1.Matrix4().fromArray([
-            1,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            y * this.height,
-            0,
-            1,
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, w, 0, 1,
         ]);
     }
 }
