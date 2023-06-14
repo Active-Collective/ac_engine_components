@@ -95469,21 +95469,6 @@ class FragmentGrouper extends Component {
     dispose() {
         this._groupSystems = {};
     }
-    add(guid, groupsSystems) {
-        for (const system in groupsSystems) {
-            if (!this._groupSystems[system]) {
-                this._groupSystems[system] = {};
-            }
-            const existingGroups = this._groupSystems[system];
-            const currentGroups = groupsSystems[system];
-            for (const groupName in currentGroups) {
-                if (!existingGroups[groupName]) {
-                    existingGroups[groupName] = {};
-                }
-                existingGroups[groupName][guid] = currentGroups[groupName];
-            }
-        }
-    }
     setVisibility(systemName, groupName, visible) {
         const fragmentsMap = this._groupSystems[systemName][groupName];
         for (const fragmentId in fragmentsMap) {
@@ -95537,6 +95522,83 @@ class FragmentGrouper extends Component {
             }
         }
         return result;
+    }
+    groupByPredefinedType(model) {
+        const group = {};
+        const arrayProperties = Object.values(model.properties);
+        const levelRelations = arrayProperties.filter((prop) => prop.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
+        const elements = [];
+        levelRelations.forEach((rel) => {
+            const expressIDs = rel.RelatedElements.map((element) => element.value);
+            elements.push(...expressIDs);
+        });
+        elements.forEach((element) => {
+            var _a;
+            const entity = model.properties[element];
+            if (!entity) {
+                return;
+            }
+            const fragmentID = model.expressIDFragmentIDMap[entity.expressID];
+            const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
+            if (!group[predefinedType]) {
+                group[predefinedType] = {};
+            }
+            if (!group[predefinedType][fragmentID]) {
+                group[predefinedType][fragmentID] = [];
+            }
+            group[predefinedType][fragmentID].push(entity.expressID);
+        });
+        return group;
+    }
+    groupByEntity(model) {
+        const group = {};
+        for (const expressID in model.itemTypes) {
+            const entity = model.allTypes[model.itemTypes[expressID]];
+            const fragment = model.expressIDFragmentIDMap[expressID];
+            if (!fragment) {
+                continue;
+            }
+            if (!group[entity]) {
+                group[entity] = {};
+            }
+            if (!group[entity][fragment]) {
+                group[entity][fragment] = [];
+            }
+            group[entity][fragment].push(expressID);
+        }
+        return group;
+    }
+    groupByStorey(props, expressIDFragmentIDMap) {
+        const properties = Object.values(props);
+        if (!this._groupSystems.storeys) {
+            this._groupSystems.storeys = {};
+        }
+        const storeys = this._groupSystems.storeys;
+        const spatialRels = properties.filter((entity) => entity.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
+        spatialRels.forEach((rel) => {
+            if (!rel.RelatingStructure || !rel.RelatingStructure.value) {
+                return;
+            }
+            const storeyProps = properties.find((prop) => prop.expressID === rel.RelatingStructure.value);
+            const storeyName = storeyProps.Name.value;
+            if (!storeys[storeyName]) {
+                storeys[storeyName] = {};
+            }
+            const storey = storeys[storeyName];
+            const storeyElements = rel.RelatedElements.map((element) => {
+                return element.value.toString();
+            });
+            storeyElements.forEach((expressID) => {
+                const fragment = expressIDFragmentIDMap[expressID];
+                if (!fragment) {
+                    return;
+                }
+                if (!storey[fragment]) {
+                    storey[fragment] = [];
+                }
+                storey[fragment].push(expressID);
+            });
+        });
     }
 }
 
@@ -95639,84 +95701,6 @@ class FragmentEdges {
         lineGeom.attributes.instR.needsUpdate = true;
         lineGeom.attributes.instS.setXYZ(index, o.scale.x, o.scale.y, o.scale.z);
         lineGeom.attributes.instS.needsUpdate = true;
-    }
-}
-
-// TODO: Clean up, add proper types and make this independent from fragments
-// TODO: Combine with fragment grouper?
-class FragmentGroups {
-    groupByPredefinedType(model) {
-        const group = {};
-        const arrayProperties = Object.values(model.properties);
-        const levelRelations = arrayProperties.filter((prop) => prop.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
-        const elements = [];
-        levelRelations.forEach((rel) => {
-            const expressIDs = rel.RelatedElements.map((element) => element.value);
-            elements.push(...expressIDs);
-        });
-        elements.forEach((element) => {
-            var _a;
-            const entity = model.properties[element];
-            if (!entity) {
-                return;
-            }
-            const fragmentID = model.expressIDFragmentIDMap[entity.expressID];
-            const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
-            if (!group[predefinedType]) {
-                group[predefinedType] = {};
-            }
-            if (!group[predefinedType][fragmentID]) {
-                group[predefinedType][fragmentID] = [];
-            }
-            group[predefinedType][fragmentID].push(entity.expressID);
-        });
-        return group;
-    }
-    groupByEntity(model) {
-        const group = {};
-        for (const expressID in model.itemTypes) {
-            const entity = model.allTypes[model.itemTypes[expressID]];
-            const fragment = model.expressIDFragmentIDMap[expressID];
-            if (!fragment) {
-                continue;
-            }
-            if (!group[entity]) {
-                group[entity] = {};
-            }
-            if (!group[entity][fragment]) {
-                group[entity][fragment] = [];
-            }
-            group[entity][fragment].push(expressID);
-        }
-        return group;
-    }
-    groupByStorey(model) {
-        const group = {};
-        const properties = Object.values(model.properties);
-        const spatialRels = properties.filter((entity) => entity.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
-        spatialRels.forEach((rel) => {
-            if (!rel.RelatingStructure || !rel.RelatingStructure.value) {
-                return;
-            }
-            const storeyElements = rel.RelatedElements.map((element) => {
-                return element.value.toString();
-            });
-            const fragmentMap = {};
-            storeyElements.forEach((expressID) => {
-                const fragment = model.expressIDFragmentIDMap[expressID];
-                if (!fragment) {
-                    return;
-                }
-                if (!fragmentMap[fragment]) {
-                    fragmentMap[fragment] = [];
-                }
-                fragmentMap[fragment].push(expressID);
-            });
-            const storey = properties.find((prop) => prop.expressID === rel.RelatingStructure.value);
-            const storeyName = storey.Name.value;
-            group[storeyName] = fragmentMap;
-        });
-        return group;
     }
 }
 
@@ -95824,6 +95808,110 @@ class FragmentCoordinator extends Component {
             fragments: this._fragments,
             baseCoordinationMatrix: this._baseCoordinationMatrix,
         };
+    }
+}
+
+// TODO: Clean up and document
+class FragmentExploder {
+    constructor(fragments, groups) {
+        this.fragments = fragments;
+        this.groups = groups;
+        this.height = 10;
+        this.groupName = "storeys";
+        this.enabled = false;
+        this.initialized = false;
+        this.explodedFragments = new Set();
+    }
+    dispose() {
+        this.explodedFragments.clear();
+    }
+    explode() {
+        this.initialized = true;
+        this.enabled = true;
+        this.update();
+    }
+    reset() {
+        this.initialized = true;
+        this.enabled = false;
+        this.update();
+    }
+    update() {
+        if (!this.initialized) {
+            return;
+        }
+        const factor = this.enabled ? 1 : -1;
+        let i = 0;
+        // TODO: Decouple groups from fragments
+        const systems = this.groups.get();
+        const groups = systems[this.groupName];
+        for (const groupName in groups) {
+            for (const fragID in groups[groupName]) {
+                const fragment = this.fragments.list[fragID];
+                const customID = groupName + fragID;
+                if (!fragment) {
+                    continue;
+                }
+                if (this.enabled && this.explodedFragments.has(customID)) {
+                    continue;
+                }
+                if (!this.enabled && !this.explodedFragments.has(customID)) {
+                    continue;
+                }
+                if (this.enabled) {
+                    this.explodedFragments.add(customID);
+                }
+                else {
+                    this.explodedFragments.delete(customID);
+                }
+                const yTransform = this.getOffsetY(i * factor);
+                if (fragment.blocks.count === 1) {
+                    // For instanced fragments
+                    const ids = groups[groupName][fragID];
+                    for (const id of ids) {
+                        const tempMatrix = new THREE$1.Matrix4();
+                        const { instanceID } = fragment.getInstanceAndBlockID(id);
+                        fragment.getInstance(instanceID, tempMatrix);
+                        tempMatrix.premultiply(yTransform);
+                        fragment.setInstance(instanceID, {
+                            transform: tempMatrix,
+                            ids: [id],
+                        });
+                    }
+                }
+                else {
+                    // For merged fragments
+                    const tempMatrix = new THREE$1.Matrix4();
+                    fragment.getInstance(0, tempMatrix);
+                    tempMatrix.premultiply(yTransform);
+                    fragment.setInstance(0, {
+                        transform: tempMatrix,
+                        ids: fragment.items,
+                    });
+                }
+                fragment.mesh.instanceMatrix.needsUpdate = true;
+            }
+            i++;
+        }
+    }
+    getOffsetY(y) {
+        return new THREE$1.Matrix4().fromArray([
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            y * this.height,
+            0,
+            1,
+        ]);
     }
 }
 
@@ -99844,4 +99932,4 @@ class MapboxWindow {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentCoordinator, FragmentEdges, FragmentGroup, FragmentGrouper, FragmentGroups, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
+export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentGroup, FragmentGrouper, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
