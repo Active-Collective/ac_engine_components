@@ -5418,7 +5418,7 @@ class SimpleRaycaster extends Component {
  * [dkaraush](https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts).
  */
 class SimpleGrid extends Component {
-    constructor(components, size1 = 1, size2 = 10, color = new THREE$1.Color(0xcccccc), distance = 500) {
+    constructor(components, color = new THREE$1.Color(0xbbbbbb), size1 = 1, size2 = 10, distance = 500) {
         super();
         /** {@link Component.name} */
         this.name = "SimpleGrid";
@@ -9808,7 +9808,6 @@ class UIManager extends Component {
                 },
             ],
         });
-        console.log(popperInstance.state);
         /* detectOverflow(popperInstance.state, {
           boundary: Object.values(this.containers),
         }); */
