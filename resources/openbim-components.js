@@ -12450,7 +12450,8 @@ class ScreenCuller extends Component {
         this.visibleMeshes = [];
         this.colorMeshes = new Map();
         this.meshes = new Map();
-        this._previouslyVisibleMeshes = new Set();
+        this.currentVisibleMeshes = new Set();
+        this.recentlyHiddenMeshes = new Set();
         this._transparentMat = new THREE$1.MeshBasicMaterial({
             transparent: true,
             opacity: 0,
@@ -12478,12 +12479,11 @@ class ScreenCuller extends Component {
                 buffer: this._buffer,
             });
             this.needsUpdate = false;
-            this.viewUpdated.trigger();
         };
         this.handleWorkerMessage = (event) => {
             const colors = event.data.colors;
-            const meshesThatJustDisappeared = new Set(this._previouslyVisibleMeshes);
-            this._previouslyVisibleMeshes.clear();
+            this.recentlyHiddenMeshes = new Set(this.currentVisibleMeshes);
+            this.currentVisibleMeshes.clear();
             this.visibleMeshes = [];
             // Make found meshes visible
             for (const code of colors.values()) {
@@ -12491,19 +12491,18 @@ class ScreenCuller extends Component {
                 if (mesh) {
                     this.visibleMeshes.push(mesh);
                     mesh.visible = true;
-                    this._previouslyVisibleMeshes.add(mesh.uuid);
-                    meshesThatJustDisappeared.delete(mesh.uuid);
-                    // this.cullEdges(mesh, true);
+                    this.currentVisibleMeshes.add(mesh.uuid);
+                    this.recentlyHiddenMeshes.delete(mesh.uuid);
                 }
             }
             // Hide meshes that were visible before but not anymore
-            for (const uuid of meshesThatJustDisappeared) {
+            for (const uuid of this.recentlyHiddenMeshes) {
                 const mesh = this.meshes.get(uuid);
                 if (mesh === undefined)
                     continue;
                 mesh.visible = false;
-                // this.cullEdges(mesh, false);
             }
+            this.viewUpdated.trigger();
         };
         this.renderer = new THREE$1.WebGLRenderer();
         const planes = this.components.renderer.clippingPlanes;
@@ -12537,6 +12536,8 @@ class ScreenCuller extends Component {
     }
     dispose() {
         this.enabled = false;
+        this.currentVisibleMeshes.clear();
+        this.recentlyHiddenMeshes.clear();
         this._scene.children.length = 0;
         this.viewUpdated.reset();
         this.worker.terminate();
@@ -12544,7 +12545,6 @@ class ScreenCuller extends Component {
         this.renderTarget.dispose();
         this._buffer = null;
         this._transparentMat.dispose();
-        this.viewUpdated.reset();
         this.meshColorMap.clear();
         this.visibleMeshes = [];
         for (const id in this.materialCache) {
@@ -95587,12 +95587,12 @@ class FragmentEdges extends Component {
         this.edgesToUpdate.clear();
     }
     add(fragment) {
-        if (this._list[fragment.id]) {
-            const previous = this._list[fragment.id];
+        if (this._list[fragment.mesh.uuid]) {
+            const previous = this._list[fragment.mesh.uuid];
             previous.removeFromParent();
             previous.geometry.dispose();
             previous.geometry = null;
-            delete this._list[fragment.id];
+            delete this._list[fragment.mesh.uuid];
         }
         this.getInstanceTransforms(fragment);
         const edgesGeom = new EdgesGeometry(fragment.mesh.geometry, this.threshold);
@@ -95604,7 +95604,7 @@ class FragmentEdges extends Component {
         lines.frustumCulled = false;
         const scene = this._components.scene.get();
         scene.add(lines);
-        this._list[fragment.id] = lines;
+        this._list[fragment.mesh.uuid] = lines;
         this.updateInstancedEdges(fragment, lineGeom);
         return lines;
     }
