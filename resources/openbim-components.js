@@ -95519,16 +95519,21 @@ class FragmentGrouper extends Component {
 }
 
 // TODO: Clean up and document
-class FragmentEdges {
+class FragmentEdges extends Component {
     constructor(components) {
-        this.edgesList = {};
+        super();
         this.edgesToUpdate = new Set();
         this.threshold = 80;
+        this.enabled = true;
+        this.name = "FragmentEdges";
+        this._visible = true;
+        this._list = {};
         this._mat4 = new Matrix4();
         this._dummy = new Object3D();
         this._pos = [];
         this._rot = [];
         this._scl = [];
+        this._disposer = new Disposer();
         this.lineMat = new LineBasicMaterial({
             color: 0x555555,
             // @ts-ignore
@@ -95551,25 +95556,43 @@ class FragmentEdges {
 `);
             },
         });
-        this.disposer = new Disposer();
         this._components = components;
     }
+    get visible() {
+        return this._visible;
+    }
+    set visible(active) {
+        this._visible = active;
+        const scene = this._components.scene.get();
+        for (const id in this._list) {
+            const edge = this._list[id];
+            if (active) {
+                scene.add(edge);
+            }
+            else {
+                edge.removeFromParent();
+            }
+        }
+    }
+    get() {
+        return this._list;
+    }
     dispose() {
-        for (const guid in this.edgesList) {
-            const edges = this.edgesList[guid];
-            this.disposer.dispose(edges, true);
+        for (const guid in this._list) {
+            const edges = this._list[guid];
+            this._disposer.dispose(edges, true);
         }
         this.lineMat.dispose();
-        this.edgesList = {};
+        this._list = {};
         this.edgesToUpdate.clear();
     }
-    generate(fragment) {
-        if (this.edgesList[fragment.id]) {
-            const previous = this.edgesList[fragment.id];
+    add(fragment) {
+        if (this._list[fragment.id]) {
+            const previous = this._list[fragment.id];
             previous.removeFromParent();
             previous.geometry.dispose();
             previous.geometry = null;
-            delete this.edgesList[fragment.id];
+            delete this._list[fragment.id];
         }
         this.getInstanceTransforms(fragment);
         const edgesGeom = new EdgesGeometry(fragment.mesh.geometry, this.threshold);
@@ -95581,9 +95604,8 @@ class FragmentEdges {
         lines.frustumCulled = false;
         const scene = this._components.scene.get();
         scene.add(lines);
-        this.edgesList[fragment.id] = lines;
+        this._list[fragment.id] = lines;
         this.updateInstancedEdges(fragment, lineGeom);
-        lines.visible = false;
         return lines;
     }
     updateInstancedEdges(fragment, lineGeom) {
