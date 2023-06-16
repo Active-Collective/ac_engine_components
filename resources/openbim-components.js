@@ -22309,7 +22309,7 @@ class MaterialManager extends Component {
                     mesh.material = material;
                 }
                 else {
-                    mesh.material = this._originals[mesh.id];
+                    mesh.material = this._originals[mesh.uuid];
                 }
             }
         }
@@ -96109,8 +96109,10 @@ class FragmentEdges extends Component {
         this.setAttributes(lineGeom);
         const lines = new LineSegments(lineGeom, this.lineMat);
         lines.frustumCulled = false;
-        const scene = this._components.scene.get();
-        scene.add(lines);
+        if (this._visible) {
+            const scene = this._components.scene.get();
+            scene.add(lines);
+        }
         this._list[fragment.mesh.uuid] = lines;
         this.updateInstancedEdges(fragment, lineGeom);
         return lines;
@@ -97976,6 +97978,13 @@ class EdgesPlane extends SimplePlane {
         super.visible = state;
         this.edges.visible = state;
     }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        super.enabled = state;
+        if (state) {
+            this.update();
+        }
+    }
     /** {@link Disposable.dispose} */
     dispose() {
         super.dispose();
@@ -98856,6 +98865,9 @@ class PlanNavigator extends Component {
         await this.camera.setProjection(this.previousProjection);
         if (this.currentPlan && this.currentPlan.plane) {
             this.currentPlan.plane.enabled = false;
+            if (this.currentPlan.plane instanceof EdgesPlane) {
+                this.currentPlan.plane.edges.visible = false;
+            }
         }
         this.currentPlan = null;
         await this.camera.controls.setLookAt(this.previousCamera.x, this.previousCamera.y, this.previousCamera.z, this.previousTarget.x, this.previousTarget.y, this.previousTarget.z, animate);
@@ -98889,8 +98901,12 @@ class PlanNavigator extends Component {
     activateCurrentPlan() {
         if (!this.currentPlan)
             throw new Error("Current plan is not defined.");
-        if (this.currentPlan.plane)
+        if (this.currentPlan.plane) {
             this.currentPlan.plane.enabled = true;
+            if (this.currentPlan.plane instanceof EdgesPlane) {
+                this.currentPlan.plane.edges.visible = true;
+            }
+        }
         this.camera.setNavigationMode("Plan");
         const projection = this.currentPlan.ortho ? "Orthographic" : "Perspective";
         this.camera.setProjection(projection);
