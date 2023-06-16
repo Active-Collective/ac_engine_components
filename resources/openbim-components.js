@@ -95997,6 +95997,14 @@ class FragmentGrouper extends Component {
         }
         const storeys = this._groupSystems.storeys;
         const spatialRels = properties.filter((entity) => entity.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
+        const aggregates = properties.filter((entity) => entity.type === IFCRELAGGREGATES);
+        const nestedItems = {};
+        for (const item of aggregates) {
+            if (!item.RelatingObject.value)
+                continue;
+            const id = item.RelatingObject.value;
+            nestedItems[id] = item.RelatedObjects.map((item) => item.value.toString());
+        }
         spatialRels.forEach((rel) => {
             if (!rel.RelatingStructure || !rel.RelatingStructure.value) {
                 return;
@@ -96011,16 +96019,24 @@ class FragmentGrouper extends Component {
                 return element.value.toString();
             });
             storeyElements.forEach((expressID) => {
-                const fragment = expressIDFragmentIDMap[expressID];
-                if (!fragment) {
-                    return;
+                this.savePerStorey(expressIDFragmentIDMap, expressID, storey);
+                if (nestedItems[expressID]) {
+                    for (const item of nestedItems[expressID]) {
+                        this.savePerStorey(expressIDFragmentIDMap, item, storey);
+                    }
                 }
-                if (!storey[fragment]) {
-                    storey[fragment] = new Set();
-                }
-                storey[fragment].add(expressID);
             });
         });
+    }
+    savePerStorey(idFragmentMap, expressID, storey) {
+        const fragment = idFragmentMap[expressID];
+        if (!fragment) {
+            return;
+        }
+        if (!storey[fragment]) {
+            storey[fragment] = new Set();
+        }
+        storey[fragment].add(expressID);
     }
 }
 
