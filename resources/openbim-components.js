@@ -12035,6 +12035,7 @@ class SimplePlane extends Component {
         // TODO: Clean up unnecessary attributes, clean up constructor
         this._visible = true;
         this._enabled = true;
+        this._controlsActive = false;
         this._arrowBoundBox = new THREE$1.Mesh();
         this._hiddenMaterial = new THREE$1.MeshBasicMaterial({
             visible: false,
@@ -12145,13 +12146,15 @@ class SimplePlane extends Component {
         this._arrowBoundBox.geometry.applyMatrix4(this._arrowBoundBox.matrix);
     }
     toggleControls(state) {
-        if (state) {
+        if (state && !this._controlsActive) {
             this._controls.addEventListener("change", this.update);
             this._controls.addEventListener("dragging-changed", this.changeDrag);
+            this._controlsActive = true;
         }
         else {
             this._controls.removeEventListener("change", this.update);
             this._controls.removeEventListener("dragging-changed", this.changeDrag);
+            this._controlsActive = false;
         }
     }
     notifyDraggingChanged(event) {
@@ -20290,6 +20293,445 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
     }
 }
 
+/**
+ * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
+ */
+class ProjectionManager {
+    constructor(components, camera) {
+        this.components = components;
+        this._previousDistance = -1;
+        this._camera = camera;
+        const perspective = "Perspective";
+        this._currentCamera = camera.get(perspective);
+        this._currentProjection = perspective;
+    }
+    get projection() {
+        return this._currentProjection;
+    }
+    /**
+     * Sets the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
+     *
+     * @param projection - the new projection to set. If it is the current projection,
+     * it will have no effect.
+     */
+    async setProjection(projection) {
+        if (this.projection === projection)
+            return;
+        if (projection === "Orthographic") {
+            this.setOrthoCamera();
+        }
+        else {
+            await this.setPerspectiveCamera();
+        }
+        await this.updateActiveCamera();
+    }
+    setOrthoCamera() {
+        // Matching orthographic camera to perspective camera
+        // Resource: https://stackoverflow.com/questions/48758959/what-is-required-to-convert-threejs-perspective-camera-to-orthographic
+        if (this._camera.currentMode.id === "FirstPerson") {
+            return;
+        }
+        this._previousDistance = this._camera.controls.distance;
+        this._camera.controls.distance = 200;
+        const { width, height } = this.getDims();
+        this.setupOrthoCamera(height, width);
+        this._currentCamera = this._camera.get("Orthographic");
+        this._currentProjection = "Orthographic";
+    }
+    // This small delay is needed to hide weirdness during the transition
+    async updateActiveCamera() {
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                this._camera.activeCamera = this._currentCamera;
+                resolve();
+            }, 50);
+        });
+    }
+    getDims() {
+        const lineOfSight = new THREE$1.Vector3();
+        this._camera.get("Perspective").getWorldDirection(lineOfSight);
+        const target = new THREE$1.Vector3();
+        this._camera.controls.getTarget(target);
+        const distance = target
+            .clone()
+            .sub(this._camera.get("Perspective").position);
+        const depth = distance.dot(lineOfSight);
+        const dims = this.components.renderer.getSize();
+        const aspect = dims.x / dims.y;
+        const camera = this._camera.get("Perspective");
+        const height = depth * 2 * Math.atan((camera.fov * (Math.PI / 180)) / 2);
+        const width = height * aspect;
+        return { width, height };
+    }
+    setupOrthoCamera(height, width) {
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.ZOOM;
+        const pCamera = this._camera.get("Perspective");
+        const oCamera = this._camera.get("Orthographic");
+        oCamera.zoom = 1;
+        oCamera.left = width / -2;
+        oCamera.right = width / 2;
+        oCamera.top = height / 2;
+        oCamera.bottom = height / -2;
+        oCamera.updateProjectionMatrix();
+        oCamera.position.copy(pCamera.position);
+        oCamera.quaternion.copy(pCamera.quaternion);
+        this._camera.controls.camera = oCamera;
+    }
+    async setPerspectiveCamera() {
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        const pCamera = this._camera.get("Perspective");
+        const oCamera = this._camera.get("Orthographic");
+        pCamera.position.copy(oCamera.position);
+        pCamera.quaternion.copy(oCamera.quaternion);
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        this._camera.controls.distance = this._previousDistance;
+        await this._camera.controls.zoomTo(1);
+        pCamera.updateProjectionMatrix();
+        this._camera.controls.camera = pCamera;
+        this._currentCamera = pCamera;
+        this._currentProjection = "Perspective";
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows 3D navigation and panning
+ * like in many 3D and CAD softwares.
+ */
+class OrbitMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = true;
+        /** {@link NavigationMode.id} */
+        this.id = "Orbit";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+        this.activateOrbitControls();
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        if (active) {
+            this.activateOrbitControls();
+        }
+    }
+    activateOrbitControls() {
+        const controls = this.camera.controls;
+        controls.minDistance = 1;
+        controls.maxDistance = 300;
+        controls.truckSpeed = 2;
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows first person navigation,
+ * simulating FPS video games.
+ */
+class FirstPersonMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = false;
+        /** {@link NavigationMode.id} */
+        this.id = "FirstPerson";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        if (active) {
+            const projection = this.camera.getProjection();
+            if (projection !== "Perspective") {
+                this.camera.setNavigationMode("Orbit");
+                return;
+            }
+            this.setupFirstPersonCamera();
+        }
+    }
+    setupFirstPersonCamera() {
+        const controls = this.camera.controls;
+        const cameraPosition = new THREE$1.Vector3();
+        controls.camera.getWorldPosition(cameraPosition);
+        const newTargetPosition = new THREE$1.Vector3();
+        controls.distance--;
+        controls.camera.getWorldPosition(newTargetPosition);
+        controls.minDistance = 1;
+        controls.maxDistance = 1;
+        controls.distance = 1;
+        controls.moveTo(newTargetPosition.x, newTargetPosition.y, newTargetPosition.z);
+        controls.truckSpeed = 50;
+        controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM_TRUCK;
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows to navigate floorplans in 2D,
+ * like many BIM tools.
+ */
+class PlanMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = false;
+        /** {@link NavigationMode.id} */
+        this.id = "Plan";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+        this.mouseInitialized = false;
+        this.defaultAzimuthSpeed = camera.controls.azimuthRotateSpeed;
+        this.defaultPolarSpeed = camera.controls.polarRotateSpeed;
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        const controls = this.camera.controls;
+        controls.azimuthRotateSpeed = active ? 0 : this.defaultAzimuthSpeed;
+        controls.polarRotateSpeed = active ? 0 : this.defaultPolarSpeed;
+        if (!this.mouseInitialized) {
+            this.mouseAction1 = controls.touches.one;
+            this.mouseAction2 = controls.touches.two;
+            this.mouseInitialized = true;
+        }
+        if (active) {
+            controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
+            controls.touches.one = CameraControls.ACTION.TOUCH_TRUCK;
+            controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM;
+        }
+        else {
+            controls.mouseButtons.left = CameraControls.ACTION.ROTATE;
+            controls.touches.one = this.mouseAction1;
+            controls.touches.two = this.mouseAction2;
+        }
+    }
+}
+
+/**
+ * A flexible camera that uses
+ * [yomotsu's cameracontrols](https://github.com/yomotsu/camera-controls) to
+ * easily control the camera in 2D and 3D. It supports multiple navigation
+ * modes, such as 2D floor plan navigation, first person and 3D orbit.
+ */
+class OrthoPerspectiveCamera extends SimpleCamera {
+    constructor(components) {
+        super(components);
+        /**
+         * Event that fires when the {@link CameraProjection} changes.
+         */
+        this.projectionChanged = new Event();
+        this._userInputButtons = {};
+        this._frustumSize = 50;
+        this._navigationModes = new Map();
+        this._orthoCamera = this.newOrthoCamera();
+        this._navigationModes.set("Orbit", new OrbitMode(this));
+        this._navigationModes.set("FirstPerson", new FirstPersonMode(this));
+        this._navigationModes.set("Plan", new PlanMode(this));
+        this.currentMode = this._navigationModes.get("Orbit");
+        this.currentMode.toggle(true, { preventTargetAdjustment: true });
+        this.toggleEvents(true);
+        this._projectionManager = new ProjectionManager(components, this);
+        this.uiElement = this.setUI();
+    }
+    setUI() {
+        const mainButton = new Button(this.components, {
+            materialIconName: "video_camera_back",
+        });
+        const projection = new Button(this.components, {
+            materialIconName: "camera",
+            name: "Projection",
+        });
+        const perspective = new Button(this.components, { name: "Perspective" });
+        perspective.active = true;
+        perspective.onclick = () => this.setProjection("Perspective");
+        const orthographic = new Button(this.components, { name: "Orthographic" });
+        orthographic.onclick = () => this.setProjection("Orthographic");
+        projection.addChild(perspective, orthographic);
+        const navigation = new Button(this.components, {
+            materialIconName: "open_with",
+            name: "Navigation",
+        });
+        const orbit = new Button(this.components, { name: "Orbit Around" });
+        orbit.onclick = () => this.setNavigationMode("Orbit");
+        const plan = new Button(this.components, { name: "Plan View" });
+        plan.onclick = () => this.setNavigationMode("Plan");
+        const firstPerson = new Button(this.components, { name: "First person" });
+        firstPerson.onclick = () => this.setNavigationMode("FirstPerson");
+        navigation.addChild(orbit, plan, firstPerson);
+        mainButton.addChild(navigation, projection);
+        this.projectionChanged.on((camera) => {
+            if (camera instanceof THREE$1.PerspectiveCamera) {
+                perspective.active = true;
+                orthographic.active = false;
+            }
+            else {
+                perspective.active = false;
+                orthographic.active = true;
+            }
+        });
+        return mainButton;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        super.dispose();
+        this.toggleEvents(false);
+        this._orthoCamera.removeFromParent();
+    }
+    /**
+     * Similar to {@link Component.get}, but with an optional argument
+     * to specify which camera to get.
+     *
+     * @param projection - The camera corresponding to the
+     * {@link CameraProjection} specified. If no projection is specified,
+     * the active camera will be returned.
+     */
+    get(projection) {
+        if (!projection) {
+            return this.activeCamera;
+        }
+        return projection === "Orthographic"
+            ? this._orthoCamera
+            : this._perspectiveCamera;
+    }
+    /** Returns the current {@link CameraProjection}. */
+    getProjection() {
+        return this._projectionManager.projection;
+    }
+    /**
+     * Changes the current {@link CameraProjection} from Ortographic to Perspective
+     * and Viceversa.
+     */
+    async toggleProjection() {
+        const projection = this.getProjection();
+        const newProjection = projection === "Perspective" ? "Orthographic" : "Perspective";
+        await this.setProjection(newProjection);
+    }
+    /**
+     * Sets the current {@link CameraProjection}. This triggers the event
+     * {@link projectionChanged}.
+     *
+     * @param projection - The new {@link CameraProjection} to set.
+     */
+    async setProjection(projection) {
+        await this._projectionManager.setProjection(projection);
+        this.projectionChanged.trigger(this.activeCamera);
+    }
+    /**
+     * Allows or prevents all user input.
+     *
+     * @param active - whether to enable or disable user inputs.
+     */
+    toggleUserInput(active) {
+        if (active) {
+            this.enableUserInput();
+        }
+        else {
+            this.disableUserInput();
+        }
+    }
+    /**
+     * Sets a new {@link NavigationMode} and disables the previous one.
+     *
+     * @param mode - The {@link NavigationMode} to set.
+     */
+    setNavigationMode(mode) {
+        if (this.currentMode.id === mode)
+            return;
+        this.currentMode.toggle(false);
+        if (!this._navigationModes.has(mode)) {
+            throw new Error("The specified mode does not exist!");
+        }
+        this.currentMode = this._navigationModes.get(mode);
+        this.currentMode.toggle(true);
+    }
+    /** Updates the aspect ratio of the camera to match the Renderer's aspect ratio. */
+    updateAspect() {
+        super.updateAspect();
+        this.setOrthoCameraAspect();
+    }
+    /**
+     * Make the camera view fit all the specified meshes.
+     *
+     * @param meshes the meshes to fit. If it is not defined, it will
+     * evaluate {@link Components.meshes}.
+     * @param offset the distance to the fit object
+     */
+    async fit(meshes = this.components.meshes, offset = 1.5) {
+        if (!this.enabled)
+            return;
+        const maxNum = Number.MAX_VALUE;
+        const minNum = Number.MIN_VALUE;
+        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
+        const max = new THREE$1.Vector3(minNum, minNum, minNum);
+        for (const mesh of meshes) {
+            const box = new THREE$1.Box3().setFromObject(mesh);
+            if (box.min.x < min.x)
+                min.x = box.min.x;
+            if (box.min.y < min.y)
+                min.y = box.min.y;
+            if (box.min.z < min.z)
+                min.z = box.min.z;
+            if (box.max.x > max.x)
+                max.x = box.max.x;
+            if (box.max.y > max.y)
+                max.y = box.max.y;
+            if (box.max.z > max.z)
+                max.z = box.max.z;
+        }
+        const box = new THREE$1.Box3(min, max);
+        const sceneSize = new THREE$1.Vector3();
+        box.getSize(sceneSize);
+        const sceneCenter = new THREE$1.Vector3();
+        box.getCenter(sceneCenter);
+        const radius = Math.max(sceneSize.x, sceneSize.y, sceneSize.z) * offset;
+        const sphere = new THREE$1.Sphere(sceneCenter, radius);
+        await this.controls.fitToSphere(sphere, true);
+    }
+    disableUserInput() {
+        this._userInputButtons.left = this.controls.mouseButtons.left;
+        this._userInputButtons.right = this.controls.mouseButtons.right;
+        this._userInputButtons.middle = this.controls.mouseButtons.middle;
+        this._userInputButtons.wheel = this.controls.mouseButtons.wheel;
+        this.controls.mouseButtons.left = 0;
+        this.controls.mouseButtons.right = 0;
+        this.controls.mouseButtons.middle = 0;
+        this.controls.mouseButtons.wheel = 0;
+    }
+    enableUserInput() {
+        if (Object.keys(this._userInputButtons).length === 0)
+            return;
+        this.controls.mouseButtons.left = this._userInputButtons.left;
+        this.controls.mouseButtons.right = this._userInputButtons.right;
+        this.controls.mouseButtons.middle = this._userInputButtons.middle;
+        this.controls.mouseButtons.wheel = this._userInputButtons.wheel;
+    }
+    newOrthoCamera() {
+        const dims = this.components.renderer.getSize();
+        const aspect = dims.x / dims.y;
+        return new THREE$1.OrthographicCamera((this._frustumSize * aspect) / -2, (this._frustumSize * aspect) / 2, this._frustumSize / 2, this._frustumSize / -2, 0.1, 1000);
+    }
+    setOrthoCameraAspect() {
+        const size = this.components.renderer.getSize();
+        const aspect = size.x / size.y;
+        this._orthoCamera.left = (-this._frustumSize * aspect) / 2;
+        this._orthoCamera.right = (this._frustumSize * aspect) / 2;
+        this._orthoCamera.top = this._frustumSize / 2;
+        this._orthoCamera.bottom = -this._frustumSize / 2;
+        this._orthoCamera.updateProjectionMatrix();
+    }
+    toggleEvents(active) {
+        const modes = Object.values(this._navigationModes);
+        for (const mode of modes) {
+            if (active) {
+                mode.projectionChanged.on(this.projectionChanged.trigger);
+            }
+            else {
+                mode.projectionChanged.reset();
+            }
+        }
+    }
+}
+
 // TODO: Clean up and document this
 // source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
 class Postproduction {
@@ -20299,7 +20741,6 @@ class Postproduction {
         this.excludedItems = new Set();
         this._enabled = false;
         this._initialized = false;
-        this._visibilityField = "ifcjsPostproductionVisible";
         this._outlineParams = {
             mode: { Mode: 0 },
             FXAA: true,
@@ -20347,21 +20788,15 @@ class Postproduction {
     update() {
         if (!this._enabled)
             return;
-        this.hideExcludedItems();
         this.composer.render();
-        this.showExcludedItems();
     }
-    hideExcludedItems() {
-        for (const object of this.excludedItems) {
-            object.userData[this._visibilityField] = object.visible;
-            object.visible = false;
+    updateCamera() {
+        const camera = this.components.camera.get();
+        if (this.n8ao) {
+            this.n8ao.camera = camera;
         }
-    }
-    showExcludedItems() {
-        for (const object of this.excludedItems) {
-            if (object.userData[this._visibilityField] !== undefined) {
-                object.visible = object.userData[this._visibilityField];
-            }
+        if (this._basePass) {
+            this._basePass.camera = camera;
         }
     }
     initialize() {
@@ -20369,6 +20804,11 @@ class Postproduction {
         const camera = this.components.camera.get();
         if (!scene || !camera)
             return;
+        if (this.components.camera instanceof OrthoPerspectiveCamera) {
+            this.components.camera.projectionChanged.on(() => {
+                this.updateCamera();
+            });
+        }
         const renderer = this.components.renderer;
         this.renderer.clippingPlanes = renderer.clippingPlanes;
         this.addBasePass(scene, camera);
@@ -21843,6 +22283,72 @@ class Simple2DMarker extends Component {
     }
     get() {
         return this._marker;
+    }
+}
+
+// TODO: Clean up and document
+class MaterialManager extends Component {
+    constructor(components) {
+        super();
+        this._originalBackground = null;
+        this.enabled = true;
+        this.name = "MaterialManager";
+        this._originals = {};
+        this._list = {};
+        this._components = components;
+    }
+    get() {
+        return Object.keys(this._list);
+    }
+    set(active, ids = Object.keys(this._list)) {
+        for (const id of ids) {
+            const { material, meshes } = this._list[id];
+            for (const mesh of meshes) {
+                if (active) {
+                    this._originals[mesh.uuid] = mesh.material;
+                    mesh.material = material;
+                }
+                else {
+                    mesh.material = this._originals[mesh.id];
+                }
+            }
+        }
+    }
+    dispose() {
+        for (const id in this._list) {
+            const { material } = this._list[id];
+            material.dispose();
+        }
+        this._list = {};
+        this._originals = {};
+        this._components = null;
+    }
+    setBackgroundColor(color) {
+        const scene = this._components.scene.get();
+        this._originalBackground = scene.background;
+        if (this._originalBackground) {
+            scene.background = color;
+        }
+    }
+    resetBackgroundColor() {
+        const scene = this._components.scene.get();
+        if (this._originalBackground) {
+            scene.background = this._originalBackground;
+        }
+    }
+    addMaterial(id, material) {
+        if (this._list[id]) {
+            throw new Error("This ID already exists!");
+        }
+        this._list[id] = { material, meshes: new Set() };
+    }
+    addMeshes(id, meshes) {
+        if (!this._list[id]) {
+            throw new Error("This ID doesn't exists!");
+        }
+        for (const mesh of meshes) {
+            this._list[id].meshes.add(mesh);
+        }
     }
 }
 
@@ -95519,6 +96025,7 @@ class FragmentGrouper extends Component {
 }
 
 // TODO: Clean up and document
+// TODO: Decouple from fragments?
 class FragmentEdges extends Component {
     constructor(components) {
         super();
@@ -95910,445 +96417,6 @@ class CloudProcessor extends Component {
         const url = `${base}${token}`;
         const result = await fetch(url, { method: "POST" });
         return result.json();
-    }
-}
-
-/**
- * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
- */
-class ProjectionManager {
-    constructor(components, camera) {
-        this.components = components;
-        this._previousDistance = -1;
-        this._camera = camera;
-        const perspective = "Perspective";
-        this._currentCamera = camera.get(perspective);
-        this._currentProjection = perspective;
-    }
-    get projection() {
-        return this._currentProjection;
-    }
-    /**
-     * Sets the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
-     *
-     * @param projection - the new projection to set. If it is the current projection,
-     * it will have no effect.
-     */
-    async setProjection(projection) {
-        if (this.projection === projection)
-            return;
-        if (projection === "Orthographic") {
-            this.setOrthoCamera();
-        }
-        else {
-            await this.setPerspectiveCamera();
-        }
-        await this.updateActiveCamera();
-    }
-    setOrthoCamera() {
-        // Matching orthographic camera to perspective camera
-        // Resource: https://stackoverflow.com/questions/48758959/what-is-required-to-convert-threejs-perspective-camera-to-orthographic
-        if (this._camera.currentMode.id === "FirstPerson") {
-            return;
-        }
-        this._previousDistance = this._camera.controls.distance;
-        this._camera.controls.distance = 200;
-        const { width, height } = this.getDims();
-        this.setupOrthoCamera(height, width);
-        this._currentCamera = this._camera.get("Orthographic");
-        this._currentProjection = "Orthographic";
-    }
-    // This small delay is needed to hide weirdness during the transition
-    async updateActiveCamera() {
-        await new Promise((resolve) => {
-            setTimeout(() => {
-                this._camera.activeCamera = this._currentCamera;
-                resolve();
-            }, 50);
-        });
-    }
-    getDims() {
-        const lineOfSight = new THREE$1.Vector3();
-        this._camera.get("Perspective").getWorldDirection(lineOfSight);
-        const target = new THREE$1.Vector3();
-        this._camera.controls.getTarget(target);
-        const distance = target
-            .clone()
-            .sub(this._camera.get("Perspective").position);
-        const depth = distance.dot(lineOfSight);
-        const dims = this.components.renderer.getSize();
-        const aspect = dims.x / dims.y;
-        const camera = this._camera.get("Perspective");
-        const height = depth * 2 * Math.atan((camera.fov * (Math.PI / 180)) / 2);
-        const width = height * aspect;
-        return { width, height };
-    }
-    setupOrthoCamera(height, width) {
-        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.ZOOM;
-        const pCamera = this._camera.get("Perspective");
-        const oCamera = this._camera.get("Orthographic");
-        oCamera.zoom = 1;
-        oCamera.left = width / -2;
-        oCamera.right = width / 2;
-        oCamera.top = height / 2;
-        oCamera.bottom = height / -2;
-        oCamera.updateProjectionMatrix();
-        oCamera.position.copy(pCamera.position);
-        oCamera.quaternion.copy(pCamera.quaternion);
-        this._camera.controls.camera = oCamera;
-    }
-    async setPerspectiveCamera() {
-        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
-        const pCamera = this._camera.get("Perspective");
-        const oCamera = this._camera.get("Orthographic");
-        pCamera.position.copy(oCamera.position);
-        pCamera.quaternion.copy(oCamera.quaternion);
-        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
-        this._camera.controls.distance = this._previousDistance;
-        await this._camera.controls.zoomTo(1);
-        pCamera.updateProjectionMatrix();
-        this._camera.controls.camera = pCamera;
-        this._currentCamera = pCamera;
-        this._currentProjection = "Perspective";
-    }
-}
-
-/**
- * A {@link NavigationMode} that allows 3D navigation and panning
- * like in many 3D and CAD softwares.
- */
-class OrbitMode {
-    constructor(camera) {
-        this.camera = camera;
-        /** {@link NavigationMode.enabled} */
-        this.enabled = true;
-        /** {@link NavigationMode.id} */
-        this.id = "Orbit";
-        /** {@link NavigationMode.projectionChanged} */
-        this.projectionChanged = new Event();
-        this.activateOrbitControls();
-    }
-    /** {@link NavigationMode.toggle} */
-    toggle(active) {
-        this.enabled = active;
-        if (active) {
-            this.activateOrbitControls();
-        }
-    }
-    activateOrbitControls() {
-        const controls = this.camera.controls;
-        controls.minDistance = 1;
-        controls.maxDistance = 300;
-        controls.truckSpeed = 2;
-    }
-}
-
-/**
- * A {@link NavigationMode} that allows first person navigation,
- * simulating FPS video games.
- */
-class FirstPersonMode {
-    constructor(camera) {
-        this.camera = camera;
-        /** {@link NavigationMode.enabled} */
-        this.enabled = false;
-        /** {@link NavigationMode.id} */
-        this.id = "FirstPerson";
-        /** {@link NavigationMode.projectionChanged} */
-        this.projectionChanged = new Event();
-    }
-    /** {@link NavigationMode.toggle} */
-    toggle(active) {
-        this.enabled = active;
-        if (active) {
-            const projection = this.camera.getProjection();
-            if (projection !== "Perspective") {
-                this.camera.setNavigationMode("Orbit");
-                return;
-            }
-            this.setupFirstPersonCamera();
-        }
-    }
-    setupFirstPersonCamera() {
-        const controls = this.camera.controls;
-        const cameraPosition = new THREE$1.Vector3();
-        controls.camera.getWorldPosition(cameraPosition);
-        const newTargetPosition = new THREE$1.Vector3();
-        controls.distance--;
-        controls.camera.getWorldPosition(newTargetPosition);
-        controls.minDistance = 1;
-        controls.maxDistance = 1;
-        controls.distance = 1;
-        controls.moveTo(newTargetPosition.x, newTargetPosition.y, newTargetPosition.z);
-        controls.truckSpeed = 50;
-        controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
-        controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM_TRUCK;
-    }
-}
-
-/**
- * A {@link NavigationMode} that allows to navigate floorplans in 2D,
- * like many BIM tools.
- */
-class PlanMode {
-    constructor(camera) {
-        this.camera = camera;
-        /** {@link NavigationMode.enabled} */
-        this.enabled = false;
-        /** {@link NavigationMode.id} */
-        this.id = "Plan";
-        /** {@link NavigationMode.projectionChanged} */
-        this.projectionChanged = new Event();
-        this.mouseInitialized = false;
-        this.defaultAzimuthSpeed = camera.controls.azimuthRotateSpeed;
-        this.defaultPolarSpeed = camera.controls.polarRotateSpeed;
-    }
-    /** {@link NavigationMode.toggle} */
-    toggle(active) {
-        this.enabled = active;
-        const controls = this.camera.controls;
-        controls.azimuthRotateSpeed = active ? 0 : this.defaultAzimuthSpeed;
-        controls.polarRotateSpeed = active ? 0 : this.defaultPolarSpeed;
-        if (!this.mouseInitialized) {
-            this.mouseAction1 = controls.touches.one;
-            this.mouseAction2 = controls.touches.two;
-            this.mouseInitialized = true;
-        }
-        if (active) {
-            controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
-            controls.touches.one = CameraControls.ACTION.TOUCH_TRUCK;
-            controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM;
-        }
-        else {
-            controls.mouseButtons.left = CameraControls.ACTION.ROTATE;
-            controls.touches.one = this.mouseAction1;
-            controls.touches.two = this.mouseAction2;
-        }
-    }
-}
-
-/**
- * A flexible camera that uses
- * [yomotsu's cameracontrols](https://github.com/yomotsu/camera-controls) to
- * easily control the camera in 2D and 3D. It supports multiple navigation
- * modes, such as 2D floor plan navigation, first person and 3D orbit.
- */
-class OrthoPerspectiveCamera extends SimpleCamera {
-    constructor(components) {
-        super(components);
-        /**
-         * Event that fires when the {@link CameraProjection} changes.
-         */
-        this.projectionChanged = new Event();
-        this._userInputButtons = {};
-        this._frustumSize = 50;
-        this._navigationModes = new Map();
-        this._orthoCamera = this.newOrthoCamera();
-        this._navigationModes.set("Orbit", new OrbitMode(this));
-        this._navigationModes.set("FirstPerson", new FirstPersonMode(this));
-        this._navigationModes.set("Plan", new PlanMode(this));
-        this.currentMode = this._navigationModes.get("Orbit");
-        this.currentMode.toggle(true, { preventTargetAdjustment: true });
-        this.toggleEvents(true);
-        this._projectionManager = new ProjectionManager(components, this);
-        this.uiElement = this.setUI();
-    }
-    setUI() {
-        const mainButton = new Button(this.components, {
-            materialIconName: "video_camera_back",
-        });
-        const projection = new Button(this.components, {
-            materialIconName: "camera",
-            name: "Projection",
-        });
-        const perspective = new Button(this.components, { name: "Perspective" });
-        perspective.active = true;
-        perspective.onclick = () => this.setProjection("Perspective");
-        const orthographic = new Button(this.components, { name: "Orthographic" });
-        orthographic.onclick = () => this.setProjection("Orthographic");
-        projection.addChild(perspective, orthographic);
-        const navigation = new Button(this.components, {
-            materialIconName: "open_with",
-            name: "Navigation",
-        });
-        const orbit = new Button(this.components, { name: "Orbit Around" });
-        orbit.onclick = () => this.setNavigationMode("Orbit");
-        const plan = new Button(this.components, { name: "Plan View" });
-        plan.onclick = () => this.setNavigationMode("Plan");
-        const firstPerson = new Button(this.components, { name: "First person" });
-        firstPerson.onclick = () => this.setNavigationMode("FirstPerson");
-        navigation.addChild(orbit, plan, firstPerson);
-        mainButton.addChild(navigation, projection);
-        this.projectionChanged.on((camera) => {
-            if (camera instanceof THREE$1.PerspectiveCamera) {
-                perspective.active = true;
-                orthographic.active = false;
-            }
-            else {
-                perspective.active = false;
-                orthographic.active = true;
-            }
-        });
-        return mainButton;
-    }
-    /** {@link Disposable.dispose} */
-    dispose() {
-        super.dispose();
-        this.toggleEvents(false);
-        this._orthoCamera.removeFromParent();
-    }
-    /**
-     * Similar to {@link Component.get}, but with an optional argument
-     * to specify which camera to get.
-     *
-     * @param projection - The camera corresponding to the
-     * {@link CameraProjection} specified. If no projection is specified,
-     * the active camera will be returned.
-     */
-    get(projection) {
-        if (!projection) {
-            return this.activeCamera;
-        }
-        return projection === "Orthographic"
-            ? this._orthoCamera
-            : this._perspectiveCamera;
-    }
-    /** Returns the current {@link CameraProjection}. */
-    getProjection() {
-        return this._projectionManager.projection;
-    }
-    /**
-     * Changes the current {@link CameraProjection} from Ortographic to Perspective
-     * and Viceversa.
-     */
-    async toggleProjection() {
-        const projection = this.getProjection();
-        const newProjection = projection === "Perspective" ? "Orthographic" : "Perspective";
-        await this.setProjection(newProjection);
-    }
-    /**
-     * Sets the current {@link CameraProjection}. This triggers the event
-     * {@link projectionChanged}.
-     *
-     * @param projection - The new {@link CameraProjection} to set.
-     */
-    async setProjection(projection) {
-        await this._projectionManager.setProjection(projection);
-        this.projectionChanged.trigger(this.activeCamera);
-    }
-    /**
-     * Allows or prevents all user input.
-     *
-     * @param active - whether to enable or disable user inputs.
-     */
-    toggleUserInput(active) {
-        if (active) {
-            this.enableUserInput();
-        }
-        else {
-            this.disableUserInput();
-        }
-    }
-    /**
-     * Sets a new {@link NavigationMode} and disables the previous one.
-     *
-     * @param mode - The {@link NavigationMode} to set.
-     */
-    setNavigationMode(mode) {
-        if (this.currentMode.id === mode)
-            return;
-        this.currentMode.toggle(false);
-        if (!this._navigationModes.has(mode)) {
-            throw new Error("The specified mode does not exist!");
-        }
-        this.currentMode = this._navigationModes.get(mode);
-        this.currentMode.toggle(true);
-    }
-    /** Updates the aspect ratio of the camera to match the Renderer's aspect ratio. */
-    updateAspect() {
-        super.updateAspect();
-        this.setOrthoCameraAspect();
-    }
-    /**
-     * Make the camera view fit all the specified meshes.
-     *
-     * @param meshes the meshes to fit. If it is not defined, it will
-     * evaluate {@link Components.meshes}.
-     * @param offset the distance to the fit object
-     */
-    async fit(meshes = this.components.meshes, offset = 1.5) {
-        if (!this.enabled)
-            return;
-        const maxNum = Number.MAX_VALUE;
-        const minNum = Number.MIN_VALUE;
-        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
-        const max = new THREE$1.Vector3(minNum, minNum, minNum);
-        for (const mesh of meshes) {
-            const box = new THREE$1.Box3().setFromObject(mesh);
-            if (box.min.x < min.x)
-                min.x = box.min.x;
-            if (box.min.y < min.y)
-                min.y = box.min.y;
-            if (box.min.z < min.z)
-                min.z = box.min.z;
-            if (box.max.x > max.x)
-                max.x = box.max.x;
-            if (box.max.y > max.y)
-                max.y = box.max.y;
-            if (box.max.z > max.z)
-                max.z = box.max.z;
-        }
-        const box = new THREE$1.Box3(min, max);
-        const sceneSize = new THREE$1.Vector3();
-        box.getSize(sceneSize);
-        const sceneCenter = new THREE$1.Vector3();
-        box.getCenter(sceneCenter);
-        const radius = Math.max(sceneSize.x, sceneSize.y, sceneSize.z) * offset;
-        const sphere = new THREE$1.Sphere(sceneCenter, radius);
-        await this.controls.fitToSphere(sphere, true);
-    }
-    disableUserInput() {
-        this._userInputButtons.left = this.controls.mouseButtons.left;
-        this._userInputButtons.right = this.controls.mouseButtons.right;
-        this._userInputButtons.middle = this.controls.mouseButtons.middle;
-        this._userInputButtons.wheel = this.controls.mouseButtons.wheel;
-        this.controls.mouseButtons.left = 0;
-        this.controls.mouseButtons.right = 0;
-        this.controls.mouseButtons.middle = 0;
-        this.controls.mouseButtons.wheel = 0;
-    }
-    enableUserInput() {
-        if (Object.keys(this._userInputButtons).length === 0)
-            return;
-        this.controls.mouseButtons.left = this._userInputButtons.left;
-        this.controls.mouseButtons.right = this._userInputButtons.right;
-        this.controls.mouseButtons.middle = this._userInputButtons.middle;
-        this.controls.mouseButtons.wheel = this._userInputButtons.wheel;
-    }
-    newOrthoCamera() {
-        const dims = this.components.renderer.getSize();
-        const aspect = dims.x / dims.y;
-        return new THREE$1.OrthographicCamera((this._frustumSize * aspect) / -2, (this._frustumSize * aspect) / 2, this._frustumSize / 2, this._frustumSize / -2, 0.1, 1000);
-    }
-    setOrthoCameraAspect() {
-        const size = this.components.renderer.getSize();
-        const aspect = size.x / size.y;
-        this._orthoCamera.left = (-this._frustumSize * aspect) / 2;
-        this._orthoCamera.right = (this._frustumSize * aspect) / 2;
-        this._orthoCamera.top = this._frustumSize / 2;
-        this._orthoCamera.bottom = -this._frustumSize / 2;
-        this._orthoCamera.updateProjectionMatrix();
-    }
-    toggleEvents(active) {
-        const modes = Object.values(this._navigationModes);
-        for (const mode of modes) {
-            if (active) {
-                mode.projectionChanged.on(this.projectionChanged.trigger);
-            }
-            else {
-                mode.projectionChanged.reset();
-            }
-        }
     }
 }
 
@@ -98750,6 +98818,7 @@ class PlanNavigator extends Component {
             throw new Error(`There's already a plan with the id: ${config.id}`);
         }
         const plane = await this.createClippingPlane(config);
+        plane.visible = false;
         const plan = { ...config, plane };
         this.plans.push(plan);
     }
@@ -99860,4 +99929,4 @@ class MapboxWindow {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentGroup, FragmentGrouper, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
+export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentGroup, FragmentGrouper, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
