@@ -99826,7 +99826,8 @@ class MapboxWindow {
      */
     constructor(config) {
         this._style = "mapbox://styles/mapbox/light-v10";
-        this.labels = {};
+        this._labels = {};
+        this._buildings = [];
         this._components = new Components();
         this._center = [0, 0];
         const merc = mapboxGlExports.MercatorCoordinate;
@@ -99857,10 +99858,11 @@ class MapboxWindow {
             center.y /= units;
             label.position.set(model.x - center.x, 0, model.y - center.y);
             this._components.scene.get().add(label);
-            this.labels[id] = label;
+            this._labels[id] = label;
+            this._buildings.push(building);
         }
-        if (buildings.length && fitToScreen) {
-            this.centerMapToBuildings(buildings);
+        if (this._buildings.length && fitToScreen) {
+            this.centerMapToBuildings();
         }
     }
     /**
@@ -99869,15 +99871,20 @@ class MapboxWindow {
      * @param id The {@link MapboxBuilding} to remove.
      */
     remove(id) {
-        const label = this.labels[id];
-        delete this.labels[id];
+        const label = this._labels[id];
+        delete this._labels[id];
         label.removeFromParent();
+        const found = this._buildings.find((building) => building.id === id);
+        if (found) {
+            const index = this._buildings.indexOf(found);
+            this._buildings.splice(index, 1);
+        }
     }
     /**
      * Removes all buildings from the map.
      */
     removeAll() {
-        for (const id in this.labels) {
+        for (const id in this._labels) {
             this.remove(id);
         }
     }
@@ -99890,46 +99897,20 @@ class MapboxWindow {
         this._components.dispose();
         this._components = null;
         this._map = null;
-        for (const id in this.labels) {
-            const label = this.labels[id];
+        for (const id in this._labels) {
+            const label = this._labels[id];
             label.removeFromParent();
             label.element.remove();
         }
-        this.labels = {};
+        this._buildings = [];
+        this._labels = {};
     }
-    newMap(config) {
-        return new mapboxGlExports.Map({
-            ...config,
-            pitch: 60,
-            bearing: -40,
-            zoom: 4,
-            style: this._style,
-            antialias: true,
-        });
-    }
-    setupComponents(coords) {
-        this._components.scene = new SimpleScene(this._components);
-        this._components.camera = new MapboxCamera();
-        const renderer = new MapboxRenderer(this._components, this._map, coords);
-        this._components.renderer = renderer;
-        renderer.initialized.on(() => this._components.init());
-    }
-    setupScene() {
-        const scene = this._components.scene.get();
-        scene.background = null;
-        const directionalLight = new THREE$1.DirectionalLight(0xffffff);
-        directionalLight.position.set(0, -70, 100).normalize();
-        scene.add(directionalLight);
-        const directionalLight2 = new THREE$1.DirectionalLight(0xffffff);
-        directionalLight2.position.set(0, 70, 100).normalize();
-        scene.add(directionalLight2);
-    }
-    centerMapToBuildings(buildings) {
+    centerMapToBuildings() {
         let maxLng = -Number.MAX_VALUE;
         let maxLat = -Number.MAX_VALUE;
         let minLng = Number.MAX_VALUE;
         let minLat = Number.MAX_VALUE;
-        for (const building of buildings) {
+        for (const building of this._buildings) {
             if (building.lng > maxLng) {
                 maxLng = building.lng;
             }
@@ -99959,6 +99940,33 @@ class MapboxWindow {
         if (minLat < -90)
             minLat = -90;
         this._map.fitBounds([minLng, minLat, maxLng, maxLat]);
+    }
+    newMap(config) {
+        return new mapboxGlExports.Map({
+            ...config,
+            pitch: 60,
+            bearing: -40,
+            zoom: 4,
+            style: this._style,
+            antialias: true,
+        });
+    }
+    setupComponents(coords) {
+        this._components.scene = new SimpleScene(this._components);
+        this._components.camera = new MapboxCamera();
+        const renderer = new MapboxRenderer(this._components, this._map, coords);
+        this._components.renderer = renderer;
+        renderer.initialized.on(() => this._components.init());
+    }
+    setupScene() {
+        const scene = this._components.scene.get();
+        scene.background = null;
+        const directionalLight = new THREE$1.DirectionalLight(0xffffff);
+        directionalLight.position.set(0, -70, 100).normalize();
+        scene.add(directionalLight);
+        const directionalLight2 = new THREE$1.DirectionalLight(0xffffff);
+        directionalLight2.position.set(0, 70, 100).normalize();
+        scene.add(directionalLight2);
     }
 }
 
