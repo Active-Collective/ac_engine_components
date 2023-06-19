@@ -95887,6 +95887,14 @@ class FragmentGrouper extends Component {
         }
     }
     find(filter) {
+        if (!filter) {
+            const result = {};
+            const fragments = this._fragmentManager.list;
+            for (const id in fragments) {
+                result[id] = fragments[id].items;
+            }
+            return result;
+        }
         const size = Object.keys(filter).length;
         const models = {};
         for (const name in filter) {
