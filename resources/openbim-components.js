@@ -12617,6 +12617,7 @@ class ScreenCuller extends Component {
         this.meshes.set(mesh.uuid, mesh);
     }
     getMaterial(r, g, b) {
+        const colorEnabled = THREE$1.ColorManagement.enabled;
         THREE$1.ColorManagement.enabled = false;
         const code = `rgb(${r}, ${g}, ${b})`;
         const color = new THREE$1.Color(code);
@@ -12630,7 +12631,7 @@ class ScreenCuller extends Component {
             });
             this.materialCache.set(code, material);
         }
-        THREE$1.ColorManagement.enabled = true;
+        THREE$1.ColorManagement.enabled = colorEnabled;
         return material;
     }
     isTransparent(material) {
@@ -21492,13 +21493,6 @@ function mergeAttributes( attributes ) {
 
 }
 
-function mergeBufferGeometries( geometries, useGroups = false ) {
-
-	console.warn( 'THREE.BufferGeometryUtils: mergeBufferGeometries() has been renamed to mergeGeometries().' ); // @deprecated, r151
-	return mergeGeometries( geometries, useGroups );
-
-}
-
 class SimpleArea extends Component {
     constructor(components, settings) {
         super();
@@ -22007,7 +22001,7 @@ class SimpleArea extends Component {
     }
     getVolume() {
         var _a;
-        const merged = mergeBufferGeometries([this._volumeMesh.geometry]);
+        const merged = mergeGeometries([this._volumeMesh.geometry]);
         const volume = parseFloat(this.volumeCalculation(merged).toFixed(2));
         this._areas[this._areas.length - 1].volume = volume;
         const volumeTag = new SimpleTag(this.volumeMeshCenter, volume, "Volume m³");
@@ -22361,7 +22355,7 @@ class GeometryUtils {
             geometriesByMat.push(merged);
             sizes.push(merged.index.count);
         }
-        const geometry = mergeBufferGeometries(geometriesByMat);
+        const geometry = mergeGeometries(geometriesByMat);
         this.setupMaterialGroups(sizes, geometry);
         this.cleanUp(geometriesByMat);
         return geometry;
@@ -22434,7 +22428,7 @@ class GeometryUtils {
         if (splitByBlocks) {
             this.splitByBlocks(geometries);
         }
-        const merged = mergeBufferGeometries(geometries);
+        const merged = mergeGeometries(geometries);
         this.cleanUp(geometries);
         return merged;
     }
@@ -40068,7 +40062,7 @@ var Schemas;
   Schemas2["IFC4"] = "IFC4";
   Schemas2["IFC4X3"] = "IFC4X3";
 })(Schemas || (Schemas = {}));
-SchemaNames[1] = "IFC2X3";
+SchemaNames[1] = ["IFC2X3", "IFC2X_FINAL"];
 FromRawLineData[1] = {
   3630933823: (id, v) => new IFC2X3.IfcActorRole(id, v[0], !v[1] ? null : new IFC2X3.IfcLabel(v[1].value), !v[2] ? null : new IFC2X3.IfcText(v[2].value)),
   618182010: (id, v) => new IFC2X3.IfcAddress(id, v[0], !v[1] ? null : new IFC2X3.IfcText(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value)),
@@ -40442,7 +40436,7 @@ FromRawLineData[1] = {
   2851387026: (id, v) => new IFC2X3.IfcRelAssociatesProfileProperties(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), v[4].map((p) => new Handle(p.value)), new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new Handle(v[7].value)),
   826625072: (id, v) => new IFC2X3.IfcRelConnects(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value)),
   1204542856: (id, v) => new IFC2X3.IfcRelConnectsElements(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value)),
-  3945020480: (id, v) => new IFC2X3.IfcRelConnectsPathElements(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value), v[7].map((p) => p.value), v[8].map((p) => p.value), v[9], v[10]),
+  3945020480: (id, v) => new IFC2X3.IfcRelConnectsPathElements(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value), !v[7] ? null : v[7].map((p) => p.value), !v[8] ? null : v[8].map((p) => p.value), v[9], v[10]),
   4201705270: (id, v) => new IFC2X3.IfcRelConnectsPortToElement(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value)),
   3190031847: (id, v) => new IFC2X3.IfcRelConnectsPorts(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value)),
   2127690289: (id, v) => new IFC2X3.IfcRelConnectsStructuralActivity(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value)),
@@ -53966,7 +53960,7 @@ var IFC2X3;
   }
   IFC2X32.IfcReinforcingBar = IfcReinforcingBar;
 })(IFC2X3 || (IFC2X3 = {}));
-SchemaNames[2] = "IFC4";
+SchemaNames[2] = ["IFC4", "IFC4X1", "IFC4X2"];
 FromRawLineData[2] = {
   3630933823: (id, v) => new IFC4.IfcActorRole(id, v[0], !v[1] ? null : new IFC4.IfcLabel(v[1].value), !v[2] ? null : new IFC4.IfcText(v[2].value)),
   618182010: (id, v) => new IFC4.IfcAddress(id, v[0], !v[1] ? null : new IFC4.IfcText(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value)),
@@ -54333,7 +54327,7 @@ FromRawLineData[2] = {
   2655215786: (id, v) => new IFC4.IfcRelAssociatesMaterial(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), v[4].map((p) => new Handle(p.value)), new Handle(v[5].value)),
   826625072: (id, v) => new IFC4.IfcRelConnects(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value)),
   1204542856: (id, v) => new IFC4.IfcRelConnectsElements(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value)),
-  3945020480: (id, v) => new IFC4.IfcRelConnectsPathElements(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value), v[7].map((p) => new IFC4.IfcInteger(p.value)), v[8].map((p) => new IFC4.IfcInteger(p.value)), v[9], v[10]),
+  3945020480: (id, v) => new IFC4.IfcRelConnectsPathElements(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value), !v[7] ? null : v[7].map((p) => new IFC4.IfcInteger(p.value)), !v[8] ? null : v[8].map((p) => new IFC4.IfcInteger(p.value)), v[9], v[10]),
   4201705270: (id, v) => new IFC4.IfcRelConnectsPortToElement(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value)),
   3190031847: (id, v) => new IFC4.IfcRelConnectsPorts(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value)),
   2127690289: (id, v) => new IFC4.IfcRelConnectsStructuralActivity(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value)),
@@ -71285,7 +71279,7 @@ var IFC4;
   }
   IFC42.IfcController = IfcController;
 })(IFC4 || (IFC4 = {}));
-SchemaNames[3] = "IFC4X3";
+SchemaNames[3] = ["IFC4X3"];
 FromRawLineData[3] = {
   3630933823: (id, v) => new IFC4X3.IfcActorRole(id, v[0], !v[1] ? null : new IFC4X3.IfcLabel(v[1].value), !v[2] ? null : new IFC4X3.IfcText(v[2].value)),
   618182010: (id, v) => new IFC4X3.IfcAddress(id, v[0], !v[1] ? null : new IFC4X3.IfcText(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value)),
@@ -71667,7 +71661,7 @@ FromRawLineData[3] = {
   1033248425: (id, v) => new IFC4X3.IfcRelAssociatesProfileDef(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), v[4].map((p) => new Handle(p.value)), new Handle(v[5].value)),
   826625072: (id, v) => new IFC4X3.IfcRelConnects(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value)),
   1204542856: (id, v) => new IFC4X3.IfcRelConnectsElements(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value)),
-  3945020480: (id, v) => new IFC4X3.IfcRelConnectsPathElements(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value), v[7].map((p) => new IFC4X3.IfcInteger(p.value)), v[8].map((p) => new IFC4X3.IfcInteger(p.value)), v[9], v[10]),
+  3945020480: (id, v) => new IFC4X3.IfcRelConnectsPathElements(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new Handle(v[4].value), new Handle(v[5].value), new Handle(v[6].value), !v[7] ? null : v[7].map((p) => new IFC4X3.IfcInteger(p.value)), !v[8] ? null : v[8].map((p) => new IFC4X3.IfcInteger(p.value)), v[9], v[10]),
   4201705270: (id, v) => new IFC4X3.IfcRelConnectsPortToElement(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value)),
   3190031847: (id, v) => new IFC4X3.IfcRelConnectsPorts(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value)),
   2127690289: (id, v) => new IFC4X3.IfcRelConnectsStructuralActivity(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), new Handle(v[4].value), new Handle(v[5].value)),
@@ -91358,7 +91352,9 @@ var IfcAPI2 = class {
     this.wasmPath = "";
     this.isWasmPathAbsolute = false;
     this.modelSchemaList = [];
+    this.modelSchemaNameList = [];
     this.ifcGuidMap = new Map();
+    this.deletedLines = new Map();
     this.properties = new Properties(this);
   }
   Init(customLocateFileHandler) {
@@ -91391,6 +91387,7 @@ var IfcAPI2 = class {
   }
   CreateSettings(settings) {
     let s = __spreadValues({
+      OPTIMIZE_PROFILES: false,
       COORDINATE_TO_ORIGIN: false,
       CIRCLE_SEGMENTS: 12,
       TAPE_SIZE: 67108864,
@@ -91404,6 +91401,17 @@ var IfcAPI2 = class {
     }
     return s;
   }
+  LookupSchemaId(schemaName) {
+    for (var i = 0; i < SchemaNames.length; i++) {
+      if (typeof SchemaNames[i] !== "undefined") {
+        for (var j = 0; j < SchemaNames[i].length; j++) {
+          if (SchemaNames[i][j] == schemaName)
+            return i;
+        }
+      }
+    }
+    return -1;
+  }
   OpenModel(data, settings) {
     let s = this.CreateSettings(settings);
     let result = this.wasmModule.OpenModel(s, (destPtr, offsetInSrc, destSize) => {
@@ -91413,8 +91421,9 @@ var IfcAPI2 = class {
       dest.set(src);
       return srcSize;
     });
+    this.deletedLines.set(result, new Set());
     var schemaName = this.GetHeaderLine(result, FILE_SCHEMA).arguments[0][0].value;
-    this.modelSchemaList[result] = SchemaNames.indexOf(schemaName);
+    this.modelSchemaList[result] = this.LookupSchemaId(schemaName);
     if (this.modelSchemaList[result] == -1) {
       Log.error("Unsupported Schema:" + schemaName);
       this.CloseModel(result);
@@ -91424,13 +91433,20 @@ var IfcAPI2 = class {
     return result;
   }
   GetModelSchema(modelID) {
-    return SchemaNames[this.modelSchemaList[modelID]];
+    return this.modelSchemaNameList[modelID];
   }
   CreateModel(model, settings) {
     var _a, _b, _c;
     let s = this.CreateSettings(settings);
     let result = this.wasmModule.CreateModel(s);
-    this.modelSchemaList[result] = SchemaNames.indexOf(model.schema);
+    this.modelSchemaList[result] = this.LookupSchemaId(model.schema);
+    this.modelSchemaNameList[result] = model.schema;
+    if (this.modelSchemaList[result] == -1) {
+      Log.error("Unsupported Schema:" + model.schema);
+      this.CloseModel(result);
+      return -1;
+    }
+    this.deletedLines.set(result, new Set());
     const modelName = model.name || "web-ifc-model-" + result + ".ifc";
     const timestamp = new Date().toISOString().slice(0, 19);
     const description = ((_a = model.description) == null ? void 0 : _a.map((d) => ({ type: STRING, value: d }))) || [{ type: STRING, value: "ViewDefinition [CoordinationView]" }];
@@ -91493,7 +91509,13 @@ var IfcAPI2 = class {
       return;
     }
     let rawLineData = this.GetRawLineData(modelID, expressID);
-    let lineData = FromRawLineData[this.modelSchemaList[modelID]][rawLineData.type](rawLineData.ID, rawLineData.arguments);
+    let lineData;
+    try {
+      lineData = FromRawLineData[this.modelSchemaList[modelID]][rawLineData.type](rawLineData.ID, rawLineData.arguments);
+    } catch (e) {
+      Log.error("Invalid IFC Line:" + expressID);
+      return;
+    }
     if (flatten) {
       this.FlattenLine(modelID, lineData);
     }
@@ -91550,7 +91572,19 @@ var IfcAPI2 = class {
   GetIfcEntityList(modelID) {
     return Object.keys(FromRawLineData[this.modelSchemaList[modelID]]).map((x) => parseInt(x));
   }
+  DeleteLine(modelID, expressID) {
+    this.wasmModule.RemoveLine(modelID, expressID);
+    this.deletedLines.get(modelID).add(expressID);
+  }
   WriteLine(modelID, lineObject) {
+    if (this.deletedLines.get(modelID).has(lineObject.expressID)) {
+      Log.error(`Cannot re-use deleted express ID`);
+      return;
+    }
+    if (this.GetLineType(modelID, lineObject.expressID) != lineObject.type && this.GetLineType(modelID, lineObject.expressID) != 0) {
+      Log.error(`Cannot change type of existing IFC Line`);
+      return;
+    }
     let property;
     for (property in lineObject) {
       const lineProperty = lineObject[property];
@@ -91690,6 +91724,18 @@ var IfcAPI2 = class {
   }
   GetVersion() {
     return this.wasmModule.GetVersion();
+  }
+  GetExpressIdFromGuid(modelID, guid) {
+    var _a;
+    if (!this.ifcGuidMap.has(modelID))
+      this.CreateIfcGuidToExpressIdMapping(modelID);
+    return (_a = this.ifcGuidMap.get(modelID)) == null ? void 0 : _a.get(guid);
+  }
+  GetGuidFromExpressId(modelID, expressID) {
+    var _a;
+    if (!this.ifcGuidMap.has(modelID))
+      this.CreateIfcGuidToExpressIdMapping(modelID);
+    return (_a = this.ifcGuidMap.get(modelID)) == null ? void 0 : _a.get(expressID);
   }
   CreateIfcGuidToExpressIdMapping(modelID) {
     const map = new Map();
@@ -95339,8 +95385,9 @@ class Geometry {
         return colorID;
     }
     saveNewMaterial(colorID, color) {
+        const { x, y, z } = color;
         this._materials[colorID] = new THREE$1.MeshLambertMaterial({
-            color: new THREE$1.Color(color.x, color.y, color.z),
+            color: new THREE$1.Color().setRGB(x, y, z, "srgb"),
             transparent: color.w !== 1,
             opacity: color.w,
             side: THREE$1.DoubleSide,
