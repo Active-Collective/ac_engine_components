@@ -8,21 +8,32 @@ import {
   Object3D,
 } from "three";
 import { Fragment } from "bim-fragment";
-import { Disposable } from "../base-types";
-import { Components, Disposer } from "../core";
+import { Disposable, Component, Hideable } from "../../base-types";
+import { Components, Disposer } from "../../core";
 
 // TODO: Clean up and document
+// TODO: Decouple from fragments?
 
-export class FragmentEdges implements Disposable {
-  edgesList: { [guid: string]: LineSegments } = {};
+export class FragmentEdges
+  extends Component<{ [guid: string]: LineSegments }>
+  implements Disposable, Hideable
+{
   edgesToUpdate = new Set<string>();
   threshold = 80;
 
+  enabled = true;
+
+  name = "FragmentEdges";
+
+  private _visible = true;
+  private _list: { [guid: string]: LineSegments } = {};
   private _mat4 = new Matrix4();
   private _dummy = new Object3D();
   private _pos: number[] = [];
   private _rot: number[] = [];
   private _scl: number[] = [];
+  private _components: Components;
+  private _disposer = new Disposer();
 
   private lineMat = new LineBasicMaterial({
     color: 0x555555,
@@ -50,30 +61,49 @@ export class FragmentEdges implements Disposable {
     },
   });
 
-  private _components: Components;
-  private disposer = new Disposer();
+  get visible() {
+    return this._visible;
+  }
+
+  set visible(active: boolean) {
+    this._visible = active;
+    const scene = this._components.scene.get();
+    for (const id in this._list) {
+      const edge = this._list[id];
+      if (active) {
+        scene.add(edge);
+      } else {
+        edge.removeFromParent();
+      }
+    }
+  }
 
   constructor(components: Components) {
+    super();
     this._components = components;
   }
 
+  get() {
+    return this._list;
+  }
+
   dispose() {
-    for (const guid in this.edgesList) {
-      const edges = this.edgesList[guid];
-      this.disposer.dispose(edges, true);
+    for (const guid in this._list) {
+      const edges = this._list[guid];
+      this._disposer.dispose(edges, true);
     }
     this.lineMat.dispose();
-    this.edgesList = {};
+    this._list = {};
     this.edgesToUpdate.clear();
   }
 
-  generate(fragment: Fragment) {
-    if (this.edgesList[fragment.id]) {
-      const previous = this.edgesList[fragment.id];
+  add(fragment: Fragment) {
+    if (this._list[fragment.mesh.uuid]) {
+      const previous = this._list[fragment.mesh.uuid];
       previous.removeFromParent();
       previous.geometry.dispose();
       (previous.geometry as any) = null;
-      delete this.edgesList[fragment.id];
+      delete this._list[fragment.mesh.uuid];
     }
 
     this.getInstanceTransforms(fragment);
@@ -88,13 +118,14 @@ export class FragmentEdges implements Disposable {
     const lines = new LineSegments(lineGeom, this.lineMat);
     lines.frustumCulled = false;
 
-    const scene = this._components.scene.get();
-    scene.add(lines);
-    this.edgesList[fragment.id] = lines;
+    if (this._visible) {
+      const scene = this._components.scene.get();
+      scene.add(lines);
+    }
+
+    this._list[fragment.mesh.uuid] = lines;
 
     this.updateInstancedEdges(fragment, lineGeom);
-
-    lines.visible = false;
 
     return lines;
   }

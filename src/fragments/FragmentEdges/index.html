@@ -21,6 +21,7 @@
       }
     }
 
+
 </script>
 <script type="module">
 
@@ -44,7 +45,6 @@
 
     const scene = components.scene.get();
 
-    scene.background = null;
     components.camera.controls.setLookAt(10, 10, 10, 0, 0, 0);
 
     const directionalLight = new THREE.DirectionalLight();
@@ -59,46 +59,43 @@
     const grid = new OBC.SimpleGrid(components);
     components.tools.add("grid", grid);
 
-    // Set up highlighting
-
     let fragments = new OBC.FragmentManager(components);
 
     const file = await fetch("../../../resources/small.frag");
     const data = await file.arrayBuffer();
     const buffer = new Uint8Array(data);
-    fragments.load(buffer);
+    const ids = fragments.load(buffer);
 
-    const highlighter = new OBC.FragmentHighlighter(components, fragments);
+    const edges = new OBC.FragmentEdges(components);
 
-    const cubeMaterial = new THREE.MeshBasicMaterial({color: 'red'});
-    highlighter.add("default", cubeMaterial);
+    const culler = new OBC.ScreenCuller(components);
 
-    // If more fragments are loaded after creating the highlighting style
-    // you have to call highlighter.update()
-
-    let lastSelection;
-
-    let singleSelection = {
-        value: true
-    };
-
-    function highlightOnClick() {
-        const result = highlighter.highlight("default", singleSelection.value);
-        if (result) {
-            const fragmentID = result.fragment.id;
-            lastSelection = {[fragmentID]: [result.id]};
-        }
+    for(const id of ids) {
+        const fragment = fragments.list[id];
+        edges.add(fragment);
+        culler.add(fragment.mesh);
     }
 
-    container.addEventListener('click', () => {
-        highlightOnClick();
-    });
+    culler.needsUpdate = true;
+    window.onmouseup = () => culler.needsUpdate = true;
+    window.onwheel = () => culler.needsUpdate = true;
 
-    function highlightOnID() {
-        if (lastSelection !== undefined) {
-            highlighter.highlightByID("default", lastSelection);
+    // Bind edges visibility to fragments visibility
+
+    const edgesList = edges.get();
+    culler.viewUpdated.on(() => {
+        if(!edges.visible) return;
+        for(const id of culler.currentVisibleMeshes) {
+            if(edgesList[id]) {
+                scene.add(edgesList[id]);
+            }
         }
-    }
+        for(const id of culler.recentlyHiddenMeshes) {
+            if(edgesList[id]) {
+                scene.remove(edgesList[id]);
+            }
+        }
+    })
 
     // Set up stats
 
@@ -110,19 +107,6 @@
     renderer.beforeUpdate.on(() => stats.begin());
     renderer.afterUpdate.on(() => stats.end());
 
-
-    // Set up dat.gui menu
-
-    const commands = {
-        highlight: "Click",
-        highlightOnID: () => highlightOnID()
-    }
-
-    const gui = new dat.GUI();
-
-    gui.add(commands, "highlight");
-    gui.add(commands, "highlightOnID").name("Select last selection");
-    gui.add(singleSelection, "value").name("Single selection");
 
 </script>
 </body>
