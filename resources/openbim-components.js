@@ -22436,7 +22436,8 @@ class GeometryUtils {
         let i = 0;
         for (const geometry of geometries) {
             const size = geometry.attributes.position.count;
-            const array = new Uint8Array(size).fill(i++);
+            // TODO: Substitute blockID attribute by block id map
+            const array = new Uint16Array(size).fill(i++);
             geometry.setAttribute("blockID", new BufferAttribute$1(array, 1));
         }
     }
@@ -93088,7 +93089,7 @@ const IfcElements = {
 class IfcCategories {
     getAll(webIfc, modelID) {
         const elementsCategories = {};
-        const categoriesIDs = this.getCategories();
+        const categoriesIDs = Object.keys(IfcElements).map((e) => parseInt(e, 10));
         for (let i = 0; i < categoriesIDs.length; i++) {
             const element = categoriesIDs[i];
             const lines = webIfc.GetLineIDsWithType(modelID, element);
@@ -93098,10 +93099,6 @@ class IfcCategories {
             }
         }
         return elementsCategories;
-    }
-    getCategories() {
-        const elements = Object.keys(IfcElements).map((e) => parseInt(e, 10));
-        return elements;
     }
 }
 
@@ -94729,7 +94726,7 @@ class SpatialStructure {
         this.floorProperties = [];
         this.itemsByFloor = {};
     }
-    async setupFloors(webIfc, units) {
+    async setUp(webIfc, units) {
         this.reset();
         try {
             const floors = await this.getFloors(webIfc);
@@ -94796,6 +94793,32 @@ class SpatialStructure {
     }
 }
 
+/** Configuration of the IFC-fragment conversion. */
+class IfcFragmentSettings {
+    constructor() {
+        /** Categories that always will be instanced. */
+        this.instancedCategories = new Set();
+        /** Whether to extract the IFC properties into a JSON. */
+        this.includeProperties = true;
+        /** Generate the geometry for categories that are not included by default. */
+        this.optionalCategories = [IFCSPACE];
+        /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
+        this.wasm = {
+            path: "",
+            absolute: false,
+        };
+        /** Loader settings for [web-ifc](https://github.com/ifcjs/web-ifc). */
+        this.webIfc = {
+            COORDINATE_TO_ORIGIN: true,
+            USE_FAST_BOOLS: true,
+            OPTIMIZE_PROFILES: true,
+        };
+        this.instancedCategories.add(IFCFURNISHINGELEMENT);
+        this.instancedCategories.add(IFCWINDOW);
+        this.instancedCategories.add(IFCDOOR);
+    }
+}
+
 class Units {
     constructor() {
         this.factor = 1;
@@ -94833,211 +94856,33 @@ class Units {
         }
     }
     getScaleMatrix() {
+        const f = this.factor;
+        // prettier-ignore
         return new THREE$1.Matrix4().fromArray([
-            this.factor,
-            0,
-            0,
-            0,
-            0,
-            this.factor,
-            0,
-            0,
-            0,
-            0,
-            this.factor,
-            0,
-            0,
-            0,
-            0,
-            1,
+            f, 0, 0, 0,
+            0, f, 0, 0,
+            0, 0, f, 0,
+            0, 0, 0, 1,
         ]);
     }
 }
 
-class TransformHelper {
-    getHelper(geometries) {
-        const baseHelper = new THREE$1.Object3D();
-        let cenx = 0;
-        let ceny = 0;
-        let cenz = 0;
-        let num = 0;
-        for (const geom of geometries) {
-            const position = geom.attributes.position;
-            const positions = position.array;
-            for (let i = 0; i < positions.length; i += 3) {
-                cenx += positions[i];
-                ceny += positions[i + 1];
-                cenz += positions[i + 2];
-                num++;
-            }
-        }
-        if (num > 0) {
-            cenx /= num;
-            ceny /= num;
-            cenz /= num;
-        }
-        const cen = new THREE$1.Vector3(cenx, ceny, cenz);
-        let vx = new THREE$1.Vector3();
-        let vy = new THREE$1.Vector3();
-        let vz = new THREE$1.Vector3();
-        let newDimx = 0;
-        let newDimy = 0;
-        let newDimz = 0;
-        let despx = 0;
-        let despy = 0;
-        let despz = 0;
-        let volumPrev = 10000000000000;
-        for (let r = 0; r < 15; r++) {
-            let vvx = new THREE$1.Vector3();
-            if (r === 0) {
-                vvx = new THREE$1.Vector3(1, 0, 0);
-            }
-            if (r === 1) {
-                vvx = new THREE$1.Vector3(1, 0, 1);
-            }
-            if (r === 2) {
-                vvx = new THREE$1.Vector3(1, 1, 0);
-            }
-            if (r === 3) {
-                vvx = new THREE$1.Vector3(1, 1, 1);
-            }
-            if (r === 4) {
-                vvx = new THREE$1.Vector3(0, 1, 1);
-            }
-            if (r === 5) {
-                vvx = new THREE$1.Vector3(1, 0, 0.5);
-            }
-            if (r === 6) {
-                vvx = new THREE$1.Vector3(1, 0.5, 0);
-            }
-            if (r === 7) {
-                vvx = new THREE$1.Vector3(1, 1, 0.5);
-            }
-            if (r === 8) {
-                vvx = new THREE$1.Vector3(0, 1, 0.5);
-            }
-            if (r === 9) {
-                vvx = new THREE$1.Vector3(0.5, 0, 1);
-            }
-            if (r === 10) {
-                vvx = new THREE$1.Vector3(0.5, 1, 0);
-            }
-            if (r === 11) {
-                vvx = new THREE$1.Vector3(0.5, 1, 1);
-            }
-            if (r === 12) {
-                vvx = new THREE$1.Vector3(0, 0.5, 1);
-            }
-            if (r === 13) {
-                vvx = new THREE$1.Vector3(0.5, 0.5, 1);
-            }
-            if (r === 14) {
-                vvx = new THREE$1.Vector3(1, 0.5, 0.5);
-            }
-            vvx.normalize();
-            const vvy = new THREE$1.Vector3(vvx.x, vvx.y, vvx.z);
-            vvy.cross(new THREE$1.Vector3(0, 0, 1));
-            const vvz = new THREE$1.Vector3(vvy.x, vvy.y, vvy.z);
-            vvz.cross(vvx);
-            vvx.normalize();
-            vvy.normalize();
-            vvz.normalize();
-            let mabX = -1e10;
-            let mabY = -1e10;
-            let mabZ = -1e10;
-            let mibX = 1e10;
-            let mibY = 1e10;
-            let mibZ = 1e10;
-            for (const geom of geometries) {
-                const position = geom.attributes.position;
-                const positions = position.array;
-                for (let i = 0; i < positions.length; i += 3) {
-                    const x = positions[i];
-                    const y = positions[i + 1];
-                    const z = positions[i + 2];
-                    const dx = x - cen.x;
-                    const dy = y - cen.y;
-                    const dz = z - cen.z;
-                    const vp = new THREE$1.Vector3(dx, dy, dz);
-                    const newX = vvx.dot(vp);
-                    const newY = vvy.dot(vp);
-                    const newZ = vvz.dot(vp);
-                    if (newX > mabX) {
-                        mabX = newX;
-                    }
-                    if (newY > mabY) {
-                        mabY = newY;
-                    }
-                    if (newZ > mabZ) {
-                        mabZ = newZ;
-                    }
-                    if (newX < mibX) {
-                        mibX = newX;
-                    }
-                    if (newY < mibY) {
-                        mibY = newY;
-                    }
-                    if (newZ < mibZ) {
-                        mibZ = newZ;
-                    }
-                }
-            }
-            const newDix = mabX - mibX;
-            const newDiy = mabY - mibY;
-            const newDiz = mabZ - mibZ;
-            const volume = newDix * newDiy * newDiz;
-            if (volume < volumPrev) {
-                volumPrev = volume;
-                vx = vvx;
-                vy = vvy;
-                vz = vvz;
-                newDimx = newDix;
-                newDimy = newDiy;
-                newDimz = newDiz;
-                despx = (mabX + mibX) / 2;
-                despy = (mabY + mibY) / 2;
-                despz = (mabZ + mibZ) / 2;
-            }
-        }
-        cen.x += despx * vx.x;
-        cen.y += despx * vx.y;
-        cen.z += despx * vx.z;
-        cen.x += despy * vy.x;
-        cen.y += despy * vy.y;
-        cen.z += despy * vy.z;
-        cen.x += despz * vz.x;
-        cen.y += despz * vz.y;
-        cen.z += despz * vz.z;
-        vx = vx.setLength(newDimx);
-        vy = vy.setLength(newDimy);
-        vz = vz.setLength(newDimz);
-        baseHelper.matrix = new THREE$1.Matrix4();
-        baseHelper.matrix.set(vx.x, vx.y, vx.z, 0, vy.x, vy.y, vy.z, 0, vz.x, vz.y, vz.z, 0, cen.x, cen.y, cen.z, 1);
-        baseHelper.matrix.transpose();
-        return baseHelper;
-    }
-}
-
 class DataConverter {
-    constructor(items, materials, settings) {
+    constructor() {
+        this.settings = new IfcFragmentSettings();
         this._categories = {};
         this._model = new FragmentGroup();
         this._ifcCategories = new IfcCategories();
-        this._uniqueItems = {};
         this._units = new Units();
         this._boundingBoxes = {};
         this._transparentBoundingBoxes = {};
         this._expressIDfragmentIDMap = {};
-        this._transform = new TransformHelper();
         this._propertyExporter = new IfcJsonExporter();
         this._spatialTree = new SpatialStructure();
-        this._items = items;
-        this._materials = materials;
-        this._settings = settings;
     }
     reset() {
         this._model = new FragmentGroup();
-        this._uniqueItems = {};
+        // this._uniqueItems = {};
         this._boundingBoxes = {};
         this._transparentBoundingBoxes = {};
     }
@@ -95046,19 +94891,19 @@ class DataConverter {
         this._categories = {};
         this._model = new FragmentGroup();
         this._ifcCategories = new IfcCategories();
-        this._uniqueItems = {};
+        // this._uniqueItems = {};
         this._units = new Units();
         this._propertyExporter = new IfcJsonExporter();
     }
-    setupCategories(webIfc) {
+    saveIfcCategories(webIfc) {
         this._categories = this._ifcCategories.getAll(webIfc, 0);
     }
-    async generateFragmentData(webIfc) {
+    async generate(webIfc, geometries) {
         await this._units.setUp(webIfc);
-        await this._spatialTree.setupFloors(webIfc, this._units);
-        this.processAllFragmentsData();
-        this.processAllUniqueItems();
+        await this._spatialTree.setUp(webIfc, this._units);
+        this.createAllFragments(geometries);
         await this.saveModelData(webIfc);
+        console.log(this._model);
         return this._model;
     }
     async saveModelData(webIfc) {
@@ -95077,7 +94922,7 @@ class DataConverter {
         return new THREE$1.Matrix4().fromArray(coordArray);
     }
     async getModelProperties(webIfc) {
-        if (!this._settings.includeProperties) {
+        if (!this.settings.includeProperties) {
             return {};
         }
         return new Promise((resolve) => {
@@ -95087,346 +94932,118 @@ class DataConverter {
             this._propertyExporter.export(webIfc, 0);
         });
     }
-    processAllFragmentsData() {
-        const fragmentsData = Object.values(this._items);
-        for (const data of fragmentsData) {
-            this.processFragmentData(data);
-        }
-    }
-    processFragmentData(data) {
-        const id = data.instances[0].id;
-        const categoryID = this._categories[id];
-        // TODO: use settings.instanceLimit and implement merging many instances
-        //  (e.g. for a model with thousands of objects that repeat 2 times)
-        const isUnique = data.instances.length === 1;
-        const isInstanced = this._settings.instancedCategories.has(categoryID);
-        const noFloors = Object.keys(this._spatialTree.itemsByFloor).length === 0;
-        if (!isUnique || isInstanced || noFloors) {
-            this.processInstancedItems(data);
-        }
-        else {
-            this.processMergedItems(data);
-        }
-    }
-    processMergedItems(data) {
-        for (const matID in data.geometriesByMaterial) {
-            const instance = data.instances[0];
-            const category = this._categories[instance.id];
-            const level = this._spatialTree.itemsByFloor[instance.id];
-            this.initializeItem(data, category, level, matID);
-            this.applyTransformToMergedGeometries(data, category, level, matID);
-        }
-    }
-    applyTransformToMergedGeometries(data, category, level, matID) {
-        const geometries = data.geometriesByMaterial[matID];
-        const instance = data.instances[0];
-        this._units.apply(instance.matrix);
-        for (const geometry of geometries) {
-            geometry.userData.id = instance.id;
-            this._uniqueItems[category][level][matID].geoms.push(geometry);
-            geometry.applyMatrix4(instance.matrix);
-        }
-    }
-    initializeItem(data, category, level, matID) {
-        if (!this._uniqueItems[category]) {
-            this._uniqueItems[category] = {};
-        }
-        if (!this._uniqueItems[category][level]) {
-            this._uniqueItems[category][level] = {};
-        }
-        if (!this._uniqueItems[category][level][matID]) {
-            this._uniqueItems[category][level][matID] = {
-                geoms: [],
-                hasVoids: data.instances[0].hasVoids,
-            };
-        }
-    }
-    processInstancedItems(data) {
-        const fragment = this.createInstancedFragment(data);
-        this.setFragmentInstances(data, fragment);
-        fragment.mesh.updateMatrix();
-        this._model.fragments.push(fragment);
-        this._model.add(fragment.mesh);
-        const materialIDs = Object.keys(data.geometriesByMaterial);
-        const mats = materialIDs.map((id) => this._materials[id]);
-        const matsTransparent = this.areMatsTransparent(mats);
-        const isTransparent = matsTransparent || data.instances[0].hasVoids;
-        const boxes = this.getBoxes(isTransparent);
-        const baseHelper = this._transform.getHelper([fragment.mesh.geometry]);
-        for (let i = 0; i < fragment.mesh.count; i++) {
-            const instanceTransform = new THREE$1.Matrix4();
-            const instanceHelper = new THREE$1.Object3D();
-            fragment.getInstance(i, instanceTransform);
-            instanceHelper.applyMatrix4(baseHelper.matrix);
-            instanceHelper.applyMatrix4(instanceTransform);
-            instanceHelper.updateMatrix();
-            const id = fragment.getItemID(i, 0);
-            boxes[id] = instanceHelper.matrix.elements;
-            this._expressIDfragmentIDMap[id] = fragment.id;
-        }
-    }
-    getBoxes(isTransparent) {
-        const boxes = isTransparent
-            ? this._transparentBoundingBoxes
-            : this._boundingBoxes;
-        return boxes;
-    }
-    areMatsTransparent(mats) {
-        for (const mat of mats) {
-            if (mat.transparent) {
-                return true;
-            }
-        }
-        return false;
-    }
-    setFragmentInstances(data, fragment) {
-        for (let i = 0; i < data.instances.length; i++) {
-            const instance = data.instances[i];
-            this._units.apply(instance.matrix);
-            fragment.setInstance(i, {
-                ids: [instance.id.toString()],
-                transform: instance.matrix,
-            });
-        }
-    }
-    createInstancedFragment(data) {
-        const mats = this.getMaterials(data);
-        const geoms = Object.values(data.geometriesByMaterial);
-        const merged = GeometryUtils.merge(geoms);
-        return new Fragment$1(merged, mats, data.instances.length);
-    }
-    getMaterials(data) {
-        const mats = Object.keys(data.geometriesByMaterial).map((id) => this._materials[id]);
-        return mats;
-    }
-    processAllUniqueItems() {
-        const categories = Object.keys(this._uniqueItems);
-        for (const categoryString of categories) {
-            for (const levelString in this._uniqueItems[categoryString]) {
-                const category = parseInt(categoryString, 10);
-                const level = parseInt(levelString, 10);
-                if (level !== undefined && category !== undefined) {
-                    this.processUniqueItem(category, level);
+    createAllFragments(geometries) {
+        const uniqueItems = {};
+        const matrix = new THREE$1.Matrix4();
+        const color = new THREE$1.Color();
+        for (const id in geometries) {
+            const { buffer, instances } = geometries[id];
+            const transparent = instances[0].color.w !== 1;
+            const opacity = transparent ? 0.5 : 1;
+            const material = new THREE$1.MeshLambertMaterial({ transparent, opacity });
+            if (instances.length === 1) {
+                const instance = instances[0];
+                const { x, y, z, w } = instance.color;
+                const matID = `${x}-${y}-${z}-${w}`;
+                if (!uniqueItems[matID]) {
+                    material.color = new THREE$1.Color().setRGB(x, y, z, "srgb");
+                    uniqueItems[matID] = { material, geometries: [], expressIDs: [] };
                 }
+                matrix.fromArray(instance.matrix);
+                this._units.apply(matrix);
+                buffer.applyMatrix4(matrix);
+                uniqueItems[matID].geometries.push(buffer);
+                uniqueItems[matID].expressIDs.push(instance.expressID.toString());
+                continue;
             }
-        }
-    }
-    processUniqueItem(category, level) {
-        const item = this._uniqueItems[category][level];
-        if (!item)
-            return;
-        const geometriesData = Object.values(item);
-        const geometries = geometriesData.map((geom) => geom.geoms);
-        const { buffer, ids } = this.processIDsAndBuffer(geometries);
-        const mats = this.getUniqueItemMaterial(category, level);
-        const items = {};
-        let hasVoids = false;
-        for (const geometryGroup of geometriesData) {
-            hasVoids = hasVoids || geometryGroup.hasVoids;
-            for (const geom of geometryGroup.geoms) {
-                const id = geom.userData.id;
-                if (!items[id]) {
-                    items[id] = [];
-                }
-                items[id].push(geom);
+            const fragment = new Fragment$1(buffer, material, instances.length);
+            for (let i = 0; i < instances.length; i++) {
+                const instance = instances[i];
+                matrix.fromArray(instance.matrix);
+                this._units.apply(matrix);
+                fragment.setInstance(i, {
+                    ids: [instance.expressID.toString()],
+                    transform: matrix,
+                });
+                const { x, y, z } = instance.color;
+                color.setRGB(x, y, z, "srgb");
+                fragment.mesh.setColorAt(i, color);
             }
+            fragment.mesh.updateMatrix();
+            this._model.fragments.push(fragment);
+            this._model.add(fragment.mesh);
         }
-        const matsTransparent = this.areMatsTransparent(mats);
-        const isTransparent = matsTransparent || hasVoids;
-        const boxes = this.getBoxes(isTransparent);
-        for (const id in items) {
-            const geoms = items[id];
-            const helper = this._transform.getHelper(geoms);
-            boxes[id] = helper.matrix.elements;
+        const transform = new THREE$1.Matrix4();
+        for (const matID in uniqueItems) {
+            const { material, geometries, expressIDs } = uniqueItems[matID];
+            const geometry = GeometryUtils.merge([geometries], true);
+            const fragment = new Fragment$1(geometry, material, 1);
+            fragment.setInstance(0, { ids: expressIDs, transform });
+            this._model.fragments.push(fragment);
+            this._model.add(fragment.mesh);
         }
-        const merged = GeometryUtils.merge(geometries);
-        const mergedFragment = this.newMergedFragment(merged, buffer, mats, ids);
-        this._model.fragments.push(mergedFragment);
-        this._model.add(mergedFragment.mesh);
-        for (const id in items) {
-            this._expressIDfragmentIDMap[id] = mergedFragment.id;
-        }
-    }
-    newMergedFragment(merged, buffer, mats, itemsIDs) {
-        merged.setAttribute("blockID", new THREE$1.BufferAttribute(buffer, 1));
-        const mergedFragment = new Fragment$1(merged, mats, 1);
-        const ids = Array.from(itemsIDs).map((id) => id.toString());
-        mergedFragment.setInstance(0, { ids, transform: new THREE$1.Matrix4() });
-        return mergedFragment;
-    }
-    processBuffer(geometries, size) {
-        const buffer = new Uint32Array(size);
-        const data = this.getBufferTempData();
-        for (const geometryGroup of geometries) {
-            for (const geom of geometryGroup) {
-                this.updateBufferIDs(data, geom);
-                const size = geom.attributes.position.count;
-                const currentBlockID = data.currentIDs.get(geom.userData.id);
-                buffer.fill(currentBlockID, data.offset, data.offset + size);
-                data.offset += size;
-            }
-        }
-        return buffer;
-    }
-    updateBufferIDs(data, geom) {
-        if (!data.currentIDs.has(geom.userData.id)) {
-            data.currentIDs.set(geom.userData.id, data.blockID++);
-        }
-    }
-    getBufferTempData() {
-        return { currentIDs: new Map(), offset: 0, blockID: 0 };
-    }
-    processIDsAndBuffer(geometries) {
-        let size = 0;
-        const ids = new Set();
-        for (const geometryGroup of geometries) {
-            for (const geom of geometryGroup) {
-                size += geom.attributes.position.count;
-                ids.add(geom.userData.id);
-            }
-        }
-        const buffer = this.processBuffer(geometries, size);
-        return { buffer, ids };
-    }
-    getUniqueItemMaterial(category, level) {
-        const mats = Object.keys(this._uniqueItems[category][level]).map((id) => this._materials[id]);
-        return mats;
     }
 }
 
-class Geometry {
-    constructor(webIfc, items, materials) {
-        this._referenceMatrix = new THREE$1.Matrix4();
-        this._isFirstMatrix = true;
-        this._voids = new Set();
-        this._geometriesByMaterial = {};
-        this._items = {};
-        this._webIfc = webIfc;
-        this._items = items;
-        this._materials = materials;
+class GeometryReader {
+    constructor() {
+        this.items = {};
     }
-    streamMesh(webifc, mesh) {
-        this.reset(webifc);
-        const geometryID = Geometry.getGeometryID(mesh);
-        const isFirstInstanceOfThisGeometry = !this._items[geometryID];
-        if (isFirstInstanceOfThisGeometry) {
-            this.generateBufferGeometries(mesh, geometryID);
+    get webIfc() {
+        if (!this._webIfc) {
+            throw new Error("web-ifc not found!");
         }
-        else {
-            this.getGeometryTransformation(mesh, geometryID);
-        }
+        return this._webIfc;
     }
     cleanUp() {
-        this._geometriesByMaterial = {};
-        this._voids.clear();
-    }
-    addVoid(voidID) {
-        this._voids.add(voidID);
-    }
-    reset(webifc) {
-        this._geometriesByMaterial = {};
-        this._referenceMatrix = new THREE$1.Matrix4();
-        this._isFirstMatrix = true;
+        this.items = {};
         this._webIfc = null;
+    }
+    streamMesh(webifc, mesh) {
         this._webIfc = webifc;
-    }
-    getGeometryTransformation(mesh, geometryID) {
-        const referenceMatrix = this._items[geometryID].referenceMatrix;
-        const geometryData = mesh.geometries.get(0);
-        const transform = Geometry.getMeshMatrix(geometryData);
-        transform.multiply(referenceMatrix);
-        this._items[geometryID].instances.push({
-            id: mesh.expressID,
-            matrix: transform,
-            hasVoids: this._voids.has(mesh.expressID),
-        });
-    }
-    generateBufferGeometries(mesh, geometryID) {
         const size = mesh.geometries.size();
         for (let i = 0; i < size; i++) {
-            const geometryData = mesh.geometries.get(i);
-            const geometry = this.getBufferGeometry(geometryData.geometryExpressID);
-            if (!geometry)
-                return;
-            this.applyTransform(geometryData, geometry);
-            this.sortGeometriesByMaterials(geometryData, geometry);
-        }
-        this.saveGeometryInstances(geometryID, mesh);
-    }
-    saveGeometryInstances(geometryID, mesh) {
-        this._items[geometryID] = {
-            instances: [
-                {
-                    id: mesh.expressID,
-                    matrix: new THREE$1.Matrix4(),
-                    hasVoids: this._voids.has(mesh.expressID),
-                },
-            ],
-            geometriesByMaterial: this._geometriesByMaterial,
-            referenceMatrix: this._referenceMatrix,
-        };
-    }
-    sortGeometriesByMaterials(geometryData, geometry) {
-        const materialID = this.saveMaterials(geometryData);
-        if (!this._geometriesByMaterial[materialID]) {
-            this._geometriesByMaterial[materialID] = [geometry];
-        }
-        else {
-            this._geometriesByMaterial[materialID].push(geometry);
+            const geometry = mesh.geometries.get(i);
+            const geometryID = geometry.geometryExpressID;
+            // Transparent geometries need to be separated
+            const isTransparent = geometry.color.w !== 1;
+            const prefix = isTransparent ? "-" : "+";
+            const idWithTransparency = prefix + geometryID;
+            if (!this.items[idWithTransparency]) {
+                const buffer = this.newBufferGeometry(geometryID);
+                if (!buffer)
+                    continue;
+                this.items[idWithTransparency] = { buffer, instances: [] };
+            }
+            this.items[idWithTransparency].instances.push({
+                color: { ...geometry.color },
+                matrix: geometry.flatTransformation,
+                expressID: mesh.expressID,
+            });
         }
     }
-    saveMaterials(geometryData) {
-        const color = geometryData.color;
-        const colorID = `${color.x}${color.y}${color.z}${color.w}`;
-        const materialAlreadySaved = this._materials[colorID] !== undefined;
-        if (!materialAlreadySaved) {
-            this.saveNewMaterial(colorID, color);
-        }
-        return colorID;
-    }
-    saveNewMaterial(colorID, color) {
-        const { x, y, z } = color;
-        this._materials[colorID] = new THREE$1.MeshLambertMaterial({
-            color: new THREE$1.Color().setRGB(x, y, z, "srgb"),
-            transparent: color.w !== 1,
-            opacity: color.w,
-            side: THREE$1.DoubleSide,
-        });
-    }
-    applyTransform(geometryData, geometry) {
-        const matrix = Geometry.getMeshMatrix(geometryData);
-        // We apply the tranformation only to the first geometry, and then
-        // apply the inverse to the rest of the instances
-        geometry.applyMatrix4(matrix);
-        // We store this matrix to use it as a reference point. We'll apply this
-        // later to the rest of the instances
-        if (this._isFirstMatrix) {
-            this._referenceMatrix = new THREE$1.Matrix4().copy(matrix).invert();
-            this._isFirstMatrix = false;
-        }
-    }
-    getBufferGeometry(expressID) {
-        const geometry = this._webIfc.GetGeometry(0, expressID);
+    newBufferGeometry(geometryID) {
+        const geometry = this.webIfc.GetGeometry(0, geometryID);
         const verts = this.getVertices(geometry);
         if (!verts.length)
             return null;
         const indices = this.getIndices(geometry);
         if (!indices.length)
             return null;
-        const buffer = this.constructGeometry(verts, indices);
+        const buffer = this.constructBuffer(verts, indices);
         // @ts-ignore
         geometry.delete();
         return buffer;
     }
     getIndices(geometryData) {
-        const indices = this._webIfc.GetIndexArray(geometryData.GetIndexData(), geometryData.GetIndexDataSize());
+        const indices = this.webIfc.GetIndexArray(geometryData.GetIndexData(), geometryData.GetIndexDataSize());
         return indices;
     }
     getVertices(geometryData) {
-        const verts = this._webIfc.GetVertexArray(geometryData.GetVertexData(), geometryData.GetVertexDataSize());
+        const verts = this.webIfc.GetVertexArray(geometryData.GetVertexData(), geometryData.GetVertexDataSize());
         return verts;
     }
-    constructGeometry(vertexData, indexData) {
+    constructBuffer(vertexData, indexData) {
         const geometry = new THREE$1.BufferGeometry();
         const posFloats = new Float32Array(vertexData.length / 2);
         const normFloats = new Float32Array(vertexData.length / 2);
@@ -95443,49 +95060,8 @@ class Geometry {
         geometry.setIndex(new THREE$1.BufferAttribute(indexData, 1));
         return geometry;
     }
-    static getMeshMatrix(geometry) {
-        const matrix = geometry.flatTransformation;
-        const mat = new THREE$1.Matrix4();
-        mat.fromArray(matrix);
-        return mat;
-    }
-    static getGeometryID(mesh) {
-        let result = "";
-        const size = mesh.geometries.size();
-        for (let i = 0; i < size; i++) {
-            const placedGeometry = mesh.geometries.get(i);
-            result += placedGeometry.geometryExpressID;
-        }
-        return result;
-    }
 }
 
-/** Configuration of the IFC-fragment conversion. */
-class IfcFragmentSettings {
-    constructor() {
-        /** Categories that always will be instanced. */
-        this.instancedCategories = new Set();
-        /** Whether to extract the IFC properties into a JSON. */
-        this.includeProperties = true;
-        /** Generate the geometry for categories that are not included by default. */
-        this.optionalCategories = [IFCSPACE];
-        /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
-        this.wasm = {
-            path: "",
-            absolute: false,
-        };
-        /** Loader settings for [web-ifc](https://github.com/ifcjs/web-ifc). */
-        this.webIfc = {
-            COORDINATE_TO_ORIGIN: true,
-            USE_FAST_BOOLS: true,
-        };
-        this.instancedCategories.add(IFCFURNISHINGELEMENT);
-        this.instancedCategories.add(IFCWINDOW);
-        this.instancedCategories.add(IFCDOOR);
-    }
-}
-
-// TODO: Clean up UI logic and component type
 /**
  * Reads all the geometry of the IFC file and generates a set of
  * [fragments](https://github.com/ifcjs/fragment). It can also return the
@@ -95497,43 +95073,52 @@ class FragmentIfcLoader extends Component {
         super();
         this.name = "FragmentIfcLoader";
         this.enabled = true;
-        /** Configuration of the IFC-fragment conversion. */
-        this.settings = new IfcFragmentSettings();
-        this._webIfc = new IfcAPI2();
-        this._items = {};
-        this._materials = {};
         this.onIfcLoaded = new Event();
-        this._geometry = new Geometry(this._webIfc, this._items, this._materials);
-        this._converter = new DataConverter(this._items, this._materials, this.settings);
+        this._webIfc = new IfcAPI2();
+        this._geometry = new GeometryReader();
+        this._converter = new DataConverter();
         this._components = components;
         this._fragments = fragments;
-        this.uiElement = new Button(components, {
-            materialIconName: "upload_file",
-        });
-        this.setupOpenButton();
+        this.uiElement = this.setupOpenButton();
     }
     get() {
         return this._webIfc;
     }
+    get settings() {
+        return this._converter.settings;
+    }
     /** {@link Disposable.dispose} */
     dispose() {
-        this.disposeWebIfc();
-        this.disposeMaterials();
-        this.disposeItems();
         this._geometry.cleanUp();
-        this._geometry = null;
         this._converter.cleanUp();
+        this._webIfc = null;
+        this._geometry = null;
         this._converter = null;
     }
     /** Loads the IFC file and converts it to a set of fragments. */
     async load(data) {
-        await this.initializeWebIfc();
-        this._webIfc.OpenModel(data, this.settings.webIfc);
-        const model = await this.loadAllGeometry();
+        let before = performance.now();
+        await this.readIfcFile(data);
+        console.log(`Reading the IFC: ${performance.now() - before} ms.`);
+        before = performance.now();
+        await this.readAllGeometries();
+        console.log(`Reading all geometries: ${performance.now() - before} ms.`);
+        before = performance.now();
+        const items = this._geometry.items;
+        const model = await this._converter.generate(this._webIfc, items);
+        console.log(`Creating fragments: ${performance.now() - before} ms.`);
+        this.cleanUp();
+        for (const fragment of model.fragments) {
+            this._fragments.list[fragment.id] = fragment;
+            this._components.meshes.push(fragment.mesh);
+        }
         this.onIfcLoaded.trigger(model);
         return model;
     }
     setupOpenButton() {
+        const button = new Button(this._components, {
+            materialIconName: "upload_file",
+        });
         const fileOpener = document.createElement("input");
         fileOpener.type = "file";
         fileOpener.accept = ".ifc";
@@ -95548,90 +95133,36 @@ class FragmentIfcLoader extends Component {
             const result = await this.load(data);
             const scene = this._components.scene.get();
             scene.add(result);
-            this.uiElement.clicked.trigger(result);
+            button.clicked.trigger(result);
         };
-        this.uiElement.onclick = () => {
+        button.onclick = () => {
             fileOpener.click();
         };
+        return button;
     }
-    async initializeWebIfc() {
+    async readIfcFile(data) {
         const { path, absolute } = this.settings.wasm;
         this._webIfc.SetWasmPath(path, absolute);
         await this._webIfc.Init();
+        this._webIfc.OpenModel(data, this.settings.webIfc);
     }
-    async loadAllGeometry() {
-        await this.loadAllCategories();
-        const model = await this._converter.generateFragmentData(this._webIfc);
-        this.cleanUp();
-        for (const fragment of model.fragments) {
-            this._fragments.list[fragment.id] = fragment;
-            this._components.meshes.push(fragment.mesh);
-        }
-        return model;
-    }
-    async loadAllCategories() {
-        this._converter.setupCategories(this._webIfc);
-        this.loadOptionalCategories();
-        await this.setupVoids();
-        await this.loadMainCategories();
-    }
-    async loadMainCategories() {
-        this._webIfc.StreamAllMeshes(0, (mesh) => {
-            this._geometry.streamMesh(this._webIfc, mesh);
-        });
-    }
-    async setupVoids() {
-        const voids = this._webIfc.GetLineIDsWithType(0, IFCRELVOIDSELEMENT);
-        const props = this._webIfc.properties;
-        const size = voids.size();
-        for (let i = 0; i < size; i++) {
-            const voidsProperties = await props.getItemProperties(0, voids.get(i));
-            const voidID = voidsProperties.RelatingBuildingElement.value;
-            this._geometry.addVoid(voidID);
-        }
-    }
-    loadOptionalCategories() {
-        // Some categories (like IfcSpace) need to be set explicitly
+    async readAllGeometries() {
+        this._converter.saveIfcCategories(this._webIfc);
+        // Some categories (like IfcSpace) need to be created explicitly
         const optionals = this.settings.optionalCategories;
         const callback = (mesh) => {
             this._geometry.streamMesh(this._webIfc, mesh);
         };
         this._webIfc.StreamAllMeshesWithTypes(0, optionals, callback);
+        this._webIfc.StreamAllMeshes(0, (mesh) => {
+            this._geometry.streamMesh(this._webIfc, mesh);
+        });
     }
     cleanUp() {
-        this.resetWebIfc();
+        this._webIfc = null;
+        this._webIfc = new IfcAPI2();
         this._geometry.cleanUp();
         this._converter.cleanUp();
-        this.resetObject(this._items);
-        this.resetObject(this._materials);
-    }
-    resetWebIfc() {
-        this.disposeWebIfc();
-        this._webIfc = new IfcAPI2();
-    }
-    resetObject(object) {
-        const keys = Object.keys(object);
-        for (const key of keys) {
-            delete object[key];
-        }
-    }
-    disposeWebIfc() {
-        this._webIfc = null;
-    }
-    disposeMaterials() {
-        for (const materialID in this._materials) {
-            this._materials[materialID].dispose();
-        }
-    }
-    disposeItems() {
-        for (const geometryID in this._items) {
-            const geometriesByMat = this._items[geometryID].geometriesByMaterial;
-            for (const matID in geometriesByMat) {
-                for (const geom of geometriesByMat[matID]) {
-                    geom.dispose();
-                }
-            }
-        }
     }
 }
 
@@ -98027,7 +97558,7 @@ class EdgesPlane extends SimplePlane {
         this.updateTimeout = -1;
         /** {@link Updateable.update} */
         this.update = () => {
-            if (!this.enabled)
+            if (!super.enabled)
                 return;
             this.beforeUpdate.trigger(this._plane);
             this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
@@ -100028,4 +99559,4 @@ class MapboxWindow {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DataConverter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentGroup, FragmentGrouper, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, Geometry, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcFragmentSettings, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
+export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentGroup, FragmentGrouper, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };

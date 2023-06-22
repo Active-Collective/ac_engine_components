@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Fragment } from "bim-fragment/fragment";
+import * as WEBIFC from "web-ifc";
 
 export class FragmentGroup extends THREE.Group {
   fragments: Fragment[] = [];
@@ -12,6 +13,13 @@ export class FragmentGroup extends THREE.Group {
   properties: any;
   transparentBoundingBoxes: any;
   expressIDFragmentIDMap: any;
+}
+
+export interface IfcGeometries {
+  [id: string]: {
+    buffer: THREE.BufferGeometry;
+    instances: { color: WEBIFC.Color; matrix: number[]; expressID: number }[];
+  };
 }
 
 export interface GeometriesByMaterial {
