@@ -22436,7 +22436,8 @@ class GeometryUtils {
         let i = 0;
         for (const geometry of geometries) {
             const size = geometry.attributes.position.count;
-            const array = new Uint8Array(size).fill(i++);
+            // TODO: Substitute blockID attribute by block id map
+            const array = new Uint16Array(size).fill(i++);
             geometry.setAttribute("blockID", new BufferAttribute$1(array, 1));
         }
     }
@@ -98027,7 +98028,7 @@ class EdgesPlane extends SimplePlane {
         this.updateTimeout = -1;
         /** {@link Updateable.update} */
         this.update = () => {
-            if (!this.enabled)
+            if (!super.enabled)
                 return;
             this.beforeUpdate.trigger(this._plane);
             this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
@@ -99883,6 +99884,7 @@ class MapboxWindow {
      * the Mapbox access token and the HTML div element to display the scene.
      */
     constructor(config) {
+        this.minTargetZoom = 0.0015;
         this._style = "mapbox://styles/mapbox/light-v10";
         this._labels = {};
         this._buildings = [];
@@ -99983,8 +99985,8 @@ class MapboxWindow {
             }
         }
         const factor = 0.4;
-        const width = maxLng - minLng;
-        const height = maxLat - minLat;
+        const width = Math.max(this.minTargetZoom, maxLng - minLng);
+        const height = Math.max(this.minTargetZoom, maxLat - minLat);
         maxLng += factor * width;
         maxLat += factor * height;
         minLng -= factor * width;
