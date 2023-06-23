@@ -94874,26 +94874,24 @@ class DataConverter {
         this._model = new FragmentGroup();
         this._ifcCategories = new IfcCategories();
         this._units = new Units();
-        this._boundingBoxes = {};
-        this._transparentBoundingBoxes = {};
-        this._expressIDfragmentIDMap = {};
+        this._fragmentKey = 0;
+        this._keyFragmentMap = new Map();
+        this._expressIDKeyMap = {};
         this._propertyExporter = new IfcJsonExporter();
         this._spatialTree = new SpatialStructure();
     }
     reset() {
         this._model = new FragmentGroup();
-        // this._uniqueItems = {};
-        this._boundingBoxes = {};
-        this._transparentBoundingBoxes = {};
     }
     cleanUp() {
         this._spatialTree.cleanUp();
         this._categories = {};
         this._model = new FragmentGroup();
         this._ifcCategories = new IfcCategories();
-        // this._uniqueItems = {};
         this._units = new Units();
         this._propertyExporter = new IfcJsonExporter();
+        this._expressIDKeyMap = {};
+        this._keyFragmentMap.clear();
     }
     saveIfcCategories(webIfc) {
         this._categories = this._ifcCategories.getAll(webIfc, 0);
@@ -94907,9 +94905,7 @@ class DataConverter {
         return this._model;
     }
     async saveModelData(webIfc) {
-        this._model.boundingBoxes = this._boundingBoxes;
-        this._model.transparentBoundingBoxes = this._transparentBoundingBoxes;
-        this._model.expressIDFragmentIDMap = this._expressIDfragmentIDMap;
+        this._model.expressIDFragmentIDMap = this._expressIDKeyMap;
         this._model.levelRelationships = this._spatialTree.itemsByFloor;
         this._model.floorsProperties = this._spatialTree.floorProperties;
         this._model.allTypes = IfcCategoryMap;
@@ -94957,31 +94953,48 @@ class DataConverter {
                 continue;
             }
             const fragment = new Fragment$1(buffer, material, instances.length);
+            fragment.mesh.userData.key = this._fragmentKey;
+            this._keyFragmentMap.set(this._fragmentKey, fragment.id);
             for (let i = 0; i < instances.length; i++) {
                 const instance = instances[i];
                 matrix.fromArray(instance.matrix);
+                const { expressID } = instance;
                 this._units.apply(matrix);
                 fragment.setInstance(i, {
-                    ids: [instance.expressID.toString()],
+                    ids: [expressID.toString()],
                     transform: matrix,
                 });
                 const { x, y, z } = instance.color;
                 color.setRGB(x, y, z, "srgb");
                 fragment.mesh.setColorAt(i, color);
+                this.saveExpressID(expressID.toString());
             }
             fragment.mesh.updateMatrix();
             this._model.fragments.push(fragment);
             this._model.add(fragment.mesh);
+            this._fragmentKey++;
         }
         const transform = new THREE$1.Matrix4();
         for (const matID in uniqueItems) {
             const { material, geometries, expressIDs } = uniqueItems[matID];
             const geometry = GeometryUtils.merge([geometries], true);
             const fragment = new Fragment$1(geometry, material, 1);
+            fragment.mesh.userData.key = this._fragmentKey;
+            this._keyFragmentMap.set(this._fragmentKey, fragment.id);
+            for (const id of expressIDs) {
+                this.saveExpressID(id);
+            }
+            this._fragmentKey++;
             fragment.setInstance(0, { ids: expressIDs, transform });
             this._model.fragments.push(fragment);
             this._model.add(fragment.mesh);
         }
+    }
+    saveExpressID(expressID) {
+        if (!this._expressIDKeyMap[expressID]) {
+            this._expressIDKeyMap[expressID] = new Set();
+        }
+        this._expressIDKeyMap[expressID].add(this._fragmentKey);
     }
 }
 
@@ -95073,7 +95086,7 @@ class FragmentIfcLoader extends Component {
         super();
         this.name = "FragmentIfcLoader";
         this.enabled = true;
-        this.onIfcLoaded = new Event();
+        this.ifcLoaded = new Event();
         this._webIfc = new IfcAPI2();
         this._geometry = new GeometryReader();
         this._converter = new DataConverter();
@@ -95112,7 +95125,7 @@ class FragmentIfcLoader extends Component {
             this._fragments.list[fragment.id] = fragment;
             this._components.meshes.push(fragment.mesh);
         }
-        this.onIfcLoaded.trigger(model);
+        this.ifcLoaded.trigger(model);
         return model;
     }
     setupOpenButton() {
