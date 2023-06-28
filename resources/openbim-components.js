@@ -29441,7 +29441,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     ids(index) {
         const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     idsLength() {
         const offset = this.bb.__offset(this.bb_pos, 8);
@@ -29449,11 +29449,11 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     idsArray() {
         const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsKeys(index) {
         const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsKeysLength() {
         const offset = this.bb.__offset(this.bb_pos, 10);
@@ -29461,11 +29461,11 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     itemsKeysArray() {
         const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsKeysIndices(index) {
         const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsKeysIndicesLength() {
         const offset = this.bb.__offset(this.bb_pos, 12);
@@ -29473,11 +29473,11 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     itemsKeysIndicesArray() {
         const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsRels(index) {
         const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsRelsLength() {
         const offset = this.bb.__offset(this.bb_pos, 14);
@@ -29485,11 +29485,11 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     itemsRelsArray() {
         const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsRelsIndices(index) {
         const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsRelsIndicesLength() {
         const offset = this.bb.__offset(this.bb_pos, 16);
@@ -29497,7 +29497,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     itemsRelsIndicesArray() {
         const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     fragmentKeys(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 18);
@@ -29827,11 +29827,11 @@ class Serializer {
     constructFragmentGroup(group) {
         const fragmentsGroup = new FragmentsGroup();
         const matrixArray = group.matrixArray() || new Float32Array();
-        const ids = group.idsArray() || new Int32Array();
-        const keysIndices = group.itemsKeysIndicesArray() || new Int32Array();
-        const keysArray = group.itemsKeysArray() || new Int32Array();
-        const relsArray = group.itemsRelsArray() || new Int32Array();
-        const relsIndices = group.itemsRelsIndicesArray() || new Int32Array();
+        const ids = group.idsArray() || new Uint32Array();
+        const keysIndices = group.itemsKeysIndicesArray() || new Uint32Array();
+        const keysArray = group.itemsKeysArray() || new Uint32Array();
+        const relsArray = group.itemsRelsArray() || new Uint32Array();
+        const relsIndices = group.itemsRelsIndicesArray() || new Uint32Array();
         const keysIdsString = group.fragmentKeys() || "";
         const keysIdsArray = keysIdsString.split(this.fragmentIDSeparator);
         this.setGroupData(fragmentsGroup, ids, keysIndices, keysArray, 0);
@@ -29845,10 +29845,10 @@ class Serializer {
         return fragmentsGroup;
     }
     setGroupData(group, ids, indices, array, index) {
-        for (let i = 0; i < indices.length - 1; i++) {
+        for (let i = 0; i < indices.length; i++) {
             const expressID = ids[i];
             const currentIndex = indices[i];
-            const nextIndex = indices[i + 1];
+            const nextIndex = indices[i + 1] || array.length;
             const keys = [];
             for (let j = currentIndex; j < nextIndex; j++) {
                 keys.push(array[j]);
@@ -29961,7 +29961,7 @@ class FragmentManager extends Component {
         }
         this.groups.push(group);
         this.onFragmentsLoaded.trigger(group);
-        return ids;
+        return group;
     }
     /**
      * Export the specified fragments.
@@ -95720,10 +95720,10 @@ class FragmentHighlighter extends Component {
 }
 
 class FragmentTreeItem extends Component {
-    constructor(components, _fragmentHighlighter, _fragmentGrouper, name, config) {
+    constructor(components, _fragmentHighlighter, _fragmentClassifier, name, config) {
         super();
         this._fragmentHighlighter = _fragmentHighlighter;
-        this._fragmentGrouper = _fragmentGrouper;
+        this._fragmentClassifier = _fragmentClassifier;
         this.enabled = true;
         this.filter = {};
         this._children = [];
@@ -95750,25 +95750,25 @@ class FragmentTreeItem extends Component {
     }
     select() {
         const selectorName = this._options.selectionHighlighterName;
-        this._fragmentHighlighter.highlightByID(selectorName, this._fragmentGrouper.find(this.filter));
+        this._fragmentHighlighter.highlightByID(selectorName, this._fragmentClassifier.find(this.filter));
     }
     highlight() {
         const highlighterName = this._options.highlightHighlighterName;
-        this._fragmentHighlighter.highlightByID(highlighterName, this._fragmentGrouper.find(this.filter));
+        this._fragmentHighlighter.highlightByID(highlighterName, this._fragmentClassifier.find(this.filter));
     }
 }
 
 class FragmentTree extends Component {
-    constructor(components, fragmentHighlighter, fragmentGrouper, name, groupSystemNames) {
+    constructor(components, fragmentHighlighter, fragmentClassifier, name, groupSystemNames) {
         super();
         this.enabled = true;
         this.functionsMap = {};
         this._components = components;
-        this._fragmentGrouper = fragmentGrouper;
+        this._fragmentClassifier = fragmentClassifier;
         this._fragmentHighlighter = fragmentHighlighter;
         this.name = name;
         this.groupSystemNames = groupSystemNames;
-        this._tree = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentGrouper, this.name);
+        this._tree = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentClassifier, this.name);
         this.uiElement = this._tree.uiElement;
     }
     get() {
@@ -95788,7 +95788,7 @@ class FragmentTree extends Component {
     process(groupSystemNames, result = {}) {
         const groups = [];
         const currentSystemName = groupSystemNames[0]; // storeys
-        const systems = this._fragmentGrouper.get();
+        const systems = this._fragmentClassifier.get();
         const systemGroups = systems[currentSystemName];
         if (!currentSystemName || !systemGroups) {
             return groups;
@@ -95796,10 +95796,10 @@ class FragmentTree extends Component {
         for (const name in systemGroups) {
             // name is N00, N01, N02...
             const filter = { ...result, [currentSystemName]: name }; // { storeys: "N00" }, { storeys: "N01" }...
-            const hasElements = Object.keys(this._fragmentGrouper.find(filter)).length > 0;
+            const hasElements = Object.keys(this._fragmentClassifier.find(filter)).length > 0;
             if (hasElements) {
                 const treeItemName = currentSystemName[0].toUpperCase() + currentSystemName.slice(1); // Storeys
-                const treeItem = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentGrouper, `${treeItemName}: ${name}`); // Storeys: N01
+                const treeItem = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentClassifier, `${treeItemName}: ${name}`); // Storeys: N01
                 treeItem.filter = filter;
                 groups.push(treeItem);
                 treeItem.children = this.process(groupSystemNames.slice(1), filter);
@@ -95809,16 +95809,15 @@ class FragmentTree extends Component {
     }
 }
 
-class FragmentGrouper extends Component {
-    constructor(components, fragmentManager) {
+class FragmentClassifier extends Component {
+    constructor(fragmentManager) {
         super();
-        this._groupSystems = {};
         /** {@link Component.name} */
         this.name = "FragmentGrouper";
         /** {@link Component.enabled} */
         this.enabled = true;
-        this._components = components;
-        this._fragmentManager = fragmentManager;
+        this._groupSystems = {};
+        this._fragments = fragmentManager;
     }
     /** {@link Component.get} */
     get() {
@@ -95826,15 +95825,6 @@ class FragmentGrouper extends Component {
     }
     dispose() {
         this._groupSystems = {};
-    }
-    setVisibility(systemName, groupName, visible) {
-        const fragmentsMap = this._groupSystems[systemName][groupName];
-        for (const fragmentId in fragmentsMap) {
-            const fragment = this._fragmentManager.list[fragmentId];
-            const ids = fragmentsMap[fragmentId];
-            const idsArray = Array.from(ids);
-            fragment.setVisibility(idsArray, visible);
-        }
     }
     remove(guid) {
         for (const systemName in this._groupSystems) {
@@ -95848,7 +95838,7 @@ class FragmentGrouper extends Component {
     find(filter) {
         if (!filter) {
             const result = {};
-            const fragments = this._fragmentManager.list;
+            const fragments = this._fragments.list;
             for (const id in fragments) {
                 const fragment = fragments[id];
                 const items = fragment.items;
@@ -95861,6 +95851,10 @@ class FragmentGrouper extends Component {
         const models = {};
         for (const name in filter) {
             const value = filter[name];
+            if (!this._groupSystems[name]) {
+                console.warn(`Classification ${name} does not exist.`);
+                continue;
+            }
             const found = this._groupSystems[name][value];
             if (found) {
                 for (const guid in found) {
@@ -95893,121 +95887,99 @@ class FragmentGrouper extends Component {
         }
         return result;
     }
-    groupByModel(modelID, expressIDFragmentIDMap) {
+    byModel(modelID, group) {
         if (!this._groupSystems.model) {
             this._groupSystems.model = {};
         }
-        const currentModels = this._groupSystems.model;
-        if (!currentModels[modelID]) {
-            currentModels[modelID] = {};
+        const modelsClassification = this._groupSystems.model;
+        if (!modelsClassification[modelID]) {
+            modelsClassification[modelID] = {};
         }
-        const currentModel = currentModels[modelID];
-        for (const expressID in expressIDFragmentIDMap) {
-            const fragID = expressIDFragmentIDMap[expressID];
-            if (!currentModel[fragID]) {
-                currentModel[fragID] = new Set();
+        const currentModel = modelsClassification[modelID];
+        for (const expressID in group.data) {
+            const keys = group.data[expressID][0];
+            for (const key of keys) {
+                const fragID = group.keyFragments[key];
+                if (!currentModel[fragID]) {
+                    currentModel[fragID] = new Set();
+                }
+                currentModel[fragID].add(expressID);
             }
-            currentModel[fragID].add(expressID);
         }
     }
-    groupByPredefinedType(props, expressIDFragmentIDMap) {
-        const arrayProperties = Object.values(props);
+    byPredefinedType(group) {
+        var _a;
+        if (!group.properties) {
+            throw new Error("To group by predefined type, properties are needed");
+        }
         if (!this._groupSystems.predefinedType) {
             this._groupSystems.predefinedType = {};
         }
         const currentTypes = this._groupSystems.predefinedType;
-        const levelRelations = arrayProperties.filter((prop) => prop.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
-        const elements = [];
-        levelRelations.forEach((rel) => {
-            const expressIDs = rel.RelatedElements.map((element) => element.value);
-            elements.push(...expressIDs);
-        });
-        elements.forEach((element) => {
-            var _a;
-            const entity = props[element];
-            if (!entity) {
-                return;
-            }
-            const fragmentID = expressIDFragmentIDMap[entity.expressID];
+        for (const expressID in group.data) {
+            const entity = group.properties[expressID];
+            if (!entity)
+                continue;
             const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
             if (!currentTypes[predefinedType]) {
                 currentTypes[predefinedType] = {};
             }
             const currentType = currentTypes[predefinedType];
-            if (!currentType[fragmentID]) {
-                currentType[fragmentID] = new Set();
-            }
-            const currentFragment = currentType[fragmentID];
-            currentFragment.add(entity.expressID);
-        });
-    }
-    groupByEntity(itemTypes, allTypes, expressIDFragmentIDMap) {
-        if (!this._groupSystems.entity) {
-            this._groupSystems.entity = {};
-        }
-        const currentEntities = this._groupSystems.entity;
-        for (const expressID in itemTypes) {
-            const entity = allTypes[itemTypes[expressID]];
-            const fragment = expressIDFragmentIDMap[expressID];
-            if (!fragment) {
-                continue;
-            }
-            if (!currentEntities[entity]) {
-                currentEntities[entity] = {};
-            }
-            if (!currentEntities[entity][fragment]) {
-                currentEntities[entity][fragment] = new Set();
-            }
-            currentEntities[entity][fragment].add(expressID);
-        }
-    }
-    groupByStorey(props, expressIDFragmentIDMap) {
-        const properties = Object.values(props);
-        if (!this._groupSystems.storeys) {
-            this._groupSystems.storeys = {};
-        }
-        const storeys = this._groupSystems.storeys;
-        const spatialRels = properties.filter((entity) => entity.type === IFCRELCONTAINEDINSPATIALSTRUCTURE);
-        const aggregates = properties.filter((entity) => entity.type === IFCRELAGGREGATES);
-        const nestedItems = {};
-        for (const item of aggregates) {
-            if (!item.RelatingObject.value)
-                continue;
-            const id = item.RelatingObject.value;
-            nestedItems[id] = item.RelatedObjects.map((item) => item.value.toString());
-        }
-        spatialRels.forEach((rel) => {
-            if (!rel.RelatingStructure || !rel.RelatingStructure.value) {
-                return;
-            }
-            const storeyProps = properties.find((prop) => prop.expressID === rel.RelatingStructure.value);
-            const storeyName = storeyProps.Name.value;
-            if (!storeys[storeyName]) {
-                storeys[storeyName] = {};
-            }
-            const storey = storeys[storeyName];
-            const storeyElements = rel.RelatedElements.map((element) => {
-                return element.value.toString();
-            });
-            storeyElements.forEach((expressID) => {
-                this.savePerStorey(expressIDFragmentIDMap, expressID, storey);
-                if (nestedItems[expressID]) {
-                    for (const item of nestedItems[expressID]) {
-                        this.savePerStorey(expressIDFragmentIDMap, item, storey);
+            for (const expressID in group.data) {
+                const keys = group.data[expressID][0];
+                for (const key of keys) {
+                    const fragmentID = group.keyFragments[key];
+                    if (!currentType[fragmentID]) {
+                        currentType[fragmentID] = new Set();
                     }
+                    const currentFragment = currentType[fragmentID];
+                    currentFragment.add(entity.expressID);
                 }
-            });
-        });
+            }
+        }
     }
-    savePerStorey(idFragmentMap, expressID, storey) {
-        const fragment = idFragmentMap[expressID];
-        if (!fragment) {
-            return;
+    byEntity(group) {
+        if (!this._groupSystems.entities) {
+            this._groupSystems.entities = {};
         }
-        if (!storey[fragment]) {
-            storey[fragment] = new Set();
+        for (const expressID in group.data) {
+            const rels = group.data[expressID][1];
+            const type = rels[1];
+            const entity = IfcCategoryMap[type];
+            this.saveItem(group, "entities", entity, expressID);
         }
-        storey[fragment].add(expressID);
+    }
+    byStorey(group) {
+        if (!group.properties) {
+            throw new Error("To group by storey, properties are needed");
+        }
+        for (const expressID in group.data) {
+            const rels = group.data[expressID][1];
+            const storeyID = rels[0];
+            if (storeyID === -1)
+                continue;
+            const storey = group.properties[storeyID].Name.value;
+            this.saveItem(group, "storeys", storey, expressID);
+        }
+    }
+    saveItem(group, systemName, className, expressID) {
+        if (!this._groupSystems[systemName]) {
+            this._groupSystems[systemName] = {};
+        }
+        const keys = group.data[expressID][0];
+        for (const key of keys) {
+            const fragmentID = group.keyFragments[key];
+            if (fragmentID) {
+                const system = this._groupSystems[systemName];
+                if (!system[className]) {
+                    system[className] = {};
+                }
+                if (!system[className][fragmentID]) {
+                    system[className][fragmentID] = new Set();
+                }
+                system[className][fragmentID].add(expressID);
+            }
+        }
     }
 }
 
@@ -99929,4 +99901,4 @@ class MapboxWindow {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentGrouper, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
+export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
