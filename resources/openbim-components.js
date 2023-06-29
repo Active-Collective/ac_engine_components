@@ -96052,7 +96052,7 @@ class FragmentHider extends Component {
 // TODO: Clean up and document
 // TODO: Decouple from fragments?
 class FragmentEdges extends Component {
-    constructor(components) {
+    constructor(components, culler) {
         super();
         this.edgesToUpdate = new Set();
         this.threshold = 80;
@@ -96089,6 +96089,23 @@ class FragmentEdges extends Component {
             },
         });
         this._components = components;
+        if (culler) {
+            culler.viewUpdated.on(() => {
+                const scene = this._components.scene.get();
+                if (!this.visible)
+                    return;
+                for (const id of culler.currentVisibleMeshes) {
+                    if (this._list[id]) {
+                        scene.add(this._list[id]);
+                    }
+                }
+                for (const id of culler.recentlyHiddenMeshes) {
+                    if (this._list[id]) {
+                        scene.remove(this._list[id]);
+                    }
+                }
+            });
+        }
     }
     get visible() {
         return this._visible;
