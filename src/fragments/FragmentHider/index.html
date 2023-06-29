@@ -20,8 +20,6 @@
         "openbim-components": "../../../resources/openbim-components.js"
       }
     }
-
-
 </script>
 <script type="module">
 
@@ -87,13 +85,7 @@
         classes[name] = true;
     }
 
-    function setVisibility(visible, items) {
-        for(const fragID in items) {
-            const ids = items[fragID];
-            const fragment = fragments.list[fragID];
-            fragment.setVisibility(ids, visible);
-        }
-    }
+    const hider = new OBC.FragmentHider(fragments);
 
     // Set up dat.gui menu
 
@@ -103,7 +95,7 @@
     for (const name in storeys) {
         storeysGui.add(storeys, name).onChange((visible) => {
             const found = classifier.find({storeys: [name]});
-            setVisibility(visible, found);
+            hider.set(visible, found);
         });
     }
 
@@ -111,7 +103,7 @@
     for (const name in classes) {
         entitiesGui.add(classes, name).onChange((visible) => {
             const found = classifier.find({entities: [name]});
-            setVisibility(visible, found);
+            hider.set(visible, found);
         });
     }
 

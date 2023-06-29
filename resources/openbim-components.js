@@ -28105,6 +28105,16 @@ let Fragment$1 = class Fragment {
         this.blocks = new Blocks(this);
         BVH.apply(geometry);
     }
+    get ids() {
+        const ids = new Set();
+        for (const id of this.items) {
+            ids.add(id);
+        }
+        for (const id in this.hiddenInstances) {
+            ids.add(id);
+        }
+        return ids;
+    }
     dispose(disposeResources = true) {
         this.items = null;
         this.group = undefined;
@@ -28204,7 +28214,7 @@ let Fragment$1 = class Fragment {
             this.hiddenInstances = {};
         }
     }
-    setVisibility(itemIDs, visible) {
+    setVisibility(visible, itemIDs = this.ids) {
         if (this.blocks.count > 1) {
             this.toggleBlockVisibility(visible, itemIDs);
             this.mesh.geometry.disposeBoundsTree();
@@ -28353,10 +28363,22 @@ let Fragment$1 = class Fragment {
     }
     filterHiddenItems(itemIDs, hidden) {
         const hiddenItems = Object.keys(this.hiddenInstances);
-        return itemIDs.filter((item) => hidden ? hiddenItems.includes(item) : !hiddenItems.includes(item));
+        const result = [];
+        for (const id of itemIDs) {
+            const isHidden = hidden && hiddenItems.includes(id);
+            const isNotHidden = !hidden && !hiddenItems.includes(id);
+            if (isHidden || isNotHidden) {
+                result.push(id);
+            }
+        }
+        return result;
     }
     toggleBlockVisibility(visible, itemIDs) {
-        const blockIDs = itemIDs.map((id) => this.getInstanceAndBlockID(id).blockID);
+        const blockIDs = [];
+        for (const id of itemIDs) {
+            const blockID = this.getInstanceAndBlockID(id).blockID;
+            blockIDs.push(blockID);
+        }
         if (visible) {
             this.blocks.add(blockIDs, false);
         }
@@ -95813,7 +95835,7 @@ class FragmentClassifier extends Component {
     constructor(fragmentManager) {
         super();
         /** {@link Component.name} */
-        this.name = "FragmentGrouper";
+        this.name = "FragmentClassifier";
         /** {@link Component.enabled} */
         this.enabled = true;
         this._groupSystems = {};
@@ -95978,6 +96000,50 @@ class FragmentClassifier extends Component {
                     system[className][fragmentID] = new Set();
                 }
                 system[className][fragmentID].add(expressID);
+            }
+        }
+    }
+}
+
+class FragmentHider extends Component {
+    constructor(fragments, culler) {
+        super();
+        this.name = "FragmentHider";
+        this.enabled = true;
+        this._fragments = fragments;
+        this._culler = culler;
+    }
+    dispose() {
+        this._fragments = null;
+        this._culler = null;
+    }
+    set(visible, items) {
+        if (!items) {
+            for (const id in this._fragments.list) {
+                const fragment = this._fragments.list[id];
+                if (fragment) {
+                    fragment.setVisibility(visible);
+                    this.updateCulledVisibility(fragment);
+                }
+            }
+        }
+        for (const fragID in items) {
+            const ids = items[fragID];
+            const fragment = this._fragments.list[fragID];
+            fragment.setVisibility(visible, ids);
+            this.updateCulledVisibility(fragment);
+        }
+    }
+    isolate(items) {
+        this.set(false);
+        this.set(true, items);
+    }
+    get() { }
+    updateCulledVisibility(fragment) {
+        if (this._culler) {
+            const culled = this._culler.colorMeshes.get(fragment.id);
+            if (culled) {
+                culled.count = fragment.mesh.count;
             }
         }
     }
@@ -99901,4 +99967,4 @@ class MapboxWindow {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
+export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
