@@ -20,7 +20,6 @@
         "openbim-components": "../../../resources/openbim-components.js"
       }
     }
-
 </script>
 <script type="module">
 
@@ -58,47 +57,56 @@
     const grid = new OBC.SimpleGrid(components);
     components.tools.add('grid', grid);
 
-    // Set up highlighting
-
     const fragments = new OBC.FragmentManager(components);
-    const highlighter = new OBC.FragmentHighlighter(components, fragments);
 
     const file = await fetch("../../../resources/small.frag");
     const dataBlob = await file.arrayBuffer();
     const buffer = new Uint8Array(dataBlob);
-    fragments.load(buffer);
-    highlighter.update();
+    const model = fragments.load(buffer);
 
-    const highlightMaterial = new THREE.MeshBasicMaterial({color: 'red'});
-    highlighter.add('default', highlightMaterial);
+    const properties = await fetch("../../../resources/small.json");
+    model.properties = await properties.json();
 
-    // If more fragments are loaded after creating the highlighting style
-    // you have to call highlighter.update()
+    const classifier = new OBC.FragmentClassifier();
+    classifier.byStorey(model);
+    classifier.byEntity(model);
 
-    let lastSelection;
+    const classifications = classifier.get();
 
-    let singleSelection = {
-        value: true,
-    };
-
-    function highlightOnClick() {
-        const result = highlighter.highlight('default', singleSelection.value);
-        if (result) {
-            lastSelection = {};
-            for (const fragment of result.fragments) {
-                const fragmentID = fragment.id;
-                lastSelection[fragmentID] = [result.id];
-            }
-        }
+    const storeys = {};
+    const storeyNames = Object.keys(classifications.storeys);
+    for (const name of storeyNames) {
+        storeys[name] = true;
     }
 
-    container.addEventListener('click', () => highlightOnClick());
-
-    function highlightOnID() {
-        if (lastSelection !== undefined) {
-            highlighter.highlightByID('default', lastSelection);
-        }
+    const classes = {};
+    const classNames = Object.keys(classifications.entities);
+    for (const name of classNames) {
+        classes[name] = true;
     }
+
+    const hider = new OBC.FragmentHider(fragments);
+
+    // Set up dat.gui menu
+
+    const gui = new dat.GUI();
+
+    const storeysGui = gui.addFolder("Storeys");
+    for (const name in storeys) {
+        storeysGui.add(storeys, name).onChange((visible) => {
+            const found = classifier.find({storeys: [name]});
+            hider.set(visible, found);
+        });
+    }
+
+    const entitiesGui = gui.addFolder("Classes");
+    for (const name in classes) {
+        entitiesGui.add(classes, name).onChange((visible) => {
+            const found = classifier.find({entities: [name]});
+            hider.set(visible, found);
+        });
+    }
+
 
     // Set up stats
 
@@ -109,20 +117,6 @@
     const renderer = components.renderer;
     renderer.beforeUpdate.on(() => stats.begin());
     renderer.afterUpdate.on(() => stats.end());
-
-
-    // Set up dat.gui menu
-
-    const commands = {
-        highlight: 'Click',
-        highlightOnID: () => highlightOnID(),
-    };
-
-    const gui = new dat.GUI();
-
-    gui.add(commands, 'highlight');
-    gui.add(commands, 'highlightOnID').name('Select last selection');
-    gui.add(singleSelection, 'value').name('Single selection');
 
 </script>
 </body>

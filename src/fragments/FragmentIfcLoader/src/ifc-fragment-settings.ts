@@ -21,6 +21,7 @@ export class IfcFragmentSettings {
   webIfc: WEBIFC.LoaderSettings = {
     COORDINATE_TO_ORIGIN: true,
     USE_FAST_BOOLS: true,
+    OPTIMIZE_PROFILES: true,
   };
 
   constructor() {
