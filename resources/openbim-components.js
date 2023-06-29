@@ -95742,23 +95742,24 @@ class FragmentHighlighter extends Component {
 }
 
 class FragmentTreeItem extends Component {
-    constructor(components, _fragmentHighlighter, _fragmentClassifier, name, config) {
+    constructor(components, classifier, content) {
         super();
-        this._fragmentHighlighter = _fragmentHighlighter;
-        this._fragmentClassifier = _fragmentClassifier;
+        this.name = "FragmentTreeItem";
         this.enabled = true;
         this.filter = {};
+        this.selected = new Event();
+        this.hovered = new Event();
         this._children = [];
         this.components = components;
-        this.name = name;
-        const defaultConfig = {
-            selectionHighlighterName: "select",
-            highlightHighlighterName: "highlight",
+        this.uiElement = new TreeView(this.components, content);
+        this.uiElement.onclick = () => {
+            const found = classifier.find(this.filter);
+            this.selected.trigger(found);
         };
-        this._options = { ...defaultConfig, ...config };
-        this.uiElement = new TreeView(this.components, name);
-        this.uiElement.onclick = () => this.select();
-        this.uiElement.onmouseover = () => this.highlight();
+        this.uiElement.onmouseover = () => {
+            const found = classifier.find(this.filter);
+            this.hovered.trigger(found);
+        };
     }
     get children() {
         return this._children;
@@ -95767,64 +95768,68 @@ class FragmentTreeItem extends Component {
         this._children = children;
         children.forEach((child) => this.uiElement.addChild(child.uiElement));
     }
+    dispose() {
+        this.uiElement.dispose();
+        this.selected.reset();
+        this.hovered.reset();
+        for (const child of this.children) {
+            child.dispose();
+        }
+    }
     get() {
         return { name: this.name, filter: this.filter, children: this.children };
-    }
-    select() {
-        const selectorName = this._options.selectionHighlighterName;
-        this._fragmentHighlighter.highlightByID(selectorName, this._fragmentClassifier.find(this.filter));
-    }
-    highlight() {
-        const highlighterName = this._options.highlightHighlighterName;
-        this._fragmentHighlighter.highlightByID(highlighterName, this._fragmentClassifier.find(this.filter));
     }
 }
 
 class FragmentTree extends Component {
-    constructor(components, fragmentHighlighter, fragmentClassifier, name, groupSystemNames) {
+    constructor(components, classifier) {
         super();
+        this.name = "FragmentTree";
+        this.title = "Model Tree";
         this.enabled = true;
-        this.functionsMap = {};
+        this.selected = new Event();
+        this.hovered = new Event();
         this._components = components;
-        this._fragmentClassifier = fragmentClassifier;
-        this._fragmentHighlighter = fragmentHighlighter;
-        this.name = name;
-        this.groupSystemNames = groupSystemNames;
-        this._tree = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentClassifier, this.name);
-        this.uiElement = this._tree.uiElement;
+        this._classifier = classifier;
+        this._tree = new FragmentTreeItem(this._components, classifier, this.title);
+    }
+    get uiElement() {
+        return this._tree.uiElement;
     }
     get() {
         return this._tree;
     }
-    build() {
-        this._tree.children = this.process(this.groupSystemNames);
+    update(groupSystems) {
+        if (this._tree.children.length) {
+            this._tree.dispose();
+            this._tree = new FragmentTreeItem(this._components, this._classifier, this.title);
+        }
+        this._tree.children = this.regenerate(groupSystems);
         return this.get();
     }
-    // TODO: Check more in detail this update method.
-    update() {
-        this.uiElement.dispose();
-        this._tree.uiElement.dispose();
-        this.build();
-        return this.get();
-    }
-    process(groupSystemNames, result = {}) {
+    regenerate(groupSystemNames, result = {}) {
         const groups = [];
         const currentSystemName = groupSystemNames[0]; // storeys
-        const systems = this._fragmentClassifier.get();
+        const systems = this._classifier.get();
         const systemGroups = systems[currentSystemName];
         if (!currentSystemName || !systemGroups) {
             return groups;
         }
         for (const name in systemGroups) {
             // name is N00, N01, N02...
-            const filter = { ...result, [currentSystemName]: name }; // { storeys: "N00" }, { storeys: "N01" }...
-            const hasElements = Object.keys(this._fragmentClassifier.find(filter)).length > 0;
+            // { storeys: "N00" }, { storeys: "N01" }...
+            const filter = { ...result, [currentSystemName]: name };
+            const found = this._classifier.find(filter);
+            const hasElements = Object.keys(found).length > 0;
             if (hasElements) {
-                const treeItemName = currentSystemName[0].toUpperCase() + currentSystemName.slice(1); // Storeys
-                const treeItem = new FragmentTreeItem(this._components, this._fragmentHighlighter, this._fragmentClassifier, `${treeItemName}: ${name}`); // Storeys: N01
+                const firstLetter = currentSystemName[0].toUpperCase();
+                const treeItemName = firstLetter + currentSystemName.slice(1); // Storeys
+                const treeItem = new FragmentTreeItem(this._components, this._classifier, `${treeItemName}: ${name}`);
+                treeItem.hovered.on((result) => this.hovered.trigger(result));
+                treeItem.selected.on((result) => this.selected.trigger(result));
                 treeItem.filter = filter;
                 groups.push(treeItem);
-                treeItem.children = this.process(groupSystemNames.slice(1), filter);
+                treeItem.children = this.regenerate(groupSystemNames.slice(1), filter);
             }
         }
         return groups;
@@ -95934,10 +95939,10 @@ class FragmentClassifier extends Component {
         if (!group.properties) {
             throw new Error("To group by predefined type, properties are needed");
         }
-        if (!this._groupSystems.predefinedType) {
-            this._groupSystems.predefinedType = {};
+        if (!this._groupSystems.predefinedTypes) {
+            this._groupSystems.predefinedTypes = {};
         }
-        const currentTypes = this._groupSystems.predefinedType;
+        const currentTypes = this._groupSystems.predefinedTypes;
         for (const expressID in group.data) {
             const entity = group.properties[expressID];
             if (!entity)
