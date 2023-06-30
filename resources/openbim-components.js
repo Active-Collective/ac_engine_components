@@ -20295,6 +20295,287 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
 }
 
 /**
+ * NVIDIA FXAA by Timothy Lottes
+ * https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
+ * - WebGL port by @supereggbert
+ * http://www.glge.org/demos/fxaa/
+ * Further improved by Daniel Sturk
+ */
+
+const FXAAShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'resolution': { value: new Vector2$1( 1 / 1024, 1 / 512 ) }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: `
+	precision highp float;
+
+	uniform sampler2D tDiffuse;
+
+	uniform vec2 resolution;
+
+	varying vec2 vUv;
+
+	// FXAA 3.11 implementation by NVIDIA, ported to WebGL by Agost Biro (biro@archilogic.com)
+
+	//----------------------------------------------------------------------------------
+	// File:        es3-kepler\FXAA\assets\shaders/FXAA_DefaultES.frag
+	// SDK Version: v3.00
+	// Email:       gameworks@nvidia.com
+	// Site:        http://developer.nvidia.com/
+	//
+	// Copyright (c) 2014-2015, NVIDIA CORPORATION. All rights reserved.
+	//
+	// Redistribution and use in source and binary forms, with or without
+	// modification, are permitted provided that the following conditions
+	// are met:
+	//  * Redistributions of source code must retain the above copyright
+	//    notice, this list of conditions and the following disclaimer.
+	//  * Redistributions in binary form must reproduce the above copyright
+	//    notice, this list of conditions and the following disclaimer in the
+	//    documentation and/or other materials provided with the distribution.
+	//  * Neither the name of NVIDIA CORPORATION nor the names of its
+	//    contributors may be used to endorse or promote products derived
+	//    from this software without specific prior written permission.
+	//
+	// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
+	// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+	// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+	// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+	// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+	// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+	// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+	// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+	//
+	//----------------------------------------------------------------------------------
+
+	#ifndef FXAA_DISCARD
+			//
+			// Only valid for PC OpenGL currently.
+			// Probably will not work when FXAA_GREEN_AS_LUMA = 1.
+			//
+			// 1 = Use discard on pixels which don't need AA.
+			//     For APIs which enable concurrent TEX+ROP from same surface.
+			// 0 = Return unchanged color on pixels which don't need AA.
+			//
+			#define FXAA_DISCARD 0
+	#endif
+
+	/*--------------------------------------------------------------------------*/
+	#define FxaaTexTop(t, p) texture2D(t, p, -100.0)
+	#define FxaaTexOff(t, p, o, r) texture2D(t, p + (o * r), -100.0)
+	/*--------------------------------------------------------------------------*/
+
+	#define NUM_SAMPLES 5
+
+	// assumes colors have premultipliedAlpha, so that the calculated color contrast is scaled by alpha
+	float contrast( vec4 a, vec4 b ) {
+			vec4 diff = abs( a - b );
+			return max( max( max( diff.r, diff.g ), diff.b ), diff.a );
+	}
+
+	/*============================================================================
+
+									FXAA3 QUALITY - PC
+
+	============================================================================*/
+
+	/*--------------------------------------------------------------------------*/
+	vec4 FxaaPixelShader(
+			vec2 posM,
+			sampler2D tex,
+			vec2 fxaaQualityRcpFrame,
+			float fxaaQualityEdgeThreshold,
+			float fxaaQualityinvEdgeThreshold
+	) {
+			vec4 rgbaM = FxaaTexTop(tex, posM);
+			vec4 rgbaS = FxaaTexOff(tex, posM, vec2( 0.0, 1.0), fxaaQualityRcpFrame.xy);
+			vec4 rgbaE = FxaaTexOff(tex, posM, vec2( 1.0, 0.0), fxaaQualityRcpFrame.xy);
+			vec4 rgbaN = FxaaTexOff(tex, posM, vec2( 0.0,-1.0), fxaaQualityRcpFrame.xy);
+			vec4 rgbaW = FxaaTexOff(tex, posM, vec2(-1.0, 0.0), fxaaQualityRcpFrame.xy);
+			// . S .
+			// W M E
+			// . N .
+
+			bool earlyExit = max( max( max(
+					contrast( rgbaM, rgbaN ),
+					contrast( rgbaM, rgbaS ) ),
+					contrast( rgbaM, rgbaE ) ),
+					contrast( rgbaM, rgbaW ) )
+					< fxaaQualityEdgeThreshold;
+			// . 0 .
+			// 0 0 0
+			// . 0 .
+
+			#if (FXAA_DISCARD == 1)
+					if(earlyExit) FxaaDiscard;
+			#else
+					if(earlyExit) return rgbaM;
+			#endif
+
+			float contrastN = contrast( rgbaM, rgbaN );
+			float contrastS = contrast( rgbaM, rgbaS );
+			float contrastE = contrast( rgbaM, rgbaE );
+			float contrastW = contrast( rgbaM, rgbaW );
+
+			float relativeVContrast = ( contrastN + contrastS ) - ( contrastE + contrastW );
+			relativeVContrast *= fxaaQualityinvEdgeThreshold;
+
+			bool horzSpan = relativeVContrast > 0.;
+			// . 1 .
+			// 0 0 0
+			// . 1 .
+
+			// 45 deg edge detection and corners of objects, aka V/H contrast is too similar
+			if( abs( relativeVContrast ) < .3 ) {
+					// locate the edge
+					vec2 dirToEdge;
+					dirToEdge.x = contrastE > contrastW ? 1. : -1.;
+					dirToEdge.y = contrastS > contrastN ? 1. : -1.;
+					// . 2 .      . 1 .
+					// 1 0 2  ~=  0 0 1
+					// . 1 .      . 0 .
+
+					// tap 2 pixels and see which ones are "outside" the edge, to
+					// determine if the edge is vertical or horizontal
+
+					vec4 rgbaAlongH = FxaaTexOff(tex, posM, vec2( dirToEdge.x, -dirToEdge.y ), fxaaQualityRcpFrame.xy);
+					float matchAlongH = contrast( rgbaM, rgbaAlongH );
+					// . 1 .
+					// 0 0 1
+					// . 0 H
+
+					vec4 rgbaAlongV = FxaaTexOff(tex, posM, vec2( -dirToEdge.x, dirToEdge.y ), fxaaQualityRcpFrame.xy);
+					float matchAlongV = contrast( rgbaM, rgbaAlongV );
+					// V 1 .
+					// 0 0 1
+					// . 0 .
+
+					relativeVContrast = matchAlongV - matchAlongH;
+					relativeVContrast *= fxaaQualityinvEdgeThreshold;
+
+					if( abs( relativeVContrast ) < .3 ) { // 45 deg edge
+							// 1 1 .
+							// 0 0 1
+							// . 0 1
+
+							// do a simple blur
+							return mix(
+									rgbaM,
+									(rgbaN + rgbaS + rgbaE + rgbaW) * .25,
+									.4
+							);
+					}
+
+					horzSpan = relativeVContrast > 0.;
+			}
+
+			if(!horzSpan) rgbaN = rgbaW;
+			if(!horzSpan) rgbaS = rgbaE;
+			// . 0 .      1
+			// 1 0 1  ->  0
+			// . 0 .      1
+
+			bool pairN = contrast( rgbaM, rgbaN ) > contrast( rgbaM, rgbaS );
+			if(!pairN) rgbaN = rgbaS;
+
+			vec2 offNP;
+			offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;
+			offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;
+
+			bool doneN = false;
+			bool doneP = false;
+
+			float nDist = 0.;
+			float pDist = 0.;
+
+			vec2 posN = posM;
+			vec2 posP = posM;
+
+			int iterationsUsed = 0;
+			int iterationsUsedN = 0;
+			int iterationsUsedP = 0;
+			for( int i = 0; i < NUM_SAMPLES; i++ ) {
+					iterationsUsed = i;
+
+					float increment = float(i + 1);
+
+					if(!doneN) {
+							nDist += increment;
+							posN = posM + offNP * nDist;
+							vec4 rgbaEndN = FxaaTexTop(tex, posN.xy);
+							doneN = contrast( rgbaEndN, rgbaM ) > contrast( rgbaEndN, rgbaN );
+							iterationsUsedN = i;
+					}
+
+					if(!doneP) {
+							pDist += increment;
+							posP = posM - offNP * pDist;
+							vec4 rgbaEndP = FxaaTexTop(tex, posP.xy);
+							doneP = contrast( rgbaEndP, rgbaM ) > contrast( rgbaEndP, rgbaN );
+							iterationsUsedP = i;
+					}
+
+					if(doneN || doneP) break;
+			}
+
+
+			if ( !doneP && !doneN ) return rgbaM; // failed to find end of edge
+
+			float dist = min(
+					doneN ? float( iterationsUsedN ) / float( NUM_SAMPLES - 1 ) : 1.,
+					doneP ? float( iterationsUsedP ) / float( NUM_SAMPLES - 1 ) : 1.
+			);
+
+			// hacky way of reduces blurriness of mostly diagonal edges
+			// but reduces AA quality
+			dist = pow(dist, .5);
+
+			dist = 1. - dist;
+
+			return mix(
+					rgbaM,
+					rgbaN,
+					dist * .5
+			);
+	}
+
+	void main() {
+			const float edgeDetectionQuality = .2;
+			const float invEdgeDetectionQuality = 1. / edgeDetectionQuality;
+
+			gl_FragColor = FxaaPixelShader(
+					vUv,
+					tDiffuse,
+					resolution,
+					edgeDetectionQuality, // [0,1] contrast needed, otherwise early discard
+					invEdgeDetectionQuality
+			);
+
+	}
+	`
+
+};
+
+/**
  * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
  */
 class ProjectionManager {
@@ -20733,6 +21014,299 @@ class OrthoPerspectiveCamera extends SimpleCamera {
     }
 }
 
+// Gets the plane information (ax + by + cz = d) of each face, where:
+// - (a, b, c) is the normal vector of the plane
+// - d is the signed distance to the origin
+function getPlaneDistanceMaterial() {
+    return new THREE$1.ShaderMaterial({
+        clipping: true,
+        uniforms: {},
+        vertexShader: `
+    varying vec4 vColor;
+    
+    #include <clipping_planes_pars_vertex>
+  
+    void main() {
+       #include <begin_vertex>
+    
+       vec4 absPosition = vec4(position, 1.0);
+       vec3 trueNormal = normal;
+       
+       #ifdef USE_INSTANCING
+          absPosition = instanceMatrix * absPosition;
+          trueNormal = (instanceMatrix * vec4(normal, 0.)).xyz;
+       #endif
+       
+       absPosition = modelMatrix * absPosition;
+       trueNormal = (normalize(modelMatrix * vec4(trueNormal, 0.))).xyz;
+       
+       vec3 planePosition = absPosition.xyz / 40.;
+       float d = abs(dot(trueNormal, planePosition));
+       vColor = vec4(abs(trueNormal), d);
+       gl_Position = projectionMatrix * viewMatrix * absPosition;
+       
+       #include <project_vertex>
+       #include <clipping_planes_vertex>
+    }
+    `,
+        fragmentShader: `
+    varying vec4 vColor;
+    
+    #include <clipping_planes_pars_fragment>
+  
+    void main() {
+      #include <clipping_planes_fragment>
+      gl_FragColor = vColor;
+    }
+    `,
+    });
+}
+
+// Follows the structure of
+// 		https://github.com/mrdoob/three.js/blob/master/examples/jsm/postprocessing/OutlinePass.js
+class CustomOutlinePass extends Pass {
+    constructor(resolution, components) {
+        super();
+        this.meshes = [];
+        this._color = 0x999999;
+        this._correctColor = false;
+        this.renderScene = components.scene.get();
+        this.renderCamera = components.camera.get();
+        this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
+        this.fsQuad = new FullScreenQuad();
+        this.fsQuad.material = this.createOutlinePostProcessMaterial();
+        // Create a buffer to store the plane of each face the scene onto
+        const planeBuffer = new THREE$1.WebGLRenderTarget(this.resolution.x, this.resolution.y);
+        planeBuffer.texture.colorSpace = "srgb-linear";
+        planeBuffer.texture.format = THREE$1.RGBAFormat;
+        planeBuffer.texture.type = THREE$1.HalfFloatType;
+        planeBuffer.texture.minFilter = THREE$1.NearestFilter;
+        planeBuffer.texture.magFilter = THREE$1.NearestFilter;
+        planeBuffer.texture.generateMipmaps = false;
+        planeBuffer.stencilBuffer = false;
+        this.planeBuffer = planeBuffer;
+        const material = getPlaneDistanceMaterial();
+        material.clippingPlanes = components.renderer.clippingPlanes;
+        this.normalOverrideMaterial = material;
+    }
+    get color() {
+        return this._color;
+    }
+    set color(color) {
+        this._color = color;
+        const material = this.fsQuad.material;
+        material.uniforms.outlineColor.value.set(color);
+    }
+    get correctColor() {
+        return this._correctColor;
+    }
+    set correctColor(active) {
+        this._correctColor = active;
+        const value = active ? 1 : 0;
+        const material = this.fsQuad.material;
+        material.uniforms.correctColor.value = value;
+    }
+    dispose() {
+        this.planeBuffer.dispose();
+        this.fsQuad.dispose();
+    }
+    setSize(width, height) {
+        this.planeBuffer.setSize(width, height);
+        this.resolution.set(width, height);
+        const material = this.fsQuad.material;
+        material.uniforms.screenSize.value.set(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y);
+    }
+    render(renderer, writeBuffer, readBuffer) {
+        // Turn off writing to the depth buffer
+        // because we need to read from it in the subsequent passes.
+        const depthBufferValue = writeBuffer.depthBuffer;
+        writeBuffer.depthBuffer = false;
+        // 1. Re-render the scene to capture all normals in a texture.
+        const overrideMaterialValue = this.renderScene.overrideMaterial;
+        const previousBackground = this.renderScene.background;
+        this.renderScene.background = null;
+        for (const mesh of this.meshes) {
+            mesh.visible = false;
+        }
+        renderer.setRenderTarget(this.planeBuffer);
+        this.renderScene.overrideMaterial = this.normalOverrideMaterial;
+        renderer.render(this.renderScene, this.renderCamera);
+        for (const mesh of this.meshes) {
+            mesh.visible = true;
+        }
+        this.renderScene.overrideMaterial = overrideMaterialValue;
+        this.renderScene.background = previousBackground;
+        const material = this.fsQuad.material;
+        material.uniforms.planeBuffer.value = this.planeBuffer.texture;
+        material.uniforms.sceneColorBuffer.value = readBuffer.texture;
+        // 2. Draw the outlines using the normal texture
+        // and combine it with the scene color
+        if (this.renderToScreen) {
+            // If this is the last effect, then renderToScreen is true.
+            // So we should render to the screen by setting target null
+            // Otherwise, just render into the writeBuffer that the next effect will use as its read buffer.
+            renderer.setRenderTarget(null);
+            this.fsQuad.render(renderer);
+        }
+        else {
+            renderer.setRenderTarget(writeBuffer);
+            this.fsQuad.render(renderer);
+        }
+        // Reset the depthBuffer value so we continue writing to it in the next render.
+        writeBuffer.depthBuffer = depthBufferValue;
+    }
+    get vertexShader() {
+        return `
+			varying vec2 vUv;
+			void main() {
+				vUv = uv;
+				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+			}
+			`;
+    }
+    get fragmentShader() {
+        return `
+	  uniform sampler2D sceneColorBuffer;
+	  uniform sampler2D planeBuffer;
+	  uniform vec4 screenSize;
+	  uniform vec3 outlineColor;
+      uniform int width;
+      uniform float tolerance;
+      uniform float correctColor;
+
+			varying vec2 vUv;
+
+			vec4 getValue(sampler2D buffer, int x, int y) {
+				return texture2D(buffer, vUv + screenSize.zw * vec2(x, y));
+			}
+
+      float normalDiff(vec3 normal1, vec3 normal2) {
+        return ((dot(normal1, normal2) - 1.) * -1.) / 2.;
+      }
+
+      // Returns 0 if it's background, 1 if it's not
+      float getIsBackground(vec3 normal) {
+        float background = 1.0;
+        background *= step(normal.x, 0.);
+        background *= step(normal.y, 0.);
+        background *= step(normal.z, 0.);
+        background = (background - 1.) * -1.;
+        return background;
+      }
+
+			void main() {
+				vec4 sceneColor = texture2D(sceneColorBuffer, vUv);
+
+        vec4 plane = getValue(planeBuffer, 0, 0);
+				vec3 normal = plane.xyz;
+        float distance = plane.w;
+
+        vec3 normalTop = getValue(planeBuffer, 0, width).rgb;
+        vec3 normalBottom = getValue(planeBuffer, 0, -width).rgb;
+        vec3 normalRight = getValue(planeBuffer, width, 0).rgb;
+        vec3 normalLeft = getValue(planeBuffer, -width, 0).rgb;
+        vec3 normalTopRight = getValue(planeBuffer, width, width).rgb;
+        vec3 normalTopLeft = getValue(planeBuffer, -width, width).rgb;
+        vec3 normalBottomRight = getValue(planeBuffer, width, -width).rgb;
+        vec3 normalBottomLeft = getValue(planeBuffer, -width, -width).rgb;
+
+        float distanceTop = getValue(planeBuffer, 0, width).a;
+        float distanceBottom = getValue(planeBuffer, 0, -width).a;
+        float distanceRight = getValue(planeBuffer, width, 0).a;
+        float distanceLeft = getValue(planeBuffer, -width, 0).a;
+        float distanceTopRight = getValue(planeBuffer, width, width).a;
+        float distanceTopLeft = getValue(planeBuffer, -width, width).a;
+        float distanceBottomRight = getValue(planeBuffer, width, -width).a;
+        float distanceBottomLeft = getValue(planeBuffer, -width, -width).a;
+
+        // Checks if the planes of this texel and the neighbour texels are different
+
+        float planeDiff = 0.0;
+
+        planeDiff += step(0.001, normalDiff(normal, normalTop));
+        planeDiff += step(0.001, normalDiff(normal, normalBottom));
+        planeDiff += step(0.001, normalDiff(normal, normalLeft));
+        planeDiff += step(0.001, normalDiff(normal, normalRight));
+        planeDiff += step(0.001, normalDiff(normal, normalTopRight));
+        planeDiff += step(0.001, normalDiff(normal, normalTopLeft));
+        planeDiff += step(0.001, normalDiff(normal, normalBottomRight));
+        planeDiff += step(0.001, normalDiff(normal, normalBottomLeft));
+
+        planeDiff += step(0.001, abs(distance - distanceTop));
+        planeDiff += step(0.001, abs(distance - distanceBottom));
+        planeDiff += step(0.001, abs(distance - distanceLeft));
+        planeDiff += step(0.001, abs(distance - distanceRight));
+        planeDiff += step(0.001, abs(distance - distanceTopRight));
+        planeDiff += step(0.001, abs(distance - distanceTopLeft));
+        planeDiff += step(0.001, abs(distance - distanceBottomRight));
+        planeDiff += step(0.001, abs(distance - distanceBottomLeft));
+
+        // Add extra background outline
+
+        int width2 = width + 1;
+        vec3 normalTop2 = getValue(planeBuffer, 0, width2).rgb;
+        vec3 normalBottom2 = getValue(planeBuffer, 0, -width2).rgb;
+        vec3 normalRight2 = getValue(planeBuffer, width2, 0).rgb;
+        vec3 normalLeft2 = getValue(planeBuffer, -width2, 0).rgb;
+        vec3 normalTopRight2 = getValue(planeBuffer, width2, width2).rgb;
+        vec3 normalTopLeft2 = getValue(planeBuffer, -width2, width2).rgb;
+        vec3 normalBottomRight2 = getValue(planeBuffer, width2, -width2).rgb;
+        vec3 normalBottomLeft2 = getValue(planeBuffer, -width2, -width2).rgb;
+
+        planeDiff += -(getIsBackground(normalTop2) - 1.);
+        planeDiff += -(getIsBackground(normalBottom2) - 1.);
+        planeDiff += -(getIsBackground(normalRight2) - 1.);
+        planeDiff += -(getIsBackground(normalLeft2) - 1.);
+        planeDiff += -(getIsBackground(normalTopRight2) - 1.);
+        planeDiff += -(getIsBackground(normalBottomRight2) - 1.);
+        planeDiff += -(getIsBackground(normalBottomRight2) - 1.);
+        planeDiff += -(getIsBackground(normalBottomLeft2) - 1.);
+
+        // Tolerance sets the minimum amount of differences to consider
+        // this texel an edge
+
+        float outline = step(tolerance, planeDiff);
+
+        // Exclude background
+
+        float background = getIsBackground(normal);
+        outline *= background;
+
+        vec4 color = vec4(outlineColor,1.);
+        
+        // Correct color to make it look similar to sao postprocessing colors
+        
+        float factor = clamp(correctColor * 1.5, 1., 4.);
+        float sum = 0.05 * step(1.5, factor);
+        float r = pow(sceneColor.r + sum, 1. / factor);
+        float g = pow(sceneColor.g + sum, 1. / factor);
+        float b = pow(sceneColor.b + sum, 1. / factor);
+        vec4 corrected = vec4(r, g, b, 1.);
+        
+        gl_FragColor = mix(corrected, color, outline);
+	}
+			`;
+    }
+    createOutlinePostProcessMaterial() {
+        return new THREE$1.ShaderMaterial({
+            uniforms: {
+                correctColor: { value: 0 },
+                debugVisualize: { value: 0 },
+                sceneColorBuffer: { value: null },
+                tolerance: { value: 2 },
+                planeBuffer: { value: null },
+                width: { value: 1 },
+                outlineColor: { value: new THREE$1.Color(this._color) },
+                screenSize: {
+                    value: new THREE$1.Vector4(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y),
+                },
+            },
+            vertexShader: this.vertexShader,
+            fragmentShader: this.fragmentShader,
+        });
+    }
+}
+
 // TODO: Clean up and document this
 // source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
 class Postproduction {
@@ -20742,16 +21316,10 @@ class Postproduction {
         this.excludedItems = new Set();
         this._enabled = false;
         this._initialized = false;
-        this._outlineParams = {
-            mode: { Mode: 0 },
-            FXAA: true,
-            outlineColor: 0x777777,
-            depthBias: 1,
-            depthMult: 1,
-            normalBias: 5,
-            normalMult: 1,
-        };
-        this._renderTarget = this.newRenderTarget();
+        this._saoEnabled = true;
+        this._outlinesEnabled = true;
+        this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+        this._renderTarget.texture.colorSpace = "srgb-linear";
         this.composer = new EffectComposer(this.renderer, this._renderTarget);
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
@@ -20764,27 +21332,57 @@ class Postproduction {
         }
         this._enabled = active;
     }
-    get outlineColor() {
-        return this._outlineParams.outlineColor;
+    get saoEnabled() {
+        return this._saoEnabled;
     }
-    set outlineColor(color) {
-        this._outlineParams.outlineColor = color;
-        if (this._outlineUniforms) {
-            this._outlineUniforms.outlineColor.value.set(color);
+    set saoEnabled(active) {
+        this._saoEnabled = active;
+        if (!this.n8ao)
+            return;
+        if (active) {
+            this.composer.addPass(this.n8ao);
+            if (this.outlines && this._outlinesEnabled) {
+                this.composer.removePass(this.outlines);
+                this.composer.addPass(this.outlines);
+                this.outlines.correctColor = false;
+            }
+        }
+        else {
+            this.composer.removePass(this.n8ao);
+            if (this.outlines) {
+                this.outlines.correctColor = true;
+            }
+        }
+    }
+    get outlinesEnabled() {
+        return this._outlinesEnabled;
+    }
+    set outlinesEnabled(active) {
+        this._outlinesEnabled = active;
+        if (!this.outlines)
+            return;
+        if (active) {
+            this.composer.addPass(this.outlines);
+        }
+        else {
+            this.composer.removePass(this.outlines);
         }
     }
     dispose() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         this._renderTarget.dispose();
         (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
-        (_b = this._customOutline) === null || _b === void 0 ? void 0 : _b.dispose();
-        (_c = this.n8ao) === null || _c === void 0 ? void 0 : _c.dispose();
+        (_b = this.outlines) === null || _b === void 0 ? void 0 : _b.dispose();
+        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.dispose();
+        (_d = this.n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
         this.excludedItems.clear();
     }
     setSize(width, height) {
-        var _a;
+        var _a, _b, _c;
         this.composer.setSize(width, height);
         (_a = this.n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
+        (_b = this.outlines) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
+        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
     }
     update() {
         if (!this._enabled)
@@ -20795,6 +21393,9 @@ class Postproduction {
         const camera = this.components.camera.get();
         if (this.n8ao) {
             this.n8ao.camera = camera;
+        }
+        if (this.outlines) {
+            this.outlines.renderCamera = camera;
         }
         if (this._basePass) {
             this._basePass.camera = camera;
@@ -20814,7 +21415,8 @@ class Postproduction {
         this.renderer.clippingPlanes = renderer.clippingPlanes;
         this.addBasePass(scene, camera);
         this.addSaoPass(scene, camera);
-        // this.addOutlinePass(scene, camera);
+        this.addOutlinePass();
+        this.addFXAAPass();
         this._initialized = true;
     }
     updateProjection(camera) {
@@ -20824,30 +21426,11 @@ class Postproduction {
         });
         this.update();
     }
-    // private addOutlinePass(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
-    //   this._customOutline = new CustomOutlinePass(
-    //     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    //     scene,
-    //     camera
-    //   );
-    //
-    //   // Initial values
-    //   // @ts-ignore
-    //   this._outlineUniforms = this._customOutline.fsQuad.material.uniforms;
-    //   this._outlineUniforms.outlineColor.value.set(
-    //     this._outlineParams.outlineColor
-    //   );
-    //   this._outlineUniforms.multiplierParameters.value.x =
-    //     this._outlineParams.depthBias;
-    //   this._outlineUniforms.multiplierParameters.value.y =
-    //     this._outlineParams.depthMult;
-    //   this._outlineUniforms.multiplierParameters.value.z =
-    //     this._outlineParams.normalBias;
-    //   this._outlineUniforms.multiplierParameters.value.w =
-    //     this._outlineParams.normalMult;
-    //
-    //   this.composer.addPass(this._customOutline);
-    // }
+    addOutlinePass() {
+        const customOutline = new CustomOutlinePass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
+        this.outlines = customOutline;
+        this.composer.addPass(customOutline);
+    }
     addSaoPass(scene, camera) {
         const { width, height } = this.components.renderer.getSize();
         this.n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
@@ -20863,16 +21446,15 @@ class Postproduction {
         configuration.halfRes = true;
         configuration.color = new THREE$1.Color().setHex(0xcccccc, "srgb-linear");
     }
+    addFXAAPass() {
+        const effectFXAA = new ShaderPass(FXAAShader);
+        effectFXAA.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
+        this._fxaaPass = effectFXAA;
+        this.composer.addPass(effectFXAA);
+    }
     addBasePass(scene, camera) {
         this._basePass = new RenderPass(scene, camera);
         this.composer.addPass(this._basePass);
-    }
-    newRenderTarget() {
-        this._depthTexture = new THREE$1.DepthTexture(window.innerWidth, window.innerHeight);
-        return new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
-            depthTexture: this._depthTexture,
-            depthBuffer: true,
-        });
     }
 }
 
@@ -97988,7 +98570,7 @@ class EdgesPlane extends SimplePlane {
         this.updateTimeout = -1;
         /** {@link Updateable.update} */
         this.update = () => {
-            if (!super.enabled)
+            if (!this.enabled)
                 return;
             this.beforeUpdate.trigger(this._plane);
             this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
