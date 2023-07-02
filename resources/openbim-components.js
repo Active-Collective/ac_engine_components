@@ -96974,76 +96974,6 @@ class FragmentExploder extends Component {
 }
 
 /**
- * An object to easily use the services of That Open Platform.
- */
-class CloudProcessor extends Component {
-    constructor(token) {
-        super();
-        this.tools = [];
-        /** {@link Component.name} */
-        this.name = "CloudProcessor";
-        /** {@link Component.enabled} */
-        this.enabled = true;
-        this.modelProcessed = new Event();
-        this.checkInterval = 5000;
-        this._models = [];
-        this._urls = {
-            base: "https://01wj0udft7.execute-api.eu-central-1.amazonaws.com/v1/models",
-            token: "?accessToken=",
-        };
-        this._urls.token += token;
-    }
-    /**
-     * Retrieves a tool component by its name.
-     */
-    get() {
-        return this._models;
-    }
-    async update() {
-        const { base, token } = this._urls;
-        const url = `${base}${token}`;
-        const result = await fetch(url);
-        const parsed = await result.json();
-        this._models = parsed.models;
-    }
-    async upload(fileUrl) {
-        const response = await this.createModel();
-        const uploadUrl = response.uploadUrl;
-        const read = await fetch(fileUrl);
-        const body = await read.arrayBuffer();
-        await fetch(uploadUrl, { method: "PUT", body });
-        this.setupModelProcessEvent(response.model._id);
-    }
-    async delete(modelID) {
-        const { base, token } = this._urls;
-        const url = `${base}/${modelID}${token}`;
-        const result = await fetch(url, { method: "DELETE" });
-        return result.json();
-    }
-    async getModel(modelID) {
-        const { base, token } = this._urls;
-        const modelUrl = `${base}/${modelID}${token}`;
-        const modelResponse = await fetch(modelUrl);
-        return modelResponse.json();
-    }
-    setupModelProcessEvent(modelID) {
-        const interval = setInterval(async () => {
-            const response = await this.getModel(modelID);
-            if (response.model.status === "PROCESSED") {
-                this.modelProcessed.trigger(response);
-                clearInterval(interval);
-            }
-        }, this.checkInterval);
-    }
-    async createModel() {
-        const { base, token } = this._urls;
-        const url = `${base}${token}`;
-        const result = await fetch(url, { method: "POST" });
-        return result.json();
-    }
-}
-
-/**
  * parameters = {
  *  color: <hex>,
  *  linewidth: <float>,
@@ -99406,6 +99336,20 @@ class SelectionHandler extends Component {
     }
 }
 
+class IfcPropertiesUtils {
+    static getLevels(properties) {
+        console.log(properties);
+        // properties[floor.expressID];
+        // const props = await properties.getItemProperties(0, floor.expressID, false);
+        // props.SceneHeight = await this.getHeight(props, webIfc, properties, units);
+        // const placementID = props.ObjectPlacement.value;
+        // const coordArray = webIfc.GetCoordinationMatrix(0);
+        // const coordHeight = coordArray[13] * units.factor;
+        // const placement = await properties.getItemProperties(0, placementID, true);
+        // return this.getPlacementHeight(placement, units) + coordHeight;
+    }
+}
+
 /**
  * Helper to control the camera and easily define and navigate 2D floor plans.
  */
@@ -99440,6 +99384,12 @@ class PlanNavigator extends Component {
         this.storeys = [];
         this.plans = [];
         this.clipper.dispose();
+    }
+    async computeAllPlanViews(model) {
+        if (!model.properties) {
+            throw new Error("Properties are needed to compute plan views!");
+        }
+        IfcPropertiesUtils.getLevels(model.properties);
     }
     /**
      * Creates a new floor plan in the navigator.
@@ -99554,6 +99504,76 @@ class PlanNavigator extends Component {
         const plane = (_a = this.currentPlan) === null || _a === void 0 ? void 0 : _a.plane;
         if (plane)
             plane.enabled = false;
+    }
+}
+
+/**
+ * An object to easily use the services of That Open Platform.
+ */
+class CloudProcessor extends Component {
+    constructor(token) {
+        super();
+        this.tools = [];
+        /** {@link Component.name} */
+        this.name = "CloudProcessor";
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        this.modelProcessed = new Event();
+        this.checkInterval = 5000;
+        this._models = [];
+        this._urls = {
+            base: "https://01wj0udft7.execute-api.eu-central-1.amazonaws.com/v1/models",
+            token: "?accessToken=",
+        };
+        this._urls.token += token;
+    }
+    /**
+     * Retrieves a tool component by its name.
+     */
+    get() {
+        return this._models;
+    }
+    async update() {
+        const { base, token } = this._urls;
+        const url = `${base}${token}`;
+        const result = await fetch(url);
+        const parsed = await result.json();
+        this._models = parsed.models;
+    }
+    async upload(fileUrl) {
+        const response = await this.createModel();
+        const uploadUrl = response.uploadUrl;
+        const read = await fetch(fileUrl);
+        const body = await read.arrayBuffer();
+        await fetch(uploadUrl, { method: "PUT", body });
+        this.setupModelProcessEvent(response.model._id);
+    }
+    async delete(modelID) {
+        const { base, token } = this._urls;
+        const url = `${base}/${modelID}${token}`;
+        const result = await fetch(url, { method: "DELETE" });
+        return result.json();
+    }
+    async getModel(modelID) {
+        const { base, token } = this._urls;
+        const modelUrl = `${base}/${modelID}${token}`;
+        const modelResponse = await fetch(modelUrl);
+        return modelResponse.json();
+    }
+    setupModelProcessEvent(modelID) {
+        const interval = setInterval(async () => {
+            const response = await this.getModel(modelID);
+            if (response.model.status === "PROCESSED") {
+                this.modelProcessed.trigger(response);
+                clearInterval(interval);
+            }
+        }, this.checkInterval);
+    }
+    async createModel() {
+        const { base, token } = this._urls;
+        const url = `${base}${token}`;
+        const result = await fetch(url, { method: "POST" });
+        return result.json();
     }
 }
 
