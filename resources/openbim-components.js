@@ -12386,7 +12386,15 @@ class SimpleClipper extends Component {
         this.updateMaterials();
     }
     getWorldNormal(intersect, normal) {
-        const normalMatrix = new THREE$1.Matrix3().getNormalMatrix(intersect.object.matrixWorld);
+        const object = intersect.object;
+        let transform = intersect.object.matrixWorld.clone();
+        const isInstance = object instanceof THREE$1.InstancedMesh;
+        if (isInstance && intersect.instanceId !== undefined) {
+            const temp = new THREE$1.Matrix4();
+            object.getMatrixAt(intersect.instanceId, temp);
+            transform = temp.multiply(transform);
+        }
+        const normalMatrix = new THREE$1.Matrix3().getNormalMatrix(transform);
         const worldNormal = normal.clone().applyMatrix3(normalMatrix).normalize();
         this.normalizePlaneDirectionY(worldNormal);
         return worldNormal;
@@ -21062,7 +21070,7 @@ function getPlaneDistanceMaterial() {
 class CustomOutlinePass extends Pass {
     constructor(resolution, components) {
         super();
-        this.meshes = [];
+        this.excludedMeshes = [];
         this._color = 0x999999;
         this._correctColor = false;
         this.renderScene = components.scene.get();
@@ -21120,13 +21128,13 @@ class CustomOutlinePass extends Pass {
         const overrideMaterialValue = this.renderScene.overrideMaterial;
         const previousBackground = this.renderScene.background;
         this.renderScene.background = null;
-        for (const mesh of this.meshes) {
+        for (const mesh of this.excludedMeshes) {
             mesh.visible = false;
         }
         renderer.setRenderTarget(this.planeBuffer);
         this.renderScene.overrideMaterial = this.normalOverrideMaterial;
         renderer.render(this.renderScene, this.renderCamera);
-        for (const mesh of this.meshes) {
+        for (const mesh of this.excludedMeshes) {
             mesh.visible = true;
         }
         this.renderScene.overrideMaterial = overrideMaterialValue;
