@@ -12018,14 +12018,10 @@ class TransformControlsPlane extends Mesh {
  * Each of the planes created by {@link SimpleClipper}.
  */
 class SimplePlane extends Component {
-    constructor(components, origin, normal, material, size = 5) {
+    constructor(components, origin, normal, material, size = 5, activateControls = true) {
         super();
         /** {@link Component.name} */
         this.name = "SimplePlane";
-        /** {@link Updateable.afterUpdate} */
-        this.afterUpdate = new Event();
-        /** {@link Updateable.beforeUpdate} */
-        this.beforeUpdate = new Event();
         /** Event that fires when the user starts dragging a clipping plane. */
         this.draggingStarted = new Event();
         /** Event that fires when the user stops dragging a clipping plane. */
@@ -12044,9 +12040,7 @@ class SimplePlane extends Component {
         this.update = () => {
             if (!this._enabled)
                 return;
-            this.beforeUpdate.trigger(this._plane);
             this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
-            this.afterUpdate.trigger(this._plane);
         };
         this.changeDrag = (event) => {
             this._visible = !event.value;
@@ -12061,7 +12055,9 @@ class SimplePlane extends Component {
         this._helper = this.newHelper();
         this._controls = this.newTransformControls();
         this._plane.setFromNormalAndCoplanarPoint(normal, origin);
-        this.toggleControls(true);
+        if (activateControls) {
+            this.toggleControls(true);
+        }
     }
     /** {@link Component.enabled} */
     get enabled() {
@@ -12110,8 +12106,6 @@ class SimplePlane extends Component {
     /** {@link Disposable.dispose} */
     dispose() {
         this._enabled = false;
-        this.beforeUpdate.reset();
-        this.afterUpdate.reset();
         this.draggingStarted.reset();
         this.draggingEnded.reset();
         this._helper.removeFromParent();
@@ -12121,6 +12115,19 @@ class SimplePlane extends Component {
         this._planeMesh.geometry.dispose();
         this._controls.removeFromParent();
         this._controls.dispose();
+    }
+    toggleControls(state) {
+        if (state) {
+            if (this._controlsActive)
+                return;
+            this._controls.addEventListener("change", this.update);
+            this._controls.addEventListener("dragging-changed", this.changeDrag);
+        }
+        else {
+            this._controls.removeEventListener("change", this.update);
+            this._controls.removeEventListener("dragging-changed", this.changeDrag);
+        }
+        this._controlsActive = state;
     }
     newTransformControls() {
         const camera = this._components.camera.get();
@@ -12144,18 +12151,6 @@ class SimplePlane extends Component {
         this._arrowBoundBox.rotateX(Math.PI / 2);
         this._arrowBoundBox.updateMatrix();
         this._arrowBoundBox.geometry.applyMatrix4(this._arrowBoundBox.matrix);
-    }
-    toggleControls(state) {
-        if (state && !this._controlsActive) {
-            this._controls.addEventListener("change", this.update);
-            this._controls.addEventListener("dragging-changed", this.changeDrag);
-            this._controlsActive = true;
-        }
-        else {
-            this._controls.removeEventListener("change", this.update);
-            this._controls.removeEventListener("dragging-changed", this.changeDrag);
-            this._controlsActive = false;
-        }
     }
     notifyDraggingChanged(event) {
         if (event.value) {
@@ -98560,7 +98555,7 @@ ClippingEdges._basicEdges = new THREE$1.LineSegments();
  */
 class EdgesPlane extends SimplePlane {
     constructor(components, origin, normal, material, styles) {
-        super(components, origin, normal, material);
+        super(components, origin, normal, material, 5, false);
         /**
          * The max rate in milliseconds at which edges can be regenerated.
          * To disable this behaviour set this to 0.
@@ -98572,7 +98567,6 @@ class EdgesPlane extends SimplePlane {
         this.update = () => {
             if (!this.enabled)
                 return;
-            this.beforeUpdate.trigger(this._plane);
             this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
             // Rate limited edges update
             const now = Date.now();
@@ -98586,15 +98580,20 @@ class EdgesPlane extends SimplePlane {
                     this.updateTimeout = -1;
                 }, this.edgesMaxUpdateRate);
             }
-            this.afterUpdate.trigger(this._plane);
         };
         this.edges = new ClippingEdges(components, this._plane, styles);
-        this.visible = true;
+        this.toggleControls(true);
+        this.edges.visible = true;
     }
     /** {@link Hideable.visible} */
     set visible(state) {
         super.visible = state;
+        this.toggleControls(state);
         this.edges.visible = state;
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return super.enabled;
     }
     /** {@link Component.enabled} */
     set enabled(state) {
