@@ -22866,6 +22866,7 @@ class Simple2DMarker extends Component {
 }
 
 // TODO: Clean up and document
+// TODO: Disable / enable instance color for instance meshes
 class MaterialManager extends Component {
     constructor(components) {
         super();
