@@ -96090,7 +96090,7 @@ class FragmentIfcLoader extends Component {
             this._components.meshes.push(fragment.mesh);
         }
         this.ifcLoaded.trigger(model);
-        console.log(`This took ${performance.now() - before} ms!`);
+        console.log(`Loading the IFC took ${performance.now() - before} ms!`);
         return model;
     }
     setupOpenButton() {
