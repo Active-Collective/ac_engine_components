@@ -21,6 +21,7 @@
         "stats.js/src/Stats.js": "https://unpkg.com/stats-js@1.0.1/src/Stats.js"
       }
     }
+
 </script>
 <script type="module">
 	import * as THREE from 'three';
@@ -56,46 +57,37 @@
 	scene.add(ambientLight);
 
 	const grid = new OBC.SimpleGrid(components);
-	components.tools.add("grid", grid);
+	components.tools.add('grid', grid);
 
 	const culler = new OBC.ScreenCuller(components);
 
 	const fragments = new OBC.FragmentManager(components);
-	const classifier = new OBC.FragmentClassifier(components, fragments);
 
 	// Set up fragment culler update
 
-	container.addEventListener("mouseup", () => culler.needsUpdate = true);
-	container.addEventListener("wheel", () => culler.needsUpdate = true);
+	container.addEventListener('mouseup', () => culler.needsUpdate = true);
+	container.addEventListener('wheel', () => culler.needsUpdate = true);
 
 	// Load the fragments
 
-    const file = await fetch("../../../resources/small.frag");
-    const data = await file.arrayBuffer();
-    const buffer = new Uint8Array(data);
-    const model = fragments.load(buffer);
+	const file = await fetch('../../../resources/small.frag');
+	const data = await file.arrayBuffer();
+	const buffer = new Uint8Array(data);
+	const model = fragments.load(buffer);
 
-    const properties = await fetch("../../../resources/small.json");
-    model.properties = await properties.json();
+	const properties = await fetch('../../../resources/small.json');
+	model.properties = await properties.json();
 
-    culler.needsUpdate = true;
-    classifier.byStorey(model);
+	culler.needsUpdate = true;
 
-	const exploder = new OBC.FragmentExploder(fragments, classifier);
+	const clipper = new OBC.EdgesClipper(components, OBC.EdgesPlane);
+	const plans = new OBC.PlanNavigator(clipper, components.camera);
+	plans.computeAllPlanViews(model);
 
 	// Set up GUI
 
 	const gui = new dat.GUI();
 
-	const actionsFolder = gui.addFolder("Actions");
-
-	const actions = {
-		explode: () => exploder.explode(),
-		reset: () => exploder.reset()
-	}
-
-	actionsFolder.add(actions, "explode").name("Explode");
-	actionsFolder.add(actions, "reset").name("Reset");
 
 	// Set up stats
 	const stats = new Stats();

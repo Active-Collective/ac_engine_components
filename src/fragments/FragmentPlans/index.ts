@@ -1,11 +1,14 @@
 import * as THREE from "three";
-import { EdgesClipper, EdgesPlane } from "../EdgesClipper";
+import { FragmentsGroup } from "bim-fragment";
+import { Component, Disposable } from "../../base-types";
 import {
+  EdgesClipper,
+  EdgesPlane,
   CameraProjection,
   OrthoPerspectiveCamera,
-} from "../OrthoPerspectiveCamera";
-import { Component, Disposable } from "../../base-types";
+} from "../../navigation";
 import { PlanView } from "./src/types";
+import { IfcPropertiesUtils } from "../../ifc/IfcPropertiesUtils";
 
 /**
  * Helper to control the camera and easily define and navigate 2D floor plans.
@@ -51,6 +54,13 @@ export class PlanNavigator extends Component<PlanView[]> implements Disposable {
     this.storeys = [];
     this.plans = [];
     this.clipper.dispose();
+  }
+
+  async computeAllPlanViews(model: FragmentsGroup) {
+    if (!model.properties) {
+      throw new Error("Properties are needed to compute plan views!");
+    }
+    IfcPropertiesUtils.getLevels(model.properties);
   }
 
   /**
