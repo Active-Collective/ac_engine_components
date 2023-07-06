@@ -3016,7 +3016,7 @@ class SimpleScene extends Component {
 class ToolComponent extends Component {
     constructor() {
         super(...arguments);
-        this._list = {};
+        this.list = {};
         this.onToolAdded = new Event();
         this.onToolRemoved = new Event();
         /** {@link Component.name} */
@@ -3034,19 +3034,19 @@ class ToolComponent extends Component {
      * @param tool - The tool to register.
      */
     add(id, tool) {
-        const existingTool = this._list[id];
+        const existingTool = this.list[id];
         if (existingTool) {
             console.warn(`A tool with the id: ${String(id)} already exists`);
             return;
         }
-        this._list[id] = tool;
+        this.list[id] = tool;
     }
     /**
      * Deletes a previously registered tool component.
      * @param id - The registered ID of the tool to be delete.
      */
     remove(id) {
-        delete this._list[id];
+        delete this.list[id];
         this.onToolRemoved.trigger();
     }
     /**
@@ -3054,10 +3054,10 @@ class ToolComponent extends Component {
      * @param id - The id of the registered tool.
      */
     get(id) {
-        if (!id) {
-            return this._list;
+        if (!this.list[id]) {
+            throw new Error("The requested component does not exist!");
         }
-        return this._list[id];
+        return this.list[id];
     }
     /**
      * Gets one of your tools of That Open Platform. You can pass the type of
@@ -3079,7 +3079,7 @@ class ToolComponent extends Component {
      * [delta time](https://threejs.org/docs/#api/en/core/Clock) of the loop.
      */
     update(delta) {
-        const tools = Object.values(this._list);
+        const tools = Object.values(this.list);
         for (const tool of tools) {
             if (tool.enabled && tool.isUpdateable()) {
                 tool.update(delta);
@@ -3090,7 +3090,7 @@ class ToolComponent extends Component {
      * Disposes all the memory used by all the tools.
      */
     dispose() {
-        const tools = Object.values(this._list);
+        const tools = Object.values(this.list);
         for (const tool of tools) {
             tool.enabled = false;
             if (tool.isDisposeable()) {
