@@ -5426,6 +5426,7 @@ class SimpleGrid extends Component {
         this.enabled = true;
         this._disposer = new Disposer();
         this._fade = 3;
+        this._components = components;
         // Source: https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts
         // Author: Fyrestar https://mevedia.com (https://github.com/Fyrestar/THREE.InfiniteGridHelper)
         const geometry = new THREE$1.PlaneGeometry(2, 2, 1, 1);
@@ -5523,7 +5524,13 @@ class SimpleGrid extends Component {
     }
     /** {@link Hideable.visible} */
     set visible(visible) {
-        this._grid.visible = visible;
+        if (visible) {
+            const scene = this._components.scene.get();
+            scene.add(this._grid);
+        }
+        else {
+            this._grid.removeFromParent();
+        }
     }
     /** The material of the grid. */
     get material() {
@@ -5551,6 +5558,7 @@ class SimpleGrid extends Component {
     /** {@link Disposable.dispose} */
     dispose() {
         this._disposer.dispose(this._grid);
+        this._components = null;
     }
 }
 
@@ -21195,6 +21203,7 @@ class CustomOutlinePass extends Pass {
 	  uniform float opacity;
     uniform float tolerance;
     uniform float correctColor;
+    uniform float overrideWhite;
 
 			varying vec2 vUv;
 
@@ -21217,7 +21226,8 @@ class CustomOutlinePass extends Pass {
       }
 
 			void main() {
-				vec4 sceneColor = texture2D(sceneColorBuffer, vUv);
+				vec3 sceneColor = getValue(sceneColorBuffer, 0, 0).rgb;
+				vec3 normSceneColor = normalize(sceneColor);
         vec4 color = vec4(outlineColor,1.);
 
         vec4 plane = getValue(planeBuffer, 0, 0);
@@ -21241,6 +21251,15 @@ class CustomOutlinePass extends Pass {
         float distanceTopLeft = getValue(planeBuffer, -width, width).a;
         float distanceBottomRight = getValue(planeBuffer, width, -width).a;
         float distanceBottomLeft = getValue(planeBuffer, -width, -width).a;
+        
+        vec3 sceneColorTop = normalize(getValue(sceneColorBuffer, 1, 0).rgb);
+        vec3 sceneColorBottom = normalize(getValue(sceneColorBuffer, -1, 0).rgb);
+        vec3 sceneColorLeft = normalize(getValue(sceneColorBuffer, 0, -1).rgb);
+        vec3 sceneColorRight = normalize(getValue(sceneColorBuffer, 0, 1).rgb);
+        vec3 sceneColorTopRight = normalize(getValue(sceneColorBuffer, 1, 1).rgb);
+        vec3 sceneColorBottomRight = normalize(getValue(sceneColorBuffer, -1, 1).rgb);
+        vec3 sceneColorTopLeft = normalize(getValue(sceneColorBuffer, 1, 1).rgb);
+        vec3 sceneColorBottomLeft = normalize(getValue(sceneColorBuffer, -1, 1).rgb);
 
         // Checks if the planes of this texel and the neighbour texels are different
 
@@ -21254,6 +21273,15 @@ class CustomOutlinePass extends Pass {
         planeDiff += step(0.001, normalDiff(normal, normalTopLeft));
         planeDiff += step(0.001, normalDiff(normal, normalBottomRight));
         planeDiff += step(0.001, normalDiff(normal, normalBottomLeft));
+        
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTop));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottom));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorLeft));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorRight));
+       	planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTopRight));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTopLeft));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottomRight));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottomLeft));
 
         planeDiff += step(0.001, abs(distance - distanceTop));
         planeDiff += step(0.001, abs(distance - distanceBottom));
@@ -21359,6 +21387,8 @@ class Postproduction {
         return this._saoEnabled;
     }
     set saoEnabled(active) {
+        if (this._saoEnabled === active)
+            return;
         this._saoEnabled = active;
         if (!this.n8ao)
             return;
@@ -21381,6 +21411,8 @@ class Postproduction {
         return this._outlinesEnabled;
     }
     set outlinesEnabled(active) {
+        if (this._outlinesEnabled === active)
+            return;
         this._outlinesEnabled = active;
         if (!this.outlines)
             return;
@@ -22905,11 +22937,23 @@ class MaterialManager extends Component {
             const { material, meshes } = this._list[id];
             for (const mesh of meshes) {
                 if (active) {
-                    this._originals[mesh.uuid] = mesh.material;
+                    if (!this._originals[mesh.uuid]) {
+                        this._originals[mesh.uuid] = { material: mesh.material };
+                    }
+                    if (mesh instanceof THREE$1.InstancedMesh && mesh.instanceColor) {
+                        this._originals[mesh.uuid].instances = mesh.instanceColor;
+                        mesh.instanceColor = null;
+                    }
                     mesh.material = material;
                 }
                 else {
-                    mesh.material = this._originals[mesh.uuid];
+                    if (!this._originals[mesh.uuid])
+                        continue;
+                    mesh.material = this._originals[mesh.uuid].material;
+                    const instances = this._originals[mesh.uuid].instances;
+                    if (mesh instanceof THREE$1.InstancedMesh && instances) {
+                        mesh.instanceColor = instances;
+                    }
                 }
             }
         }
@@ -22925,7 +22969,9 @@ class MaterialManager extends Component {
     }
     setBackgroundColor(color) {
         const scene = this._components.scene.get();
-        this._originalBackground = scene.background;
+        if (!this._originalBackground) {
+            this._originalBackground = scene.background;
+        }
         if (this._originalBackground) {
             scene.background = color;
         }
@@ -35339,7 +35385,7 @@ var require_web_ifc_mt = __commonJS({
         UnboundTypeError = Module["UnboundTypeError"] = extendError(Error, "UnboundTypeError");
         init_emval();
         var proxiedFunctionTable = [null, _proc_exit, exitOnMainThread, _environ_get, _environ_sizes_get, _fd_close, _fd_read, _fd_seek, _fd_write];
-        var wasmImports = { "g": ___cxa_throw, "T": ___emscripten_init_main_thread_js, "J": ___emscripten_thread_cleanup, "X": __dlinit, "_": __dlopen_js, "Z": __dlsym_catchup_js, "da": __embind_finalize_value_array, "q": __embind_finalize_value_object, "H": __embind_register_bigint, "ba": __embind_register_bool, "p": __embind_register_class, "o": __embind_register_class_constructor, "c": __embind_register_class_function, "aa": __embind_register_emval, "D": __embind_register_enum, "t": __embind_register_enum_value, "B": __embind_register_float, "d": __embind_register_function, "s": __embind_register_integer, "i": __embind_register_memory_view, "C": __embind_register_std_string, "x": __embind_register_std_wstring, "ea": __embind_register_value_array, "j": __embind_register_value_array_element, "r": __embind_register_value_object, "f": __embind_register_value_object_field, "ca": __embind_register_void, "Y": __emscripten_err, "V": __emscripten_notify_task_queue, "S": __emscripten_set_offscreencanvas_size, "n": __emval_as, "z": __emval_call, "b": __emval_decref, "F": __emval_get_global, "l": __emval_get_property, "u": __emval_incref, "ga": __emval_instanceof, "y": __emval_is_number, "E": __emval_is_string, "fa": __emval_new_array, "h": __emval_new_cstring, "w": __emval_new_object, "m": __emval_run_destructors, "k": __emval_set_property, "e": __emval_take_value, "A": _abort, "U": _emscripten_check_blocking_allowed, "v": _emscripten_get_now, "W": _emscripten_memcpy_big, "R": _emscripten_receive_on_main_thread_js, "P": _emscripten_resize_heap, "$": _emscripten_unwind_to_js_event_loop, "L": _environ_get, "M": _environ_sizes_get, "I": _exit, "N": _fd_close, "O": _fd_read, "G": _fd_seek, "Q": _fd_write, "a": wasmMemory || Module["wasmMemory"], "K": _strftime_l };
+        var wasmImports = { "h": ___cxa_throw, "U": ___emscripten_init_main_thread_js, "K": ___emscripten_thread_cleanup, "Y": __dlinit, "$": __dlopen_js, "_": __dlsym_catchup_js, "ea": __embind_finalize_value_array, "r": __embind_finalize_value_object, "I": __embind_register_bigint, "ca": __embind_register_bool, "q": __embind_register_class, "p": __embind_register_class_constructor, "c": __embind_register_class_function, "ba": __embind_register_emval, "E": __embind_register_enum, "u": __embind_register_enum_value, "C": __embind_register_float, "d": __embind_register_function, "t": __embind_register_integer, "j": __embind_register_memory_view, "D": __embind_register_std_string, "y": __embind_register_std_wstring, "fa": __embind_register_value_array, "m": __embind_register_value_array_element, "s": __embind_register_value_object, "f": __embind_register_value_object_field, "da": __embind_register_void, "Z": __emscripten_err, "W": __emscripten_notify_task_queue, "T": __emscripten_set_offscreencanvas_size, "l": __emval_as, "x": __emval_call, "b": __emval_decref, "A": __emval_get_global, "i": __emval_get_property, "o": __emval_incref, "G": __emval_instanceof, "z": __emval_is_number, "F": __emval_is_string, "ga": __emval_new_array, "g": __emval_new_cstring, "w": __emval_new_object, "k": __emval_run_destructors, "n": __emval_set_property, "e": __emval_take_value, "B": _abort, "V": _emscripten_check_blocking_allowed, "v": _emscripten_get_now, "X": _emscripten_memcpy_big, "S": _emscripten_receive_on_main_thread_js, "Q": _emscripten_resize_heap, "aa": _emscripten_unwind_to_js_event_loop, "M": _environ_get, "N": _environ_sizes_get, "J": _exit, "O": _fd_close, "P": _fd_read, "H": _fd_seek, "R": _fd_write, "a": wasmMemory || Module["wasmMemory"], "L": _strftime_l };
         createWasm();
         var _malloc = function() {
           return (_malloc = Module["asm"]["ja"]).apply(null, arguments);
@@ -39746,7 +39792,7 @@ var require_web_ifc = __commonJS({
         } } });
         FS.FSNode = FSNode;
         FS.staticInit();
-        var wasmImports = { "f": ___cxa_throw, "R": __embind_finalize_value_array, "p": __embind_finalize_value_object, "F": __embind_register_bigint, "P": __embind_register_bool, "o": __embind_register_class, "n": __embind_register_class_constructor, "b": __embind_register_class_function, "O": __embind_register_emval, "B": __embind_register_enum, "s": __embind_register_enum_value, "z": __embind_register_float, "c": __embind_register_function, "r": __embind_register_integer, "h": __embind_register_memory_view, "A": __embind_register_std_string, "v": __embind_register_std_wstring, "S": __embind_register_value_array, "i": __embind_register_value_array_element, "q": __embind_register_value_object, "e": __embind_register_value_object_field, "Q": __embind_register_void, "m": __emval_as, "x": __emval_call, "a": __emval_decref, "D": __emval_get_global, "k": __emval_get_property, "t": __emval_incref, "U": __emval_instanceof, "w": __emval_is_number, "C": __emval_is_string, "T": __emval_new_array, "g": __emval_new_cstring, "u": __emval_new_object, "l": __emval_run_destructors, "j": __emval_set_property, "d": __emval_take_value, "y": _abort, "N": _emscripten_memcpy_big, "L": _emscripten_resize_heap, "H": _environ_get, "I": _environ_sizes_get, "J": _fd_close, "K": _fd_read, "E": _fd_seek, "M": _fd_write, "G": _strftime_l };
+        var wasmImports = { "g": ___cxa_throw, "S": __embind_finalize_value_array, "q": __embind_finalize_value_object, "G": __embind_register_bigint, "Q": __embind_register_bool, "p": __embind_register_class, "o": __embind_register_class_constructor, "b": __embind_register_class_function, "P": __embind_register_emval, "C": __embind_register_enum, "t": __embind_register_enum_value, "A": __embind_register_float, "c": __embind_register_function, "s": __embind_register_integer, "i": __embind_register_memory_view, "B": __embind_register_std_string, "w": __embind_register_std_wstring, "T": __embind_register_value_array, "l": __embind_register_value_array_element, "r": __embind_register_value_object, "e": __embind_register_value_object_field, "R": __embind_register_void, "k": __emval_as, "v": __emval_call, "a": __emval_decref, "y": __emval_get_global, "h": __emval_get_property, "n": __emval_incref, "E": __emval_instanceof, "x": __emval_is_number, "D": __emval_is_string, "U": __emval_new_array, "f": __emval_new_cstring, "u": __emval_new_object, "j": __emval_run_destructors, "m": __emval_set_property, "d": __emval_take_value, "z": _abort, "O": _emscripten_memcpy_big, "M": _emscripten_resize_heap, "I": _environ_get, "J": _environ_sizes_get, "K": _fd_close, "L": _fd_read, "F": _fd_seek, "N": _fd_write, "H": _strftime_l };
         createWasm();
         var _malloc = function() {
           return (_malloc = Module["asm"]["Y"]).apply(null, arguments);
@@ -41535,7 +41581,7 @@ FromRawLineData[1] = {
   1768891740: (id, v) => new IFC2X3.IfcSanitaryTerminalType(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC2X3.IfcLabel(v[7].value), !v[8] ? null : new IFC2X3.IfcLabel(v[8].value), v[9]),
   3517283431: (id, v) => new IFC2X3.IfcScheduleTimeControl(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new Handle(v[7].value), !v[8] ? null : new Handle(v[8].value), !v[9] ? null : new Handle(v[9].value), !v[10] ? null : new Handle(v[10].value), !v[11] ? null : new Handle(v[11].value), !v[12] ? null : new Handle(v[12].value), !v[13] ? null : new IFC2X3.IfcTimeMeasure(v[13].value), !v[14] ? null : new IFC2X3.IfcTimeMeasure(v[14].value), !v[15] ? null : new IFC2X3.IfcTimeMeasure(v[15].value), !v[16] ? null : new IFC2X3.IfcTimeMeasure(v[16].value), !v[17] ? null : new IFC2X3.IfcTimeMeasure(v[17].value), !v[18] ? null : v[18].value, !v[19] ? null : new Handle(v[19].value), !v[20] ? null : new IFC2X3.IfcTimeMeasure(v[20].value), !v[21] ? null : new IFC2X3.IfcTimeMeasure(v[21].value), !v[22] ? null : new IFC2X3.IfcPositiveRatioMeasure(v[22].value)),
   4105383287: (id, v) => new IFC2X3.IfcServiceLife(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), v[5], new IFC2X3.IfcTimeMeasure(v[6].value)),
-  4097777520: (id, v) => new IFC2X3.IfcSite(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC2X3.IfcLabel(v[7].value), v[8], !v[9] ? null : new IFC2X3.IfcCompoundPlaneAngleMeasure(v[9]), !v[10] ? null : new IFC2X3.IfcCompoundPlaneAngleMeasure(v[10]), !v[11] ? null : new IFC2X3.IfcLengthMeasure(v[11].value), !v[12] ? null : new IFC2X3.IfcLabel(v[12].value), !v[13] ? null : new Handle(v[13].value)),
+  4097777520: (id, v) => new IFC2X3.IfcSite(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC2X3.IfcLabel(v[7].value), v[8], !v[9] ? null : new IFC2X3.IfcCompoundPlaneAngleMeasure(v[9].map((x) => x.value)), !v[10] ? null : new IFC2X3.IfcCompoundPlaneAngleMeasure(v[10].map((x) => x.value)), !v[11] ? null : new IFC2X3.IfcLengthMeasure(v[11].value), !v[12] ? null : new IFC2X3.IfcLabel(v[12].value), !v[13] ? null : new Handle(v[13].value)),
   2533589738: (id, v) => new IFC2X3.IfcSlabType(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC2X3.IfcLabel(v[7].value), !v[8] ? null : new IFC2X3.IfcLabel(v[8].value), v[9]),
   3856911033: (id, v) => new IFC2X3.IfcSpace(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC2X3.IfcLabel(v[7].value), v[8], v[9], !v[10] ? null : new IFC2X3.IfcLengthMeasure(v[10].value)),
   1305183839: (id, v) => new IFC2X3.IfcSpaceHeaterType(id, new IFC2X3.IfcGloballyUniqueId(v[0].value), new Handle(v[1].value), !v[2] ? null : new IFC2X3.IfcLabel(v[2].value), !v[3] ? null : new IFC2X3.IfcText(v[3].value), !v[4] ? null : new IFC2X3.IfcLabel(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC2X3.IfcLabel(v[7].value), !v[8] ? null : new IFC2X3.IfcLabel(v[8].value), v[9]),
@@ -43608,8 +43654,8 @@ TypeInitialisers[1] = {
   2650437152: (v) => new IFC2X3.IfcAreaMeasure(v),
   2735952531: (v) => new IFC2X3.IfcBoolean(v),
   1867003952: (v) => new IFC2X3.IfcBoxAlignment(v),
-  2991860651: (v) => new IFC2X3.IfcComplexNumber(v),
-  3812528620: (v) => new IFC2X3.IfcCompoundPlaneAngleMeasure(v),
+  2991860651: (v) => new IFC2X3.IfcComplexNumber(v.map((x) => x.value)),
+  3812528620: (v) => new IFC2X3.IfcCompoundPlaneAngleMeasure(v.map((x) => x.value)),
   3238673880: (v) => new IFC2X3.IfcContextDependentMeasure(v),
   1778710042: (v) => new IFC2X3.IfcCountMeasure(v),
   94842927: (v) => new IFC2X3.IfcCurvatureMeasure(v),
@@ -55469,7 +55515,7 @@ FromRawLineData[2] = {
   1768891740: (id, v) => new IFC4.IfcSanitaryTerminalType(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new IFC4.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4.IfcLabel(v[7].value), !v[8] ? null : new IFC4.IfcLabel(v[8].value), v[9]),
   2157484638: (id, v) => new IFC4.IfcSeamCurve(id, new Handle(v[0].value), v[1].map((p) => new Handle(p.value)), v[2]),
   4074543187: (id, v) => new IFC4.IfcShadingDeviceType(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new IFC4.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4.IfcLabel(v[7].value), !v[8] ? null : new IFC4.IfcLabel(v[8].value), v[9]),
-  4097777520: (id, v) => new IFC4.IfcSite(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new IFC4.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC4.IfcLabel(v[7].value), v[8], !v[9] ? null : new IFC4.IfcCompoundPlaneAngleMeasure(v[9]), !v[10] ? null : new IFC4.IfcCompoundPlaneAngleMeasure(v[10]), !v[11] ? null : new IFC4.IfcLengthMeasure(v[11].value), !v[12] ? null : new IFC4.IfcLabel(v[12].value), !v[13] ? null : new Handle(v[13].value)),
+  4097777520: (id, v) => new IFC4.IfcSite(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new IFC4.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC4.IfcLabel(v[7].value), v[8], !v[9] ? null : new IFC4.IfcCompoundPlaneAngleMeasure(v[9].map((x) => x.value)), !v[10] ? null : new IFC4.IfcCompoundPlaneAngleMeasure(v[10].map((x) => x.value)), !v[11] ? null : new IFC4.IfcLengthMeasure(v[11].value), !v[12] ? null : new IFC4.IfcLabel(v[12].value), !v[13] ? null : new Handle(v[13].value)),
   2533589738: (id, v) => new IFC4.IfcSlabType(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new IFC4.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4.IfcLabel(v[7].value), !v[8] ? null : new IFC4.IfcLabel(v[8].value), v[9]),
   1072016465: (id, v) => new IFC4.IfcSolarDeviceType(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new IFC4.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4.IfcLabel(v[7].value), !v[8] ? null : new IFC4.IfcLabel(v[8].value), v[9]),
   3856911033: (id, v) => new IFC4.IfcSpace(id, new IFC4.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4.IfcLabel(v[2].value), !v[3] ? null : new IFC4.IfcText(v[3].value), !v[4] ? null : new IFC4.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC4.IfcLabel(v[7].value), v[8], v[9], !v[10] ? null : new IFC4.IfcLengthMeasure(v[10].value)),
@@ -58262,15 +58308,15 @@ TypeInitialisers[2] = {
   4182062534: (v) => new IFC4.IfcAccelerationMeasure(v),
   360377573: (v) => new IFC4.IfcAmountOfSubstanceMeasure(v),
   632304761: (v) => new IFC4.IfcAngularVelocityMeasure(v),
-  3683503648: (v) => new IFC4.IfcArcIndex(v),
+  3683503648: (v) => new IFC4.IfcArcIndex(v.map((x) => x.value)),
   1500781891: (v) => new IFC4.IfcAreaDensityMeasure(v),
   2650437152: (v) => new IFC4.IfcAreaMeasure(v),
   2314439260: (v) => new IFC4.IfcBinary(v),
   2735952531: (v) => new IFC4.IfcBoolean(v),
   1867003952: (v) => new IFC4.IfcBoxAlignment(v),
   1683019596: (v) => new IFC4.IfcCardinalPointReference(v),
-  2991860651: (v) => new IFC4.IfcComplexNumber(v),
-  3812528620: (v) => new IFC4.IfcCompoundPlaneAngleMeasure(v),
+  2991860651: (v) => new IFC4.IfcComplexNumber(v.map((x) => x.value)),
+  3812528620: (v) => new IFC4.IfcCompoundPlaneAngleMeasure(v.map((x) => x.value)),
   3238673880: (v) => new IFC4.IfcContextDependentMeasure(v),
   1778710042: (v) => new IFC4.IfcCountMeasure(v),
   94842927: (v) => new IFC4.IfcCurvatureMeasure(v),
@@ -58309,7 +58355,7 @@ TypeInitialisers[2] = {
   3258342251: (v) => new IFC4.IfcLabel(v),
   1275358634: (v) => new IFC4.IfcLanguageId(v),
   1243674935: (v) => new IFC4.IfcLengthMeasure(v),
-  1774176899: (v) => new IFC4.IfcLineIndex(v),
+  1774176899: (v) => new IFC4.IfcLineIndex(v.map((x) => x.value)),
   191860431: (v) => new IFC4.IfcLinearForceMeasure(v),
   2128979029: (v) => new IFC4.IfcLinearMomentMeasure(v),
   1307019551: (v) => new IFC4.IfcLinearStiffnessMeasure(v),
@@ -58347,7 +58393,7 @@ TypeInitialisers[2] = {
   1364037233: (v) => new IFC4.IfcPowerMeasure(v),
   2169031380: (v) => new IFC4.IfcPresentableText(v),
   3665567075: (v) => new IFC4.IfcPressureMeasure(v),
-  2798247006: (v) => new IFC4.IfcPropertySetDefinitionSet(v),
+  2798247006: (v) => new IFC4.IfcPropertySetDefinitionSet(v.map((x) => x.value)),
   3972513137: (v) => new IFC4.IfcRadioActivityMeasure(v),
   96294661: (v) => new IFC4.IfcRatioMeasure(v),
   200335297: (v) => new IFC4.IfcReal(v),
@@ -72845,7 +72891,7 @@ FromRawLineData[3] = {
   3599934289: (id, v) => new IFC4X3.IfcSignType(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new IFC4X3.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4X3.IfcLabel(v[7].value), !v[8] ? null : new IFC4X3.IfcLabel(v[8].value), v[9]),
   1894708472: (id, v) => new IFC4X3.IfcSignalType(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new IFC4X3.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4X3.IfcLabel(v[7].value), !v[8] ? null : new IFC4X3.IfcLabel(v[8].value), v[9]),
   42703149: (id, v) => new IFC4X3.IfcSineSpiral(id, !v[0] ? null : new Handle(v[0].value), new IFC4X3.IfcLengthMeasure(v[1].value), !v[2] ? null : new IFC4X3.IfcLengthMeasure(v[2].value), !v[3] ? null : new IFC4X3.IfcLengthMeasure(v[3].value)),
-  4097777520: (id, v) => new IFC4X3.IfcSite(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new IFC4X3.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC4X3.IfcLabel(v[7].value), v[8], !v[9] ? null : new IFC4X3.IfcCompoundPlaneAngleMeasure(v[9]), !v[10] ? null : new IFC4X3.IfcCompoundPlaneAngleMeasure(v[10]), !v[11] ? null : new IFC4X3.IfcLengthMeasure(v[11].value), !v[12] ? null : new IFC4X3.IfcLabel(v[12].value), !v[13] ? null : new Handle(v[13].value)),
+  4097777520: (id, v) => new IFC4X3.IfcSite(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new IFC4X3.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC4X3.IfcLabel(v[7].value), v[8], !v[9] ? null : new IFC4X3.IfcCompoundPlaneAngleMeasure(v[9].map((x) => x.value)), !v[10] ? null : new IFC4X3.IfcCompoundPlaneAngleMeasure(v[10].map((x) => x.value)), !v[11] ? null : new IFC4X3.IfcLengthMeasure(v[11].value), !v[12] ? null : new IFC4X3.IfcLabel(v[12].value), !v[13] ? null : new Handle(v[13].value)),
   2533589738: (id, v) => new IFC4X3.IfcSlabType(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new IFC4X3.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4X3.IfcLabel(v[7].value), !v[8] ? null : new IFC4X3.IfcLabel(v[8].value), v[9]),
   1072016465: (id, v) => new IFC4X3.IfcSolarDeviceType(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new IFC4X3.IfcIdentifier(v[4].value), !v[5] ? null : v[5].map((p) => new Handle(p.value)), !v[6] ? null : v[6].map((p) => new Handle(p.value)), !v[7] ? null : new IFC4X3.IfcLabel(v[7].value), !v[8] ? null : new IFC4X3.IfcLabel(v[8].value), v[9]),
   3856911033: (id, v) => new IFC4X3.IfcSpace(id, new IFC4X3.IfcGloballyUniqueId(v[0].value), !v[1] ? null : new Handle(v[1].value), !v[2] ? null : new IFC4X3.IfcLabel(v[2].value), !v[3] ? null : new IFC4X3.IfcText(v[3].value), !v[4] ? null : new IFC4X3.IfcLabel(v[4].value), !v[5] ? null : new Handle(v[5].value), !v[6] ? null : new Handle(v[6].value), !v[7] ? null : new IFC4X3.IfcLabel(v[7].value), v[8], v[9], !v[10] ? null : new IFC4X3.IfcLengthMeasure(v[10].value)),
@@ -75990,15 +76036,15 @@ TypeInitialisers[3] = {
   4182062534: (v) => new IFC4X3.IfcAccelerationMeasure(v),
   360377573: (v) => new IFC4X3.IfcAmountOfSubstanceMeasure(v),
   632304761: (v) => new IFC4X3.IfcAngularVelocityMeasure(v),
-  3683503648: (v) => new IFC4X3.IfcArcIndex(v),
+  3683503648: (v) => new IFC4X3.IfcArcIndex(v.map((x) => x.value)),
   1500781891: (v) => new IFC4X3.IfcAreaDensityMeasure(v),
   2650437152: (v) => new IFC4X3.IfcAreaMeasure(v),
   2314439260: (v) => new IFC4X3.IfcBinary(v),
   2735952531: (v) => new IFC4X3.IfcBoolean(v),
   1867003952: (v) => new IFC4X3.IfcBoxAlignment(v),
   1683019596: (v) => new IFC4X3.IfcCardinalPointReference(v),
-  2991860651: (v) => new IFC4X3.IfcComplexNumber(v),
-  3812528620: (v) => new IFC4X3.IfcCompoundPlaneAngleMeasure(v),
+  2991860651: (v) => new IFC4X3.IfcComplexNumber(v.map((x) => x.value)),
+  3812528620: (v) => new IFC4X3.IfcCompoundPlaneAngleMeasure(v.map((x) => x.value)),
   3238673880: (v) => new IFC4X3.IfcContextDependentMeasure(v),
   1778710042: (v) => new IFC4X3.IfcCountMeasure(v),
   94842927: (v) => new IFC4X3.IfcCurvatureMeasure(v),
@@ -76037,7 +76083,7 @@ TypeInitialisers[3] = {
   3258342251: (v) => new IFC4X3.IfcLabel(v),
   1275358634: (v) => new IFC4X3.IfcLanguageId(v),
   1243674935: (v) => new IFC4X3.IfcLengthMeasure(v),
-  1774176899: (v) => new IFC4X3.IfcLineIndex(v),
+  1774176899: (v) => new IFC4X3.IfcLineIndex(v.map((x) => x.value)),
   191860431: (v) => new IFC4X3.IfcLinearForceMeasure(v),
   2128979029: (v) => new IFC4X3.IfcLinearMomentMeasure(v),
   1307019551: (v) => new IFC4X3.IfcLinearStiffnessMeasure(v),
@@ -76075,7 +76121,7 @@ TypeInitialisers[3] = {
   1364037233: (v) => new IFC4X3.IfcPowerMeasure(v),
   2169031380: (v) => new IFC4X3.IfcPresentableText(v),
   3665567075: (v) => new IFC4X3.IfcPressureMeasure(v),
-  2798247006: (v) => new IFC4X3.IfcPropertySetDefinitionSet(v),
+  2798247006: (v) => new IFC4X3.IfcPropertySetDefinitionSet(v.map((x) => x.value)),
   3972513137: (v) => new IFC4X3.IfcRadioActivityMeasure(v),
   96294661: (v) => new IFC4X3.IfcRatioMeasure(v),
   200335297: (v) => new IFC4X3.IfcReal(v),
@@ -92336,7 +92382,7 @@ var IfcAPI2 = class {
   }
   OpenModels(dataSets, settings) {
     let s = __spreadValues({
-      MEMORY_LIMIT: 3221225472
+      MEMORY_LIMIT: 2147483648
     }, settings);
     s.MEMORY_LIMIT = s.MEMORY_LIMIT / dataSets.length;
     let modelIDs = [];
@@ -92350,7 +92396,7 @@ var IfcAPI2 = class {
       COORDINATE_TO_ORIGIN: false,
       CIRCLE_SEGMENTS: 12,
       TAPE_SIZE: 67108864,
-      MEMORY_LIMIT: 3221225472
+      MEMORY_LIMIT: 2147483648
     }, settings);
     let deprecated = ["USE_FAST_BOOLS", "CIRCLE_SEGMENTS_LOW", "CIRCLE_SEGMENTS_MEDIUM", "CIRCLE_SEGMENTS_HIGH"];
     for (let d in deprecated) {
@@ -92536,11 +92582,11 @@ var IfcAPI2 = class {
     this.deletedLines.get(modelID).add(expressID);
   }
   WriteLine(modelID, lineObject) {
-    if (this.deletedLines.get(modelID).has(lineObject.expressID)) {
+    if (lineObject.expressID != -1 && this.deletedLines.get(modelID).has(lineObject.expressID)) {
       Log.error(`Cannot re-use deleted express ID`);
       return;
     }
-    if (this.GetLineType(modelID, lineObject.expressID) != lineObject.type && this.GetLineType(modelID, lineObject.expressID) != 0) {
+    if (lineObject.expressID != -1 && this.GetLineType(modelID, lineObject.expressID) != lineObject.type && this.GetLineType(modelID, lineObject.expressID) != 0) {
       Log.error(`Cannot change type of existing IFC Line`);
       return;
     }
@@ -92655,6 +92701,9 @@ var IfcAPI2 = class {
   CloseModel(modelID) {
     this.ifcGuidMap.delete(modelID);
     this.wasmModule.CloseModel(modelID);
+  }
+  StreamMeshes(modelID, expressIDs, meshCallback) {
+    this.wasmModule.StreamMeshes(modelID, expressIDs, meshCallback);
   }
   StreamAllMeshes(modelID, meshCallback) {
     this.wasmModule.StreamAllMeshes(modelID, meshCallback);
@@ -99361,22 +99410,39 @@ class SelectionHandler extends Component {
 }
 
 class IfcPropertiesUtils {
-    static getLevels(properties) {
-        const floors = [];
-        const floorsProps = IfcPropertiesUtils.getAllItemsOfType(properties, IFCBUILDINGSTOREY);
-        for (const data of floorsProps) {
-            const height = data.Elevation.value;
-            floors.push({ data, height });
+    static getUnits(properties) {
+        var _a;
+        const { IFCUNITASSIGNMENT } = WEBIFC;
+        const allUnits = this.findItemOfType(properties, IFCUNITASSIGNMENT);
+        for (const unitRef of allUnits.Units) {
+            if (unitRef.value === undefined || unitRef.value === null)
+                continue;
+            const unit = properties[unitRef.value];
+            if (!unit.UnitType || !unit.UnitType.value)
+                continue;
+            const value = unit.UnitType.value;
+            if (value !== "LENGTHUNIT")
+                continue;
+            let factor = 1;
+            let unitValue = 1;
+            if (unit.Name.value === "METRE")
+                unitValue = 1;
+            if (unit.Name.value === "FOOT")
+                unitValue = 0.3048;
+            if (((_a = unit.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI")
+                factor = 0.001;
+            return unitValue * factor;
         }
-        console.log(floors);
-        // properties[floor.expressID];
-        // const props = await properties.getItemProperties(0, floor.expressID, false);
-        // props.SceneHeight = await this.getHeight(props, webIfc, properties, units);
-        // const placementID = props.ObjectPlacement.value;
-        // const coordArray = webIfc.GetCoordinationMatrix(0);
-        // const coordHeight = coordArray[13] * units.factor;
-        // const placement = await properties.getItemProperties(0, placementID, true);
-        // return this.getPlacementHeight(placement, units) + coordHeight;
+        return 1;
+    }
+    static findItemOfType(properties, type) {
+        for (const id in properties) {
+            const property = properties[id];
+            if (property.type === type) {
+                return property;
+            }
+        }
+        return null;
     }
     static getAllItemsOfType(properties, type) {
         const found = [];
@@ -99425,11 +99491,25 @@ class PlanNavigator extends Component {
         this.plans = [];
         this.clipper.dispose();
     }
+    // TODO: Compute georreference matrix when generating fragmentsgroup
+    // so that we can correctly add floors in georreferenced models
+    // where the IfcSite / IfcBuilding have location information
     async computeAllPlanViews(model) {
         if (!model.properties) {
             throw new Error("Properties are needed to compute plan views!");
         }
-        IfcPropertiesUtils.getLevels(model.properties);
+        const { properties } = model;
+        const floorsProps = IfcPropertiesUtils.getAllItemsOfType(properties, IFCBUILDINGSTOREY);
+        const units = IfcPropertiesUtils.getUnits(properties);
+        for (const floor of floorsProps) {
+            const height = floor.Elevation.value * units + this.defaultSectionOffset;
+            await this.create({
+                normal: new THREE$1.Vector3(0, -1, 0),
+                point: new THREE$1.Vector3(0, height, 0),
+                id: floor.Name.value,
+                ortho: true,
+            });
+        }
     }
     /**
      * Creates a new floor plan in the navigator.
@@ -99540,10 +99620,14 @@ class PlanNavigator extends Component {
         this.currentPlan = foundPlan;
     }
     hidePreviousClippingPlane() {
-        var _a;
-        const plane = (_a = this.currentPlan) === null || _a === void 0 ? void 0 : _a.plane;
-        if (plane)
-            plane.enabled = false;
+        if (this.currentPlan) {
+            const plane = this.currentPlan.plane;
+            if (plane)
+                plane.enabled = false;
+            if (this.currentPlan.plane instanceof EdgesPlane) {
+                this.currentPlan.plane.edges.visible = false;
+            }
+        }
     }
 }
 
