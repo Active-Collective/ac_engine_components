@@ -95723,17 +95723,67 @@ class PropertiesProcessor extends Component {
     }
 }
 
+class Units {
+    constructor() {
+        this.factor = 1;
+        this.complement = 1;
+    }
+    apply(matrix) {
+        const scale = this.getScaleMatrix();
+        const result = scale.multiply(matrix);
+        matrix.copy(result);
+    }
+    setUp(webIfc) {
+        var _a;
+        this.factor = 1;
+        const lengthUnits = this.getLengthUnits(webIfc);
+        if (lengthUnits === null || lengthUnits.Name === null)
+            return;
+        if (lengthUnits.Name.value === "FOOT") {
+            this.factor = 0.3048;
+        }
+        else if (((_a = lengthUnits.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI") {
+            this.complement = 0.001;
+        }
+    }
+    getLengthUnits(webIfc) {
+        try {
+            const allUnits = webIfc.GetLineIDsWithType(0, IFCUNITASSIGNMENT);
+            const units = allUnits.get(0);
+            const unitsProps = webIfc.GetLine(0, units);
+            const lengthUnitsID = unitsProps.Units[0].value;
+            return webIfc.GetLine(0, lengthUnitsID);
+        }
+        catch (e) {
+            console.log("Could not get units");
+            return null;
+        }
+    }
+    getScaleMatrix() {
+        const f = this.factor;
+        // prettier-ignore
+        return new THREE$1.Matrix4().fromArray([
+            f, 0, 0, 0,
+            0, f, 0, 0,
+            0, 0, f, 0,
+            0, 0, 0, 1,
+        ]);
+    }
+}
+
 class SpatialStructure {
     constructor() {
         this.floorProperties = [];
         this.itemsByFloor = {};
+        this._units = new Units();
     }
-    async setUp(webIfc, units) {
+    async setUp(webIfc) {
+        this._units.setUp(webIfc);
         this.reset();
         try {
             const floors = await this.getFloors(webIfc);
             for (const floor of floors) {
-                await this.getFloorProperties(webIfc, floor, units);
+                await this.getFloorProperties(webIfc, floor);
                 this.saveFloorRelations(floor);
             }
         }
@@ -95749,19 +95799,19 @@ class SpatialStructure {
         this.floorProperties = [];
         this.itemsByFloor = {};
     }
-    async getFloorProperties(webIfc, floor, units) {
+    async getFloorProperties(webIfc, floor) {
         const id = floor.expressID;
         const properties = webIfc.properties;
         const props = await properties.getItemProperties(0, id, false);
-        props.SceneHeight = await this.getHeight(props, webIfc, properties, units);
+        props.SceneHeight = await this.getHeight(props, webIfc, properties);
         this.floorProperties.push(props);
     }
-    async getHeight(props, webIfc, properties, units) {
+    async getHeight(props, webIfc, properties) {
         const placementID = props.ObjectPlacement.value;
         const coordArray = webIfc.GetCoordinationMatrix(0);
-        const coordHeight = coordArray[13] * units.factor;
+        const coordHeight = coordArray[13] * this._units.factor;
         const placement = await properties.getItemProperties(0, placementID, true);
-        return this.getPlacementHeight(placement, units) + coordHeight;
+        return this.getPlacementHeight(placement, this._units) + coordHeight;
     }
     getPlacementHeight(placement, units) {
         var _a, _b;
@@ -95821,61 +95871,12 @@ class IfcFragmentSettings {
     }
 }
 
-class Units {
-    constructor() {
-        this.factor = 1;
-        this.complement = 1;
-    }
-    apply(matrix) {
-        const scale = this.getScaleMatrix();
-        const result = scale.multiply(matrix);
-        matrix.copy(result);
-    }
-    setUp(webIfc) {
-        var _a;
-        this.factor = 1;
-        const lengthUnits = this.getLengthUnits(webIfc);
-        if (lengthUnits === null || lengthUnits.Name === null)
-            return;
-        if (lengthUnits.Name.value === "FOOT") {
-            this.factor = 0.3048;
-        }
-        else if (((_a = lengthUnits.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI") {
-            this.complement = 0.001;
-        }
-    }
-    getLengthUnits(webIfc) {
-        try {
-            const allUnits = webIfc.GetLineIDsWithType(0, IFCUNITASSIGNMENT);
-            const units = allUnits.get(0);
-            const unitsProps = webIfc.GetLine(0, units);
-            const lengthUnitsID = unitsProps.Units[0].value;
-            return webIfc.GetLine(0, lengthUnitsID);
-        }
-        catch (e) {
-            console.log("Could not get units");
-            return null;
-        }
-    }
-    getScaleMatrix() {
-        const f = this.factor;
-        // prettier-ignore
-        return new THREE$1.Matrix4().fromArray([
-            f, 0, 0, 0,
-            0, f, 0, 0,
-            0, 0, f, 0,
-            0, 0, 0, 1,
-        ]);
-    }
-}
-
 class DataConverter {
     constructor() {
         this.settings = new IfcFragmentSettings();
         this._categories = {};
         this._model = new FragmentsGroup();
         this._ifcCategories = new IfcCategories();
-        this._units = new Units();
         this._fragmentKey = 0;
         this._keyFragmentMap = {};
         this._itemKeyMap = {};
@@ -95887,7 +95888,6 @@ class DataConverter {
         this._categories = {};
         this._model = new FragmentsGroup();
         this._ifcCategories = new IfcCategories();
-        this._units = new Units();
         this._propertyExporter = new IfcJsonExporter();
         this._keyFragmentMap = {};
         this._itemKeyMap = {};
@@ -95896,8 +95896,7 @@ class DataConverter {
         this._categories = this._ifcCategories.getAll(webIfc, 0);
     }
     async generate(webIfc, geometries) {
-        await this._units.setUp(webIfc);
-        await this._spatialTree.setUp(webIfc, this._units);
+        await this._spatialTree.setUp(webIfc);
         this.createAllFragments(geometries);
         await this.saveModelData(webIfc);
         return this._model;
@@ -95942,7 +95941,6 @@ class DataConverter {
                     uniqueItems[matID] = { material, geometries: [], expressIDs: [] };
                 }
                 matrix.fromArray(instance.matrix);
-                this._units.apply(matrix);
                 buffer.applyMatrix4(matrix);
                 uniqueItems[matID].geometries.push(buffer);
                 uniqueItems[matID].expressIDs.push(instance.expressID.toString());
@@ -95954,7 +95952,6 @@ class DataConverter {
                 const instance = instances[i];
                 matrix.fromArray(instance.matrix);
                 const { expressID } = instance;
-                this._units.apply(matrix);
                 fragment.setInstance(i, {
                     ids: [expressID.toString()],
                     transform: matrix,
