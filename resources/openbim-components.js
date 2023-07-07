@@ -21424,20 +21424,22 @@ class Postproduction {
         }
     }
     dispose() {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         this._renderTarget.dispose();
         (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
         (_b = this.outlines) === null || _b === void 0 ? void 0 : _b.dispose();
-        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.dispose();
-        (_d = this.n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
+        (_c = this.gloss) === null || _c === void 0 ? void 0 : _c.dispose();
+        (_d = this._fxaaPass) === null || _d === void 0 ? void 0 : _d.dispose();
+        (_e = this.n8ao) === null || _e === void 0 ? void 0 : _e.dispose();
         this.excludedItems.clear();
     }
     setSize(width, height) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         this.composer.setSize(width, height);
         (_a = this.n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
         (_b = this.outlines) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
-        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
+        (_c = this.gloss) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
+        (_d = this._fxaaPass) === null || _d === void 0 ? void 0 : _d.setSize(width, height);
     }
     update() {
         if (!this._enabled)
@@ -21451,6 +21453,9 @@ class Postproduction {
         }
         if (this.outlines) {
             this.outlines.renderCamera = camera;
+        }
+        if (this.gloss) {
+            this.gloss.renderCamera = camera;
         }
         if (this._basePass) {
             this._basePass.camera = camera;
@@ -21471,6 +21476,7 @@ class Postproduction {
         this.addBasePass(scene, camera);
         this.addSaoPass(scene, camera);
         this.addOutlinePass();
+        // this.addGlossPass();
         this.addFXAAPass();
         this._initialized = true;
     }
@@ -21486,6 +21492,16 @@ class Postproduction {
         this.outlines = customOutline;
         this.composer.addPass(customOutline);
     }
+    // TODO: Work in progress, this needs adjustment
+    // private addGlossPass() {
+    //   const customGloss = new CustomGlossPass(
+    //     new THREE.Vector2(window.innerWidth, window.innerHeight),
+    //     this.components
+    //   );
+    //
+    //   this.gloss = customGloss;
+    //   this.composer.addPass(customGloss);
+    // }
     addSaoPass(scene, camera) {
         const { width, height } = this.components.renderer.getSize();
         this.n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
@@ -21493,7 +21509,7 @@ class Postproduction {
         const { configuration } = this.n8ao;
         configuration.aoSamples = 16;
         configuration.denoiseSamples = 1;
-        configuration.denoiseRadius = 3;
+        configuration.denoiseRadius = 13;
         configuration.aoRadius = 1;
         configuration.distanceFalloff = 4;
         configuration.aoRadius = 1;
