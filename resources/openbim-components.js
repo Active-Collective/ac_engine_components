@@ -21073,34 +21073,87 @@ function getPlaneDistanceMaterial() {
     });
 }
 
+// Gets the plane information (ax + by + cz = d) of each face, where:
+// - (a, b, c) is the normal vector of the plane
+// - d is the signed distance to the origin
+function getProjectedNormalMaterial() {
+    return new THREE$1.ShaderMaterial({
+        clipping: true,
+        uniforms: {},
+        vertexShader: `
+    varying vec3 vCameraPosition;
+    varying vec3 vPosition;
+    varying vec3 vNormal;
+    
+    #include <clipping_planes_pars_vertex>
+  
+    void main() {
+       #include <begin_vertex>
+       
+       vec4 absPosition = vec4(position, 1.0);
+       vNormal = normal;
+       
+       #ifdef USE_INSTANCING
+          absPosition = instanceMatrix * absPosition;
+          vNormal = (instanceMatrix * vec4(normal, 0.)).xyz;
+       #endif
+       
+       absPosition = modelMatrix * absPosition;
+       vNormal = (normalize(modelMatrix * vec4(vNormal, 0.))).xyz;
+       
+       gl_Position = projectionMatrix * viewMatrix * absPosition;
+       
+       vCameraPosition = cameraPosition;
+       vPosition = absPosition.xyz;
+       
+       #include <project_vertex>
+       #include <clipping_planes_vertex>
+    }
+    `,
+        fragmentShader: `
+    varying vec3 vCameraPosition;
+    varying vec3 vPosition;
+    varying vec3 vNormal;
+    
+    #include <clipping_planes_pars_fragment>
+  
+    void main() {
+      #include <clipping_planes_fragment>
+      vec3 cameraPixelVec = normalize(vCameraPosition - vPosition);
+      float difference = abs(dot(vNormal, cameraPixelVec));
+      gl_FragColor = vec4(difference, difference, difference, 1.);
+    }
+    `,
+    });
+}
+
 // Follows the structure of
 // 		https://github.com/mrdoob/three.js/blob/master/examples/jsm/postprocessing/OutlinePass.js
-class CustomOutlinePass extends Pass {
+class CustomEffectsPass extends Pass {
     constructor(resolution, components) {
         super();
         this.excludedMeshes = [];
         this._color = 0x999999;
-        this._opacity = 0.3;
+        this._opacity = 0.4;
         this._tolerance = 3;
         this._correctColor = false;
+        this._glossEnabled = true;
+        this._glossExponent = 0.7;
+        this._minGloss = -0.3;
+        this._maxGloss = 0.15;
         this.renderScene = components.scene.get();
         this.renderCamera = components.camera.get();
         this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
         this.fsQuad = new FullScreenQuad();
         this.fsQuad.material = this.createOutlinePostProcessMaterial();
-        // Create a buffer to store the plane of each face the scene onto
-        const planeBuffer = new THREE$1.WebGLRenderTarget(this.resolution.x, this.resolution.y);
-        planeBuffer.texture.colorSpace = "srgb-linear";
-        planeBuffer.texture.format = THREE$1.RGBAFormat;
-        planeBuffer.texture.type = THREE$1.HalfFloatType;
-        planeBuffer.texture.minFilter = THREE$1.NearestFilter;
-        planeBuffer.texture.magFilter = THREE$1.NearestFilter;
-        planeBuffer.texture.generateMipmaps = false;
-        planeBuffer.stencilBuffer = false;
-        this.planeBuffer = planeBuffer;
-        const material = getPlaneDistanceMaterial();
-        material.clippingPlanes = components.renderer.clippingPlanes;
-        this.normalOverrideMaterial = material;
+        this.planeBuffer = this.newRenderTarget();
+        this.glossBuffer = this.newRenderTarget();
+        const normalMaterial = getPlaneDistanceMaterial();
+        normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.normalOverrideMaterial = normalMaterial;
+        const glossMaterial = getProjectedNormalMaterial();
+        glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.glossOverrideMaterial = glossMaterial;
     }
     get color() {
         return this._color;
@@ -21135,12 +21188,48 @@ class CustomOutlinePass extends Pass {
         const material = this.fsQuad.material;
         material.uniforms.correctColor.value = value;
     }
+    get glossEnabled() {
+        return this._glossEnabled;
+    }
+    set glossEnabled(active) {
+        this._glossEnabled = active;
+        const material = this.fsQuad.material;
+        material.uniforms.glossEnabled.value = active ? 1 : 0;
+    }
+    get glossExponent() {
+        return this._glossExponent;
+    }
+    set glossExponent(value) {
+        this._glossExponent = value;
+        const material = this.fsQuad.material;
+        material.uniforms.glossExponent.value = value;
+    }
+    get minGloss() {
+        return this._minGloss;
+    }
+    set minGloss(value) {
+        this._minGloss = value;
+        const material = this.fsQuad.material;
+        material.uniforms.minGloss.value = value;
+    }
+    get maxGloss() {
+        return this._maxGloss;
+    }
+    set maxGloss(value) {
+        this._maxGloss = value;
+        const material = this.fsQuad.material;
+        material.uniforms.maxGloss.value = value;
+    }
     dispose() {
         this.planeBuffer.dispose();
+        this.glossBuffer.dispose();
+        this.normalOverrideMaterial.dispose();
+        this.glossOverrideMaterial.dispose();
         this.fsQuad.dispose();
     }
     setSize(width, height) {
         this.planeBuffer.setSize(width, height);
+        this.glossBuffer.setSize(width, height);
         this.resolution.set(width, height);
         const material = this.fsQuad.material;
         material.uniforms.screenSize.value.set(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y);
@@ -21151,22 +21240,30 @@ class CustomOutlinePass extends Pass {
         const depthBufferValue = writeBuffer.depthBuffer;
         writeBuffer.depthBuffer = false;
         // 1. Re-render the scene to capture all normals in a texture.
-        const overrideMaterialValue = this.renderScene.overrideMaterial;
+        const previousOverrideMaterial = this.renderScene.overrideMaterial;
         const previousBackground = this.renderScene.background;
         this.renderScene.background = null;
         for (const mesh of this.excludedMeshes) {
             mesh.visible = false;
         }
+        // Render normal pass
         renderer.setRenderTarget(this.planeBuffer);
         this.renderScene.overrideMaterial = this.normalOverrideMaterial;
         renderer.render(this.renderScene, this.renderCamera);
+        // Render gloss pass
+        if (this._glossEnabled) {
+            renderer.setRenderTarget(this.glossBuffer);
+            this.renderScene.overrideMaterial = this.glossOverrideMaterial;
+            renderer.render(this.renderScene, this.renderCamera);
+        }
         for (const mesh of this.excludedMeshes) {
             mesh.visible = true;
         }
-        this.renderScene.overrideMaterial = overrideMaterialValue;
+        this.renderScene.overrideMaterial = previousOverrideMaterial;
         this.renderScene.background = previousBackground;
         const material = this.fsQuad.material;
         material.uniforms.planeBuffer.value = this.planeBuffer.texture;
+        material.uniforms.glossBuffer.value = this.glossBuffer.texture;
         material.uniforms.sceneColorBuffer.value = readBuffer.texture;
         // 2. Draw the outlines using the normal texture
         // and combine it with the scene color
@@ -21197,13 +21294,17 @@ class CustomOutlinePass extends Pass {
         return `
 	  uniform sampler2D sceneColorBuffer;
 	  uniform sampler2D planeBuffer;
+	  uniform sampler2D glossBuffer;
 	  uniform vec4 screenSize;
 	  uniform vec3 outlineColor;
-    uniform int width;
+      uniform int width;
 	  uniform float opacity;
-    uniform float tolerance;
-    uniform float correctColor;
-    uniform float overrideWhite;
+      uniform float tolerance;
+      uniform float correctColor;
+      uniform float glossExponent;
+      uniform float minGloss;
+      uniform float maxGloss;
+      uniform float glossEnabled;
 
 			varying vec2 vUv;
 
@@ -21333,6 +21434,18 @@ class CustomOutlinePass extends Pass {
         float b = pow(sceneColor.b + sum, 1. / factor);
         vec4 corrected = vec4(r, g, b, 1.);
         
+        // Add gloss
+        
+        vec3 gloss = getValue(glossBuffer, 0, 0).xyz;
+        float diffGloss = abs(maxGloss - minGloss);
+        vec3 glossExpVector = vec3(glossExponent,glossExponent,glossExponent);
+        gloss = min(pow(gloss, glossExpVector), vec3(1.,1.,1.));
+        gloss *= diffGloss;
+        gloss += minGloss;
+        vec4 glossedColor = corrected + vec4(gloss, 1.) * glossEnabled;
+        
+        corrected = mix(corrected, glossedColor, background);
+        
         gl_FragColor = mix(corrected, color, outline);
 	}
 			`;
@@ -21346,6 +21459,11 @@ class CustomOutlinePass extends Pass {
                 sceneColorBuffer: { value: null },
                 tolerance: { value: this._tolerance },
                 planeBuffer: { value: null },
+                glossBuffer: { value: null },
+                glossEnabled: { value: 1 },
+                minGloss: { value: -0.4 },
+                maxGloss: { value: 0 },
+                glossExponent: { value: this._glossExponent },
                 width: { value: 1 },
                 outlineColor: { value: new THREE$1.Color(this._color) },
                 screenSize: {
@@ -21355,6 +21473,17 @@ class CustomOutlinePass extends Pass {
             vertexShader: this.vertexShader,
             fragmentShader: this.fragmentShader,
         });
+    }
+    newRenderTarget() {
+        const planeBuffer = new THREE$1.WebGLRenderTarget(this.resolution.x, this.resolution.y);
+        planeBuffer.texture.colorSpace = "srgb-linear";
+        planeBuffer.texture.format = THREE$1.RGBAFormat;
+        planeBuffer.texture.type = THREE$1.HalfFloatType;
+        planeBuffer.texture.minFilter = THREE$1.NearestFilter;
+        planeBuffer.texture.magFilter = THREE$1.NearestFilter;
+        planeBuffer.texture.generateMipmaps = false;
+        planeBuffer.stencilBuffer = false;
+        return planeBuffer;
     }
 }
 
@@ -21368,7 +21497,7 @@ class Postproduction {
         this._enabled = false;
         this._initialized = false;
         this._saoEnabled = true;
-        this._outlinesEnabled = true;
+        this._customEffectsEnabled = true;
         this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this._renderTarget.texture.colorSpace = "srgb-linear";
         this.composer = new EffectComposer(this.renderer, this._renderTarget);
@@ -21394,52 +21523,50 @@ class Postproduction {
             return;
         if (active) {
             this.composer.addPass(this.n8ao);
-            if (this.outlines && this._outlinesEnabled) {
-                this.composer.removePass(this.outlines);
-                this.composer.addPass(this.outlines);
-                this.outlines.correctColor = false;
+            if (this.customEffects && this._customEffectsEnabled) {
+                this.composer.removePass(this.customEffects);
+                this.composer.addPass(this.customEffects);
+                this.customEffects.correctColor = false;
             }
         }
         else {
             this.composer.removePass(this.n8ao);
-            if (this.outlines) {
-                this.outlines.correctColor = true;
+            if (this.customEffects) {
+                this.customEffects.correctColor = true;
             }
         }
     }
-    get outlinesEnabled() {
-        return this._outlinesEnabled;
+    get customEffectsEnabled() {
+        return this._customEffectsEnabled;
     }
-    set outlinesEnabled(active) {
-        if (this._outlinesEnabled === active)
+    set customEffectsEnabled(active) {
+        if (this._customEffectsEnabled === active)
             return;
-        this._outlinesEnabled = active;
-        if (!this.outlines)
+        this._customEffectsEnabled = active;
+        if (!this.customEffects)
             return;
         if (active) {
-            this.composer.addPass(this.outlines);
+            this.composer.addPass(this.customEffects);
         }
         else {
-            this.composer.removePass(this.outlines);
+            this.composer.removePass(this.customEffects);
         }
     }
     dispose() {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d;
         this._renderTarget.dispose();
         (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
-        (_b = this.outlines) === null || _b === void 0 ? void 0 : _b.dispose();
-        (_c = this.gloss) === null || _c === void 0 ? void 0 : _c.dispose();
-        (_d = this._fxaaPass) === null || _d === void 0 ? void 0 : _d.dispose();
-        (_e = this.n8ao) === null || _e === void 0 ? void 0 : _e.dispose();
+        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.dispose();
+        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.dispose();
+        (_d = this.n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
         this.excludedItems.clear();
     }
     setSize(width, height) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c;
         this.composer.setSize(width, height);
         (_a = this.n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
-        (_b = this.outlines) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
-        (_c = this.gloss) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
-        (_d = this._fxaaPass) === null || _d === void 0 ? void 0 : _d.setSize(width, height);
+        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
+        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
     }
     update() {
         if (!this._enabled)
@@ -21451,11 +21578,8 @@ class Postproduction {
         if (this.n8ao) {
             this.n8ao.camera = camera;
         }
-        if (this.outlines) {
-            this.outlines.renderCamera = camera;
-        }
-        if (this.gloss) {
-            this.gloss.renderCamera = camera;
+        if (this.customEffects) {
+            this.customEffects.renderCamera = camera;
         }
         if (this._basePass) {
             this._basePass.camera = camera;
@@ -21488,8 +21612,8 @@ class Postproduction {
         this.update();
     }
     addOutlinePass() {
-        const customOutline = new CustomOutlinePass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
-        this.outlines = customOutline;
+        const customOutline = new CustomEffectsPass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
+        this.customEffects = customOutline;
         this.composer.addPass(customOutline);
     }
     // TODO: Work in progress, this needs adjustment
