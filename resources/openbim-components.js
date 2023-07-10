@@ -21139,7 +21139,7 @@ class CustomEffectsPass extends Pass {
         this._correctColor = false;
         this._glossEnabled = true;
         this._glossExponent = 0.7;
-        this._minGloss = -0.3;
+        this._minGloss = -0.15;
         this._maxGloss = 0.15;
         this.renderScene = components.scene.get();
         this.renderCamera = components.camera.get();
@@ -21454,7 +21454,7 @@ class CustomEffectsPass extends Pass {
         return new THREE$1.ShaderMaterial({
             uniforms: {
                 opacity: { value: this._opacity },
-                correctColor: { value: 0 },
+                correctColor: { value: 1 },
                 debugVisualize: { value: 0 },
                 sceneColorBuffer: { value: null },
                 tolerance: { value: this._tolerance },
@@ -21496,7 +21496,7 @@ class Postproduction {
         this.excludedItems = new Set();
         this._enabled = false;
         this._initialized = false;
-        this._saoEnabled = true;
+        this._saoEnabled = false;
         this._customEffectsEnabled = true;
         this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this._renderTarget.texture.colorSpace = "srgb-linear";
@@ -21600,8 +21600,7 @@ class Postproduction {
         this.addBasePass(scene, camera);
         this.addSaoPass(scene, camera);
         this.addOutlinePass();
-        // this.addGlossPass();
-        this.addFXAAPass();
+        // this.addFXAAPass();
         this._initialized = true;
     }
     updateProjection(camera) {
@@ -21629,7 +21628,7 @@ class Postproduction {
     addSaoPass(scene, camera) {
         const { width, height } = this.components.renderer.getSize();
         this.n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
-        this.composer.addPass(this.n8ao);
+        // this.composer.addPass(this.n8ao);
         const { configuration } = this.n8ao;
         configuration.aoSamples = 16;
         configuration.denoiseSamples = 1;
@@ -97028,11 +97027,11 @@ class FragmentCacher extends LocalCacher {
         const fragments = new FragmentManager(this.components);
         const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
         const exported = fragments.export(group);
-        const fragmentsFile = this.newFile(exported, fragmentsCacheID);
+        const fragmentsFile = new File([new Blob([exported])], fragmentsCacheID);
         const fragmentsUrl = URL.createObjectURL(fragmentsFile);
         await this.save(fragmentsCacheID, fragmentsUrl);
         const json = JSON.stringify(group.properties);
-        const jsonFile = this.newFile(json, propertiesCacheID);
+        const jsonFile = new File([new Blob([json])], propertiesCacheID);
         const propertiesUrl = URL.createObjectURL(jsonFile);
         await this.save(propertiesCacheID, propertiesUrl);
     }
@@ -97041,9 +97040,6 @@ class FragmentCacher extends LocalCacher {
             fragmentsCacheID: `${id}-fragments`,
             propertiesCacheID: `${id}-properties`,
         };
-    }
-    newFile(data, name) {
-        return new File([new Blob([data])], name);
     }
 }
 
