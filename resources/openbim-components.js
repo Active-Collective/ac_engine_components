@@ -96315,6 +96315,7 @@ class FragmentIfcLoader extends Component {
             const scene = this._components.scene.get();
             scene.add(result);
             button.clicked.trigger(result);
+            fileOpener.remove();
         };
         button.onclick = () => {
             fileOpener.click();
