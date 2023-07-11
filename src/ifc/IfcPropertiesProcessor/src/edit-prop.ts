@@ -13,8 +13,13 @@ export class EditProp extends SimpleUIComponent<HTMLDivElement> {
   constructor(components: Components) {
     const div = document.createElement("div");
     div.className =
-      "absolute flex flex-col rounded-md top-5 left-5 p-4 bg-ifcjs-100 gap-y-2 items-center";
+      "flex flex-col rounded-md p-4 bg-ifcjs-100 gap-y-2 items-center shadow-md";
+    const title = document.createElement("h3");
+    title.className = "text-white";
+    title.textContent = "Edit property";
+    div.append(title);
     super(components, div);
+
     this.nameInput = new TextInput(components);
     this.nameInput.labelElement.textContent = "Name";
     this.valueInput = new TextInput(components);
@@ -24,8 +29,10 @@ export class EditProp extends SimpleUIComponent<HTMLDivElement> {
       materialIconName: "check",
       name: "Accept",
     });
-    this.acceptButton.get().classList.remove("hover:bg-ifcjs-200");
-    this.acceptButton.get().classList.add("hover:bg-green-500");
+    this.acceptButton
+      .get()
+      .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
+    this.acceptButton.get().classList.add("hover:bg-[#55A014]", "grow");
 
     this.cancelButton = new Button(components, {
       materialIconName: "clear",
@@ -35,14 +42,14 @@ export class EditProp extends SimpleUIComponent<HTMLDivElement> {
     this.cancelButton
       .get()
       .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
-    this.cancelButton.get().classList.add("hover:bg-red-500");
+    this.cancelButton.get().classList.add("hover:bg-red-500", "grow");
 
     this.cancelButton.onclick = () => {
       this.visible = false;
     };
 
     const buttonsStack = new UIComponentsStack(components, "Horizontal");
-    buttonsStack.get().classList.add("gap-x-2", "mt-2");
+    buttonsStack.get().classList.add("gap-x-2", "mt-2", "w-full");
     buttonsStack.addChild(this.acceptButton, this.cancelButton);
 
     this.addChild(this.nameInput, this.valueInput, buttonsStack);

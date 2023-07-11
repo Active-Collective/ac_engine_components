@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, Raycaster, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, Color, REVISION, Camera, LinearFilter, NearestFilter, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, NoColorSpace, RepeatWrapping, WebGLMultipleRenderTargets, RedFormat, FloatType, RGBAFormat, HalfFloatType, Group, LineDashedMaterial, CatmullRomCurve3, PropertyBinding, InterpolateLinear, Source, MathUtils, InterpolateDiscrete, Scene, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4, OrthographicCamera, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -598,7 +598,16 @@ function effect$1(_ref2) {
     }
   }
 
+  if (process.env.NODE_ENV !== "production") {
+    if (!isHTMLElement(arrowElement)) {
+      console.error(['Popper: "arrow" element must be an HTMLElement (not an SVGElement).', 'To use an SVG arrow, wrap it in an HTMLElement that will be used as', 'the arrow.'].join(' '));
+    }
+  }
+
   if (!contains(state.elements.popper, arrowElement)) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error(['Popper: "arrow" modifier\'s `element` must be a child of the popper', 'element.'].join(' '));
+    }
 
     return;
   }
@@ -741,6 +750,16 @@ function computeStyles(_ref5) {
       adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
       _options$roundOffsets = options.roundOffsets,
       roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
+
+  if (process.env.NODE_ENV !== "production") {
+    var transitionProperty = getComputedStyle(state.elements.popper).transitionProperty || '';
+
+    if (adaptive && ['transform', 'top', 'right', 'bottom', 'left'].some(function (property) {
+      return transitionProperty.indexOf(property) >= 0;
+    })) {
+      console.warn(['Popper: Detected CSS transitions on at least one of the following', 'CSS properties: "transform", "top", "right", "bottom", "left".', '\n\n', 'Disable the "computeStyles" modifier\'s `adaptive` option to allow', 'for smooth transitions, or remove these properties from the CSS', 'transition declaration on the popper element if only transitioning', 'opacity or background-color for example.', '\n\n', 'We recommend using the popper element as a wrapper around an inner', 'element that can have any CSS property transitioned for animations.'].join(' '));
+    }
+  }
 
   var commonStyles = {
     placement: getBasePlacement(state.placement),
@@ -1182,6 +1201,10 @@ function computeAutoPlacement(state, options) {
 
   if (allowedPlacements.length === 0) {
     allowedPlacements = placements$1;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.error(['Popper: The `allowedAutoPlacements` option did not allow any', 'placements. Ensure the `placement` option matches the variation', 'of the allowed placements.', 'For example, "auto" cannot be used to allow "bottom-start".', 'Use "auto-start" instead.'].join(' '));
+    }
   } // $FlowFixMe[incompatible-type]: Flow seems to have problems with two array unions...
 
 
@@ -1733,6 +1756,108 @@ function debounce(fn) {
   };
 }
 
+function format(str) {
+  for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+    args[_key - 1] = arguments[_key];
+  }
+
+  return [].concat(args).reduce(function (p, c) {
+    return p.replace(/%s/, c);
+  }, str);
+}
+
+var INVALID_MODIFIER_ERROR = 'Popper: modifier "%s" provided an invalid %s property, expected %s but got %s';
+var MISSING_DEPENDENCY_ERROR = 'Popper: modifier "%s" requires "%s", but "%s" modifier is not available';
+var VALID_PROPERTIES = ['name', 'enabled', 'phase', 'fn', 'effect', 'requires', 'options'];
+function validateModifiers(modifiers) {
+  modifiers.forEach(function (modifier) {
+    [].concat(Object.keys(modifier), VALID_PROPERTIES) // IE11-compatible replacement for `new Set(iterable)`
+    .filter(function (value, index, self) {
+      return self.indexOf(value) === index;
+    }).forEach(function (key) {
+      switch (key) {
+        case 'name':
+          if (typeof modifier.name !== 'string') {
+            console.error(format(INVALID_MODIFIER_ERROR, String(modifier.name), '"name"', '"string"', "\"" + String(modifier.name) + "\""));
+          }
+
+          break;
+
+        case 'enabled':
+          if (typeof modifier.enabled !== 'boolean') {
+            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"enabled"', '"boolean"', "\"" + String(modifier.enabled) + "\""));
+          }
+
+          break;
+
+        case 'phase':
+          if (modifierPhases.indexOf(modifier.phase) < 0) {
+            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"phase"', "either " + modifierPhases.join(', '), "\"" + String(modifier.phase) + "\""));
+          }
+
+          break;
+
+        case 'fn':
+          if (typeof modifier.fn !== 'function') {
+            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"fn"', '"function"', "\"" + String(modifier.fn) + "\""));
+          }
+
+          break;
+
+        case 'effect':
+          if (modifier.effect != null && typeof modifier.effect !== 'function') {
+            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"effect"', '"function"', "\"" + String(modifier.fn) + "\""));
+          }
+
+          break;
+
+        case 'requires':
+          if (modifier.requires != null && !Array.isArray(modifier.requires)) {
+            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"requires"', '"array"', "\"" + String(modifier.requires) + "\""));
+          }
+
+          break;
+
+        case 'requiresIfExists':
+          if (!Array.isArray(modifier.requiresIfExists)) {
+            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"requiresIfExists"', '"array"', "\"" + String(modifier.requiresIfExists) + "\""));
+          }
+
+          break;
+
+        case 'options':
+        case 'data':
+          break;
+
+        default:
+          console.error("PopperJS: an invalid property has been provided to the \"" + modifier.name + "\" modifier, valid properties are " + VALID_PROPERTIES.map(function (s) {
+            return "\"" + s + "\"";
+          }).join(', ') + "; but \"" + key + "\" was provided.");
+      }
+
+      modifier.requires && modifier.requires.forEach(function (requirement) {
+        if (modifiers.find(function (mod) {
+          return mod.name === requirement;
+        }) == null) {
+          console.error(format(MISSING_DEPENDENCY_ERROR, String(modifier.name), requirement, requirement));
+        }
+      });
+    });
+  });
+}
+
+function uniqueBy(arr, fn) {
+  var identifiers = new Set();
+  return arr.filter(function (item) {
+    var identifier = fn(item);
+
+    if (!identifiers.has(identifier)) {
+      identifiers.add(identifier);
+      return true;
+    }
+  });
+}
+
 function mergeByName(modifiers) {
   var merged = modifiers.reduce(function (merged, current) {
     var existing = merged[current.name];
@@ -1748,6 +1873,8 @@ function mergeByName(modifiers) {
   });
 }
 
+var INVALID_ELEMENT_ERROR = 'Popper: Invalid reference or popper argument provided. They must be either a DOM element or virtual element.';
+var INFINITE_LOOP_ERROR = 'Popper: An infinite loop in the modifiers cycle has been detected! The cycle has been interrupted to prevent a browser crash.';
 var DEFAULT_OPTIONS = {
   placement: 'bottom',
   modifiers: [],
@@ -1810,6 +1937,40 @@ function popperGenerator(generatorOptions) {
         state.orderedModifiers = orderedModifiers.filter(function (m) {
           return m.enabled;
         }); // Validate the provided modifiers so that the consumer will get warned
+        // if one of the modifiers is invalid for any reason
+
+        if (process.env.NODE_ENV !== "production") {
+          var modifiers = uniqueBy([].concat(orderedModifiers, state.options.modifiers), function (_ref) {
+            var name = _ref.name;
+            return name;
+          });
+          validateModifiers(modifiers);
+
+          if (getBasePlacement(state.options.placement) === auto) {
+            var flipModifier = state.orderedModifiers.find(function (_ref2) {
+              var name = _ref2.name;
+              return name === 'flip';
+            });
+
+            if (!flipModifier) {
+              console.error(['Popper: "auto" placements require the "flip" modifier be', 'present and enabled to work.'].join(' '));
+            }
+          }
+
+          var _getComputedStyle = getComputedStyle(popper),
+              marginTop = _getComputedStyle.marginTop,
+              marginRight = _getComputedStyle.marginRight,
+              marginBottom = _getComputedStyle.marginBottom,
+              marginLeft = _getComputedStyle.marginLeft; // We no longer take into account `margins` on the popper, and it can
+          // cause bugs with positioning, so we'll warn the consumer
+
+
+          if ([marginTop, marginRight, marginBottom, marginLeft].some(function (margin) {
+            return parseFloat(margin);
+          })) {
+            console.warn(['Popper: CSS "margin" styles cannot be used to apply padding', 'between the popper and its reference element or boundary.', 'To replicate margin, use the `offset` modifier, as well as', 'the `padding` option in the `preventOverflow` and `flip`', 'modifiers.'].join(' '));
+          }
+        }
 
         runModifierEffects();
         return instance.update();
@@ -1830,6 +1991,9 @@ function popperGenerator(generatorOptions) {
         // anymore
 
         if (!areValidElements(reference, popper)) {
+          if (process.env.NODE_ENV !== "production") {
+            console.error(INVALID_ELEMENT_ERROR);
+          }
 
           return;
         } // Store the reference and popper rects to be read by modifiers
@@ -1853,8 +2017,17 @@ function popperGenerator(generatorOptions) {
         state.orderedModifiers.forEach(function (modifier) {
           return state.modifiersData[modifier.name] = Object.assign({}, modifier.data);
         });
+        var __debug_loops__ = 0;
 
         for (var index = 0; index < state.orderedModifiers.length; index++) {
+          if (process.env.NODE_ENV !== "production") {
+            __debug_loops__ += 1;
+
+            if (__debug_loops__ > 100) {
+              console.error(INFINITE_LOOP_ERROR);
+              break;
+            }
+          }
 
           if (state.reset === true) {
             state.reset = false;
@@ -1893,6 +2066,9 @@ function popperGenerator(generatorOptions) {
     };
 
     if (!areValidElements(reference, popper)) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error(INVALID_ELEMENT_ERROR);
+      }
 
       return instance;
     }
@@ -1958,7 +2134,7 @@ function tooeenRandomId() {
 function generateExpressIDFragmentIDMap(fragmentsList) {
     const map = {};
     fragmentsList.forEach((fragment) => {
-        map[fragment.id] = fragment.items;
+        map[fragment.id] = new Set(fragment.items);
     });
     return map;
 }
@@ -2128,440 +2304,6 @@ function bufferGeometryToIndexed(geometry) {
     geometry.getAttribute("position").needsUpdate = true;
 }
 
-class CSS2DObject extends Object3D {
-
-	constructor( element = document.createElement( 'div' ) ) {
-
-		super();
-
-		this.isCSS2DObject = true;
-
-		this.element = element;
-
-		this.element.style.position = 'absolute';
-		this.element.style.userSelect = 'none';
-
-		this.element.setAttribute( 'draggable', false );
-
-		this.center = new Vector2$1( 0.5, 0.5 ); // ( 0, 0 ) is the lower left; ( 1, 1 ) is the top right
-
-		this.addEventListener( 'removed', function () {
-
-			this.traverse( function ( object ) {
-
-				if ( object.element instanceof Element && object.element.parentNode !== null ) {
-
-					object.element.parentNode.removeChild( object.element );
-
-				}
-
-			} );
-
-		} );
-
-	}
-
-	copy( source, recursive ) {
-
-		super.copy( source, recursive );
-
-		this.element = source.element.cloneNode( true );
-
-		this.center = source.center;
-
-		return this;
-
-	}
-
-}
-
-//
-
-const _vector$3 = new Vector3$1();
-const _viewMatrix = new Matrix4();
-const _viewProjectionMatrix = new Matrix4();
-const _a = new Vector3$1();
-const _b = new Vector3$1();
-
-class CSS2DRenderer {
-
-	constructor( parameters = {} ) {
-
-		const _this = this;
-
-		let _width, _height;
-		let _widthHalf, _heightHalf;
-
-		const cache = {
-			objects: new WeakMap()
-		};
-
-		const domElement = parameters.element !== undefined ? parameters.element : document.createElement( 'div' );
-
-		domElement.style.overflow = 'hidden';
-
-		this.domElement = domElement;
-
-		this.getSize = function () {
-
-			return {
-				width: _width,
-				height: _height
-			};
-
-		};
-
-		this.render = function ( scene, camera ) {
-
-			if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
-			if ( camera.parent === null && camera.matrixWorldAutoUpdate === true ) camera.updateMatrixWorld();
-
-			_viewMatrix.copy( camera.matrixWorldInverse );
-			_viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, _viewMatrix );
-
-			renderObject( scene, scene, camera );
-			zOrder( scene );
-
-		};
-
-		this.setSize = function ( width, height ) {
-
-			_width = width;
-			_height = height;
-
-			_widthHalf = _width / 2;
-			_heightHalf = _height / 2;
-
-			domElement.style.width = width + 'px';
-			domElement.style.height = height + 'px';
-
-		};
-
-		function renderObject( object, scene, camera ) {
-
-			if ( object.isCSS2DObject ) {
-
-				_vector$3.setFromMatrixPosition( object.matrixWorld );
-				_vector$3.applyMatrix4( _viewProjectionMatrix );
-
-				const visible = ( object.visible === true ) && ( _vector$3.z >= - 1 && _vector$3.z <= 1 ) && ( object.layers.test( camera.layers ) === true );
-				object.element.style.display = ( visible === true ) ? '' : 'none';
-
-				if ( visible === true ) {
-
-					object.onBeforeRender( _this, scene, camera );
-
-					const element = object.element;
-
-					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
-
-					if ( element.parentNode !== domElement ) {
-
-						domElement.appendChild( element );
-
-					}
-
-					object.onAfterRender( _this, scene, camera );
-
-				}
-
-				const objectData = {
-					distanceToCameraSquared: getDistanceToSquared( camera, object )
-				};
-
-				cache.objects.set( object, objectData );
-
-			}
-
-			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
-
-				renderObject( object.children[ i ], scene, camera );
-
-			}
-
-		}
-
-		function getDistanceToSquared( object1, object2 ) {
-
-			_a.setFromMatrixPosition( object1.matrixWorld );
-			_b.setFromMatrixPosition( object2.matrixWorld );
-
-			return _a.distanceToSquared( _b );
-
-		}
-
-		function filterAndFlatten( scene ) {
-
-			const result = [];
-
-			scene.traverse( function ( object ) {
-
-				if ( object.isCSS2DObject ) result.push( object );
-
-			} );
-
-			return result;
-
-		}
-
-		function zOrder( scene ) {
-
-			const sorted = filterAndFlatten( scene ).sort( function ( a, b ) {
-
-				if ( a.renderOrder !== b.renderOrder ) {
-
-					return b.renderOrder - a.renderOrder;
-
-				}
-
-				const distanceA = cache.objects.get( a ).distanceToCameraSquared;
-				const distanceB = cache.objects.get( b ).distanceToCameraSquared;
-
-				return distanceA - distanceB;
-
-			} );
-
-			const zMax = sorted.length;
-
-			for ( let i = 0, l = sorted.length; i < l; i ++ ) {
-
-				sorted[ i ].element.style.zIndex = zMax - i;
-
-			}
-
-		}
-
-	}
-
-}
-
-class LineIntersectionPicker extends Component {
-    constructor(components, config) {
-        super();
-        this.name = "LineIntersectionPicker";
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
-        this._pickedPoint = null;
-        this._raycaster = new Raycaster();
-        this._originVector = new Vector3$1();
-        this._components = components;
-        this.config = {
-            snapDistance: 0.25,
-            ...config,
-        };
-        if (this._raycaster.params.Line) {
-            this._raycaster.params.Line.threshold = 0.2;
-        }
-        this._mouse = new Mouse(components.renderer.get().domElement);
-        const marker = document.createElement("div");
-        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
-        this._marker = new CSS2DObject(marker);
-        this._marker.visible = false;
-        this._components.scene.get().add(this._marker);
-        this.enabled = false;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    /** {@link Updateable.update} */
-    update() {
-        if (!this.enabled) {
-            return;
-        }
-        this.beforeUpdate.trigger(this);
-        this._raycaster.setFromCamera(this._mouse.position, this._components.camera.get());
-        // @ts-ignore
-        const lines = this._components.meshes.filter((mesh) => mesh.isLine);
-        const intersects = this._raycaster.intersectObjects(lines);
-        // console.log(intersects)
-        if (intersects.length !== 2) {
-            this._pickedPoint = null;
-            this.updateMarker();
-            return;
-        }
-        // if (!intersects[0].index || !intersects[1].index) {return}
-        const lineA = intersects[0].object;
-        const lineB = intersects[1].object;
-        const indices = [intersects[0].index, intersects[1].index];
-        const hitPoint = new Vector3$1()
-            .copy(intersects[0].point)
-            .add(intersects[1].point)
-            .multiplyScalar(0.5);
-        const isSameElement = lineA.uuid === lineB.uuid;
-        if (isSameElement) {
-            const line = lineA;
-            const pos = line.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        else {
-            const pos1 = lineA.geometry.getAttribute("position");
-            const pos2 = lineB.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos1, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos1, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos2, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos2, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        this.afterUpdate.trigger(this);
-    }
-    findIntersection(p1, p2, p3, p4) {
-        const line1Dir = p2.sub(p1);
-        const line2Dir = p4.sub(p3);
-        const lineDirCross = new Vector3$1().crossVectors(line1Dir, line2Dir);
-        const denominator = lineDirCross.lengthSq();
-        if (denominator === 0) {
-            return null;
-        }
-        const lineToPoint = p3.sub(p1);
-        const lineToPointCross = new Vector3$1().crossVectors(lineDirCross, lineToPoint);
-        const t1 = lineToPointCross.dot(line2Dir) / denominator;
-        const intersectionPoint = new Vector3$1().addVectors(p1, line1Dir.multiplyScalar(t1));
-        return intersectionPoint;
-    }
-    updateMarker() {
-        var _a;
-        this._marker.visible = !!this._pickedPoint;
-        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
-    }
-    get() {
-        return this._pickedPoint;
-    }
-}
-
-class VertexPicker extends Component {
-    constructor(components, config) {
-        super();
-        this.name = "VertexPicker";
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
-        this._pickedPoint = null;
-        this._components = components;
-        this.config = {
-            snapDistance: 0.25,
-            showOnlyVertex: true,
-            ...config,
-        };
-        const marker = document.createElement("div");
-        marker.className =
-            "rounded-full w-[15px] h-[15px] border-3 border-solid border-red-500";
-        this._marker = new CSS2DObject(marker);
-        this._marker.visible = false;
-        this._components.scene.get().add(this._marker);
-        this.enabled = false;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    get _raycaster() {
-        return this._components.raycaster;
-    }
-    /** {@link Updateable.update} */
-    update() {
-        if (!this.enabled) {
-            return;
-        }
-        this.beforeUpdate.trigger(this);
-        const intersects = this._raycaster.castRay();
-        if (!intersects) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        this._pickedPoint = this.getClosestVertex(intersects);
-        if (!this._pickedPoint) {
-            this._marker.visible = false;
-            return;
-        }
-        this._marker.visible = true;
-        this._marker.position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
-        this.afterUpdate.trigger(this);
-    }
-    getClosestVertex(intersects) {
-        let closestVertex = new THREE$1.Vector3();
-        let vertexFound = false;
-        let closestDistance = Number.MAX_SAFE_INTEGER;
-        const vertices = this.getVertices(intersects);
-        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
-            if (!vertex)
-                return;
-            const distance = intersects.point.distanceTo(vertex);
-            if (distance > closestDistance || distance > this._config.snapDistance)
-                return;
-            vertexFound = true;
-            closestVertex = vertex;
-            closestDistance = intersects.point.distanceTo(vertex);
-        });
-        if (vertexFound) {
-            return closestVertex;
-        }
-        return this.config.showOnlyVertex ? null : intersects.point;
-    }
-    getVertices(intersects) {
-        const mesh = intersects.object;
-        if (!intersects.face || !mesh)
-            return null;
-        const geom = mesh.geometry;
-        return [
-            this.getVertex(intersects.face.a, geom),
-            this.getVertex(intersects.face.b, geom),
-            this.getVertex(intersects.face.c, geom),
-        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
-    }
-    getVertex(index, geom) {
-        if (index === undefined)
-            return null;
-        const vertices = geom.attributes.position;
-        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
-    }
-    get() {
-        return this._pickedPoint;
-    }
-}
-
 class SimpleUIComponent extends Component {
     constructor(components, domElement, id) {
         super();
@@ -2574,7 +2316,7 @@ class SimpleUIComponent extends Component {
         this._enabled = true;
         this._visible = true;
         this._active = false;
-        this.components = components;
+        this._components = components;
         this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
         domElement.id = this.id;
         this.domElement = domElement;
@@ -2697,7 +2439,7 @@ class Toolbar extends SimpleUIComponent {
             this.children.push(btn);
             this.domElement.append(btn.domElement);
         });
-        this.components.ui.updateToolbars();
+        this._components.ui.updateToolbars();
     }
     updateElements() {
         this.children.forEach((button) => (button.parent = this));
@@ -2714,41 +2456,40 @@ class Toolbar extends SimpleUIComponent {
 
 class Button extends SimpleUIComponent {
     constructor(components, options) {
-        var _a;
         const btn = document.createElement("button");
+        btn.type = "button";
         btn.className = `
-    relative flex gap-x-2 items-center bg-transparent text-white rounded-md h-fit p-2
+    relative flex gap-x-2 items-center justify-start bg-transparent text-white text-base rounded-md h-fit p-2
     hover:cursor-pointer hover:bg-ifcjs-200 hover:text-ifcjs-100
     data-[active=true]:cursor-pointer data-[active=true]:bg-ifcjs-200 data-[active=true]:text-ifcjs-100
     disabled:cursor-default disabled:bg-transparent disabled:text-gray-500
     transition-all
     `;
         super(components, btn, options === null || options === void 0 ? void 0 : options.id);
-        this.clicked = new Event();
+        this.name = "TooeenButton";
+        this.onClicked = new Event();
         this._closeOnClick = true;
-        this.name = (_a = options === null || options === void 0 ? void 0 : options.name) !== null && _a !== void 0 ? _a : "Custom Button";
+        this._label = null;
+        this._labelElement = document.createElement("p");
+        this._labelElement.className = "text-base whitespace-nowrap";
+        this.label = (options === null || options === void 0 ? void 0 : options.name) ? options.name : null;
         if (options === null || options === void 0 ? void 0 : options.materialIconName) {
             const icon = document.createElement("span");
             icon.className = "material-icons md-18";
             icon.textContent = options === null || options === void 0 ? void 0 : options.materialIconName;
             btn.append(icon);
         }
-        if (options === null || options === void 0 ? void 0 : options.name) {
-            const name = document.createElement("p");
-            name.style.whiteSpace = "nowrap";
-            name.textContent = options.name;
-            this.domElement.append(name);
-        }
+        this.domElement.append(this._labelElement);
         if ((options === null || options === void 0 ? void 0 : options.closeOnClick) !== undefined) {
             this._closeOnClick = options.closeOnClick;
         }
         this.domElement.onclick = (e) => {
-            var _a;
+            var _a, _b;
             e.stopImmediatePropagation();
             if (!((_a = this.parent) === null || _a === void 0 ? void 0 : _a.parent)) {
-                this.components.ui.closeMenus();
+                this._components.ui.closeMenus();
             }
-            this.parent.closeMenus();
+            (_b = this.parent) === null || _b === void 0 ? void 0 : _b.closeMenus();
             this.menu.visible = true;
             this._popper.update();
         };
@@ -2766,7 +2507,7 @@ class Button extends SimpleUIComponent {
                 },
                 {
                     name: "preventOverflow",
-                    options: { boundary: this.components.ui.viewerContainer },
+                    options: { boundary: this._components.ui.viewerContainer },
                 },
             ],
         });
@@ -2774,13 +2515,26 @@ class Button extends SimpleUIComponent {
         this.onEnabled.on(() => (this.domElement.disabled = false));
         this.onDisabled.on(() => (this.domElement.disabled = true));
     }
+    set label(value) {
+        this._label = null;
+        this._labelElement.textContent = value;
+        if (value) {
+            this._labelElement.classList.remove("hidden");
+        }
+        else {
+            this._labelElement.classList.add("hidden");
+        }
+    }
+    get label() {
+        return this._label;
+    }
     set onclick(listener) {
         this.domElement.onclick = (e) => {
             e.stopImmediatePropagation();
             listener(e);
             if (this._closeOnClick) {
-                this.components.ui.closeMenus();
-                this.components.ui.contextMenu.visible = false;
+                this._components.ui.closeMenus();
+                this._components.ui.contextMenu.visible = false;
             }
         };
     }
@@ -2797,9 +2551,6 @@ class Button extends SimpleUIComponent {
         if (!onlyChildren) {
             this.domElement.remove();
         }
-    }
-    get() {
-        return this.domElement;
     }
     addChild(...button) {
         this.menu.addChild(...button);
@@ -3098,6 +2849,213 @@ class ToolComponent extends Component {
             }
         }
     }
+}
+
+class CSS2DObject extends Object3D {
+
+	constructor( element = document.createElement( 'div' ) ) {
+
+		super();
+
+		this.isCSS2DObject = true;
+
+		this.element = element;
+
+		this.element.style.position = 'absolute';
+		this.element.style.userSelect = 'none';
+
+		this.element.setAttribute( 'draggable', false );
+
+		this.center = new Vector2$1( 0.5, 0.5 ); // ( 0, 0 ) is the lower left; ( 1, 1 ) is the top right
+
+		this.addEventListener( 'removed', function () {
+
+			this.traverse( function ( object ) {
+
+				if ( object.element instanceof Element && object.element.parentNode !== null ) {
+
+					object.element.parentNode.removeChild( object.element );
+
+				}
+
+			} );
+
+		} );
+
+	}
+
+	copy( source, recursive ) {
+
+		super.copy( source, recursive );
+
+		this.element = source.element.cloneNode( true );
+
+		this.center = source.center;
+
+		return this;
+
+	}
+
+}
+
+//
+
+const _vector$3 = new Vector3$1();
+const _viewMatrix = new Matrix4();
+const _viewProjectionMatrix = new Matrix4();
+const _a = new Vector3$1();
+const _b = new Vector3$1();
+
+class CSS2DRenderer {
+
+	constructor( parameters = {} ) {
+
+		const _this = this;
+
+		let _width, _height;
+		let _widthHalf, _heightHalf;
+
+		const cache = {
+			objects: new WeakMap()
+		};
+
+		const domElement = parameters.element !== undefined ? parameters.element : document.createElement( 'div' );
+
+		domElement.style.overflow = 'hidden';
+
+		this.domElement = domElement;
+
+		this.getSize = function () {
+
+			return {
+				width: _width,
+				height: _height
+			};
+
+		};
+
+		this.render = function ( scene, camera ) {
+
+			if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
+			if ( camera.parent === null && camera.matrixWorldAutoUpdate === true ) camera.updateMatrixWorld();
+
+			_viewMatrix.copy( camera.matrixWorldInverse );
+			_viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, _viewMatrix );
+
+			renderObject( scene, scene, camera );
+			zOrder( scene );
+
+		};
+
+		this.setSize = function ( width, height ) {
+
+			_width = width;
+			_height = height;
+
+			_widthHalf = _width / 2;
+			_heightHalf = _height / 2;
+
+			domElement.style.width = width + 'px';
+			domElement.style.height = height + 'px';
+
+		};
+
+		function renderObject( object, scene, camera ) {
+
+			if ( object.isCSS2DObject ) {
+
+				_vector$3.setFromMatrixPosition( object.matrixWorld );
+				_vector$3.applyMatrix4( _viewProjectionMatrix );
+
+				const visible = ( object.visible === true ) && ( _vector$3.z >= - 1 && _vector$3.z <= 1 ) && ( object.layers.test( camera.layers ) === true );
+				object.element.style.display = ( visible === true ) ? '' : 'none';
+
+				if ( visible === true ) {
+
+					object.onBeforeRender( _this, scene, camera );
+
+					const element = object.element;
+
+					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
+
+					if ( element.parentNode !== domElement ) {
+
+						domElement.appendChild( element );
+
+					}
+
+					object.onAfterRender( _this, scene, camera );
+
+				}
+
+				const objectData = {
+					distanceToCameraSquared: getDistanceToSquared( camera, object )
+				};
+
+				cache.objects.set( object, objectData );
+
+			}
+
+			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
+
+				renderObject( object.children[ i ], scene, camera );
+
+			}
+
+		}
+
+		function getDistanceToSquared( object1, object2 ) {
+
+			_a.setFromMatrixPosition( object1.matrixWorld );
+			_b.setFromMatrixPosition( object2.matrixWorld );
+
+			return _a.distanceToSquared( _b );
+
+		}
+
+		function filterAndFlatten( scene ) {
+
+			const result = [];
+
+			scene.traverse( function ( object ) {
+
+				if ( object.isCSS2DObject ) result.push( object );
+
+			} );
+
+			return result;
+
+		}
+
+		function zOrder( scene ) {
+
+			const sorted = filterAndFlatten( scene ).sort( function ( a, b ) {
+
+				if ( a.renderOrder !== b.renderOrder ) {
+
+					return b.renderOrder - a.renderOrder;
+
+				}
+
+				const distanceA = cache.objects.get( a ).distanceToCameraSquared;
+				const distanceB = cache.objects.get( b ).distanceToCameraSquared;
+
+				return distanceA - distanceB;
+
+			} );
+
+			const zMax = sorted.length;
+
+			for ( let i = 0, l = sorted.length; i < l; i ++ ) {
+
+				sorted[ i ].element.style.zIndex = zMax - i;
+
+			}
+
+		}
+
+	}
+
 }
 
 /**
@@ -9651,7 +9609,7 @@ function disposeBoundsTree() {
 }
 
 class UIComponentsStack extends SimpleUIComponent {
-    constructor(components, direction) {
+    constructor(components, direction = "Vertical") {
         const stack = document.createElement("div");
         stack.className = `flex ${direction === "Vertical" ? "flex-col" : "flex-row"}`;
         super(components, stack);
@@ -9659,30 +9617,76 @@ class UIComponentsStack extends SimpleUIComponent {
     }
 }
 
-class TreeView extends Component {
+class TreeTitle extends UIComponentsStack {
+    constructor(components) {
+        super(components, "Horizontal");
+        this.get().classList.add("items-center", "text-base", "justify-between", "hover:bg-ifcjs-120", "rounded-md", "w-full", "min-h-[30px]");
+        this.arrow = new Button(components, { materialIconName: "arrow_right" });
+        this.arrow.get().classList.remove("p-2");
+        this.arrow.get().classList.add("p-1", "h-full");
+        const leftContainer = new UIComponentsStack(components, "Horizontal");
+        leftContainer.get().classList.add("items-center", "gap-x-2");
+        leftContainer.addChild(this.arrow);
+        const titleContainer = document.createElement("div");
+        titleContainer.className = "flex flex-col items-start py-[5px]";
+        this._titleElement = document.createElement("p");
+        this._titleElement.className = "text-base";
+        this._descriptionElement = document.createElement("p");
+        this._descriptionElement.className = "text-sm text-gray-400 hidden";
+        titleContainer.append(this._titleElement, this._descriptionElement);
+        leftContainer.get().append(titleContainer);
+        this.rightContainer = new UIComponentsStack(components, "Horizontal");
+        this.rightContainer.get().classList.add("ml-5", "mr-[8px]");
+        this.get().append(leftContainer.get(), this.rightContainer.get());
+    }
+    set description(value) {
+        if (value) {
+            this._descriptionElement.textContent = value;
+            this._descriptionElement.classList.remove("hidden");
+        }
+        else {
+            this._descriptionElement.textContent = null;
+            this._descriptionElement.classList.add("hidden");
+        }
+    }
+    get description() {
+        return this._descriptionElement.textContent;
+    }
+    set title(value) {
+        if (value) {
+            this._titleElement.textContent = value;
+        }
+    }
+    get title() {
+        return this._titleElement.textContent;
+    }
+    addChild(...items) {
+        items.forEach((item) => {
+            this.children.push(item);
+            this.rightContainer.addChild(item);
+        });
+    }
+}
+
+class TreeView extends SimpleUIComponent {
     constructor(components, name) {
-        super();
-        this.enabled = true;
-        this.visible = true;
-        this.domElement = document.createElement("div");
-        this.children = [];
-        this._expanded = false;
-        this.components = components;
-        this.name = name;
-        this.domElement.className = "tooeen-tree-item";
         const div = document.createElement("div");
-        div.className = "tooeen-tree-item-title";
-        const arrow = document.createElement("span");
-        arrow.onclick = () => this.toggle();
-        arrow.className = "material-icons";
-        arrow.innerText = "arrow_right";
-        const p = document.createElement("p");
-        p.innerText = name;
-        div.append(arrow, p);
-        this.domElement.append(div);
+        div.className = `
+    flex flex-col items-start w-full box-border cursor-pointer text-base
+    `;
+        super(components, div);
+        this.onExpand = new Event();
+        this.onCollapse = new Event();
+        this._expanded = false;
+        this.titleElement = new TreeTitle(components);
+        this.titleElement.title = name;
+        this.titleElement.arrow.onclick = () => {
+            this.toggle();
+        };
         this._childrenContainer = new UIComponentsStack(components, "Vertical");
-        this._childrenContainer.get().classList.add("ml-[14px]");
-        this.domElement.append(this._childrenContainer.get());
+        this._childrenContainer.get().classList.add("pl-[22px]", "w-full");
+        this.collapse();
+        div.append(this.titleElement.get(), this._childrenContainer.get());
     }
     get expanded() {
         return this._expanded;
@@ -9690,6 +9694,12 @@ class TreeView extends Component {
     set expanded(expanded) {
         this._expanded = expanded;
         this._childrenContainer.visible = expanded;
+        if (expanded) {
+            this.titleElement.get().classList.add("bg-ifcjs-120");
+        }
+        else {
+            this.titleElement.get().classList.remove("bg-ifcjs-120");
+        }
     }
     set onclick(listener) {
         this.domElement.onclick = (e) => {
@@ -9702,9 +9712,6 @@ class TreeView extends Component {
             e.stopImmediatePropagation();
             listener(e);
         };
-    }
-    get() {
-        return this.domElement;
     }
     dispose(onlyChildren = false) {
         this.children.forEach((child) => child.dispose());
@@ -9741,6 +9748,7 @@ class TreeView extends Component {
                 }
             });
         }
+        this.onCollapse.trigger(this);
     }
     expand(deep = true) {
         this.expanded = true;
@@ -9751,10 +9759,10 @@ class TreeView extends Component {
                 }
             });
         }
+        this.onExpand.trigger(this);
     }
 }
 
-// @ts-ignore
 /**
  * A component that handles all UI components.
  */
@@ -10004,52 +10012,60 @@ class SimpleUICard extends SimpleUIComponent {
 }
 
 class FloatingWindow extends SimpleUIComponent {
-    constructor(components, config = { title: "Tooeen Floting Window" }) {
-        var _a;
-        const { title, description, initialWidth } = config;
+    constructor(components, config) {
         const window = document.createElement("div");
-        window.className = `absolute overflow-auto top-5 resize z-50 left-5 min-h-[80px] max-h-[750px] min-w-[150px] max-w-sm text-white bg-ifcjs-100 rounded-md`;
-        window.style.width = initialWidth ? `${initialWidth.toString()}px` : "auto";
-        const id = (_a = config.id) !== null && _a !== void 0 ? _a : generateUUID().toLowerCase();
-        window.id = id;
-        window.innerHTML = `
-        <div id="${id}-title-container" class="bg-ifcjs-120 sticky top-0 select-none cursor-move px-5 py-3 text-center ${!title && !description ? "hidden" : ""}">
-            <h3 id="${id}-title" class="${!title ? "hidden" : ""} text-lg font-bold">${title}</h3>
-            <p id="${id}-description" class="${!description ? "hidden" : ""}">${description}</p>
-            <span id="${id}-close" class="material-icons md-16 absolute right-2 top-2 z-20 hover:cursor-pointer hover:text-ifcjs-200">close</span>
-        </div>
-        <div id="${id}-content" class="flex-col gap-y-3 p-4 hidden overflow-auto"></div>
-        `;
-        requestAnimationFrame(() => {
-            const titleElement = document.getElementById(`${this.id}-title-container`);
-            const viewerContainer = this._components.renderer.get().domElement
-                .parentNode;
-            let isMouseDown = false;
-            let offsetX = 0;
-            let offsetY = 0;
-            titleElement.addEventListener("mousedown", (e) => {
-                isMouseDown = true;
-                const rect = this.domElement.getBoundingClientRect();
-                offsetX = e.clientX - rect.left;
-                offsetY = e.clientY - rect.top;
-            });
-            viewerContainer.addEventListener("mousemove", (e) => {
-                if (!isMouseDown) {
-                    return;
-                }
-                this.domElement.style.left = `${e.clientX - offsetX}px`;
-                this.domElement.style.top = `${e.clientY - offsetY}px`;
-                this.onMoved.trigger(this);
-            });
-            viewerContainer.addEventListener("mouseup", () => (isMouseDown = false));
-            const closeButton = document.getElementById(`${id}-close`);
-            closeButton.onclick = () => {
-                this.visible = false;
-            };
-        });
-        super(components, window, id);
+        window.className = `absolute backdrop-blur-md shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white bg-ifcjs-100 rounded-md`;
+        super(components, window, config === null || config === void 0 ? void 0 : config.id);
         this.onMoved = new Event();
         this.onResized = new Event();
+        const titleElement = document.createElement("h3");
+        titleElement.id = `${this.id}-title`;
+        titleElement.textContent = "Tooeen Floating Window";
+        titleElement.className = "text-lg font-bold";
+        const descriptionElement = document.createElement("p");
+        descriptionElement.id = `${this.id}-description`;
+        descriptionElement.className = "text-base";
+        const closeElement = document.createElement("span");
+        closeElement.onclick = () => (this.visible = false);
+        closeElement.innerText = "close";
+        closeElement.className =
+            "material-icons md-16 absolute right-2 top-2 z-20 hover:cursor-pointer hover:text-ifcjs-200";
+        const titleContainer = document.createElement("div");
+        titleContainer.id = `${this.id}-title-container`;
+        titleContainer.className =
+            "bg-ifcjs-120 sticky z-10 top-0 select-none cursor-move px-5 py-3 text-center";
+        titleContainer.append(titleElement, descriptionElement, closeElement);
+        const content = document.createElement("div");
+        content.id = `${this.id}-content`;
+        content.className = "flex-col gap-y-3 p-3 hidden overflow-auto";
+        this.domElement.append(titleContainer, content);
+        const viewerContainer = this._components.renderer.get().domElement
+            .parentNode;
+        let isMouseDown = false;
+        let offsetX = 0;
+        let offsetY = 0;
+        titleContainer.addEventListener("mousedown", (e) => {
+            isMouseDown = true;
+            const rect = this.domElement.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+        });
+        viewerContainer.addEventListener("mousemove", (e) => {
+            if (!isMouseDown) {
+                return;
+            }
+            const { width, height } = this.domElement.getBoundingClientRect();
+            const { x, y, width: containerWidth, height: containerHeight, } = viewerContainer.getBoundingClientRect();
+            const maxLeft = containerWidth - width;
+            const maxTop = containerHeight - height;
+            const left = Math.max(0, Math.min(e.clientX - offsetX - x, maxLeft));
+            const top = Math.max(0, Math.min(e.clientY - offsetY - y, maxTop));
+            this.domElement.style.left = `${left}px`;
+            this.domElement.style.top = `${top}px`;
+            this.onMoved.trigger(this);
+        });
+        viewerContainer.addEventListener("mouseup", () => (isMouseDown = false));
+        requestAnimationFrame(() => { });
         const observer = new ResizeObserver(() => {
             this.onResized.trigger(this);
         });
@@ -10065,7 +10081,6 @@ class FloatingWindow extends SimpleUIComponent {
             bottom: new Vector2$1(),
             bottomRight: new Vector2$1(),
         };
-        this._components = components;
     }
     set description(value) {
         const descriptionElement = document.getElementById(`${this.id}-description`);
@@ -10080,6 +10095,17 @@ class FloatingWindow extends SimpleUIComponent {
     get description() {
         const descriptionElement = document.getElementById(`${this.id}-description`);
         return descriptionElement.textContent;
+    }
+    set title(value) {
+        const titleElement = document.getElementById(`${this.id}-title`);
+        if (titleElement && value) {
+            titleElement.textContent = value;
+            titleElement.classList.remove("hidden");
+        }
+    }
+    get title() {
+        const titleElement = document.getElementById(`${this.id}-title`);
+        return titleElement.textContent;
     }
     addChild(...items) {
         const contentDiv = document.getElementById(`${this.id}-content`);
@@ -10184,7 +10210,7 @@ class InfoCard extends Component {
 class InputLabel extends SimpleUIComponent {
     constructor(components, value) {
         const label = document.createElement("label");
-        label.className = `block leading-6 text-gray-300 text-sm`;
+        label.className = `block leading-6 text-gray-400 text-sm`;
         label.textContent = value;
         super(components, label);
         this.name = "InputLabel";
@@ -10194,7 +10220,7 @@ class InputLabel extends SimpleUIComponent {
 class BaseInput extends SimpleUIComponent {
     constructor(components, inputElement, config) {
         const div = document.createElement("div");
-        div.className = "flex flex-col";
+        div.className = "flex flex-col w-full";
         const _config = {
             name: "Tooeen Input",
             ...config,
@@ -10220,6 +10246,9 @@ class BaseInput extends SimpleUIComponent {
     set inputValue(value) {
         this.inputElement.value = value;
     }
+    clear() {
+        this.inputValue = "";
+    }
     addChild() {
         console.warn("Input components doesn't allow children.");
     }
@@ -10229,14 +10258,16 @@ class Dropdown extends BaseInput {
     constructor(components, name = "Tooeen Dropdown") {
         const input = document.createElement("select");
         input.className =
-            "block w-full rounded-md border-0 h-[40px] text-white bg-ifcjs-100 ring-1 ring-inset ring-ifcjs-120 focus:ring-2 focus:ring-ifcjs-200";
+            "block w-full text-base px-3 rounded-md border-0 h-[40px] text-white bg-ifcjs-100 ring-1 ring-inset ring-ifcjs-120 focus:ring-2 focus:ring-ifcjs-200";
         super(components, input);
         this.name = "Dropdown";
         this.options = [];
         this.labelElement.textContent = name;
     }
-    addOption(value) {
-        this.options.push(value);
+    addOption(...value) {
+        for (const v of value) {
+            this.options.push(v);
+        }
         this.updateOptions();
         return this;
     }
@@ -10276,7 +10307,7 @@ class TextInput extends BaseInput {
         const input = document.createElement("input");
         input.className = `
     block bg-ifcjs-100 w-full rounded-md border-0 h-[40px] px-3 text-white shadow-sm ring-1 
-    ring-inset ring-ifcjs-120 placeholder:text-gray-400 
+    ring-inset text-base ring-ifcjs-120 placeholder:text-gray-400 
     focus:ring-2 focus:ring-inset focus:ring-ifcjs-200
     `;
         super(components, input);
@@ -10297,11 +10328,16 @@ class CheckboxInput extends BaseInput {
         super(components, input);
         this.name = "TooeenCheckboxInput";
         this.labelElement.textContent = "Tooeen Checkbox";
-        this.wrapperElement.classList.remove("flex-col");
-        this.wrapperElement.classList.add("items-center", "flex-row-reverse", "justify-end");
+        this.wrapperElement.classList.remove("flex-col", "w-full");
+        this.wrapperElement.classList.add("items-center", "flex-row-reverse", "justify-end", "gap-x-1");
     }
+    // @ts-ignore
+    set inputValue(value) {
+        this.inputElement.checked = value;
+    }
+    // @ts-ignore
     get inputValue() {
-        return this.inputElement.checked.toString();
+        return this.inputElement.checked;
     }
 }
 
@@ -12236,6 +12272,10 @@ class SimpleClipper extends Component {
         this._size = 5;
         this._enabled = false;
         this._visible = true;
+        this.beforeCreate = new Event();
+        this.beforeCancel = new Event();
+        this.afterCancel = new Event();
+        this.beforeDelete = new Event();
         this._onStartDragging = () => {
             this.beforeDrag.trigger();
         };
@@ -12297,6 +12337,8 @@ class SimpleClipper extends Component {
             plane.size = size;
         }
     }
+    endCreation() { }
+    cancelCreation() { }
     /** {@link Component.get} */
     get() {
         return this._planes;
@@ -12678,463 +12720,6 @@ class ScreenCuller extends Component {
             b: this._colors.b,
             code: `${this._colors.r}-${this._colors.g}-${this._colors.b}`,
         };
-    }
-}
-
-/** The name of the CSS class that styles the dimension label. */
-const DimensionLabelClassName = "text-white text-sm bg-ifcjs-100 rounded-md px-3 py-1";
-/** The name of the CSS class that styles the dimension label. */
-const DimensionPreviewClassName = "bg-ifcjs-100 rounded-full w-[8px] h-[8px]";
-
-// TODO: Document + clean up this: way less parameters, clearer logic
-class SimpleDimensionLine {
-    constructor(components, data) {
-        this.boundingBox = new THREE$1.Mesh();
-        this._disposer = new Disposer();
-        this._root = new THREE$1.Group();
-        this._endpoints = [];
-        this._components = components;
-        this.start = data.start;
-        this.end = data.end;
-        this._length = this.getLength();
-        this.center = this.getCenter();
-        this._line = this.createLine(data);
-        this.newEndpointMesh(data);
-        this.newEndpointMesh(data);
-        this.label = this.newText();
-        this._root.renderOrder = 2;
-        this._components.scene.get().add(this._root);
-    }
-    set visible(visible) {
-        if (visible) {
-            this._components.scene.get().add(this._root);
-            this._root.add(this.label);
-        }
-        else {
-            this._root.removeFromParent();
-            this.label.removeFromParent();
-        }
-    }
-    set geometry(geometry) {
-        for (const point of this._endpoints) {
-            point.geometry = geometry;
-        }
-    }
-    set endPoint(point) {
-        this.end = point;
-        this.updateEndpointPosition(point);
-        this.updateEndpointMeshes(point);
-        this.updateLabel();
-    }
-    set startPoint(point) {
-        this.start = point;
-        this.updateStartpointPosition(point);
-        // this.updateEndpointMeshes(point);
-        this.updateLabel();
-    }
-    dispose() {
-        this.visible = false;
-        this._disposer.dispose(this._root);
-        this._disposer.dispose(this._line);
-        for (const mesh of this._endpoints) {
-            mesh.removeFromParent();
-        }
-        this._endpoints.length = 0;
-        this.label.removeFromParent();
-        this.label.element.remove();
-        if (this.boundingBox) {
-            this._disposer.dispose(this.boundingBox);
-        }
-    }
-    createBoundingBox() {
-        this.boundingBox.geometry = new THREE$1.BoxGeometry(1, 1, this._length);
-        this.boundingBox.position.copy(this.center);
-        this.boundingBox.lookAt(this.end);
-        this.boundingBox.visible = false;
-        this._root.add(this.boundingBox);
-    }
-    updateLabel() {
-        this._length = this.getLength();
-        this.label.element.textContent = this.getTextContent();
-        this.center = this.getCenter();
-        this.label.position.set(this.center.x, this.center.y, this.center.z);
-        this._line.computeLineDistances();
-    }
-    updateEndpointMeshes(point) {
-        this._endpoints[1].position.copy(point);
-        this._endpoints[1].lookAt(this.start);
-        this._endpoints[0].lookAt(this.end);
-    }
-    updateStartpointPosition(point) {
-        const position = this._line.geometry.attributes
-            .position;
-        position.setXYZ(0, point.x, point.y, point.z);
-        position.needsUpdate = true;
-    }
-    updateEndpointPosition(point) {
-        const position = this._line.geometry.attributes
-            .position;
-        position.setXYZ(1, point.x, point.y, point.z);
-        position.needsUpdate = true;
-    }
-    createLine(data) {
-        const axisGeom = new THREE$1.BufferGeometry();
-        axisGeom.setFromPoints([data.start, data.end]);
-        const line = new THREE$1.Line(axisGeom, data.lineMaterial);
-        this._root.add(line);
-        return line;
-    }
-    newEndpointMesh(data) {
-        const isFirst = this._endpoints.length === 0;
-        const position = isFirst ? this.start : this.end;
-        const direction = isFirst ? this.end : this.start;
-        const mesh = data.endpoint.clone();
-        mesh.position.copy(position);
-        mesh.lookAt(direction);
-        this._endpoints.push(mesh);
-        this._root.add(mesh);
-    }
-    newText() {
-        const htmlText = document.createElement("div");
-        htmlText.className = DimensionLabelClassName;
-        htmlText.textContent = this.getTextContent();
-        const label = new CSS2DObject(htmlText);
-        label.position.set(this.center.x, this.center.y, this.center.z);
-        this._root.add(label);
-        return label;
-    }
-    getTextContent() {
-        return `${this._length / SimpleDimensionLine.scale} ${SimpleDimensionLine.units}`;
-    }
-    getLength() {
-        return parseFloat(this.start.distanceTo(this.end).toFixed(2));
-    }
-    getCenter() {
-        let dir = this.end.clone().sub(this.start);
-        const len = dir.length() * 0.5;
-        dir = dir.normalize().multiplyScalar(len);
-        return this.start.clone().add(dir);
-    }
-}
-SimpleDimensionLine.scale = 1;
-SimpleDimensionLine.units = "m";
-
-/**
- * A basic dimension tool to measure distances between 2 points in 3D and
- * display a 3D symbol displaying the numeric value.
- */
-class SimpleDimensions extends Component {
-    constructor(_components) {
-        super();
-        this._components = _components;
-        /** {@link Component.name} */
-        this.name = "SimpleDimensions";
-        /** {@link Updateable.beforeUpdate} */
-        this.beforeUpdate = new Event();
-        /** {@link Updateable.afterUpdate} */
-        this.afterUpdate = new Event();
-        /** {@link Createable.afterCreate} */
-        this.afterCreate = new Event();
-        /** {@link Createable.beforeCreate} */
-        this.beforeCreate = new Event();
-        /** {@link Createable.afterDelete} */
-        this.afterDelete = new Event();
-        /** {@link Createable.beforeDelete} */
-        this.beforeDelete = new Event();
-        /** {@link Createable.onCreate} */
-        this.onCreate = new Event();
-        /** {@link Createable.onDelete} */
-        this.onDelete = new Event();
-        /** The minimum distance to force the dimension cursor to a vertex. */
-        this.snapDistance = 0.25;
-        this._lineMaterial = new THREE$1.LineDashedMaterial({
-            color: 0x000000,
-            linewidth: 2,
-            depthTest: false,
-            dashSize: 0.2,
-            gapSize: 0.2,
-        });
-        this._dimensions = [];
-        this._visible = true;
-        this._enabled = false;
-        this._disposer = new Disposer();
-        /** Temporary variables for internal operations */
-        this._temp = {
-            isDragging: false,
-            start: new THREE$1.Vector3(),
-            end: new THREE$1.Vector3(),
-            dimension: undefined,
-        };
-        this._raycaster = new SimpleRaycaster(this._components);
-        this._endpointMesh = this.newEndpointMesh();
-        const htmlPreview = document.createElement("div");
-        htmlPreview.className = DimensionPreviewClassName;
-        this.previewElement = new CSS2DObject(htmlPreview);
-        this.previewElement.visible = false;
-        this.setUI();
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        if (!state) {
-            this.cancelDrawing();
-        }
-        this._enabled = state;
-        this.uiElement.active = state;
-        this.previewVisible = state;
-    }
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(state) {
-        this._visible = state;
-        if (!this._visible) {
-            this.enabled = false;
-        }
-        for (const dimension of this._dimensions) {
-            dimension.visible = this._visible;
-        }
-    }
-    /**
-     * The [Color](https://threejs.org/docs/#api/en/math/Color)
-     * of the geometry of the dimensions.
-     */
-    set color(color) {
-        this._endpointMesh.material.color = color;
-        this._lineMaterial.color = color;
-    }
-    /** The geometry used in both endpoints of all the dimensions. */
-    get geometry() {
-        return this._endpointMesh.geometry;
-    }
-    /** The geometry used in both endpoints of all the dimensions. */
-    set geometry(geometry) {
-        this._endpointMesh.geometry = geometry;
-        for (const dim of this._dimensions) {
-            dim.geometry = geometry;
-        }
-    }
-    set previewVisible(state) {
-        var _a;
-        const scene = (_a = this._components.scene) === null || _a === void 0 ? void 0 : _a.get();
-        if (state) {
-            scene.add(this.previewElement);
-        }
-        else {
-            this.previewElement.removeFromParent();
-        }
-    }
-    setUI() {
-        const button = new Button(this._components, {
-            materialIconName: "straighten",
-        });
-        const viewerContainer = this._components.renderer.get().domElement
-            .parentElement;
-        const createDimension = () => this.create();
-        button.onclick = () => {
-            if (!this.enabled) {
-                viewerContainer.addEventListener("click", createDimension);
-                button.active = true;
-                this.enabled = true;
-            }
-            else {
-                this.enabled = false;
-                button.active = false;
-                viewerContainer.removeEventListener("click", createDimension);
-            }
-        };
-        button.active = this.enabled;
-        this.uiElement = button;
-        window.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && this.enabled) {
-                if (this._temp.isDragging) {
-                    this.cancelDrawing();
-                }
-                else {
-                    this.enabled = false;
-                }
-            }
-        });
-    }
-    /** {@link Component.get} */
-    get() {
-        return this._dimensions;
-    }
-    /** {@link Disposable.dispose} */
-    dispose() {
-        this.enabled = false;
-        this._dimensions.forEach((dim) => dim.dispose());
-        this._dimensions = [];
-        this._disposer.dispose(this._endpointMesh);
-        this._endpointMesh.removeFromParent();
-        this.previewElement.removeFromParent();
-        this.previewElement.element.remove();
-    }
-    /** {@link Updateable.update} */
-    update(_delta) {
-        if (this._enabled) {
-            this.beforeUpdate.trigger(this);
-            const intersects = this._raycaster.castRay();
-            this.previewElement.visible = !!intersects;
-            if (!intersects)
-                return;
-            this.previewElement.visible = true;
-            const closest = this.getClosestVertex(intersects);
-            this.previewElement.visible = !!closest;
-            if (!closest)
-                return;
-            this.previewElement.position.set(closest.x, closest.y, closest.z);
-            if (this._temp.isDragging) {
-                this.drawInProcess();
-            }
-            this.afterUpdate.trigger(this);
-        }
-    }
-    /**
-     * Starts or finishes drawing a new dimension line.
-     *
-     * @param plane - forces the dimension to be drawn on a plane. Use this if you are drawing
-     * dimensions in floor plan navigation.
-     */
-    create(plane) {
-        if (!this._enabled)
-            return;
-        if (!this._temp.isDragging) {
-            this.drawStart(plane);
-            return;
-        }
-        this.drawEnd();
-    }
-    /** Deletes the dimension that the user is hovering over with the mouse or touch event. */
-    delete() {
-        if (!this._enabled || this._dimensions.length === 0)
-            return;
-        const boundingBoxes = this.getBoundingBoxes();
-        const intersect = this._raycaster.castRay(boundingBoxes);
-        if (!intersect)
-            return;
-        const dimension = this._dimensions.find((dim) => dim.boundingBox === intersect.object);
-        if (dimension) {
-            const index = this._dimensions.indexOf(dimension);
-            this._dimensions.splice(index, 1);
-            dimension.dispose();
-            this.onDelete.trigger(dimension);
-        }
-    }
-    /** Deletes all the dimensions that have been previously created. */
-    deleteAll() {
-        this._dimensions.forEach((dim) => {
-            dim.dispose();
-            this.onDelete.trigger(dim);
-        });
-        this._dimensions = [];
-    }
-    /** Cancels the drawing of the current dimension. */
-    cancelDrawing() {
-        var _a;
-        if (!this._temp.dimension)
-            return;
-        this._temp.isDragging = false;
-        (_a = this._temp.dimension) === null || _a === void 0 ? void 0 : _a.dispose();
-        this._temp.dimension = undefined;
-    }
-    drawStart(plane) {
-        const items = plane ? [plane] : undefined;
-        const intersects = this._raycaster.castRay(items);
-        if (!intersects)
-            return;
-        this._temp.isDragging = true;
-        this._temp.start = plane
-            ? intersects.point
-            : this.getClosestVertex(intersects);
-    }
-    drawInProcess() {
-        const intersects = this._raycaster.castRay();
-        if (!intersects)
-            return;
-        const found = this.getClosestVertex(intersects);
-        if (!found)
-            return;
-        this._temp.end = found;
-        if (!this._temp.dimension) {
-            this._temp.dimension = this.drawDimension();
-        }
-        this._temp.dimension.endPoint = this._temp.end;
-    }
-    drawEnd() {
-        if (!this._temp.dimension)
-            return;
-        this._temp.dimension.createBoundingBox();
-        this._dimensions.push(this._temp.dimension);
-        this._temp.dimension = undefined;
-        this._temp.isDragging = false;
-        this.onCreate.trigger(this._temp.dimension);
-    }
-    newEndpointMesh() {
-        const geometry = SimpleDimensions.getDefaultEndpointGeometry();
-        const material = new THREE$1.MeshBasicMaterial({
-            color: 0x000000,
-            depthTest: false,
-        });
-        return new THREE$1.Mesh(geometry, material);
-    }
-    drawDimension() {
-        return new SimpleDimensionLine(this._components, {
-            start: this._temp.start,
-            end: this._temp.end,
-            lineMaterial: this._lineMaterial,
-            endpoint: this._endpointMesh,
-        });
-    }
-    getBoundingBoxes() {
-        return this._dimensions
-            .map((dim) => dim.boundingBox)
-            .filter((box) => box !== undefined);
-    }
-    static getDefaultEndpointGeometry(height = 0.4, radius = 0.1) {
-        const coneGeometry = new THREE$1.ConeGeometry(radius, height);
-        coneGeometry.translate(0, -height / 2, 0);
-        coneGeometry.rotateX(-Math.PI / 2);
-        return coneGeometry;
-    }
-    getClosestVertex(intersects) {
-        let closestVertex = new THREE$1.Vector3();
-        let vertexFound = false;
-        let closestDistance = Number.MAX_SAFE_INTEGER;
-        const vertices = SimpleDimensions.getVertices(intersects);
-        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
-            if (!vertex)
-                return;
-            const distance = intersects.point.distanceTo(vertex);
-            if (distance > closestDistance || distance > this.snapDistance)
-                return;
-            vertexFound = true;
-            closestVertex = vertex;
-            closestDistance = intersects.point.distanceTo(vertex);
-        });
-        return vertexFound ? closestVertex : intersects.point;
-    }
-    static getVertices(intersects) {
-        const mesh = intersects.object;
-        if (!intersects.face || !mesh)
-            return null;
-        const geom = mesh.geometry;
-        return [
-            SimpleDimensions.getVertex(intersects.face.a, geom),
-            SimpleDimensions.getVertex(intersects.face.b, geom),
-            SimpleDimensions.getVertex(intersects.face.c, geom),
-        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
-    }
-    static getVertex(index, geom) {
-        if (index === undefined)
-            return null;
-        const vertices = geom.attributes.position;
-        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
     }
 }
 
@@ -18334,3677 +17919,287 @@ class LocalCacher extends Component {
     }
 }
 
-class SimpleTag extends Component {
-    constructor(center, tagContent, unit) {
+class SimpleSVGViewport extends Component {
+    constructor(components, config) {
         super();
-        this.name = "SimpleTag";
-        this.enabled = true;
-        this.visible = true;
-        this._center = center;
-        this._tagContent = tagContent;
-        this._unit = unit;
-        this._htmlTag = document.createElement("div");
-        this._htmlTag.className = DimensionLabelClassName;
-        this._htmlTag.textContent = `${this._tagContent} ${this._unit}`;
-        this.createLabel();
-        return this;
-    }
-    get() {
-        return this._label;
-    }
-    createLabel() {
-        this._label = new CSS2DObject(this._htmlTag);
-        this._label.position.set(this._center.x, this._center.y, this._center.z);
-    }
-    set tagContent(tagContent) {
-        this._tagContent = tagContent;
-        this._htmlTag.textContent = `${tagContent} ${this._unit}`;
-    }
-}
-
-/**
- * Full-screen textured quad shader
- */
-
-const CopyShader = {
-
-	uniforms: {
-
-		'tDiffuse': { value: null },
-		'opacity': { value: 1.0 }
-
-	},
-
-	vertexShader: /* glsl */`
-
-		varying vec2 vUv;
-
-		void main() {
-
-			vUv = uv;
-			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-		}`,
-
-	fragmentShader: /* glsl */`
-
-		uniform float opacity;
-
-		uniform sampler2D tDiffuse;
-
-		varying vec2 vUv;
-
-		void main() {
-
-			gl_FragColor = texture2D( tDiffuse, vUv );
-			gl_FragColor.a *= opacity;
-
-
-		}`
-
-};
-
-class Pass {
-
-	constructor() {
-
-		this.isPass = true;
-
-		// if set to true, the pass is processed by the composer
-		this.enabled = true;
-
-		// if set to true, the pass indicates to swap read and write buffer after rendering
-		this.needsSwap = true;
-
-		// if set to true, the pass clears its buffer before rendering
-		this.clear = false;
-
-		// if set to true, the result of the pass is rendered to screen. This is set automatically by EffectComposer.
-		this.renderToScreen = false;
-
-	}
-
-	setSize( /* width, height */ ) {}
-
-	render( /* renderer, writeBuffer, readBuffer, deltaTime, maskActive */ ) {
-
-		console.error( 'THREE.Pass: .render() must be implemented in derived pass.' );
-
-	}
-
-	dispose() {}
-
-}
-
-// Helper for passes that need to fill the viewport with a single quad.
-
-const _camera = new OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-
-// https://github.com/mrdoob/three.js/pull/21358
-
-const _geometry = new BufferGeometry();
-_geometry.setAttribute( 'position', new Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
-_geometry.setAttribute( 'uv', new Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
-
-class FullScreenQuad {
-
-	constructor( material ) {
-
-		this._mesh = new Mesh( _geometry, material );
-
-	}
-
-	dispose() {
-
-		this._mesh.geometry.dispose();
-
-	}
-
-	render( renderer ) {
-
-		renderer.render( this._mesh, _camera );
-
-	}
-
-	get material() {
-
-		return this._mesh.material;
-
-	}
-
-	set material( value ) {
-
-		this._mesh.material = value;
-
-	}
-
-}
-
-class ShaderPass extends Pass {
-
-	constructor( shader, textureID ) {
-
-		super();
-
-		this.textureID = ( textureID !== undefined ) ? textureID : 'tDiffuse';
-
-		if ( shader instanceof ShaderMaterial ) {
-
-			this.uniforms = shader.uniforms;
-
-			this.material = shader;
-
-		} else if ( shader ) {
-
-			this.uniforms = UniformsUtils.clone( shader.uniforms );
-
-			this.material = new ShaderMaterial( {
-
-				defines: Object.assign( {}, shader.defines ),
-				uniforms: this.uniforms,
-				vertexShader: shader.vertexShader,
-				fragmentShader: shader.fragmentShader
-
-			} );
-
-		}
-
-		this.fsQuad = new FullScreenQuad( this.material );
-
-	}
-
-	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
-
-		if ( this.uniforms[ this.textureID ] ) {
-
-			this.uniforms[ this.textureID ].value = readBuffer.texture;
-
-		}
-
-		this.fsQuad.material = this.material;
-
-		if ( this.renderToScreen ) {
-
-			renderer.setRenderTarget( null );
-			this.fsQuad.render( renderer );
-
-		} else {
-
-			renderer.setRenderTarget( writeBuffer );
-			// TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
-			if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
-			this.fsQuad.render( renderer );
-
-		}
-
-	}
-
-	dispose() {
-
-		this.material.dispose();
-
-		this.fsQuad.dispose();
-
-	}
-
-}
-
-class MaskPass extends Pass {
-
-	constructor( scene, camera ) {
-
-		super();
-
-		this.scene = scene;
-		this.camera = camera;
-
-		this.clear = true;
-		this.needsSwap = false;
-
-		this.inverse = false;
-
-	}
-
-	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
-
-		const context = renderer.getContext();
-		const state = renderer.state;
-
-		// don't update color or depth
-
-		state.buffers.color.setMask( false );
-		state.buffers.depth.setMask( false );
-
-		// lock buffers
-
-		state.buffers.color.setLocked( true );
-		state.buffers.depth.setLocked( true );
-
-		// set up stencil
-
-		let writeValue, clearValue;
-
-		if ( this.inverse ) {
-
-			writeValue = 0;
-			clearValue = 1;
-
-		} else {
-
-			writeValue = 1;
-			clearValue = 0;
-
-		}
-
-		state.buffers.stencil.setTest( true );
-		state.buffers.stencil.setOp( context.REPLACE, context.REPLACE, context.REPLACE );
-		state.buffers.stencil.setFunc( context.ALWAYS, writeValue, 0xffffffff );
-		state.buffers.stencil.setClear( clearValue );
-		state.buffers.stencil.setLocked( true );
-
-		// draw into the stencil buffer
-
-		renderer.setRenderTarget( readBuffer );
-		if ( this.clear ) renderer.clear();
-		renderer.render( this.scene, this.camera );
-
-		renderer.setRenderTarget( writeBuffer );
-		if ( this.clear ) renderer.clear();
-		renderer.render( this.scene, this.camera );
-
-		// unlock color and depth buffer for subsequent rendering
-
-		state.buffers.color.setLocked( false );
-		state.buffers.depth.setLocked( false );
-
-		// only render where stencil is set to 1
-
-		state.buffers.stencil.setLocked( false );
-		state.buffers.stencil.setFunc( context.EQUAL, 1, 0xffffffff ); // draw if == 1
-		state.buffers.stencil.setOp( context.KEEP, context.KEEP, context.KEEP );
-		state.buffers.stencil.setLocked( true );
-
-	}
-
-}
-
-class ClearMaskPass extends Pass {
-
-	constructor() {
-
-		super();
-
-		this.needsSwap = false;
-
-	}
-
-	render( renderer /*, writeBuffer, readBuffer, deltaTime, maskActive */ ) {
-
-		renderer.state.buffers.stencil.setLocked( false );
-		renderer.state.buffers.stencil.setTest( false );
-
-	}
-
-}
-
-class EffectComposer {
-
-	constructor( renderer, renderTarget ) {
-
-		this.renderer = renderer;
-
-		this._pixelRatio = renderer.getPixelRatio();
-
-		if ( renderTarget === undefined ) {
-
-			const size = renderer.getSize( new Vector2$1() );
-			this._width = size.width;
-			this._height = size.height;
-
-			renderTarget = new WebGLRenderTarget( this._width * this._pixelRatio, this._height * this._pixelRatio );
-			renderTarget.texture.name = 'EffectComposer.rt1';
-
-		} else {
-
-			this._width = renderTarget.width;
-			this._height = renderTarget.height;
-
-		}
-
-		this.renderTarget1 = renderTarget;
-		this.renderTarget2 = renderTarget.clone();
-		this.renderTarget2.texture.name = 'EffectComposer.rt2';
-
-		this.writeBuffer = this.renderTarget1;
-		this.readBuffer = this.renderTarget2;
-
-		this.renderToScreen = true;
-
-		this.passes = [];
-
-		this.copyPass = new ShaderPass( CopyShader );
-
-		this.clock = new Clock();
-
-	}
-
-	swapBuffers() {
-
-		const tmp = this.readBuffer;
-		this.readBuffer = this.writeBuffer;
-		this.writeBuffer = tmp;
-
-	}
-
-	addPass( pass ) {
-
-		this.passes.push( pass );
-		pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
-
-	}
-
-	insertPass( pass, index ) {
-
-		this.passes.splice( index, 0, pass );
-		pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
-
-	}
-
-	removePass( pass ) {
-
-		const index = this.passes.indexOf( pass );
-
-		if ( index !== - 1 ) {
-
-			this.passes.splice( index, 1 );
-
-		}
-
-	}
-
-	isLastEnabledPass( passIndex ) {
-
-		for ( let i = passIndex + 1; i < this.passes.length; i ++ ) {
-
-			if ( this.passes[ i ].enabled ) {
-
-				return false;
-
-			}
-
-		}
-
-		return true;
-
-	}
-
-	render( deltaTime ) {
-
-		// deltaTime value is in seconds
-
-		if ( deltaTime === undefined ) {
-
-			deltaTime = this.clock.getDelta();
-
-		}
-
-		const currentRenderTarget = this.renderer.getRenderTarget();
-
-		let maskActive = false;
-
-		for ( let i = 0, il = this.passes.length; i < il; i ++ ) {
-
-			const pass = this.passes[ i ];
-
-			if ( pass.enabled === false ) continue;
-
-			pass.renderToScreen = ( this.renderToScreen && this.isLastEnabledPass( i ) );
-			pass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime, maskActive );
-
-			if ( pass.needsSwap ) {
-
-				if ( maskActive ) {
-
-					const context = this.renderer.getContext();
-					const stencil = this.renderer.state.buffers.stencil;
-
-					//context.stencilFunc( context.NOTEQUAL, 1, 0xffffffff );
-					stencil.setFunc( context.NOTEQUAL, 1, 0xffffffff );
-
-					this.copyPass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime );
-
-					//context.stencilFunc( context.EQUAL, 1, 0xffffffff );
-					stencil.setFunc( context.EQUAL, 1, 0xffffffff );
-
-				}
-
-				this.swapBuffers();
-
-			}
-
-			if ( MaskPass !== undefined ) {
-
-				if ( pass instanceof MaskPass ) {
-
-					maskActive = true;
-
-				} else if ( pass instanceof ClearMaskPass ) {
-
-					maskActive = false;
-
-				}
-
-			}
-
-		}
-
-		this.renderer.setRenderTarget( currentRenderTarget );
-
-	}
-
-	reset( renderTarget ) {
-
-		if ( renderTarget === undefined ) {
-
-			const size = this.renderer.getSize( new Vector2$1() );
-			this._pixelRatio = this.renderer.getPixelRatio();
-			this._width = size.width;
-			this._height = size.height;
-
-			renderTarget = this.renderTarget1.clone();
-			renderTarget.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
-
-		}
-
-		this.renderTarget1.dispose();
-		this.renderTarget2.dispose();
-		this.renderTarget1 = renderTarget;
-		this.renderTarget2 = renderTarget.clone();
-
-		this.writeBuffer = this.renderTarget1;
-		this.readBuffer = this.renderTarget2;
-
-	}
-
-	setSize( width, height ) {
-
-		this._width = width;
-		this._height = height;
-
-		const effectiveWidth = this._width * this._pixelRatio;
-		const effectiveHeight = this._height * this._pixelRatio;
-
-		this.renderTarget1.setSize( effectiveWidth, effectiveHeight );
-		this.renderTarget2.setSize( effectiveWidth, effectiveHeight );
-
-		for ( let i = 0; i < this.passes.length; i ++ ) {
-
-			this.passes[ i ].setSize( effectiveWidth, effectiveHeight );
-
-		}
-
-	}
-
-	setPixelRatio( pixelRatio ) {
-
-		this._pixelRatio = pixelRatio;
-
-		this.setSize( this._width, this._height );
-
-	}
-
-	dispose() {
-
-		this.renderTarget1.dispose();
-		this.renderTarget2.dispose();
-
-		this.copyPass.dispose();
-
-	}
-
-}
-
-class RenderPass extends Pass {
-
-	constructor( scene, camera, overrideMaterial, clearColor, clearAlpha ) {
-
-		super();
-
-		this.scene = scene;
-		this.camera = camera;
-
-		this.overrideMaterial = overrideMaterial;
-
-		this.clearColor = clearColor;
-		this.clearAlpha = ( clearAlpha !== undefined ) ? clearAlpha : 0;
-
-		this.clear = true;
-		this.clearDepth = false;
-		this.needsSwap = false;
-		this._oldClearColor = new Color();
-
-	}
-
-	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
-
-		const oldAutoClear = renderer.autoClear;
-		renderer.autoClear = false;
-
-		let oldClearAlpha, oldOverrideMaterial;
-
-		if ( this.overrideMaterial !== undefined ) {
-
-			oldOverrideMaterial = this.scene.overrideMaterial;
-
-			this.scene.overrideMaterial = this.overrideMaterial;
-
-		}
-
-		if ( this.clearColor ) {
-
-			renderer.getClearColor( this._oldClearColor );
-			oldClearAlpha = renderer.getClearAlpha();
-
-			renderer.setClearColor( this.clearColor, this.clearAlpha );
-
-		}
-
-		if ( this.clearDepth ) {
-
-			renderer.clearDepth();
-
-		}
-
-		renderer.setRenderTarget( this.renderToScreen ? null : readBuffer );
-
-		// TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
-		if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
-		renderer.render( this.scene, this.camera );
-
-		if ( this.clearColor ) {
-
-			renderer.setClearColor( this._oldClearColor, oldClearAlpha );
-
-		}
-
-		if ( this.overrideMaterial !== undefined ) {
-
-			this.scene.overrideMaterial = oldOverrideMaterial;
-
-		}
-
-		renderer.autoClear = oldAutoClear;
-
-	}
-
-}
-
-/**
- * postprocessing v6.31.0 build Sun May 07 2023
- * https://github.com/pmndrs/postprocessing
- * Copyright 2015-2023 Raoul van Rüschen
- * @license Zlib
- */
-
-
-// src/utils/BackCompat.js
-Number(REVISION.replace(/\D+/g, ""));
-new Camera();
-new Color();
-
-// src/effects/GodRaysEffect.js
-new Vector3$1();
-new Matrix4();
-
-// src/textures/lut/LookupTexture.js
-new Color();
-new Vector3$1();
-new Vector3$1();
-
-const $e4ca8dcb0218f846$var$_geometry = new BufferGeometry();
-$e4ca8dcb0218f846$var$_geometry.setAttribute("position", new BufferAttribute$1(new Float32Array([
-    -1,
-    -1,
-    3,
-    -1,
-    -1,
-    3
-]), 2));
-$e4ca8dcb0218f846$var$_geometry.setAttribute("uv", new BufferAttribute$1(new Float32Array([
-    0,
-    0,
-    2,
-    0,
-    0,
-    2
-]), 2));
-// Recent three.js versions break setDrawRange or itemSize <3 position
-$e4ca8dcb0218f846$var$_geometry.boundingSphere = new Sphere();
-$e4ca8dcb0218f846$var$_geometry.computeBoundingSphere = function() {};
-const $e4ca8dcb0218f846$var$_camera = new OrthographicCamera();
-class $e4ca8dcb0218f846$export$dcd670d73db751f5 {
-    constructor(material){
-        this._mesh = new Mesh($e4ca8dcb0218f846$var$_geometry, material);
-        this._mesh.frustumCulled = false;
-    }
-    render(renderer) {
-        renderer.render(this._mesh, $e4ca8dcb0218f846$var$_camera);
-    }
-    get material() {
-        return this._mesh.material;
-    }
-    set material(value) {
-        this._mesh.material = value;
-    }
-    dispose() {
-        this._mesh.material.dispose();
-        this._mesh.geometry.dispose();
-    }
-}
-
-
-
-const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
-    uniforms: {
-        "sceneDiffuse": {
-            value: null
-        },
-        "sceneDepth": {
-            value: null
-        },
-        "sceneNormal": {
-            value: null
-        },
-        "projMat": {
-            value: new Matrix4()
-        },
-        "viewMat": {
-            value: new Matrix4()
-        },
-        "projViewMat": {
-            value: new Matrix4()
-        },
-        "projectionMatrixInv": {
-            value: new Matrix4()
-        },
-        "viewMatrixInv": {
-            value: new Matrix4()
-        },
-        "cameraPos": {
-            value: new Vector3$1()
-        },
-        "resolution": {
-            value: new Vector2$1()
-        },
-        "time": {
-            value: 0.0
-        },
-        "samples": {
-            value: []
-        },
-        "samplesR": {
-            value: []
-        },
-        "bluenoise": {
-            value: null
-        },
-        "distanceFalloff": {
-            value: 1.0
-        },
-        "radius": {
-            value: 5.0
-        },
-        "near": {
-            value: 0.1
-        },
-        "far": {
-            value: 1000.0
-        },
-        "logDepth": {
-            value: false
-        },
-        "ortho": {
-            value: false
-        },
-        "screenSpaceRadius": {
-            value: false
-        }
-    },
-    vertexShader: /* glsl */ `
-varying vec2 vUv;
-void main() {
-  vUv = uv;
-  gl_Position = vec4(position, 1);
-}`,
-    fragmentShader: /* glsl */ `
-    #define SAMPLES 16
-    #define FSAMPLES 16.0
-uniform sampler2D sceneDiffuse;
-uniform sampler2D sceneNormal;
-uniform highp sampler2D sceneDepth;
-uniform mat4 projectionMatrixInv;
-uniform mat4 viewMatrixInv;
-uniform mat4 projMat;
-uniform mat4 viewMat;
-uniform mat4 projViewMat;
-uniform vec3 cameraPos;
-uniform vec2 resolution;
-uniform float time;
-uniform vec3[SAMPLES] samples;
-uniform float[SAMPLES] samplesR;
-uniform float radius;
-uniform float distanceFalloff;
-uniform float near;
-uniform float far;
-uniform bool logDepth;
-uniform bool ortho;
-uniform bool screenSpaceRadius;
-uniform sampler2D bluenoise;
-    varying vec2 vUv;
-    highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
-    {
-        return (zFar * zNear) / (zFar - d * (zFar - zNear));
-    }
-    highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
-      return nearZ + (farZ - nearZ) * d;
-    }
-    highp float linearize_depth_log(highp float d, highp float nearZ,highp float farZ) {
-      float depth = pow(2.0, d * log2(farZ + 1.0)) - 1.0;
-      float a = farZ / (farZ - nearZ);
-      float b = farZ * nearZ / (nearZ - farZ);
-      float linDepth = a + b / depth;
-      return ortho ? linearize_depth_ortho(
-        linDepth,
-        nearZ,
-        farZ
-      ) :linearize_depth(linDepth, nearZ, farZ);
-    }
-
-    vec3 getWorldPosLog(vec3 posS) {
-      vec2 uv = posS.xy;
-      float z = posS.z;
-      float nearZ =near;
-      float farZ = far;
-      float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
-      float a = farZ / (farZ - nearZ);
-      float b = farZ * nearZ / (nearZ - farZ);
-      float linDepth = a + b / depth;
-      vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-      vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
-      return wpos.xyz / wpos.w;
-    }
-    vec3 getWorldPos(float depth, vec2 coord) {
-      #ifdef LOGDEPTH
-        return getWorldPosLog(vec3(coord, depth));
-      #endif
-      float z = depth * 2.0 - 1.0;
-      vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-      vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-      // Perspective division
-     vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
-     worldSpacePosition.xyz /= worldSpacePosition.w;
-      return worldSpacePosition.xyz;
-  }
-
-  vec3 computeNormal(vec3 worldPos, vec2 vUv) {
-    ivec2 p = ivec2(vUv * resolution);
-    float c0 = texelFetch(sceneDepth, p, 0).x;
-    float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-    float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-    float r1 = texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-    float r2 = texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-    float b2 = texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-    float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-    float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-    float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-
-    float dl = abs((2.0 * l1 - l2) - c0);
-    float dr = abs((2.0 * r1 - r2) - c0);
-    float db = abs((2.0 * b1 - b2) - c0);
-    float dt = abs((2.0 * t1 - t2) - c0);
-
-    vec3 ce = getWorldPos(c0, vUv).xyz;
-
-    vec3 dpdx = (dl < dr) ? ce - getWorldPos(l1, (vUv - vec2(1.0 / resolution.x, 0.0))).xyz
-                          : -ce + getWorldPos(r1, (vUv + vec2(1.0 / resolution.x, 0.0))).xyz;
-    vec3 dpdy = (db < dt) ? ce - getWorldPos(b1, (vUv - vec2(0.0, 1.0 / resolution.y))).xyz
-                          : -ce + getWorldPos(t1, (vUv + vec2(0.0, 1.0 / resolution.y))).xyz;
-
-    return normalize(cross(dpdx, dpdy));
-}
-
-void main() {
-      vec4 diffuse = texture2D(sceneDiffuse, vUv);
-      float depth = texture2D(sceneDepth, vUv).x;
-      if (depth == 1.0) {
-        gl_FragColor = vec4(vec3(1.0), 1.0);
-        return;
-      }
-      vec3 worldPos = getWorldPos(depth, vUv);
-    //  vec3 normal = texture2D(sceneNormal, vUv).rgb;//computeNormal(worldPos, vUv);
-      #ifdef HALFRES
-        vec3 normal = texture2D(sceneNormal, vUv).rgb;
-      #else
-        vec3 normal = computeNormal(worldPos, vUv);
-      #endif
-      vec4 noise = texture2D(bluenoise, gl_FragCoord.xy / 128.0);
-      vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
-      vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-      vec3 bitangent = cross(normal, tangent);
-      mat3 tbn = mat3(tangent, bitangent, normal);
-      float occluded = 0.0;
-      float totalWeight = 0.0;
-     /* float radiusScreen = distance(
-        worldPos,
-        getWorldPos(depth, vUv + 
-          vec2(48.0, 0.0) / resolution)
-      );/*vUv.x < 0.5 ? radius : min(distance(
-        worldPos,
-        getWorldPos(depth, vUv + 
-          vec2(100.0, 0.0) / resolution)
-      ), radius);
-      float distanceFalloffScreen = radiusScreen * 0.2;*/
-      float radiusToUse = screenSpaceRadius ? distance(
-        worldPos,
-        getWorldPos(depth, vUv +
-          vec2(radius, 0.0) / resolution)
-      ) : radius;
-      float distanceFalloffToUse =screenSpaceRadius ?
-          radiusToUse * distanceFalloff
-      : distanceFalloff;
-      float bias = (0.1 / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
-      for(float i = 0.0; i < FSAMPLES; i++) {
-        vec3 sampleDirection = 
-        tbn * 
-        samples[int(i)];
-        ;
-        float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
-        vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
-        vec4 offset = projViewMat * vec4(samplePos, 1.0);
-        offset.xyz /= offset.w;
-        offset.xyz = offset.xyz * 0.5 + 0.5;
-        float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
-        /*float distSample = logDepth ? linearize_depth_log(sampleDepth, near, far) 
-         (ortho ?  linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far));*/
-        #ifdef LOGDEPTH
-        float distSample = linearize_depth_log(sampleDepth, near, far);
-        #else
-        float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
-        #endif
-        float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
-        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
-        vec2 diff = gl_FragCoord.xy - ( offset.xy * resolution);
-        float weight = dot(sampleDirection, normal);
-          occluded += rangeCheck * weight * 
-            (distSample + bias
-               < distWorld ? 1.0 : 0.0) * (
-          (dot(
-            diff,
-            diff
-             
-            ) < 1.0 || (sampleDepth == depth) || (
-              offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0
-            ) ? 0.0 : 1.0)
-          );
-          totalWeight += weight;
-      }
-      float occ = clamp(1.0 - occluded / totalWeight, 0.0, 1.0);
-      gl_FragColor = vec4(0.5 + 0.5 * normal, occ);
-}`
-};
-
-
-
-const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
-    uniforms: {
-        "sceneDiffuse": {
-            value: null
-        },
-        "sceneDepth": {
-            value: null
-        },
-        "tDiffuse": {
-            value: null
-        },
-        "projMat": {
-            value: new Matrix4()
-        },
-        "viewMat": {
-            value: new Matrix4()
-        },
-        "projectionMatrixInv": {
-            value: new Matrix4()
-        },
-        "viewMatrixInv": {
-            value: new Matrix4()
-        },
-        "cameraPos": {
-            value: new Vector3$1()
-        },
-        "resolution": {
-            value: new Vector2$1()
-        },
-        "color": {
-            value: new Vector3$1(0, 0, 0)
-        },
-        "blueNoise": {
-            value: null
-        },
-        "downsampledDepth": {
-            value: null
-        },
-        "time": {
-            value: 0.0
-        },
-        "intensity": {
-            value: 10.0
-        },
-        "renderMode": {
-            value: 0.0
-        },
-        "gammaCorrection": {
-            value: false
-        },
-        "logDepth": {
-            value: false
-        },
-        "ortho": {
-            value: false
-        },
-        "near": {
-            value: 0.1
-        },
-        "far": {
-            value: 1000.0
-        },
-        "screenSpaceRadius": {
-            value: false
-        },
-        "radius": {
-            value: 0.0
-        },
-        "distanceFalloff": {
-            value: 1.0
-        }
-    },
-    vertexShader: /* glsl */ `
-		varying vec2 vUv;
-		void main() {
-			vUv = uv;
-			gl_Position = vec4(position, 1);
-		}`,
-    fragmentShader: /* glsl */ `
-		uniform sampler2D sceneDiffuse;
-    uniform sampler2D sceneDepth;
-    uniform sampler2D downsampledDepth;
-    uniform sampler2D tDiffuse;
-    uniform sampler2D blueNoise;
-    uniform vec2 resolution;
-    uniform vec3 color;
-    uniform mat4 projectionMatrixInv;
-    uniform mat4 viewMatrixInv;
-    uniform float intensity;
-    uniform float renderMode;
-    uniform float near;
-    uniform float far;
-    uniform bool gammaCorrection;
-    uniform bool logDepth;
-    uniform bool ortho;
-    uniform bool screenSpaceRadius;
-    uniform float radius;
-    uniform float distanceFalloff;
-    varying vec2 vUv;
-    highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
-    {
-        return (zFar * zNear) / (zFar - d * (zFar - zNear));
-    }
-    highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
-      return nearZ + (farZ - nearZ) * d;
-    }
-    highp float linearize_depth_log(highp float d, highp float nearZ,highp float farZ) {
-      float depth = pow(2.0, d * log2(farZ + 1.0)) - 1.0;
-      float a = farZ / (farZ - nearZ);
-      float b = farZ * nearZ / (nearZ - farZ);
-      float linDepth = a + b / depth;
-      return ortho ? linearize_depth_ortho(
-        linDepth,
-        nearZ,
-        farZ
-      ) :linearize_depth(linDepth, nearZ, farZ);
-    }
-    vec3 getWorldPosLog(vec3 posS) {
-        vec2 uv = posS.xy;
-        float z = posS.z;
-        float nearZ =near;
-        float farZ = far;
-        float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
-        float a = farZ / (farZ - nearZ);
-        float b = farZ * nearZ / (nearZ - farZ);
-        float linDepth = a + b / depth;
-        vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
-        return wpos.xyz / wpos.w;
-      }
-      vec3 getWorldPos(float depth, vec2 coord) {
-       // if (logDepth) {
-        #ifdef LOGDEPTH
-          return getWorldPosLog(vec3(coord, depth));
-        #endif
-      //  }
-        float z = depth * 2.0 - 1.0;
-        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-        // Perspective division
-       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
-       worldSpacePosition.xyz /= worldSpacePosition.w;
-        return worldSpacePosition.xyz;
-    }
-  
-    vec3 computeNormal(vec3 worldPos, vec2 vUv) {
-      ivec2 p = ivec2(vUv * resolution);
-      float c0 = texelFetch(sceneDepth, p, 0).x;
-      float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-      float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-      float r1 = texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-      float r2 = texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-      float b2 = texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-      float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-      float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-      float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-  
-      float dl = abs((2.0 * l1 - l2) - c0);
-      float dr = abs((2.0 * r1 - r2) - c0);
-      float db = abs((2.0 * b1 - b2) - c0);
-      float dt = abs((2.0 * t1 - t2) - c0);
-  
-      vec3 ce = getWorldPos(c0, vUv).xyz;
-  
-      vec3 dpdx = (dl < dr) ? ce - getWorldPos(l1, (vUv - vec2(1.0 / resolution.x, 0.0))).xyz
-                            : -ce + getWorldPos(r1, (vUv + vec2(1.0 / resolution.x, 0.0))).xyz;
-      vec3 dpdy = (db < dt) ? ce - getWorldPos(b1, (vUv - vec2(0.0, 1.0 / resolution.y))).xyz
-                            : -ce + getWorldPos(t1, (vUv + vec2(0.0, 1.0 / resolution.y))).xyz;
-  
-      return normalize(cross(dpdx, dpdy));
-  }
-
-    #include <common>
-    #include <dithering_pars_fragment>
-    void main() {
-        //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
-        vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-
-        #ifdef HALFRES 
-        float depth = texture2D(
-            sceneDepth,
-            vUv
-        ).x;
-        vec4 texel;
-        if (depth == 1.0) {
-            texel = vec4(0.0, 0.0, 0.0, 1.0);
-        } else {
-        vec3 worldPos = getWorldPos(depth, vUv);
-        vec3 normal = computeNormal(getWorldPos(depth, vUv), vUv);
-       // vec4 texel = texture2D(tDiffuse, vUv);
-       // Find closest depth;
-       float totalWeight = 0.0;
-       float radiusToUse = screenSpaceRadius ? distance(
-        worldPos,
-        getWorldPos(depth, vUv +
-          vec2(radius, 0.0) / resolution)
-      ) : radius;
-      float distanceFalloffToUse =screenSpaceRadius ?
-          radiusToUse * distanceFalloff
-      : distanceFalloff;
-        for(float x = -1.0; x <= 1.0; x++) {
-            for(float y = -1.0; y <= 1.0; y++) {
-                vec2 offset = vec2(x, y);
-                ivec2 p = ivec2(
-                    (vUv * resolution * 0.5) + offset
-                );
-                vec2 pUv = vec2(p) / (resolution * 0.5);
-                float sampleDepth = texelFetch(downsampledDepth,p, 0).x;
-                vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
-                vec3 normalSample = sampleInfo.xyz * 2.0 - 1.0;
-                vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
-                float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
-                float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
-                float weight = rangeCheck;
-                totalWeight += weight;
-                texel += sampleInfo * weight;
-            }
-        }
-        if (totalWeight == 0.0) {
-            texel = texture2D(tDiffuse, vUv);
-        } else {
-            texel /= totalWeight;
-        }
-    }
-        #else
-        vec4 texel = texture2D(tDiffuse, vUv);
-        #endif
-
-     
-        float finalAo = pow(texel.a, intensity);
-        if (renderMode == 0.0) {
-            gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
-        } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
-        } else if (renderMode == 2.0) {
-            gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
-        } else if (renderMode == 3.0) {
-            if (vUv.x < 0.5) {
-                gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
-            } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
-                gl_FragColor = vec4(1.0);
-            } else {
-                gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
-            }
-        } else if (renderMode == 4.0) {
-            if (vUv.x < 0.5) {
-                gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
-            } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
-                gl_FragColor = vec4(1.0);
-            } else {
-                gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
-            }
-        }
-        #include <dithering_fragment>
-        if (gammaCorrection) {
-            gl_FragColor = LinearTosRGB(gl_FragColor);
-        }
-    }
-    `
-};
-
-
-
-const $e52378cd0f5a973d$export$57856b59f317262e = {
-    uniforms: {
-        "sceneDiffuse": {
-            value: null
-        },
-        "sceneDepth": {
-            value: null
-        },
-        "tDiffuse": {
-            value: null
-        },
-        "projMat": {
-            value: new Matrix4()
-        },
-        "viewMat": {
-            value: new Matrix4()
-        },
-        "projectionMatrixInv": {
-            value: new Matrix4()
-        },
-        "viewMatrixInv": {
-            value: new Matrix4()
-        },
-        "cameraPos": {
-            value: new Vector3$1()
-        },
-        "resolution": {
-            value: new Vector2$1()
-        },
-        "time": {
-            value: 0.0
-        },
-        "r": {
-            value: 5.0
-        },
-        "blueNoise": {
-            value: null
-        },
-        "radius": {
-            value: 12.0
-        },
-        "worldRadius": {
-            value: 5.0
-        },
-        "index": {
-            value: 0.0
-        },
-        "poissonDisk": {
-            value: []
-        },
-        "distanceFalloff": {
-            value: 1.0
-        },
-        "near": {
-            value: 0.1
-        },
-        "far": {
-            value: 1000.0
-        },
-        "logDepth": {
-            value: false
-        },
-        "screenSpaceRadius": {
-            value: false
-        }
-    },
-    vertexShader: /* glsl */ `
-		varying vec2 vUv;
-		void main() {
-			vUv = uv;
-			gl_Position = vec4(position, 1.0);
-		}`,
-    fragmentShader: /* glsl */ `
-		uniform sampler2D sceneDiffuse;
-    uniform highp sampler2D sceneDepth;
-    uniform sampler2D tDiffuse;
-    uniform sampler2D blueNoise;
-    uniform mat4 projectionMatrixInv;
-    uniform mat4 viewMatrixInv;
-    uniform vec2 resolution;
-    uniform float r;
-    uniform float radius;
-     uniform float worldRadius;
-    uniform float index;
-     uniform float near;
-     uniform float far;
-     uniform float distanceFalloff;
-     uniform bool logDepth;
-     uniform bool screenSpaceRadius;
-    varying vec2 vUv;
-
-    highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
-    {
-        highp float z_n = 2.0 * d - 1.0;
-        return 2.0 * zNear * zFar / (zFar + zNear - z_n * (zFar - zNear));
-    }
-    highp float linearize_depth_log(highp float d, highp float nearZ,highp float farZ) {
-     float depth = pow(2.0, d * log2(farZ + 1.0)) - 1.0;
-     float a = farZ / (farZ - nearZ);
-     float b = farZ * nearZ / (nearZ - farZ);
-     float linDepth = a + b / depth;
-     return linearize_depth(linDepth, nearZ, farZ);
-   }
-   highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
-     return nearZ + (farZ - nearZ) * d;
-   }
-   vec3 getWorldPosLog(vec3 posS) {
-     vec2 uv = posS.xy;
-     float z = posS.z;
-     float nearZ =near;
-     float farZ = far;
-     float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
-     float a = farZ / (farZ - nearZ);
-     float b = farZ * nearZ / (nearZ - farZ);
-     float linDepth = a + b / depth;
-     vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-     vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
-     return wpos.xyz / wpos.w;
-   }
-    vec3 getWorldPos(float depth, vec2 coord) {
-     #ifdef LOGDEPTH
-          return getWorldPosLog(vec3(coord, depth));
-     #endif
-        
-        float z = depth * 2.0 - 1.0;
-        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-        // Perspective division
-       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
-       worldSpacePosition.xyz /= worldSpacePosition.w;
-        return worldSpacePosition.xyz;
-    }
-    #include <common>
-    #define NUM_SAMPLES 16
-    uniform vec2 poissonDisk[NUM_SAMPLES];
-    void main() {
-        const float pi = 3.14159;
-        vec2 texelSize = vec2(1.0 / resolution.x, 1.0 / resolution.y);
-        vec2 uv = vUv;
-        vec4 data = texture2D(tDiffuse, vUv);
-        float occlusion = data.a;
-        float baseOcc = data.a;
-        vec3 normal = data.rgb * 2.0 - 1.0;
-        float count = 1.0;
-        float d = texture2D(sceneDepth, vUv).x;
-        vec3 worldPos = getWorldPos(d, vUv);
-        float size = radius;
-        float angle;
-        if (index == 0.0) {
-             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).x * PI2;
-        } else if (index == 1.0) {
-             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).y * PI2;
-        } else if (index == 2.0) {
-             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).z * PI2;
-        } else {
-             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).w * PI2;
-        }
-
-        mat2 rotationMatrix = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
-        float radiusToUse = screenSpaceRadius ? distance(
-          worldPos,
-          getWorldPos(d, vUv +
-            vec2(worldRadius, 0.0) / resolution)
-        ) : worldRadius;
-        float distanceFalloffToUse =screenSpaceRadius ?
-            radiusToUse * distanceFalloff
-        : distanceFalloff;
-
-
-        for(int i = 0; i < NUM_SAMPLES; i++) {
-            vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
-            vec4 dataSample = texture2D(tDiffuse, uv + offset);
-            float occSample = dataSample.a;
-            vec3 normalSample = dataSample.rgb * 2.0 - 1.0;
-            float dSample = texture2D(sceneDepth, uv + offset).x;
-            vec3 worldPosSample = getWorldPos(dSample, uv + offset);
-            float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
-            float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
-            occlusion += occSample * rangeCheck;
-            count += rangeCheck;
-        }
-        occlusion /= count;
-        gl_FragColor = vec4(0.5 + 0.5 * normal, occlusion);
-    }
-    `
-};
-
-
-
-const $26aca173e0984d99$export$1efdf491687cd442 = {
-    uniforms: {
-        "sceneDepth": {
-            value: null
-        },
-        "resolution": {
-            value: new Vector2$1()
-        },
-        "near": {
-            value: 0.1
-        },
-        "far": {
-            value: 1000.0
-        },
-        "viewMatrixInv": {
-            value: new Matrix4()
-        },
-        "projectionMatrixInv": {
-            value: new Matrix4()
-        },
-        "logDepth": {
-            value: false
-        }
-    },
-    vertexShader: /* glsl */ `
-    varying vec2 vUv;
-    void main() {
-        vUv = uv;
-        gl_Position = vec4(position, 1);
-    }`,
-    fragmentShader: /* glsl */ `
-    uniform sampler2D sceneDepth;
-    uniform vec2 resolution;
-    uniform float near;
-    uniform float far;
-    uniform bool logDepth;
-    uniform mat4 viewMatrixInv;
-    uniform mat4 projectionMatrixInv;
-    varying vec2 vUv;
-    layout(location = 1) out vec4 gNormal;
-    vec3 getWorldPosLog(vec3 posS) {
-        vec2 uv = posS.xy;
-        float z = posS.z;
-        float nearZ =near;
-        float farZ = far;
-        float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
-        float a = farZ / (farZ - nearZ);
-        float b = farZ * nearZ / (nearZ - farZ);
-        float linDepth = a + b / depth;
-        vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
-        return wpos.xyz / wpos.w;
-      }
-      vec3 getWorldPos(float depth, vec2 coord) {
-        if (logDepth) {
-          return getWorldPosLog(vec3(coord, depth));
-        }
-        float z = depth * 2.0 - 1.0;
-        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
-        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
-        // Perspective division
-       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
-       worldSpacePosition.xyz /= worldSpacePosition.w;
-        return worldSpacePosition.xyz;
-    }
-  
-    vec3 computeNormal(vec3 worldPos, vec2 vUv) {
-      ivec2 p = ivec2(vUv * resolution);
-      float c0 = texelFetch(sceneDepth, p, 0).x;
-      float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
-      float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
-      float r1 = texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
-      float r2 = texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
-      float b2 = texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
-      float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
-      float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
-      float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
-  
-      float dl = abs((2.0 * l1 - l2) - c0);
-      float dr = abs((2.0 * r1 - r2) - c0);
-      float db = abs((2.0 * b1 - b2) - c0);
-      float dt = abs((2.0 * t1 - t2) - c0);
-  
-      vec3 ce = getWorldPos(c0, vUv).xyz;
-  
-      vec3 dpdx = (dl < dr) ? ce - getWorldPos(l1, (vUv - vec2(1.0 / resolution.x, 0.0))).xyz
-                            : -ce + getWorldPos(r1, (vUv + vec2(1.0 / resolution.x, 0.0))).xyz;
-      vec3 dpdy = (db < dt) ? ce - getWorldPos(b1, (vUv - vec2(0.0, 1.0 / resolution.y))).xyz
-                            : -ce + getWorldPos(t1, (vUv + vec2(0.0, 1.0 / resolution.y))).xyz;
-  
-      return normalize(cross(dpdx, dpdy));
-  }
-    void main() {
-        vec2 uv = vUv - vec2(0.5) / resolution;
-        vec2 pixelSize = vec2(1.0) / resolution;
-        vec2[] uvSamples = vec2[4](
-            uv,
-            uv + vec2(pixelSize.x, 0.0),
-            uv + vec2(0.0, pixelSize.y),
-            uv + pixelSize
-        );
-        float depth00 = texture2D(sceneDepth, uvSamples[0]).r;
-        float depth10 = texture2D(sceneDepth, uvSamples[1]).r;
-        float depth01 = texture2D(sceneDepth, uvSamples[2]).r;
-        float depth11 = texture2D(sceneDepth, uvSamples[3]).r;
-        float minDepth = min(min(depth00, depth10), min(depth01, depth11));
-        float maxDepth = max(max(depth00, depth10), max(depth01, depth11));
-        float targetDepth = minDepth;
-        // Checkerboard pattern to avoid artifacts
-        if (mod(gl_FragCoord.x + gl_FragCoord.y, 2.0) > 0.5) { 
-            targetDepth = maxDepth;
-        }
-        int chosenIndex = 0;
-        float[] samples = float[4](depth00, depth10, depth01, depth11);
-        for(int i = 0; i < 4; ++i) {
-            if (samples[i] == targetDepth) {
-                chosenIndex = i;
-                break;
-            }
-        }
-        gl_FragColor = vec4(samples[chosenIndex], 0.0, 0.0, 1.0);
-        gNormal = vec4(computeNormal(
-            getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]), uvSamples[chosenIndex]
-        ), 0.0);
-       /* float[] samples = float[4](depth00, depth10, depth01, depth11);
-        float c = 0.25 * (depth00 + depth10 + depth01 + depth11);
-        float[] distances = float[4](depth00, depth10, depth01, depth11);
-        float maxDistance = max(max(distances[0], distances[1]), max(distances[2], distances[3]));
-
-        int remaining[3];
-        int rejected[3];
-        int i, j, k;
-
-        for(i = 0, j = 0, k = 0; i < 4; ++i) {
-            if (distances[i] < maxDistance) {
-                remaining[j++] = i;
-            } else {
-                rejected[k++] = i;
-            }
-        }
-        for(;j < 3;++j) {
-            remaining[j] = rejected[--k];
-        }
-        vec3 s = vec3(
-            samples[remaining[0]],
-            samples[remaining[1]],
-            samples[remaining[2]]
-        );
-        c = (s.x + s.y + s.z) / 3.0;
-
-        distances[0] = abs(c - s.x);
-        distances[1] = abs(c - s.y);
-        distances[2] = abs(c - s.z);
-
-        float minDistance = min(min(distances[0], distances[1]), distances[2]);
-
-        for(i = 0; i < 3; ++i) {
-            if (distances[i] == minDistance) {
-                break;
-            }
-        }*/
-      /*  gl_FragColor = vec4(samples[remaining[i]], 0.0, 0.0, 0.0);
-        gNormal = vec4(computeNormal(
-            getWorldPos(samples[remaining[i]], uvSamples[remaining[i]]), uvSamples[remaining[i]]
-        ), 0.0);*/
-    }`
-};
-
-
-
-
-
-
-
-
-
-var $06269ad78f3c5fdf$export$2e2bcd8739ae039 = `5L7pP4UXrOIr/VZ1G3f6p89FIWU7lqc7J3DPxKjJUXODJoHQzf/aNVM+ABlvhXeBGN7iC0WkmTjEaAqOItBfBdaK5KSGV1ET5SOKl3x9JOX5w2sAl6+6KjDhVUHgbqq7DZ5EeYzbdSNxtrQLW/KkPJoOTG4u5CBUZkCKHniY9l7DUgjuz708zG1HIC8qfohi1vPjPH9Lq47ksjRrjwXD4MlVCjdAqYFGodQ8tRmHkOfq4wVRIAHvoavPHvN1lpk3X4Y1yzAPGe8S9KBs3crc4GwlU1dEOXiWol/mgQqxkNqB1xd04+0Bmpwj0GcCc4NUi+c731FUxjvaexCkCJ0qhrJJ++htWqetNC4NewClu8aFRSwrqiJEGe+qtTg4CYCHaF1wJI0sy/ZBQAI0qAMyBvVjWZlv2pdkCaro9eWDLK5I4mbb8E4d7hZr9dDJiTJm6Bmb5S+2F7yal/JPdeLUfwq7jmVLaQfhv4tWMJAt7V4sG9LuAv2oPJgSj1nnlBvPibfHM2TrlWHwGCLGxW/5Jm2TotaDL+pHDM5pn1r0UuTZ24N8S5k68bLHW9tfD+2k4zGev23ExJb4YTRKWrj82N5LjJ26lj1BkGZ0CsXLGGELoPaYQomjTqPxYqhfwOwDliNGVqux9ffuybqOKgsbB51B1GbZfG8vHDBE2JQGib1mnCmWOWAMJcHN0cKeDHYTflbDTVXajtr68mwfRje6WueQ/6yWqmZMLWNH7P27zGFhMFqaqfg11Q88g/9UA/FROe9yfq0yOO0pnNAxvepFy2BpEbcgG+mCyjCC01JWlOZlIPdf1TtlyOt7L94ToYGCukoFt4OqwOrofamjECpSgKLLmrRM+sNRAw12eaqk8KtdFk7pn2IcDQiPXCh16t1a+psi+w9towHTKPyQM0StKr61b2BnN1HU+aezFNBLfHTiXwhGTbdxLLmrsAGIVSiNAeCGE8GlB0iOv2v78kP0CTmAPUEqnHYRSDlP+L6m/rYjEK6Q85GRDJi2W20/7NLPpSOaMR++IFvpkcwRuc59j8hh9tYlc1xjdt2jmp9KJczB7U9P43inuxLOv11P5/HYH5d6gLB0CsbGC8APjh+EcCP0zFWqlaACZweLhVfv3yiyd8R3bdVg8sRKsxPvhDaPpiFp9+MN+0Ua0bsPr+lhxfZhMhlevkLbR4ZvcSRP6ApQLy3+eMh9ehCB3z5DVAaN3P6J8pi5Qa88ZQsOuCTWyH6q8yMfBw8y8nm6jaOxJhPH6Hf0I4jmALUBsWKH4gWBnyijHh7z3/1HhQzFLRDRrIQwUtu11yk7U0gDw/FatOIZOJaBx3UqbUxSZ6dboFPm5pAyyXC2wYdSWlpZx/D2C6hDO2sJM4HT9IKWWmDkZIO2si/6BKHruXIEDpfAtz3xDlIdKnnlqnkfCyy6vNOPyuoWsSWBeiN0mcfIrnOtp2j7bxjOkr25skfS/lwOC692cEp7TKSlymbsyzoWg/0AN66SvQYo6BqpNwPpTaUu25zMWlwVUdfu1EEdc0O06TI0JmHk4f6GZQbfOs//OdgtGPO6uLoadJycR8Z80rkd88QoNmimZd8vcpQKScCFkxH1RMTkPlN3K7CL/NSMOiXEvxrn9VyUPFee63uRflgaPMSsafvqMgzTt3T1RaHNLLFatQbD0Vha4YXZ/6Ake7onM65nC9cyLkteYkDfHoJtef7wCrWXTK0+vH38VUBcFJP0+uUXpkiK0gDXNA39HL/qdVcaOA16kd2gzq8aHpNSaKtgMLJC6fdLLS/I/4lUWV2+djY9Rc3QuJOUrlHFQERtXN4xJaAHZERCUQZ9ND2pEtZg8dsnilcnqmqYn3c1sRyK0ziKpHNytEyi2gmzxEFchvT1uBWxZUikkAlWuyqvvhteSG9kFhTLNM97s3X1iS2UbE6cvApgbmeJ/KqtP0NNT3bZiG9TURInCZtVsNZzYus6On0wcdMlVfqo8XLhT5ojaOk4DtCyeoQkBt1mf5luFNaLFjI/1cnPefyCQwcq5ia/4pN4NB+xE/3SEPsliJypS964SI6o5fDVa0IERR8DoeQ+1iyRLU1qGYexB61ph4pkG1rf3c2YD6By1pFCmww9B0r2VjFeaubkIdgWx4RKLQRPLENdGo8ezI5mkNtdCws19aP1uHhenD+HKa8GDeLulb2fiMRhU2xJzzz9e4yOMPvEnGEfbCiQ17nUDpcFDWthr68mhZ4WiHUkRpaVWJNExuULcGkuyVLsQj59pf6OHFR7tofhy9FMrWPCEvX1d5sCVJt8yBFiB6NoOuwMy4wlso9I2G4E5/5B2c6vIZUUY9fFujT3hpkdTuVhbhBwLCtnlIjBpN4cq+waZ0wXSrmebcl+dcrb7sPh9jKxFINkScDTBgjSUfLkC3huJJs/M4M8AOFxbbSIVpBUarYFmLpGsv+V6TJnWNTwI41tubwo7QSI1VOdRKT/Pp8U3oK2ciDbeuWnAGAANvQjGfcewdAdo6H83XzqlK/4yudtFHJSv9Y+qJskwnVToH1I0+tJ3vsLBXtlvMzLIxUj/8LcqZnrNHfVRgabFNXW0qpUvDgxnP3f54KooR3NI+2Q/VHAYFigMkQE5dLH6C6fGs/TKeE6E2jOhZQcP9/rrJjJKcLYdn5cw6XLCUe9F7quk5Yhac+nYL5HOXvp6Q/5qbiQHkuebanX77YSNx34YaWYpcEHuY1u/lEVTCQ7taPaw3oNcn/qJhMzGPZUs3XAq48wj/hCIO2d5aFdfXnS0yg57/jxzDJBwkdOgeVnyyh19Iz1UqiysT4J1eeKwUuWEYln23ydtP7g3R1BnvnxqFPAnOMgOIop2dkXPfUh/9ZKV3ZQbZNactPD4ql5Qg9CxSBnIwzlj/tseQKWRstwNbf17neGwDFFWdm/8f+nDWt/WlKV3MUiAm3ci6xXMDSL5ubPXBg/gKEE7TsZVGUcrIbdXILcMngvGs7unvlPJh6oadeBDqiAviIZ/iyiUMdQZAuf/YBAY0VP1hcgInuWoKbx31AOjyTN2OOHrlthB3ny9JKHOAc8BMvqopikPldcwIQoFxTccKKIeI815GcwaKDLsMbCsxegrzXl8E0bpic/xffU9y1DCgeKZoF2PIY77RIn6kSRdBiGd8NtNwT74dyeFBMkYraPkudN26x9NPuBt4iCOAnBFaNSKVgKiZQruw22kM1fgBKG7cPYAxdHJ8M4V/jzBn2jEJg+jk/jjV4oMmMNOpKB5oVpVh7tK529Z+5vKZ0NSY2A4YdcT0x4BdkoNEDrpsTmekSTjvx9ZBiTHrm9M/n/hGmgpjz4WEjttRfAEy5DYH5vCK/9GuVPa4hoApFaNlrFD/n2PpKOw24iKujKhVIz41p1E0HwsCd/c17OA0H0RjZi1V/rjJLexUzpmXTMIMuzaOBbU4dxvQMgyvxJvR6DyF3BaHkaqT4P3FRYlm+zh8EEGgmkNqD1WRUubDW62VqLoH8UEelIpL7C8CguWWGGCAIDPma9bnh+7IJSt0Cn6ACER2mYk8dLsrN70RUVLiE0ig+08yPY9IOtuqHf/KYsT84BwhMcVq7t8q1WVjpJGNyXdtIPIjhAzabtrX03Itn29QO3TCixE9WpkHIOdAoGvqCrw1D3x9g9Px8u0yZZuulZuGy0veSY34KDSlhsO1zx2ZMrpDBzCHPB4niwApk6NevIvmBxU3+4yaewDvgEQDJ6Of5iRxjAIpp9UO8EzNY4blj4qh8SCSZTqbe/lShE6tNU9Y5IoWHeJxPcHF9KwYQD7lFcIpcscHrcfkHJfL2lL1zczKywEF7BwkjXEirgBcvNWayatqdTVT5oLbzTmED3EOYBSXFyb2VIYk3t0dOZWJdG1nP+W7Qfyeb8MSIyUGKEA57ptPxrPHKYGZPHsuBqQuVSrn0i8KJX+rlzAqo8AawchsJ26FckxTf5+joTcw+2y8c8bushpRYEbgrdr64ltEYPV2AbVgKXV3XACoD1gbs01CExbJALkuItjfYN3+6I8kbiTYmdzBLaNC+xu9z/eXcRQV1Lo8cJoSsKyWJPuTncu5vcmfMUAWmuwhjymK1rhYR8pQMXNQg9X+5ha5fEnap+LhUL1d5SURZz9rGdOWLhrMcMKSaU3LhOQ/6a6qSCwgzQxCW2gFs53fpvfWxhH+xDHdKRV6w29nQ6rNqd9by+zm1OpzYyJwvFyOkrVXQUwt4HaapnweCa7Tj2Mp/tT4YcY3Q/tk1czgkzlV5mpDrdp1spOYB8ionAwxujjdhj5y9qEHu0uc36PAKAYsKLaEoiwPnob0pdluPWdv4sNSlG8GWViI+x/Z4DkW/kSs2iE3ADFjg4TCvgCbX3v0Hz0KZkerrpzEIukAusidDs2g/w0zgmLnZXvVr5kkpwQTLZ0L6uaTHl0LVikIuNIVPmL3fOQJqIdfzymUN0zucIrDintBn6ICl/inj5zteISv5hEMGMqtHc2ghcFJvmH3ZhIZi34vqqTFCb9pltTYz582Y3dwYaHb9khdfve1YryzEwEKbI8qm62qv+NyllC+WxLLAJjz0ZaEF2aTn35qeFmkbP6LDYcbwqWxA0WKsteB7vy8bRHE4r8LhubWDc0pbe90XckSDDAkRej0TQlmWsWwaz18Tx2phykVvwuIRzf4kt9srT8N7gsMjMs0NLAAldabFf2tiMoaaxHcZSX51WPc1BrwApMxih227qTZkcgtkdK1h314XvZKUKh/XysWYnk1ST4kiBI1B9OlfTjB3WHzTAReFLofsGtikwpIXzQBc/gOjz2Thlj36WN0sxyf4RmAFtrYt64fwm+ThjbhlmUTZzebLl4yAkAqzJSfjPBZS2H/IvkkTUdVh0qdB6EuiHEjEil5lk9BTPzxmoW4Jx543hiyy4ASdYA2DNoprsR9iwGFwFG3F2vIROy4L5CZrl230+k733JwboSNBKngsaFPtqo+q3mFFSjC1k0kIAFmKihaYSwaSF7konmYHZWmchuaq15TpneA2ADSRvA07I7US0lTOOfKrgxhzRl0uJihcEZhhYWxObjvNTJ/5sR4Aa5wOQhGClGLb746cJhQ2E6Jie1hbGgWxUH7YSKETptrTeR/xfcMNk2WM12S0XElC9klR8O7jLYekEOZdscP0ypSdoCVZAoK+2ju2PHE869Q9rxCs9DVQco4BriiPbCjN/8tBjsah4IuboR5QbmbyDpcdXVxGMxvWKIjocBuKbjb+B4HvkunbG0wX0IFCjQKoNMFIKcJSJXtkP3EO+J16uh4img0LQlBAOYwBLupu5r1NALMo0g3xkd9b4f7KoCBWHeyk24FmYUCy/PGLv0xErOTyORp8TJ5nnc2k1dOVBTJok7iHye9dwxwRVP3c7eAS8pMmJYHGpzIHz6ii2WJm8HMTPAZdA4q+ugj3PNCL/N45kyglqvQV4f/+ryDDG5RPy5HVoV9FVuJcq2dxF9Y0heVoipV6q1LyfAeuMzbsUV+rsSBmCSV+1CdKlxy0T0Y6Om0X6701URm2Ml6DIQgJ/3KO6kwcMYRrmKsY7TfxWhSXZll+1PfyRXe9HS0t1IKTQMZL7ZqQ8D/o+en57Y9XAQ9C+kZYykNr0xOMxEwu2+Cppm69mQyTm3H7QX6kHvXF201r+KVAf354qypJC5OHSeBU47bM1bTaVmdVEWQ+9CcvvHdu8Ue5UndHM+EeukmR82voQpetZ7WJjyXs+tPS60nk09gymuORoHNtbm0VuvyigiEvOsyHiRBW7V6FyTCppLPEHvesan91SlEh1/QEunq+qgREFXByDwNKcAH5s8/RFg8hP4wcPmFqX0xXGSKY087bqRLsBZe52jThx0XLkhKQUWPvI18WQQS3g2Ra1pzQ1oNFKdfJJjyaH5tJH6w0/upJobwB8KZ5cIs9LnVGxfBaHXBfvLkNpab7dpU6TdcbBIc+A4bqXE/Xt8/xsGQOdoXra4Us5nDAM6v2BNBQaGMmgMfQQV+ikTteSHvyl8wUxULiYRIEKaiDxpBJnyf9OoqQdZVJ8ahqOvuwqq5mnDUAUzUr/Lvs1wLu2F+r4eZMfJPL4gV5mKLkITmozRnTvA7VABaxZmFRtkhvU5iH9RQ1z26ku7aABokvptx7RKZBVL6dveLKOzg0NC7HAxcg5kE1wuyJiEQLOpO0ma3AtWD2Q2Wmn2oPZeDYAwVyEpxuwDy7ivmdUDSL95ol3h2JByTMovOCgxZ1q4E5nwwa7+4WtDAse6bDdr27XgAi5Px3IWbyZ/vRiECKwOMeJSuIl8A4Ds0emI3SgKVVWVO5uyiEUET+ucEq0casA+DQyhzRc8j+Plo0pxKynB/t0uXod1FVV4fX1sC4kDfwFaUDGQ4p9HYgaMqIWX3OF/S8+vcR0JS0bDapWKJwAIIQiRUzvh5YwtzkjccbbrT9Ky/qt5X7MAGA0lzh43mDF9EB6lCGuO/aFCMhdOqNryvd73KdJNy3mxtT8AqgmG4xq7eE1jKu6rV0g8UGyMatzyIMjiOCf4lIJFzAfwDbIfC72TJ/TK+cGsLR8blpjlEILjD8Mxr7IffhbFhgo12CzXRQ2O8JqBJ70+t12385tSmFC8Or+U8svOaoGoojT1/EmjRMT7x2iTUZ7Ny02VGeMZTtGy029tGN1/9k7x3mFu63lYnaWjfJT1m1zpWO3HSXpGkFqVd/m3kDMv4X9rmLOpwEeu8r6TI6C2zUG+MT6v90OU3y5hKqLhpyFLGtkZhDmUg/W1JGSmA8N1TapR4Kny+P6+DuMadZ9+xBbv06nfOjMwkoTsjG0zFmNbvlxEjw+Pl5QYK+V8Qyb+nknZ0Nb/Ofi9+V0eoNtTrtD1/0wzUGGG5u2D/J1ouO/PjXFJVx6LurVnPOyFVbZx7s3ZSjSq+7YN3wzTbFbUvP8GBh7cKieJt56SIowQ2I577+UEXrxUKMFO+XaLLCALuiJWB2vUdpsT+kQ+adoeTfwOulXhd/KZ7ygjj6PhvGT1xzfT7hTwd6dzSB4xV70CesHC0dsg2VyujlMGBKjg5snbrHHX/LNj3SsoLGSX+bZNTDDCNTXh+dCVPlj4K8+hJ/kVddrbtZw26Hx5qYiv3oNNg5blHRSPtmojhZmBQAz8sLC9nAuWNSz1dIofFtlryEKklbdkhBCcx5dhj7pinXDNlCeatCeTCEjYCpZ3HRf5QzUcRR1Tdb3gwtYtpPdgMxmWfJGoZSu1EsCJbIhS16Ed97+8br4Ar1mB1GcnZVx/HPtJl4CgbHXrrDPwlE4od8deRQYLt9IlsvCqgesMmLAVxB+igH7WGTcY/e3lLHJ4rkBgh2p1QpUBRb/cSQsJCbosFDkalbJigimldVK7TIHKSq2w8mezku9hgw8fXJxGdXoL1ggma52kXzjP78l0d0zMwtTVlt0FqnRyGLPGEjmICzgSp7XPFlUr7AeMclQ4opqwBFInziM5F8oJJ8qeuckGOnAcZZOLl1+ZhGF17pfIuujipwFJL7ChIIB2vlo0IQZGTJPNa2YjNcGUw+a/gWYLkCp+bOGIYhWr08UIE709ZEHlUoEbumzgpJv1D0+hWYNEpj+laoZIK5weO2DFwLL6UBYNrXTm9YvvxeN9U9oKsB3zKBwzFFwDgid5ESMhy68xBnVa55sCZd+l5AnzT8etYjIwF/BGwEx1jjzFv32bk6EeJulESARh8RZ48o7rKw67UZpudPa15SDnL8AL8xMV2SC0D1P53p190zhCFkMmEiir2olwxcJppl/kLm6/0QSUQLNaxi1AC3Pg1CTosX2YQr73PjEIxIlg4mJ62vP7ZyoHE55B0SX9YrrrCPtNsrJEwtn6KOSt7nLT3n3DLJTPbLulcqQ1kETP6Huts29oP+JLEqRGWgnrqMD+mhCl1XCZifjgQ39AeudE8pyu2DqnYU3PyPbJhStq1HbP+VxgseWL+hQ+4w1okADlA9WqoaRuoS7IY77Cm40cJiE6FLomUMltT+xO3Upcv5dzSh9F57hodSBnMHukcH1kd9tqlpprBQ/Ij9E+wMQXrZG5PlzwYJ6jmRdnQtRj64wC/7vsDaaMFteBOUDR4ebRrNZJHhwlNEK9Bz3k7jqOV5KJpL74p2sQnd7vLE374Jz+G7H3RUbX17SobYOe9wKkL/Ja/zeiKExOBmPo0X29bURQMxJkN4ddbrHnOkn6+M1zTZHo0efsB23WSSsByfmye2ZuTEZ12J3Y8ffT6Fcv8XVfA/k+p+xJGreKHJRVUIBqfEIlRt987/QXkssXuvLkECSpVEBs+gE1meB6Xn1RWISG6sV3+KOVjiE9wGdRHS8rmTERRnk0mDNU/+kOQYN/6jdeq0IHeh9c6xlSNICo9OcX1MmAiEuvGay43xCZgxHeZqD7etZMigoJI5V2q7xDcXcPort7AEjLwWlEf4ouzy2iPa3lxpcJWdIcHjhLZf1zg/Kv3/yN1voOmCLrI1Fe0MuFbB0TFSUt+t4Wqe2Mj1o2KS0TFQPGRlFm26IvVP9OXKIQkjfueRtMPoqLfVgDhplKvWWJA673+52FgEEgm+HwEgzOjaTuBz639XtCTwaQL/DrCeRdXun0VU3HDmNmTkc6YrNR6tTVWnbqHwykSBswchFLnvouR0KRhDhZiTYYYNWdvXzY+61Jz5IBcTJavGXr9BcHdk/3tqaLbwCbfpwjxCFSUs1xfFcRzRfMAl+QYuCpsYGz9H01poc1LyzhXwmODmUSg/xFq/RosgYikz4Om/ni9QCcr28ZPISaKrY7O+CspM/s+sHtnA9o9WgFWhcBX2LDN2/AL5uB6UxL/RaBp7EI+JHGz6MeLfvSNJnBgI9THFdUwmg1AXb9pvd7ccLqRdmcHLRT1I2VuEAghBduBm7pHNrZIjb2UVrijpZPlGL68hr+SDlC31mdis0BjP4aZFEOcw+uB17y5u7WOnho60Vcy7gRr7BZ9z5zY1uIwo+tW1YKpuQpdR0Vi7AxKmaIa4jXTjUh7MRlNM0W/Ut/CSD7atFd4soMsX7QbcrUZZaWuN0KOVCL9E09UcJlX+esWK56mre/s6UO9ks0owQ+foaVopkuKG+HZYbE1L1e0VwY2J53aCpwC77HqtpyNtoIlBVzOPtFvzBpDV9TjiP3CcTTGqLKh+m7urHvtHSB/+cGuRk4SsTma9sPCVJ19UPvaAv5WB8u57lNeUewwKpXmmKm5XZV91+FqCCT6nVrrrOgXfYmGFlVjqsSn3/yufkGIdtmdD0yVBcYFR3hDx43e3E4iuiEtP3Me9gcsBqveQdKojKR//qD2nEDY0IktMgFvH+SqVWi9mAorym92NEGbY8MeDjp553MiTXCRSASPt+Ga5q7pB9vwFQCTpaoevx0yEfrq9rMs3eU6wclBMJ9Ve8m6QuLYZ58J41YG3jW/khW92h6M/vbFIUPuopZ6VVtpciesU74Ef7ic8iSymDohGeUn4ubT0vRsXmbsjaJaYhL8f+8I5EiD5l680MJbxX/4GYrOg4iPQqpKp0qddSu/HKtznHeVyxgTwhfEORMCwnaqetVSzvidaWN9P+fXtGXfEP9cTdwx2gKVfDdICq7hecgRhIs0qlCt6+5pGlCc6kWoplHa/KjP+FJdXBU/IDoKMxRjFhSYkggIkhvRKiN/b2ud8URPF+lB87AGAwyMjr/Wju2Uj5IrppXZWjI3d14BdKE2fhALyQPmHqqA+AXd2LwvRHcBq4mhOQ4oNRWH7wpzc6Pggfcbv9kqhLxrJKEaJqA6Rxi+TDNOJstd5DoRVCDjmVspCVyHJsFEWPg9+NA8l1e4X2PDvOd5MPZAGw6LRhWqeZoSQcPf9/dGJYAyzCmttlRnx0BfrKQ/G9i5DVJft9fuJwMi3OD/0Dv1bRoxcXAyZ0wMJ6rwk9RjRTF4ZK8JviCCNuVt/BqQYiphOzWCpnbwOZt6qXuiAabQWrS4mNXQ7cEErXR/yJcbdFp5nWE1bPBjD0fmG3ovMxmOq5blpcOs0DtNQpci1t+9DKERWAO53IVV/S4yhMklvIp0j0FIQgwjdUptqmoMYGVWSI5YkTKLHZdXRDv9zs+HdFZt1QVcdlGOgATro3fg6ticCrDQKUJC7bYX50wdvetilEwVenHhlr85HMLRLTD6nDXWId4ORLwwe5IXiOhpuZTVTv+xdkTxJofqeCRM/jcZqQlU0gFVTlYlfwMi6HKR2YG4fQ8TOtgR+yV+BMZb6L5OwDc/28/xdfD7GXFaVA2ZSObiIxBwT2Zev637EuvpM6rxcogdM4FJFa0ZhF7nrqtNsqWg5M7hZMORpjd4szf/wS+Ahs1shY54Ct5J1dOBO4sdEtSnRc0P9PhgyOCt6aQW98R22DpAcNTDe72AHK40vutKTPfpokghRPuGvz0dulBPKfC3O4KVDCyWrJGO7Ikdu06A0keKlVfi0tGcpO0NhzXEh75NHyMysAMV19fq7//sPC0For1k2uFEvq8lwrMAfmP7afR69U2RqaILHe7glpc8HmVf87Qb2ohsw+Di9U+ePdHLecS66MhB/0OwdcXR5WBcWTZLGq/kiAaT+bzkjR8GIpWdv6pfIgQ+Q0xdiKvo+gNB7/Nf9knNJGxnh7LeZEFtMn517tNc74PPS0M4K3I6HHZqNPA+VZcBc/g5a2ARyqKrJ4Z3krsuA+VOJJz2KJpBMgCCWFln3u7k6/q3DETAubKG/pt3ObaNT0NI0Qug90L2ip5dHnZJUjPTvK5E96aX/4mRU2u8n8kh6MKbY7ANBro3huF06U+JvfyELQP25oIaj+n0ITQ4KT9rXZD4EtBIOj95fYNldDN3io/VMIvWNj9P/b95WEMq8UAVfG2XG0N6fSYdnBEC7sUEbatbDICH9qA8TTuW9kEt9DlFOZFP7bdfYLa/khSY8W5K/AkIIAPXtMvyVKyESjKx9nfragssxC0jFMVY94d8lOAwRocdS/l/P43cBGa3IqDa0ihGPcmwS8O8Vj16Uy55rOrnN0shhRJZdW8I7F0Q0KeHc35GFo4aJOFc25gNafBu1V/VO0qS4Qkb6wjRrnlepUWjtYyaDABZceValuOMtoDdeIITWKOJiwGPpB12lQgwkmXh9M86podb0D117mNQ8ElluFvbaS8RTKQ6lyj88dUwoJU/ofOeubhoXWBF8eNumkVJu+As3ED/AvLlrV91UowIWI2m8HBG+a3k247ZKAGYsOcWe7fTWqL8eqwM5ZFuoXbeugPKuMOAtOsN+4dSwkhrSAlfGNTzFwEmCNWtzpa9CgPbYNcmoHtO8pj8qMvlGET6nrkJoQ2lp5MEUV1E2A4ZH70JUlCLXvqTIpZlzyxdr5p/GZiD1/BuFOGbyfFzhuxaC/l3lC2jjt6GNRBa06AqqPlYtdA7kiidYa5Qi0/XpXiMDyMXNOj3kmJEaXufW0GO8+DF8OoMULX1vvjCePKNis4AmxQKLCF+cjf/wyilCJvuiyLVPSdsuRTPZ0AhpdDF/1uFmDwG7iP3qYwNsKzqd3sYdnMolCOuQOIHWy1eQpWhuV+jmSeAC5zCc0/KsOIXkZPdiw8vtB33jEBpezpGDBP4JLY2wH1J7Fzp8y8RICqVd25mDT2tDb/L1mh4fv9TOfDH5dTeATqu+diOZi+/sIt18hiTovPsVQVaqXLPRx/4R/uH/86tBMcF+WBkThKLfblcVCIECc8DgNRVX97KdrsCeIK+CvJZMfwrftcDZDZyp7G8HeKl7bPYnTKX88dXAwAyz66O2chkPDHy/2K2XcT/61XnlAKgPwtI8yP9Vu45yh55KHhJu93mL4nfo8szp/IyDjmFHtSMqqoWsj8WaVhbjXgzZxcqZcyOe7pUK6aXF/Y32LnBOt0WN28UmHRiOpL525C63I2JQPX8vvOU0fz2ij74OeJ1Apgu3JRObfdo9xGDpp7cv3TdULEfNS6Gu3EJu7drBsBsogUqUc6wAUW3ux0/1hLVI/JEKJrAGm8g72C2aJSsGAsKFW4CBvBXVlNIKa5r7HvT1BeGYBfxTR1vhNlFFNN8WQYwr39yT/13XzRGiF2IsfE8HcN0+lN1zN/OnzekVBKkFY11GgrK5CLxrE/2HCEMwQb9yOuP2rTXiZzTEETp/ismFGcTWmbM9G1Sn2D/x3G74uWYZY4rgKB2Zo2bTKS6QnM5x1Yee66Y1L7K44AyiY5K2MH5wrTwxMFh+S8LzNQ25z6sunWZyiRwFIIvSnioltUXNiOr+XMZ6O9h9HcHxZJkfF0tUm6QkU7iJ2ozXARitiL86aqVsMOpmvdIBROhUoanPtCjgft8up3hAaKpw9Qs9MzYtBA2ijHXotzarkV3zKEK0dFFQUwT74NgCmGGuSCEDmFCezXPC9BhyGhmzNa6rQeQQz+r9CmGUZjIQEPsHwe86oCOQhWaHERsv5ia9rZvJ//7UXO7B329YUkLLAiqpLRsVV5XpcfdawlJqi/BVcCqO6dr9YJTFFRMVGhfUbB9YWNvYPY6RyaydAFYq1YIBQxuNAGfYWLMAHtt2XRHoOKCLz+qf5HCVBDOPOktQ3SdJBfxUkaiD585bmTzMwU3oeXUHZ55EC99Kz9kk4ZXMIENwVVpqW2JmGIcUiutIMj2KkpjE2QD+dIZUCxcX57kH7hiuUPnKCTdaw4KN95XPeFRvMcvo5L8LexWqvaJPECzwXCs/4XPAlSMpWUzBBjK3pEnkbueMkMJQrYcnXf7PjbAoJra1VLX4YuscQLpaeYWbT+h24hCFrfcHjxxx6WTSe4AGY/KHRZCQKqTuFWt0D8RmGWmvXSdg1ptIefYPshuIVZT7CV4Ny67fvjJugy0TNYHqoCO45CB88kxrvIsih19DqjD0UqiJsTFPcGW3P/ULOG3nb8CjpgVTIoa5nO9ZYEX4uEHu8hLXrJPjV1lTQ5xTdZVagg+Wj8V0EE4yPsTc345KM6lVXqLiHtm+G6edC4GVEiPgd98g+twSYm18gCsPnjqlLcFm9e72CLJbYD+ocIZOxuVjrX6IKh9fh7WqdIZ66x9PWkDGOVVGkx7jM76Ywe16DX9ng205kg5eq+R2q2MguTJxYv/wWHliD9mOYpzZKNXYC3Wr4iBGkm54hBwkPzFhiX/VBHdVH/KJ1ZIMOHxIN6arKdxrm6EBsgwDt0mPe0MX1HRUMq8ctcmysU6xX0bzM1J07kAvq33jw1q0Pq2cyMWme8F7aVkfhzZEFdyi8fVBQav0YZqvAjZ83WKH726rBx5Bn7GHFthR6H4lFsltu+jWmsAibJ3kpWMG/QbncU7n9skIBL0MuXXtj9sJg+4Dl0XhKJ1LcrMydaIgyrgZgScP4k8YQvcsBmD26X1iYXKLzMYfZn2IfRjznsrJ1e5cnl/3a5xiNoI6n1x1U36FWckJbyx+hiSZg0QqAqeeSvzFYMlZ2REnO/a6yoQhu7PdHMYEPFIvfyGeyCU8e7rpju4DrlOhszj9rOIpNsvCkuD+TLyf5J7D/wsPkBpscFVI1q7oUSU9bN30vH5AqnO7bsf+9rGhtVjOJQ32H9hHSAzR2ape4L0Cz4WxaySm4jvuGXwkFp5NMMLrgZ8LdA+5uLuyxO5SMOmJNDBcbbLefv7z6LyxBwltnfQLd7qqpG1MmNcoLUcx73BkNF/xpdS0cKd6G646ntChXSeTZJJTFYGw39T7fqXDPKoG2cF7/ZcTvME42gXLVjTqzAER1Rt5m7GYsh0X0+XgOeW9MJqE5j/rpGzY6vUu6ACcCTzDMdZHiWELpDnvgE1hmztLcSYz0MtNyUBLqvylUJJnJu79Sku9NMHCTkgqozTnhMFfduV2NLCSYvAI5HUvQp1h/M02vKFD6eosIkGTg6mujUo1W8hy5Knf/erkBQC9LzNqPAYCgR+hczgevta88NNqSlBZryq9QNeUK7RpbvHjoNhUKAAeNYH55LeTW36KyFaXdAkBvyNP9xmRuBokPi2OhqDby6IZ61mwfzG+GmACkS+G80A4WGON5izgJWeeDK91jzusfOi0RmEsVJXwbVUr8u/J2LCQaMnHhi+wJTEPN9tS2b6W4GRGCNmtjAMgPsP357nOeD3H2tcDAPu5xQBKMHf/j4ZhXlkvvy3YmBJsjsd4pSOlfPZCnw5JvzxEXM5JIc+E2mU4CgB0mdJnH4NEsCHYNeVRDXFNuyZUE4nuvaJf1h+11AWLdAZ72D9XNRcxfb2+XHZN/SN48U7yl+sNZhg5gn/PD8wkBtnRj1zBUPIWnoMP6yGUEEzuT+VaX3x2jEIZAZsr3rs9wCfY1Ss0EdIFFzBbyruUup4EPanbSYew5tf16/ZWVup5iykttuqL4xoC/jdZWsAZeSfDSd3fP9kbyAFYXkf0Q2lmxaTkKRZrCo9XCoiUG4yP1URJ5G7+HSOhhJp0Anz0N07QZtyFUye6rcgiOFbtyoO1lkuV0iQ602MTyFK9xLqNHtNy4cJaTO6hjtiwNynVc34ZA6H7k8ai6S6eF6jIG0xJx+JfP97lzuCZr8vU5SIzImaNpiQhyvDbz23//PJcOk7hD4iIvJzfIgOGIR6ZPEJpWHZQoacbF+omeHw8aWHaNOfaIyGeG4lEryMfhtNmWh4RAIpn8dLs7ZE2eTVDwK++xDoSUgh47WDmKlZ/k6OosEUoQjk7Q+Kp7OxwgMFShAv6z4pTW8loVj2+qXLQ0T3hmIue8qHy1o/HXjm089m71t6mrrUyDftqMYtmfvQXKDlZ+K1HR/FkqPSqcjGlcPPIwbMw3wIFKBdVMJ4pFLt+oOIkWZMw8pkoYZ3byw4LmAF+7BdicGXFcb5PWtDw5XNNVc6eB9dv0rAEpgr5J+bLr010bpfGw+IkRoxDbkDFmQdEQUSElP5bViLo1ur/23KN0jEwl+rGC6AUMKxHcv+T9F1Ktpn8jSSrKxJnVkK8UD/tH5DN6nXB8mjUdFU539e9ywLtLYCwmHYVEVqnFmdubduaSd1ivIo4pTsX+mJcOAkrR1D60RIoocCBIdwJhCBM1rOE2XSlPo0U+khALvw+zfxYzwzd4roWlLJkZheFRR8QB8v4USwmAcDswUZ2P/7v7Xa51Fs7orYebYyww4YW5869Y/c6Kq2eTR9HLSjYuChTkXaDygoo8nz/yJ0KzfX8oowaNAwz8HvQdlLU9V9hjqYMURyYvPzZ60G0itmUdZwB+sY6rUkMAZZtWStbDFmnk/dQorhwr3121XQWffrK3as0g29ASwxbsZ3dZAq/96b7/XWckbjmo8+jwdE680DzoEUUivnBgowMuBQxHXoGyp+w/cSGY88rWtmwoyNNIvChs/QsZRnbdV7y8x7t2RkliJV/j8e6qfctrTsMV22zoqgQuTSNFh7U7p/Q49L0kygXNnEYXCBDgi5BeNWxu7VjULcUHI+lGj+OTCEATzWrDmaynq3wT9IAejtvh3esCu6sEu9JOsXxMDpqxm4Tzl+pt2Wa5Bq3TM5TKH4N7KLir8FGIPA569+uJ1VEL3fW8Jyigz/nEUjAVYrdCWq2MnS4hQVgcvXq9aF7Xke/k++rAtIQqckPNwjKrV2t7HCOrA1ps88Y5Rw1Zp+9itnB71j8tNiQc7mV1kUCQXkoi5fOsq1uC6hUPUL7Z69NAM6lg0c/aeiifHoi35v+pVBh7CDM1XfvYpiK5JIbIQFHafmnhHfRTnMagKcjdE7zzgtxkTPKVrObTySTT51g9bB5ro/dzn/sB24fNM2LGJuRQsmC49PLi1jTRfZaLpo8Txxxczij5Pl2vur+S1wQW3W5qyVcIUySZHtFDQHv+EYDoZG1T1J7D91vEIV8dHzUBzW1UyuxRbP+M/CM/vsas6RzmS5traXnQ0Jzv9hYXxKHcs15TQCP744XsLjzFjILYURXFnhM+nnV0iO6nwls9TR4tlz1J9/NvE8FGg5mgpZA4htS05AK0NnU2gxuqf2vjCyWlm3ypKvaX4vxh8Um1MHGB2NTeAFhbDyGm+5w2zqJAWxVlj6dVePb5yR+aMhuz05YubCQJ0BOtoYQ6PoDoW5fCwCtXj5SHvCgL/3B5z2mcXWaRTf8/GsFAfX/ntdWZWFc2xg8MJeenwZ4dZUToce43If4zVb1ex3BMAWGhgkPwR5EgktZhW3Yi+nsnZTUr9FYI160YhAraB0zMV+ouHz6hYm25/ETDM0MTmcypoGgZISSkfwYAQaHGY45yZ91K4A4Mm4fnbMk8GTc4orypT3NLBqAxYdcY/qCH82PpIkmVOEHi1NoYaUymuImLLcib5pmd2MHTB3JR+4rLdRc3gtQ9zeFdciciRiWviu3HkqaLSxJeI2rgc7OKQslItumACQow89elXmi4P3gTZeCauvMH5nF4VrBcLjjwGD+KlKqe/RWIEgT2wGqAgSuL6b+RTTPnQZzxZ5y5HQJkEEKJp5NfoB8hJBM8qn6xbOFtyzBjVBrwSS1zCJR3lEc9ODQ5Wu/xct9/2Q6qLHnmNx6XwZus/i8rEd6UsVxGtoDrm+Br0L5oUojlwdcqyVV4PIMsR60JhZwJtgX7izQWj+GOeF9DA8Wexdmv6DWjgR8LEBp9YuPAM8tJDu3uCumNqHnF2ATYX/tuVO55OgQuiUhmDmJbF9jJyifBRtxOVI9DCNLUY71IXZYTuiYcnILQ/XHuVJ8aHDStL0N+3eYNvXwHi2vEiTPnBqzsC4TsPnFVnYY042j5i7C11AVdBZ1pGSa52jM9dIL119rry0mgGxFzI8xPs+7bmMfYKh37A4HtA081olG1m9S4Zch2hoNCGVvVhd6UL7C2d5hKIBHoB+Uxarq/4aQXhh7IWjSj+ca7Vhqb4+ZwY3nHXh2S9JH4XZxQojbe/eINxYlozTYtT2rpU/xbj+W2hXjFQ+z+dQ8wh9751MP0UpjutQdxz3/FJYAEG5BF400JXWCBs7KrCRf/l+F+d9EuwVk6thOPDB+HNS9iWlLmDgXvY6K0vgiyoeA3An+jWufdAG1suUMBuJT+/w0FNJZbObUT8c5q5WtQxASQF6E+/u8UwVBs1eo8jTamCrcdhZJlADJbqn3crcDHQlBQNGq7btcGKiJXW6q0cn3F0xzf+k1JJS2testB3rx15ZPTDXm8QV5XE2qxBOdM2n6t5YbxyNOmEdsHx+hMp+y9pWkcgw1NikeXuafJvzcjaNwE1Ad6gG79S68aO7jWpKgBETYLmV4ONHhBk7Be8tjf2WVvWMDQvQdOnk448yeMv1tQKU1xev0L171e/qxkMZbmkfKnd29XRCK2hgNNJhwt1qiYWZGKz7Di6K3fGDT7DO2YQ7WU33svE/WKGbWQEvzUV2w+VNYDocI4yxQ6i3i4zU2TjmjCwu5Pk+Ja9HSwLpEoUswq3tFJ1jimthgMXd7KjSl6Qd0K+vxWT8G4/+xITHsWDGSfQTSdFQth5uVVfa8wrkDZHTGVgpJys2ik+3I0dSf6TNo6A/sVptyY/kx1hdAWKPI6t/xj6s+fPMU3hg1vkEB0RRHq/tCy3KUUhzU/d0JKxTyjvUms5iy1GbOFco0NA4t83SK9sBmtLWm4kOLLflyxqgQYP08iyXwYXzKnlQ6VTipuaspSJ9g5H5Lu3eLMnPKbhcwuEg0VZ80ppJWjUnhS3rL35erzysp+fJhxsUs86m28/UwW+IgrS5Y0zWaxlFJ8xML5wk8sg1ragF+eNajyI0Y4mwStxt1RZH2BjaAhvu+SnNNIK88thEgZEsoHv+ii+OMmXJL7dnAiINVDz3tCnqDgpQX9OguNGgZj3axcjq1UgxDw785yNIpqNiLgv57399jVmJ0/RStNswaFIs6FtnkilFZldxj6m562jL4p5g3Y9XCiXRJX6nq2PGJFifFR7EyPG4jDMnBM4t+O8ZpEp3th7TCxEw+ZG4afHl4sNFaqxyLh6+979tt0Aq9BrqI+CS2U7HJoKiGmyVU1lFa3/0O5mNC1bzRgNMy+GXyifLwJP7FwUSUmxmVRpn+gnXWoIuswPutsiciurvN6lsMG7yqEc2Y5ZI3jrPgPq0xEKPZpF7teJa0TQn8BQL4Th+hjv2ByfwKookyXEmj0d1KMcsmfKaeKK3cZZubiYqmSCrnGpYTwgPk5itKucVtjViuswQsDR6TuyGSIHYvlz7wkLg1Rr0K9kV1o8RgABlhbLrN74cVWJW6TnfXN0q12JFMpUbEa8t1+j440FA+17o8qa8PQ9igkctVROVIfB3jU5vtGm5pYYHYSDvU2TEc15pIz19ka1q6c/7WXfF8+POkApdOw7nn7Kqz6V4tru7NXgnA/u0g6+fPRT3hp/QrDQwMsjwNCZxdWrR6pgCBDJNc7/KAlwC0UZ4yWQs0KsuwbbOgcTxQPK54wiXr7s+221hzZ8RVxfoRUKM3e4lpxHC83JllxlrV760tl06f7/65qhE1jhMfivAUXIXfRMe3uY/G2TpWYzDrw5Cm5cS062Bx9lhHq9gtJp8xZwAtSdSuW/Kd7+orEAiswA76N8ezmVGYgNaYlQ/xk930LAWAtKVBC4U6R08L45IohB1kFia7XJs0TcaT2zBZoLFuOGu4iJaoAnfjL3uS6gnRH7G7A+aT6ETlmkYUfgrBuaSLLDJfhPJe01PfN0oqBTeQURasl3N8BZiQSgdr0aDv3hPTiog4NSyfAUyy98WP7dnTDWQTY+Qwzgk1uxwRqHl5MpC/84Cuw1TXfRlgJrwPop10kCHjmffnFdxCe2J3R3J5j+3H/sZn3IUu3Suy+I+dAOMWvzwExNR3RRPVelZAhtarKlXPWNjPRIVP4JsAFSRXs3o/fSYAPaV/zP8q6DltH47/rYhCLdy/LrpOsbaLf09eACcClJosNefetNElkSFSuCgeY7oTAAl+8Y2zOXJb/bgEDpoDXfQqc6lnlBr/WsmVznkBS1M7ufiqpxvKXjwvR4WxLbh5NbMNy8LsnX4UiuAi8XonbSUcVZKQOWBYUecSOMj6jMG8gHu7WNreBHY90lV7FocDprSrSbexkAtMW9KlXcnrOyLnZdodGYdxz8aw71HztIqLhRdCOB6NyzHPoS2hDy6wLk0I5Jr2t+U0A+A7EsgSn/Ih03A5CspHnVF4MOic+Lck3m61Um+GHDEe4DrHBhmgtDlRQl1XJ/V/VumCHtUDDcZCkgjVMBOmVOGYW0Rcdi1ahdjhBcFlfjA+5cRjBop1aNDvdrf7CxkLVgxiCxhRctW8wczM8+kVmIrGtkaHGlr8y2D098HXE23r7fnJFUU68zyeyM265igNOGPzFG0dIgUDWN6S3ZcfMERJdWVvpGhVEHXNLeWqHiTcF3wOt0FbJY4XHEpmkoG9MQPJJ4ueQ01+MB+SR0rCSGzlE8zod19q75LlLWgzogpnJoD4gPxUYcX+Gpc5Ly4nk+Zm8LDXcNR7SNVxLh6NAcx8ekjb/AC7ADlRnfuHaHJaBodZr7RBX9FLTvocY6kY8bavdAkQicE9bbwGLkZu6whTCJ56lOvM39ijehpTOFqR3V53nQx4hfOvwRPU2y2w7UU8yiRbcyaX6jGJ9CRvl9ybV1tebTp5MMuMnwLcx/lven0w9T0atJuiUE2WtYGiVMaP3EchABl5AsyaCpu/BKAWDFvU2vaCL2/fJBKCKLjxG6xzT4Mh4wHhH3/EqsGSoQAHu2wbHmXHj2LvoW19GXDa2oyeKRwGG1PU+S7mE/S+UmjHiDF1oqJ0R5QsdjAZYN1MzpNX5YDqWYfhfdjAXyFQaVyGKkp1oEGTR8MK6jaGfRDFd41u2Ex8ac8jKPYu3pXsk8gu+m9tr1RVzTTuDsACW4S1h32yFHX7qpXSmA0QVEcR8W9j2Juu0pcYqTmdis88VgT3gq7iYue5Hx/3K6hFQa9rZrNSDcjaSQlNn4LSqs20bypnKqpzvnnxjMdz5StbzvoAJKgVZa4DLCVoJW765/KyTF4s4YztmAT1c0pTmKJHTpa106FegDo8p2zD6uOnwpYi0vJlRMDe9wPT6964UfAf6lq3qWypUOx9q6BbKEYt7K3gWMXDNN6wAm1fNnSOnZ4JkbPq7jLQrl0wL1V7QwO/sXneKGfTgUL28I5iPVG9dA2gS7Ki005JUR7Vmw4gX4TJvy1WS74cIXD08LCF5obqcZwamuoZ+FPMJEck0TLHjyH1baPr55/Cy0ptDfRJ7d89pbP48tLMHG5dO11Z8xSSpPGQSgXDWmpsNsmm+MvxJjMCi7OFDHxxpmTtjgnOCq+c7Fi1DybfhAntviKccz+sj+OPKPYOKeYYPLvq6MpUx/chSvBccg9dfbeqetQNCs3eiCFZTU1mrDido/mib64STMgsa+IKLk9PyxGGbVSQB9GsHto6f5prAFIbRDSItDedz3t5+Nn69FFS0nEfmkF7hKBmNVce5xv65USKGBoHYxJyutSGnRIq7vMDsAMvirOEJOzNi5Kt7fypuSU2c2Npo6UH5jMOkePH0TwgpammO3Fb2FX6f11309z/mqRmQ949HHRj/wMzKNx95M9pwKf+UQkMEwisL3YVotvHhCv4y00Ui0Ql8dR7tGqFcSdYtmoAOuAodkBNs4PZSjAAF7S/szwLddFMdCyB/dWPgFUiUE+WmUUCjYrKfJLQfNNpQ4NKaF57w7Kp/isZVwQPUJyjJavN3fQNKU+F74jVBJYQEcEdw0Niinyea0l9PJ1/AcTm/LI91RZjDvLI81pnat7RKU2P4/TnIAa3hIEfeg4iGQ+wTDlURK6YjNpN5s5VkQW9w7sDYKU4XmjyZsCQLxztqd4SDQvLyuPDhURAJXKfR1c7tq3mRu4usFHPqz7HgS0X7kNxiWWR3fb3uVwbgKpmgLYkwKrXKt09COw4MjhxeZlDXKy7nNLHXAIKPtferWQnZLboonQXK81x+BB3oUidBehK1swSXxVbscj/LsfONu/xYEXYPM3aMqIYd+2hAnFvDHbdrJLhGEd3sG5PyxqhzejhQJo9wauFK3xmPYqxB99J8zYU9/yzrEZNzzbvPoR9vUlE3Ha4zspVDzHHffPZMJ1VLZkKqGCf8ZqupqMt6T+NRPfmPm2xeDgvzMrRJEL4/zzlu7Z35smvzbgeC25VP2CUrZkRxEi15A0769ojdO1d7C9OG+swj1ROMM3NgKdeBADoRMeJkRZcZ1FbQu6C0BS9NNSaoxtFzYT4lX7+PQ7BKa84yrN+ujVVef+SgnEie1G0N+eOtbZF/UU+wkeerWjloYqFiqo0vBnmxh+TwNMo9I/8lfU2XTCT0K4OoWE08ipyNHjxHvfhY6qa3x4HzdQ8+jkiO5+j91YkihS5memfpFREHP/2veN5XcRue2zCVuAub8V6vDlOvyP+PBm+owyRhMmng5wwGGIXsOkQekXrXpE/6dFjkHwwoFoj5bIFiqp+4wHpSWRbv2xGrRpd2c87FzMP6Hfj/3LWIBqFiNOAxBw+AAP1XqUBszdZhzOSQrQS4Ein4fyV7MaGsB0VsMF4bPb4lx/foTGQRJv45LpoxDd84xCawHaX7jpXUrOdkFxx2oUvY2xqpgIvcVufwd+zAnaaVTnEyDXD7S/o/xrrk4mgTjXhcjj5Rzrbr23NmuZQvpdNzny5MCR9bwvIRIqzOZZLsstZSCDYa56JTvzxgBs20dYTtTUbe21uljlWqGfSh2bYAzOpf6UguK30ZxNXgLHs6Y6urtxFA5iLYvlue5mDONW0MOtQjhqr8fRbCkYneiDkvzHkQVT4F9v9vxh2SIGPBH8bZb8ugo/BSgXojeSdNXbBAIDsB6DUNSXnwlu/bFLaCqSbvu4+YLplwO1JbtrMf9ZUfsxerAZjB7E/zl3qwgK27FswemUmSM4i37YAVhQSocuV8AcDI/CSeCDNPavESshDQ8A/lVIrAJAMdP/rHXouiNU8RL/TIvfQiuZEb6dkIKMGGOW5kT8vO8pivWnT4v7qmwuJo52AS1r/RyQ2g/7c9ZJgmMIzf0GvJJRfMNu1utRNuLWHOm9JIMcJK3qiDtVpGCDP45W1oTTMUnMC91kYhP0GHjhCW8V38xhjHgFFBfuWMsmSQ9MvNqKXiqtUhDAkIy0PW7YSKaKUv6zctAiIk+Jt17kG6LpNVOeMvJnlVBaJSkKe0HTJJUMvf8R2zna35/yh2wNlWLzIP3BJR5aRNxkV94ICOlycI1/JYRZtzvWMNoIpQrdNvyBuBydhSwhRwPo079Xk/XQZpbhzN/KK4NbdJQV0JIMP+Y5UBIM3TTYlFGYVjcvA5yVozkimco91Fx/eo+ydgAx1gMezTh+bYxCtXPYkMoPdtaElRusxlmdSV9zgF4Np+iylun3LVxCycAFxGCFsmARf6y4I6zXY0tx81aQyalr3/ih+ZjxGNWdhItgNLdEZ/BOIJpPoAveh2bKbEFxU/M0+4xqDo3Ox8MnNn8Lmv15NJigSvJV+y2W/ZogEXNiv0/nuFzZGr0pKujOShzcdkEVlMw8mNZXZCbtM9V+mfawtLxCTvo+enFWhJcFv8LVTFycDjPGBXRQKNN+z68HJtYdpH++g5WdhQpCO+DE7Qdu6TmZgtetrpU2ZlgpslOx+4hb3aXaqbdc92LCh51er8vm1GQ9uWD9+fAPRV50ixhgc5zi2Jsg1xQVxzlaELRWJ5biyF+eCwNV0oFnTbBHr3Glm9qlGVOpoOsQC8hlNG88fxeAekkCGnHFn6i5WzyO7ShDYbZ2KM4eqndyy01v+6TFhmkxgc0dndt7EzRCcEfBxSaWZwcev6MDZcuvSZQ9CNSd4Tx25TY6UAbrhikuP1vNFfPdZhCG1pe6vx4D6Ez3zIb0zDa42FPpxWvIpEeXb7YTcfZOahSpSYaWLH/vq0F3U1KO7ZxliZpoMBBYJs91IE0bOkrPNQ/USYY0qKCO3CU+AFbOYxzKWBkIglrX34377BZ18MKQCv1KWfIHEeguSpvrNH5RQOD4LeiH2gdx1MOAKphlL41F4RpxaU4dy8xERFgqoyICQq9XmQ8WJSokwqvhQM0fLtsvyCO2PAkJ3BZg5IqoR5q/GdTLgOWPFR53Nqw9Ma5vBzZcQ4+iZgetmKg5ZIn+/7Jbi+VlViXuD9CaAUtdEmnwWTS7wZWuskVvc/SDaaKV+Jz6HrZTHo3UrAu0IZDBkXWmL+mTTjdTb1A+MdhKkY/hvFNwXj1FzUngsN58u/kTdJ3Xi0hy7efR6faAOi4SKGaiOty8lxDFkiD9wq2GW1EZEsoWGw/WzxXhWDzYY8CC7WuLFHc+x19jhH+FiLXwDIARRtnkJPF2BUPZ9+grZ3tjqAWhhN3h74w5pooRQUNATy05A9HDLnILGSCtfESoSilqtqAIQ/TV2t3KhOc+teDf5t+DqZDdB8Ob9YXyklrSO73pR0QAxPvQj57c6FIR5dOciqeHZ2LRABMROo8Jk8V6JFewCL8TCd/A5MSbXLky1cW7mXobqgeEXdFDoEydKo5oCuyn+2JYI/7pIGFAzErlHZ5hOaiT17HC3zp2HpJwsIAb4/oIoZ8x8ak43Yp83Ermq55Dg8HxKGHXbXs47sh0PzQELTGFsf5eO3lYAuJjMneoYWk8W/3tW2WLntEKBZEW4hOFgo8K58Rj0vk5KLyezu1d8SO/JcuxpOJqFUM2sxBmbQ/9qqwb90R0WulpR/Ju84bQ5/fTh7po/pbBb7AQaYNdK3fatD3K4TLHAaa66MQzp/+ZGyCjzo5OXRzJ8UHyg/YpNHvvlOpwQIOjakpLHwGV4WsLDPjEIqG23ily3LL0dlkYQxj3Xx0ApCo35zYGoGOtIclYS83MnI5TwVdQ+Hg453WFQN694DaqhGaL/dm0KncXYqXLi5polgT4DOrzD4oSVhrkh8GW2PaXjOFDCLPcn4RQj8dRGIJuV81LxMPZ0UL6zpkaebhbFBxcRJe38UiTbUPDjFWk2jBqzrBvXcKmgdDcmRyJhIpuq+3DQY464AlY42z2EM0yIK0I6b+VgpanMfpdWo7OxKY8RM5tSJv340/qD8SxrYsybMuUkF8fHj7HcvxEPC5YYrH4LW1YKg6QaeFZLvPbrHZHvi4OXLKkN8cGQO8019OKqcv6QnBlj01e7qS5evoGm53rv+VmDxxCXDiOrDg+IaPeMPrn8TJ1oReXYI3yb+4HQbikxP5TQXHk4YXPUv95+KmkxGsRgTwP71YiMpqNXp0loHZeXRp9i3euKrVtxMM0e6XAoACwNtcc6sOuhZVb1htBLudzahrDFt5GkdlwHjZl5y0LbvSHwII+qYeDwRKTTzyXaInHIM+8rc5TrjUlPRVwB5LKFpQnV8e7vLv7T7V/iJTW9h9TnRtNCSGcofBWYm5P7wZcAq3AFamEW/GMbo27ldz0plt5HI53ddWkn9IuCZY+Iy0MATUh3YenRTbVgdLYtu893SuN6EL4e9V4NhlzUjI8nOS6B99ecyC1Ot8sDahQpWHbmt2YvWGyL3S9tEVLKYs+LnghBmmSl2uPWfqPobPwBHNLW21LUjfZb7jfLMTsMp3icGO1npK/rCsUgdBVKVg0Ys+/WKuTmVJoC8Oe5h3PK1TQhbpZ2ytP9nlutQPtLAEt+CVT90DfVkn7lHLOX8AfS6HLzfHeAhu1alnl19RHKV1LI0G7RPzYgVaSpX7th9f06uo2WpxjL86i/2uzK2qj/ClHbGDyQr3F9/axmq4kJ7zZFVXVVwfiFr5bhUGVZeQJHKFAcsnqPKsb8vHyB9SpFpT9U1U7D4aS9vYgqajxhC+hOkolJV2dKAxysCkWBo3SPiPUrSQYZxOWwWCoQzbV0oeaDEcgUtqI3nq9TSmpQ688/+wb26P2CHLY1H7q5lypXSrnwnnztq/jN1o9lyvLmLyGguV0VJnDCREkiUNrZqGG06MsyA+Phd9CuFoM5M1Pyk7S6TJaHdTw0ni3n5ysAup0kyxr65lFc81NcH8xSmpp+iOEtQZrH/y01k1rGMRJAGFhi+nDecpUlnrh+qBOCMZCcSCovOPJrxjZnZJDMLdpMVu+tBSVS1nKxsYjY9Dtq1/++riVfLUVhzofIcIgQQPOqHioELxU3EpCcZMoL9laa5YlOZAMEp5apx7CphrkL+fyKbBAf8ctwVd93FTo7F5Oc/alNsCgK6lHruPROtN2RybiLqx8P5LTUZXU+Aoyz08zYHasR3U8hPDKj+6arWXR9yWdJoMn45prCSURKKy3+JHgvs2Ot6v6GbEtdCumgCttv2VNoU3KOqUwqNIWHqYm4eMijTM9VWB7umEyp7UPOI8fduHJY0W9xSCZdvc2xMjo3Zdu2o/WZKDMOSh9UmLvo45IBppD2dG++HJu8kbfFdlwuIxk2KHhgHQeNKcHhFkYGRzL2VJVMOAb0Co64wvds5CaYl9ZmBm4zuGDeaO2eI1XM4+rD/HmZyRF62SabgAe8TF43VuMutigJJMfbW2UK0azGLFbOfujnHD+GGBYmSmOQbUCOY99HYvswBQA6r9hrc2jtsUUxLVjxnZ4JnIrTwIVdWCTPtpJpvlA7m01/4tbUMyz9mv1jdN1jkiHQCJXXKg8bJ+aqW6rbwbn5yDSHBTcFXIegrhHGAjJOZI1pyP83Z3vMYTAJoo8V9IwyS+U6OVg78+IhSYHDYjRs8FrF8smHQ9h4qAYxp49rRP2d5uxLAuP72GvZaYvfeLOkMrcg0PkPuq7NsXhMFmiZa6PKBH1l+oKHI5DBLdZCvCwTPdXqmnz8gLzVRb/ixLTSdit2nrzt0x+5rDeZT+ac31NKNskQs6noKlQccyD3UxzfVZFmcbpmrfPsZD0Ve34xpKWk/E9Khn4A5yVPVq+dwnv0EyYecPqXGU7R8suTW0A6NJWweLI3iSGDlQXzMYsSWkSMhFTfyA2vTDt/3wXk+mVU6bRNkZvNnyVHYiA4tmnNwdh/RVsk/EgSerfTIf5VBmuAc2IKSeL5Nbrg3acgFj80mI8SWsc3dNAGCBLLMP89gH5UnLTKq78d9SxQH/g7DVnBh/qnBdw5CDrw/uMzcdXSxWqGIFcnQZt/1aOHxUg88MN2w+FPx/V75gy2wzEVe6G51PQIR2tZsxbv62HhgjwtlzrVREw/yzlaAiuXC26cnpvQzWXp2mOgihyPCWqq38nEadX2T7f1Y5zGxEGBaT//IcL/BsquAJX5EDbX8X1p8nLWR2yyjFRvqC/jssoCJBCDJOsZvoBfXqQSEKhNARH1YfueeKBslAwLi24/wAO1BHptlf1kQFNsOPlDvlYednrEp3a4SAz/G7LIVEsZBu0EKWZu/euB/XKdkGonP6t6lgEcCOw8mceuzvEVzyoPnMyzrqoNQXJb9C8ZCXSiedKiCgNwfNkpVlHbUgE2Rb9WFScOeEad+T+jT8XlSc8rcvkIuhAv/gxRu2eb2GonLTyokjcGF1EBpCJbhy2H3lhL0rdZIw1okA5pBg2oRfQceXTPzhuNKorTEF7t1UIgDqIo7/loxyTgbtKu29o9K9KujvCqUGyPY7upcfiZLNBVKh5uXAAZjQjhlhBp0ukmO4Avxu4xAVhCtnsOIA/tAm94U3HEuSr3wq+ZLo8pyoC9EB/q3pOzQRyCTkozmJwo1Ln/2xEbtNnS2S0NUIS3yz3/mBIdxONHxqP9FW+uoGI1F415lI1nZwK0SoPA0+flaokBGEoXgZnO4GOExU7VOjdPns59ekmDxqNhEHeAF5i5N/3W2NC1XGFjTpqLrnCECiwVkOTrLtp2ehUIaejOG6+1336YQSKMSsL4zhUjw6SQKryVRz5Ldn3R5/r8AOi02RJkQXPdvPsl/FMg96E/cJmIFLmEDzr1Gkh9G3zisG4pqM/MV6XIz+CtDUh6hmJB97VzN8jaPSS90vgDjvnaNlKky2/zIhE9ObugwrftI+Oi2a4VVaB/Mwn3VmaWjsU9NOf2usbcN/GLQMjvfeU/YvyEERPKw1leXZWWk1HXzY3P9MUq6MZq1hkEgFzds51mv8mnp1i4pQprPwY0TId1szXwe5TG+R5mMD76nGPQr7/EhQWksjsgGs7Zy5QYvMcGV5tcXJR+6hlHFIAc/M6XjkKYtwm673Bi+K1tNO9i1YBePTur4I+gMsOK7f7980mcJXhgdWdhNzUN2JvFsvXq3zZRG2V30sJtJYxj0aUv1u4/ppVHi1iHnTY3gDHsrQS8YwMX5XwZ2gcFYYe2wd7ZO9swr0gb8zf/fXx8QWKPXcK1UdJk3760B/TMlpWLCbhkqVoSTsOqzgkmFmFteCCTGhNyvFhw1RrTIWzRxq8Tj5FirvKvtkp2GAVhnZ7vnr71pyI0rKwQbVxKZuqM7GAvn2mRBj5p8djlHUsh/r/eBECptpbbjP5nFyuN4mvQLZCaxeTkDUzd/kNGLIzBFv1CElQO+xmf7Dzt1f7GM1Bh+wLDCJZlhcVDXbtPuGssdEie3lZNiWcXMTjZtWAT5MCmpq6JCRuFSHZYGKcSFZ9kOYJfEqLIcWdzpTA+Hmu+ktgSUwXVSwkaa/aHdZXh7IOyrudCBalCZpgXGRNbhN2XpEY60DXXO1Ci5ayZSoxtG0WRCC50+XtgWz7qgX5MRA5S+jzXCYy7O7Nn0ljVxiBxQNCZKZMTqi6mPfy2LZx76uyRUXHjnpJJEimflHDUxyX7fFg7iJvSrsZMH6Uv2xbfQNx5eCbx3oKycUrBY22KPmgfg/w07CDVsw6tb5VxPg5/X38cQtXI47U7MAGGjO28II12T+PjaXHlstPtkUQNn0DKkCYis+kVAkA1wyAJgYKLGnKD3nlVCarYqCkNIZbiVwO2Ydjl7N6iOtvvbAfuq7VKZLo0jEdw1YdsRaHcuJQulgb51JyELzYBkP1hd03IDcZfPg5XmNvYQSOINsCSn3BuLtkCPZRalK7+S97zxvJHiJCZJM9XP785NZ8B8fqDe/Ot0BS3PH1ptErwxBtpgfOj4d/41nrSjJQf9bV1kfdBHJxYbHILxOsWkZvoP/Z4Sl0Yx3bDjTF96xf96+6uIoQ351Ce6DeTwTnkPr20YwATlnhskWIddUohklNITCq/07zkiEc3B58uiBG6d9YAc4h/7s44FN2RG1UuZWeojrOZIhElvDP4KqHcOYbqqS95o7ilQH5ONJfy+aYiB+sPpn35HfHG3duLpNvBjXc+Klf4IKrFHjeVty02xPTNnbdL4gtkqPqMLhSgR/fDXzxJbSScqewiF1wdVoJ/fGL/nGWZfVlDHOQKD+/i/mqwXqvNqxtZeRHwoe/bodk66B9soOnZp36gdzVMRRQsQiBFf+HXjRcrRf9FsGghw3+qoN0JeeMvDJrkSBPsESDai/uVOzn2Ohge+UVdi050fdWpsjP0D/QuTdYs6QyI9xnhU8WT2+KBKzoZ7Bq8fOdKPeLulUhJjT34/EOnUloqus8+pzqNh/UdUOhgTlrbkuTfsaIYDm87u/GNIl3N53uaU8bgaBjpz0jdu1f59K4KFDtwUUeEUoeYx6DEkWKHdi7dtHhQF44lbysk7PqERrsuAQu2D5tDMl7kFoGdI8r/s8rMytJzYBU40wqeFvTl0ZVLdOB6Ya9E/f8VPbGx5MdpYqYMLMyB0QxVdnoJ+tgAQVWfH+jtOHD3PsjuT8dOTSrupuvHWRHQoGI1Qj1Hc6k+Mg84FAZ/gzl3SEzuGWZKFwuo2D3EiG95D2Z1szTqAuFRmT1nEh20tkC4ysmXx6JtN0taK1iRR62s2uNW5rSAvMEJ8yotr3UhJe22brlQn8Gvcq1I0aODaHJucQKVe6SXyfcDWODMw8xf+2C7Zx5a4Qlh7pJs550DictL4OxcDXKvVmLgVWRwb3moxv4kcxzm89EERJXCl7X/BziBkGQWOHPGF+6K5NFJYOFVv4+NyFq+OPMaSWZKoydplufY+CYyL63T8MCMmwqLTmAE8h0prhi174wnx7DHZWYuRJSYZ63uz97AGOzyI3aebclnud77znbZetbWUripe+AadLQeZPtWsF+FNiaXCy/98km137lWewyc7Gamai1Hd3Ls+KMMVh0R3NKTQ08TIClDfMKwUGKy/7YZlJHU3uW60X0r74Afh02v5MJgVOYkjmors6GAaDU7yKHydfkXYd6nEjYc76xws1LDLWCNNKBtUHNyLseOyNDgmHiJ41lXvq638RzDGis8WIniOb/pbTs+HsQVGPi6mxG+CU+oflMR6/qx3pVP+GPgqa0U0lo8MVmI1cBgSnPGgrh+J+m9TVg8nivua0EQP7xai44ruC5gsAVOp9bLsDXfHQujo6IpBmpfbbU8PDavZpTuJtmflVQuOImnRQ5kKoQz2NBFjdiHH3cF9QLgDP5vz/W5trCy22Uk+TCjXjdbCCHB3rJhKYTwiyQUf8xu6yTKtIwrbw4tzFgXDODmWYEnnpDupk3b4AP3qz4AZ2En5wi6aZV287AgCF4vH8TlWLni1E5Hd93vLxSYLBWSuj3eXGFtWyWpBkIeKu+YsBh19VeakA8OePM0ILu6dYYl9DNIK3kU1ybH+A5xYhFI/EqSX3vtNs6V5eQgxYLvu0hYFjiG+n8JzqLQVROiVa8XNQDYJtDAetPFSuEtGI3B8rnbbrNo9TJn/z3lRYq0ecBIe7a03vLESwhKOm1bGTk2kPMv/Sh9wyCOmIore7JhSFT9HIjonBfi+gcdDLfFt7dpShJmW1gkcXmitWwm1cC480CraHm/or2MHphB9Q1bmt/SBXFqXJdcv5GTt3IS2fRgqThhInCjRkh7Dk1iS2vMBLSGtRPppb4FEu762JehUMQxxLQre365CKoJGvJwVde91XQ+bDp5ZsMu/QHmLgITmwGXSpQFQlQBajqquxlwIOe2cyfezaSHIoRNLcwjW+epnmAtmmWA9KU29v/cA2iuWbj9ZV7HR4anhHkjbxnzKPHnIZ7Mm5wAf2o/3xUhnfH++quS20TdhalHgNhusidPKWyKWV8ZjFLgb1fX2r7ifLyUtxuKHHIfCWXQJ/DKeU61vxmPT34MTi2Q9r7/sK1CYuHVqMBsgtfenn31bUzCoyPN89KiO5wHveqnk3uyHnJSUBVTQQ3NyRPmeRKTQvWEBZ4QWcSgMyZF0RQgvUXRcp6KflF056fwahSioP622TdcTVYi4cAwSZLWDvfjoKFLMowPQpzn6ogXHc93fFA5NZmnwslSuesOyNI1EE3RM8kzat6thkmpOiGmm69Yn8yNuxz1YuuPWekoybkee106T9WTPXo44ea9E5QH2Ig6FZn716DBa2FyXHG1B+YfnmhbEpANlOi61BoGO4+G3WMJDokJXj9GhNsFqdaLjA1pkhLP+/mGCZoYsxNI+A+sMvWyoj+PMWeR8koRz+r9pNVEWT70WhiAkNTrojdr0sBLwxIM7D4zT+cVy96ZE+ABi9CqkM9VK7iOfkJVp7AqCqQ9EZ9emn8rB8zfoQZUBrVd6YS2AqiTFt0nJ8HfPGmnBWf3Xi5CgyWoLAmHJp/AfTdHB0+Ns5DlhL6UJ+O/6xys+CWVKtL9S8fVHkpwZZMJn6jVtiUTtXjywmiVXw9a6f/G7Qd4tZtcoS3aytxXYA9aGGmEeBobjiammhUaMDicH3nlOkDvvz19NqWOvHC2SMv7OQHtDIykYerPuoLz6SQNOBtw6oX2Sj3ZLITBDcWNx9CuZYYVaE+vleXnATrwn+PnuQ34jL52tp85aIOk684SUlQ8uyO2t+eIOHndZ3oxD+BcMAba/JVxRYUAUZoEw3D80WWOz0/ul+fYbhFnffx3PgOy2LLiu82D5FMSpi+Pd4EkIFTgfv7p/0vnX1wp0VpNzyXs/5S/4z0RFS21vIF67k1ERTfFuhLM/8fdbKognohMqTNF/+oqvXXLuJB7IHeDdn1X2eParLBEpz8y9CAN2g5VdE7EimekAOhkw+tTzqeEsgyQL4iVDnWrP/RcBd6CDm16/5t+I1SAxCn9wo8knzmpg8DYP8V/vHw8Stu7cliAt+G/VR4XPNZXWF2rZBeQO75os2jFJrbtkfhN9BzHT4HGgXTjyTy8NGsiQdeOw12GjYKCyxP+34kRHZqYsn0pFvVubB0+/emKRgiGXNRWQwMSvAB1xvTprD0Zyt08BjP/4W9HGNfNBcA0Qb9qF5hdQ4dDqpKAFLoIW2gFEVKOganw3M9/4WP9ckP0/g6kaJDRurtxNgT+PjvWYEWlFa80wKYCkd/0ZChV94njjGyg0t98Pz3AL2AFAhvRRiJwdfRcQqqhWkv/o6X45d5w1YLJOye3v7rgta7Ya0jAl/an42ng5Wz4S5we7n2+1W94JnpoGyV8WW2HYjKLkKmp4hBKlNtb5y4W1MrsG/wfq2N5Xrz2kqhdPQL/YoxgCQd6Y2KNkADVu7TxugQRWVuNL0BUj3JRFyWNeCmB74Wsz54OPnbq0GFFxzSkoiJ3Rtq8yEJMKvOMMalFKH7YFHKjb2nwrKVfuUUuRtTfJDiBuaEHHoX+MUrM2bBaAsSdnY5PjqcMBn/wwojQxzt2MoOCC3OEArr09ghhsj2M0mue5ntQcmcC1R/sK3zfShGJuazS+mJUeKxk5u36CYj8+SJCq8ZEv7bNf1+BywGeDQoTDGq6Yh1xW3Suwo2O/ykazTPK/TdVOICyiwK8MuQpK+FX3mqSPzxfLwFJ/iYDjs0WgW2kqXYgm+gkNToB5+jYH83Xlt0cbtEmkkBaVGlHz61rVuWzrK1yjn5nYHKvKCrBPPRth3AKDQQB83fdrbgIeIfB3iHya5NPpEyxbzmtN5Dnk7GqrQ4uu4h3QSoHU+74zs31cWqIx4SZ2bwWLvIxUtR6gufZhNZoMcmSB5z1O9TKvHMORD+VmuiqzsyJKA1OaApB+b9x6u9FTvUkalgl0r7raV+wRqimc2D7B1z/OiSagdd5UME2igLGUcgPlMSX1VsKQp/9yDiYei87KTBA2NPCUmgaLwVdvQFFFxWp2vGCY/KCUvxt3FOu6xIgwS4Vybvbj6feUCkrQPpO/wPHJPhAobSj/aa5YrUvjHMcQkDZwfc9mvghrk/PIPvcJa5InhVBfjh3Xr9vIvA4ac+m+pywS/EqkSX55xgiyj0TB1EE0NT3W2CPFdVD88P72SpdFzHS/6XsmbGtM8JE/m8eojzd4PM1bNADliZ+XG/9hbcKg6PftVKyKKt/8Bz4lGsHyT0VKj2vDGp/qDGBajSHrqzmpEjW5LXsb5kTV6HgbMcnPW2dzQju9N1sI/gPVlgGmk0bHKOX2Ws1q4aPizhcM/XiJ5EZNUK6bZNUeFaUJVTvGxglRUY7vdnoVOe0Raho3huh1XDeTlHpk/2gBjjhUQXe8FN5A4zcRqkNtKpSVq0xyw9j3yQlQxq/Lnqklpz8lXmzHkz8sX9HJjHwyn8UAjblvN0ZFIk4liejx0lVACoKvpsT9+pQoLY4weMHRzcuVC60DUFkaqLfclS4UJti5WK4FE3dYcc0OilX50uscLJomlR6pXriD6ELNNBWOSMt50CJjPkyt3Zn/xj1dlPVP1t6XExK+b3jMoULLPOrEGvjELfAMM1qcuBb0AijkIuFca8f8xapUlkvLjmmJW7RK94r8HaPzvmHHSqX9MXdivNI4A+JHy0VCe79UZZJvzMGzpnsj+Q6k3EItDBiA12fTMlSbEOMAWCdQq9TtyUiAaAqJozMzryEg0k+yVHqCc/DyJcCE2V4WXIhEnsOc5c8f4ChWfUaONhPPWogpDs/lyVCvp3m0NSfrAJKNiVy5aNC9gZ6c9BqwYgj/cDO3kdam6gCjhR+akALFYmt4ixHkWxKhDTGs5K+CwRiKJnvxP9dbxRPCBHbiVa8gsd2GuiNHZD98MNwXMdMC0MubVodd7dnyk3UQFfCIIL1osPxY0ZJ6DvZXwtZ2I0th6aqlTMULVo+lhSIU/5qO63lTSa3MgPRJEOi0AJ8/UlZuvgqLw9dyEDQoHTKWOsq+6fzoAyvIpv14fLaY+braPd6NkSaq0RClMenK1QLH87NZriUaeuCo6SZ7/CfUt2K6VOt0AjIK2jR0vorf6R8+TVzxZb+QdLimH9pU5tQc73xW93QRPMGy/gCK+R+YzmV4fHK52GWBEBL05EEoTY6OYG1WWji66dWnVTg0uPNw839p/yjLxkCfdTaH+v6hVUCd6HlROj6W8Mil6AYGC7NI2+qkZvJh/dAw/iQspXQNwwWHr6slLIp0hBHYTDh/J7Ba7ZR6cp3iU4bSXdmzhTahYDev4yKiIHyN64EANhI5OHYv1G4KXfIOvQizYWchPhzQg5eVGNMxsqrvWVxjtIbkKuHzE+IcA2NZ83GKz0D8z5zmgRnoJGKigseP9TmMS7BgAqtqyixA/SLc1KEUWrhXOQ6kA5ZQRazp3wwSa404cppBnfsS8EsEpbr/gXyW36cZ9pt1RhzyxGxDUmnZeBz/Uf1AP+gyLIg9x04u1fThm2w/H1ZXGvVqsO1VqutV5gUhFkdkwoCjzz3F3FUr1v0njGYT2mSZYvoF/fSd1W11c5VIhkEO06US5wYRmHVPYXmZnbK5YHQ8pkIDJ0yqssqFK34CuHE8RWb+Dr4omk779QOOcYomAMYQ9ILt2KUk2uNlahW/IjGtenuGLxb/t3aFoVz4oNwMZ7iyp4td8mdzgJAfnCcYtklubGAUB9k6bGC5DSkf5VFarnGEBWz600VGR8QywZ+jIYFZbtKT2QdDOYP6k7D8qVgEZByGmRedZRWaQDTggLyNgDD6pQwEeSs82+hTxWypqwU3zuAWqfwil+mytzVnKztyvMFJyJwPFaPr4Z3mTjyxCR2Jv674JVGGMUSWb0l+GtcYtd+NBGChwr8mB2hlyccget9liJhQEb0XgXfgVRlHlbO+jlZ9CcAew0Nw+tRcWgNnz/GL9Kur7RohRhaYZBBmQA6JhvzkazHRcdZDn0zDkfBmYP1PfQjP3d6qqx6gE7vrb3lBKEfK3Y/nCe4COdpr23oZCoIpssGXmqE8CGpO2bEwkSN6uqeqR4UtWR+xsgOzNeR49PTLJpFEAkXha5YaecJ8t/KR+eG7/HKV23zPZAMvHDC1rdxQ0l+6wlIgZbUybjBe6yusL7isRuuYYwg4+8+4lia2ox8RCdvmXlt00ZshBnAIfLkSwIqUzCcsD/d1ZG6Az728L4FCIqBKpbA6bzkJ87lYQpbaHpwPpqu3S0UqNDCwgg3q9MEn02X16E4xibz/rLx7NMDtHcwMOt9r1dVU6Hws9TvJVH7THrnSFESgN5eBy53Nq2Fdb8mySTxz5CitvVE+ZjHaYS3hq9Bax+uS7TxMIT4qJE7HGdsHM1/9uPNBylhP04Lck39JMe8v2dPOSJzyQoy8m/8Fc6h+X+5/mBVA9jAsG4vmx/KdUW+NXxgRt//SS2Ib7aGILsjOz+ZZQu/NMeuAsP1pFRTN90rqIVULbJ20ZJlrjoZD1VxHEoDFFGVWCVOT3jGK+vFD06gc3yDUSnZ7ZHjGmw4ZiAglY2nm78aUpXxI4BfUHqL6YQKFDCazUIryLi53RczlaTh0ry7WN4WpWK9sPJ0J49fu6RGUMYZd3+NrRvEdOrS5n+EJOTkr4lNzo8vawcYnR/n1Dq0rCHu5o2BGBEHABJbsFLi/mlWFO1MjpvUu6UPJjXlXse6MtBROT/mQfyegWGmFRQ7Q/O+rJp471+tQF10+bvkExfBoTQrewd5UwhAUODpyeW+aK6vx2AroUo2bGBZ/ZjcsJFfMYEMsm47LdQSq7T7peI2Ex+4/9oIAJGfhidbXA9UYPNhxigFTg83CETNYfYVkoambj3vv4MZNtE/wrIfTguBNqkQk9ebLPTmY2U4UCzbYqPKO5vjaZXeVksobDAJzhVjoU7p9TdFmNMyLyCQJryBSOcm0hFk/pcwcV15KZ/+IIqeQGPkTbiY1haWSnuQYBeyW5uSPHGtYw28cQS/v3rToNAUGVBSQ6zpBt4CHvaOfEJhuDJYZCcxvPeOStdCzaoSQn9nDe8wDc1MXrJ0+9N9TAKcS6u8ANLCLY4UfHLGf884/LFIn4OLOlRcNl7FS1IJgu1/vLm4INkgHt5ISp2vC3MFJHz1zJnopnKS1AgJtCmhJRZDaW6wis8CJ0KAJW0Yy0+kWI3lJ9N8yqJht68FMNVgkgaAGi5LuKmkZWm+ztKvf9gT8hJrXZkM/QdHI6wy9BqVeWa7g7ZM1YLbUv37YSnLmGsCrl/UVi/tG+fZbzY4bGye0zH08VQpGmyd/v++fS9EtasmbkQEIYnmLZLxO+tNHp3myIGwYBZVXjlWvrCiQcsP/Fu9l0HWmLBu3gvuJ4phtJsXXllJdM8iZIQR8Z6zEMs+cqVL7+TYhxDd0c0l4sbyIEw6N+V0v3ZbUlidyekdcz/aIomGdZtmdI+1QUrrHw7eDXT+G3zbTZMXxpEgJc4zY5bH5az8eHzwoo8QUleUKpVRrsErGmSF6GPJ2OltKYL6/C4zx4rHdcfsrQTcWBmrBWMMiFiU4NGtpYeACqYafRyu8j8x7ltp3nxVbsPO0MSoaR8tv61/q+YCqHX3h4vy4HzjCYEl+4ZDtj2+mawuj4J0rBpcDw+spzuCQ2khFbks09lPGxK8HYJl0Y/lNLUxGLZ+2h6+EFSaD22bYzF7dk/EhCWh6u/v1HUVKC/r/Wl6JHtd1V68J9zdOTgbvJuQug4r4vUV3JJolQQ5tecHKqcNoYjOIs6BZTlfB+yHGfGdxTKsGxbU/4taKuH8Qpd/M7fIG5zebrpiDHV97T4jiUNt7K64/u1e/+erXV34aOjfddcKNO76EzIf1pfD+KivBsRlzlsjj17aDPq/lnKHQCLsD+3TK021HNzhZyuwpLRKS3KE0XH/0TqUOr3VqLMcsSZM6349QJDznPG+sUqeS6wwMWp28TAoDKdmjzW6f+2au71HsOzLIeWencRa5JapKkVTYpvwMIC8u2L+/hYGJmk0588rq6Nnqe041NMzU6lj1K5KmSj0ZRiVpzu2FSTl4PBYHAuhe5dtwnRQwvvNqIELVxKMFWedxxB7UO4zpYRe2x0zH4X6pI2m4g6YdCs08vR9B7omy/goQUYbUZA+wJamq7/c0FhkNm74Mp05NSCK1Dcy1+9qp82p8XVkUB4+SsVRJ/Tqtn8v2esmemr7zjCfjLicMb05JqNoL6zzz0KaYkXeStBrF9+T7EbZTo2Fa/wS5NhJvRoZc8QUfS46HX8HIZ8A6LK8zKtROnakAnEEFoonVlvYR71xYuBAXbjtxfu/bteN8WkArB3//qp+3btpi2SIMyK6rX03iCLnzOd2OrPnD6xqgVT35e6NUMpN7EJSz0DRRzyze1J+Dx3cfx0M577W84qifD51mZG8VNbBf+5PxmGGrGOmkO+Q41YnCkx51D+X3CXsNAjaz/XfcPJUXJ00vaQyfYDtmFq4kU1ZHdnep48T4IskzPsYT9or3rd/ubiYLqeBqjnGbuNWb9ZdPDxkeBmJwYTjsTU+VugQmtz5+C3QBX0piVh3d7BK+Hk4mO3q8qJVQXeIqs4hKuRvBfIwwUyKg9W1x8dv+EwESuk2Bgs1+Zc3wzx4eGasynWs3V360wH3fKXZFTckeHZdgtzTqcQPC2hCHhSXyFMyljvrneLE+c+b/YQ0XcDBam1oAPzvKmmcgER6AqnyC32Ic4HMP4FQN2rh4Y2ntrawByV+9oq/Z8hdwQEPYRYiELBCnuGGXDQbl3ZLuUo0vfKU/AuMwYfNXmNM2vkn/GRrpc5WDP+MEL80tbJDZfDNBRfpfcvVpf75u0LrkIIjnU4adaolZWzB2yjIVwNrF7zF//n4N5xHeaGc7Vh1EYRdc0h2l23qFvLBNQ5kHbmX8Yta2Vj4DU6eBN3XyJBvJf9iL4x+hw1hx/7Ej5U8EZr/Qhgoni5r9PxBfU3fdvXICGW9DzST7GV141bvyMDXblFG5PizNjJUVAWNSxIAStz6+eDAbkYeAKTj6DIR6ysFvZAloBLCgSdMFd3ol/WXDQh3BbBtLqO9hp08BfumZjLpTJGRAIHzDizXZfhbgqejNSS27BIXQLV0muwzgXGqYt9McSvtLWo1Fos3k6Nu2qGyFftqQyDz0/bmgvtZyiFce/SLYnjt2Q9BnlmUVBWOtbDPvUgOSizvJDhdiSkbLLP96MJ7dKO3eUK2nZnpb4s4b2XGF4T6gC4qo9TDv9z2SY4Rffb/RjPs76P0YiWADpPB/nQjC2tDRlxt4sdNCIjmMsLgU+cr8cpyaMSYI9maP4HHww2jTPkGKvF6H6+DFAF+jAZKT9oi23gpZ2zavE0xXPkF7a2FTNJ3bwxvsJV+o0fXZAkmouYq6B2+6ccHhnUIeL10QtZaPoZPJB7/Xry/2Nv+JJFmQ/p2NSiO5bYGA8ej1vh5QlWhaX3JMs5gMBnyyIfXIMf4im0WEUnCPAJzq9q04Tmxzy7nGKKEf31kAp6IFk95aj0AogL7iljLVJlOXNvV7BwZn4dKfuZweSEZBqy+Mvual0TVDHiwHuIuXbvaw+OkU7aeAfck0Hc6H0jgt9g6Rxb6dAuaiKEN1cUYtD88y0b9Arq1q6ML9B20/FunTnZNF+IHgsg641FfllDFpQ+dqrIPKQ8IkLx/2ppx0ivQSrehNaf5dwtBjnPHroRGzG/RWOdiW0COPzepxIqcsWjhfmBXSUD7YCvPm/qTGcSnhcriFKew6a5s0AgK03I1gEifX6y90cJBY9REbQ7yW/XB+zAXN1XZQVEs7r+0ajtx8KvVBKJksKj5YFGdhEennMbwgCJJIMdt/pJD6FIcNVegt2LiQS70DAJeiNNG86dQVNYNZmYEfo8oa002xKLh1+rHlBX40iY8Wlv7FqswQFktpyLn5oSdo1jBRz8V3aRIOmhSnrs2wxGwGBEVEXvRm8RZVvSQ0xlKMVWs9Y7nnmJ9jEVuDL08D2ES3plzvCNP3FpKQeSknFeVBXv5T1Yk0/X5vdj1J1LYa6Ffxxrv90ObLHARkCI+tz6+0i5cZTinvgIYLMVnV/OL+m4RCsTy/+9VQPsYv6X2qSSlVdQ3KM1SOntMNUBpb4C0MsDh10xHQ0cbJK0gsR6X93ru63BDYbRZmPISt1casVwVVE7+u3l55XJGJ0Ev6S+2zpNqOAH66RuzpVskXE6X8x6wHOfp5PAI/7YG3Zozh1U27IXGEEKIm13Rt/nTE3pKWA7i1NFdVQKQ0CNdqEsBkjiuM41dd5rIbR4DMnoDva07v1esxYBGU4JWJUJQyejYbI9p7pqjrpHZUNlz2exX1lTAks+WxY6CExoPlSlNNv6AIsE0VdPmHOj4m0a8bigDelTpIL1WoePLhblmhRlkPDKiZvkzz6eG8vLeJjCGJL1+VFa4QREBVyuhcpZm1ygJm9kuQ+8v4yEMw0VO+TKee6sMFRVc/kS4IirJupnw48LoR2aRk+GuDBZ25xnKFxdSYqZqvWlEcemsbzl7wvQg5z2xKxEUsquyGziyzd/X+XFl/ct9KRLzyyb6ComIL8Wam9x6LPNZXvhO0QQZmQ8T2MFjmRJ42WyRzfyLGkJKft94uO0Yy6Fflo3AoIEon3XBygpi3Je932ToU5EKoikvqkeLFACpsBN5dseemiMdHxOJKrVJDdTS0qCcTzPCyz506oyENFdelskwdghmUnWyXK2WeJX2CBXudNUBON/i8kMdtJm52REvmGqVmxe5aricuTCGLbgZtYvigT++E7xltEh/ZgUoMP+d8vaPU/HdhZaUjsgQ8OoqZeezvNR2JFm2on+IliVyYQ/58LmZ2stgKoBbs4SllwiTpNRw7ecL2WR8bbg05aTN00C8aGWtReWSsYsirJ0K0I97flI2gJRRN717wESryWahXUAFZAdyD08j9SIZQm+wq5GkoUkK5cQ3wk1x01x4fKLPgPIj6D6lZiylqvWGtl6KxCfoSQXlNZIHeDsrIRqhINxdrCinM0iMMkveNxhqrEzhnBn8F6nXVY5zUDLzOXpp338I2HycFa2pueObEof3HQgFEMnHS3/CDKwJAyYl3HyA4X5vXUE8MMa79gYELseTf0IEUJRsfSa873vl6n29lFq+GCqF1I+mB5PSyLFvgHv6hG5Hd14PAHTKhY+xzCgOwwRZxygPwNET0UiO9ynH0p3j7GAFEs+VSjl4ArhHJbySohRLfm6B7FxxYJLJxJlQr5UdD+5Vs0nM6CehSZZNYw4FzcpYoL6nS+wGGSNKLVLXgbgvzAbT4B1J4GMS16IKMlo5S/dzM/NM4NI+a1Fuk4qwaewoHqGp78vgp+SkuhLyAVhI2Or50Id4LlHwRon9o7JT3D2pibchFvFi2VTEx6cLX/qorW2YGSSmnu9+M8teW9DIRH1TfabuDIuLk16NFz3kNr5QLPGAd0JzN2IYFA140yqfi9LfBcZI3aUK/Gt2bfMMk8eqttN8c92OmUYKUaHbB9C9cpEwaOYs49MztuGtI0VMqDDHN8HiRP55BpRIJtIWbSyi0/LOC94XhzqGVyuzaVaBfg0f++sV8wy7ytxlQYA9w1ejE0XaCkpM9zbOrymf4OrEaIyQX84Z9e6wQ1czIvOihnSaq/fcFdkxJcMzE2kWcARwWT1U80dW6B+v6HdclWMyMWLYr49iKWrhm7o1yumJKxVGiv1Rx3Tw61jrh+vuNjikpFRxa0F9G7ZWs57nuhaIeT8ZRjYzuyq4WZBEXs4CyfvmZxGcS4/G2aWon2O/UkjqrfdbBUF0yavSPdNJacaaZxFQNejGDPK7SCF82XxiahbNpwFs/t07gbCJkDUvvKjqaYv1SNJBa21RKsOuGJNKO/F6HTjc1Q5t8lqLL4e83gWTT4aubYGtE+D4e9zdPPo2R3dvG7bDrCQosp62YhTaV3B/kEQGqtzvu59fbgA6lFyGe7urhYr3TWCBFYBmrEpB78fWnXUEd1z0LSzMcWL6vuh4CJYR0tg1jX4H0wkw9mkbM07MXopLJ2Rt7/aL3Hl3MjO8h/1lqNlK74QTbgkurmgd23XflEcMhjO52Y/Wsz+CqwkBCDN8SUcd0hvJ6srikURdDKw75ZZMyms8NdzvzfsXreeCzpVaPKbkgWo0BlD+qWqaXziVa7YTSezNkCD1UBphMwE3IFwG3+Oja0AILbwR+VMjirrIkRPt+DMtp+OKLpkiE15AVv3jn19brZGZkhhAsuT2sTiWSjLvxJkMICAGdQY6CcJ1bmQsycrXCCxoxrME8B5k7aYQkl31h4kmnvmUA1Uo5bGEJkzebQNuMeVIRwKr7shM3Y3iowzuO8Jm833ALhjeDbR9i+ajGdiv5nuQcBDW0PZ0CB/GHvnmE702e3iEmWKin/StmkbfvsVh9mXnjLzZCRfht3g5Fu6OpDSsq1DSVUie4hNThGTSTWkOhTKbARv54Bxp1m/BqW0CfvfUJMQYci+HzQBrAw7lHJI8klNzq1wbwtxf0zzTFIpYQcsU3ddDWDMuciKmN+BHJ47B6FkgX4uR5QSWzLqgN2wQK1aLp2hgMJGqMII4rLK56VcDk89QQhw6cy8PCM19olNpuDwdrQFvP+77wiyyKx8Z4MVJNxV5vJWOwvF+aDouZMW5HNno5d960qcPPO89qYm6Zh6UO7MyFx272aWYtu/0+UZ6eThOP3s/uMGRarrYNGVN2bkl0VbM7ZArP2AnCQLuPoIbkry4nTS/RsIdFmPg98zeYI4R0RY41FQsBym1OXnJcHtmKPjfEXuujVQGfCPrCZsaT+vFbMFWIvUy7OxquIvdi2DVp3+q3E3NGG06d/cz77wgHGWrfcy5LJIzCMZHkk6m2QnZCXYVXwMsVhJI9nJcgG/CrU5lgDb/DlVEsXG06BHIuqVfnTyLdAQZYmJlEEk43pdgF69V12XC+sB9W5Tfm3jPwiHn/VmGszkYx+Er49CLbyk3hDBSKuzDj+nzCo77ZO40EIP4ZROdSwWlf5S8wfYcAzjNdj/aZ8uknw3tur126RfCzMA+cUo5mPaZL9cVp33X0mRTUIS2vgtwDRgsSSX5xcJUWR8gZbdeqyqQEEAeDu3+BMlrgYP2SH/le2u1yfVFn5JX9VQ04X9mmABR/KOd3rAYqR+OQwLWao9MXVS1y+0OKo0FlXuirKuPaY1BQbY3Vo05Gf/+N+u4rDcFBQqiCrYhgRAEjvVW9eNCaOsukcJWEaDuo/pWCYGJLadm4ssTCPvVVEJNBfVXAcTIxH4EFtWFMJUy5of50QNXNZBl+oRuFIkdbt04DeU6j2A3vzzP+IkMahLD6zBVJv+xRBIc5fODvnJMmJRMI8kcyMFqxpeWZAHxC68tGFNyl6yyGN95SwNYXwDSIQCPlL9bzjZaWNWvs5puiP2lbEBlDw5vCHtVmb/sD8QBgOhRassChwM5o5g4lhlD4u86wmdmVmhmEXnCyLeQJ0rRtqYIWRhg72ieDnqmPvOkDTWtKR38TeJwrK/7IRYfbNspygrU6yV9YtJyw3I3uEkDgbPrpcNUpISYvzv3beFg3ZN+swedqf3IVKkcdiAezu/KpHGHPyvX9oT6qzTS342/DenW9ctM197UfFl4rk21KxSma1KnLIWlGGasMF4+G3dxTnqBscul4CqNda6Qy8ita7HCzKlYa86yljm+HQA2B5ArJoZy4LNxeT9izFuQhEoEhUTNJQj2pCc/O44h8GpQX6XgpaAvAQJLVNq0yXGFbzb3O54XQ6sm557+lT3A+VWPyCJn1MLbsssHIdFhJcMtBFQYi0bS+exQ4Rq74xNE2CIRSzi3nj5TNy2AoO0gdyBC0/2iH67UB581jmM92OHqgD4EzAzyxDauPnlIdZu0nWwB4dtxWN+meq/faIuQpK2hoRP/ULwIJ9r3xyxtXxfFwJ3YquXldSEnxoPiYD85u0OAHvKOG6+3eBraUiOgvdfp1EjiroeSLLFutuPPV9XqhAReYPaRy87OAkV5tzSqvyfufCvOMTtkpxApWsJ9n+cNM2uBWu4lj1oDjGasCfCt6cfgCzh6UbZanbL/qCgf/iHjKYaavIiRLJrU2BuzdsP97XHkXLYbbfsHVTlXSohKOXOJ+3LiR6ix9UFLo9qieejYk+P4e5wC64jGQLSxJzYt3cErx1Rtc2+xlJaEBynLN4hLl/qOrgBM7a+yswC0Mh2OieA4SR6MfM9WK/FOWbVyoUBIUAKOhhIZp2LOgukk0/DInn7sF7dRP6Nw77MaAcYg6k0gdjQN9/1wtGVSBm+6LwkI+xfcK9l+JiWepXul+/EEdV7XXp/9lUsW4RQmIkda9H38FJj3EYJTrG4hEU9YWtNd2lKI1683cXFVzSMkh+2nuu9K0JUBoAnrYkKVZpAKF9G7y5n/KMZrP2xPuUFSOaruqriffSEX9Euj/k5dgewEyQCFTif83LhkIjt5qJ1LyI4ynIznWl1SoAdecEp+I5WmKBB2fr5yw33NX94q6HIP0jW3Np2E0r1f7fUjqdxV+iCRULU+yAwPXFvTL7HqfFLj+wCfIbOg+nsW03rGTf1haLvAZA/nC52pSDnC4f0qOiA6WtK20BldZUaA6GO3m5ZOCGyemGK4a12hM3BXnbladA/yTRV+pH7IiT/9WOijGGNXzV+K4wmdmRjU3It+QwUCRat2mGkEHhOcQY06pWeQqBGjHkWcceX8/drkk+tYysHMXVk8hLhLGjUVgivK1Ra4K+RtUcZO5fkVkWQ4W8fyo2tafhGEDSsflUH7yj8wsATBE9YpskR+r7Ac8xqdxtEAfRioGXSprjbLI2DAZZz9HAYR7rUHzvh/UPpFvrLbd/hFf7sF3RimWNpiGsQRZ11RqfZkck9IJu/FPU2DYr/HWUdskJHuLufXCvDbKn0F9sM31Hn3zIuAMTUc+tQsO9ll6jnNnW9Ulo7d32jEQMqJIrWQL5+Se0a8lKRp+XhYp4IfyUaTRC58vFEjKupeFEpU4EOp1AjeALc7vZV0ovza8QSl3ru6xFpY0/ckElMOChkhLWSDHLCKaFK/qC/SIfT50GJZnkCr5SgXZRddXq8Gc6XNjIzSdCF+9YlUFKMiri/sn1Gp/dEMhARah97GidLqitLNBlF+H8XoQmdrM3GXBSCN6izNn2ON0OzpCxOuM917OZCw2ZC0DSvNuTOFCGGYf1TYgUbgK2KKc4zm/25dz3GhVpFqs6x4yhZBbiy/6FD1vXW/aIcDiSUoIhwrUtxuGGZijb47Jz8JfUTblzx4eNPbXeYpygkQo1xXonjeouTuJvAH/zH+FK50zOLAtbN9AO6xjfX09CsjKitMVlHWmmQybLoBHBPkC5IbAZxvs3cH1VAcy2X90WL6y/0SXNsGeLBdr1OWVuYg+/wUNiR7QnP2ec7jNrZZOosT6Olwn02Dh6zSwKoDnMFLfk7lBO0p9mWjex7gEFXNfxFO19qmaoISUZEgdTuy7sHgrD/36o3XeFdzLFoFnOJa4yaENBXdTSmVZacz+5IGdVkEgjQt/TxuhNGHGtQuzNDfM4iNZ28Ly9S9WkUGMNAfDRLr4ipZkJxUA6HnlOi4Yb04/Ze8rB+HEXpDGC5Jpr4fN62LQh8o6kxknE1P5/rNmz43jehFlRUvCyNi3Y5St7lC7a2ogCt3Za6M7AshQdbVV2+R2DuuiLEJz0MLhnn/1/F2Z2U3h560PrnhR0Gc/5GW5DwO/DGrR/4PvL046BKjUp1lfrtKfE4osRTS9/oB0GrNW3cYgvhU8ld61sHhKOf4P94t4n7h9zdRXDaFv4ORPHokkY+NA9QA49RmsGMfJLu1/RXuluq0J4fsUUBoa9dL9T0yDJXvGtuoln8aYrNzoapa7E8cR73/wX6KwBPpwCUUlxsBtOj0rnca7zu5FqJC5W0U8Yt529SAI0S6nmWnS8zguQLRzf/gRLaqSQ6E9T6Q84u1cs56dzBMv2eBG+zAKw2V0x1NJX1gC8M2MYZpScdXEKPG1442UFWTEUlkM9OjbR4FurtJNV4IqEu1htlgltESO0SeZMHZ1JM7bNtYegevwPSCmW+S8uEGj7FTSSV0HbDg1rOnt4Ws8DxqN2T/HOXNd5NGboZ8VTSD6g6rLWcoWOwsyeG08GPG6KHPiLRunEdTPNmY74ObRGT1VCHP7nmBYmjnH+kqK6rDyrEoNjdqc8uG8yZrHWBXU9weqD5rpQ6S/annq7P/GiYepA2ZDdJA/GbdxpHYatPgkXt5sop564gVHZamW6cq/cdADaLCXWt1WgK7y11WaQR90YOen8BECQ56pmJbLvzzfWBhUUJP+dAEEK4o4wZv2+IBAFEdNkNF3mKntsLE5PDLA/IEiV0rziyORzLJsoxRMCQV/HlpCkXsaizcHT/vxU9iadf2hOkKehGum3973fFs7uRlqxz/oDerFL0617PqG+VYIxjeRb2IRLZJGH8vp8ITzF7U7HUg8Crs3WpVY5r8wxn8tzGvUUwY5csVu15Vmm1xcs0UL/lUCkrOXdLtlaa4pHLeQgpd/vu1ZzjMOcgzfQaIwiZK+fMZjRLAHUf83TSCOkovb3xPkD0jElmb4TBqFrwn8G4KWr+RM58qhCnlVimQ390m8YLz+fNHbBRDs7GJgHSK+v5Z9cwZq4glnR2eTjnqTy8Wo7BEg24CL/RT1AKzOIE7muo8oegzn8R6qab08LzTcbb0ippsScfjQoJhsr4jKG2pMVczpCYqptZcGD5rxTHFbL3+NDnEUptRMyARhF2FMiM7pgaB/IpAna1AHa5EPt7oBdzMGg7kOdSOpxrPXbdP3l/+QCfCLMpCsxFd3VAxA/IPVvK8JaenCYCadhyZ6rJeGxTUh11+OOAjrXIJxb/EbIy8rv6h7hywPp9ZhPCcgt9BN808JhGIaKwtL85jO5nipQyAF690xJ9A2DMuCx55TSG88fN6rqBMYDI+I+DtFmoAqJB27B/xxN9xMLnQwLcLCHOx4GIFCq3/6i7gwJePjoG/HKNb0XjhuEQmYFzTgtt/uIo1bBX4C+y1jrb+R0mRj+RyaDkRus8W4WW73qbcjpjIh2tGUY6KJyhEaKiK+LHG5euQeYZO4zXoKbZOWiJTvJNNVrWugpXkIIIE4zK/g4JKATQjtaC1qbJ6khaJHxOTS2goU5zGyjmaPKvVPrBh27E7E2iZ/6omwpBARV/9EKeU1m4Msz8Q7y3MzEF0C8VIIqAxB+Fk8qG970lhV/ZIX6CsxiHqybemqil3Qv/cWKm96fPoMJWSA1dcF03dSwSyNMdvKKBCYVYLuqr2pISKPaNRJJw2R43RNE6avh/TNA1tGJ/ilW/e4LbOvIh7cS2OsbjyXcD6WS0DYaDa+og0lSxehZQiDSt2fVdtF+DO7/cEUAM3uju47Fl17rUPkRPaheA+6/jpSYK5Nh6rSwO8Pbi1y4/L0L5SStva0NcscpH0pw/3Y9+Eqw1SDVvRn2r2d8vRC6YhQywdhKWraKGBMILqjiU2l5d3jb1tnQIwi95QiTJW7MAjJD4Plr9FGRGlM4NQyAiG8wSAKUbRCpmxE+zk9YhXjiC/Rbt983pV0VzovJW+90dH65IOb2VS+Wk+MpsRgZ86uEuxeGPyB++07HlAwqFjq0sm5Lvom/rcHSaLduJrDdabujYJRWbbY2QZptvGwTHAiaqsAafE9NQa2oq6hV8+E2YRbdEcrirxyx9JVWpti7CsFfA/egMevH0MR40/X1jQzMYbw6mr01MI833RiE3EuU79cpspC8tuN6QxFB7ExHF8yrFQ4vRniEkTgKc8kT2tC2HgNJJ+l/FwYXky6qbHj1cMtBGVOw3SFMHn5l5odYVrLqhL6R4DujKq/CEsEj742QjUogvrSb9DOh1Mm5Z7n6MI+YHii3bWp2abi25FJIiX3GM/137MQVr4wwQ5IQETnYx0CoXX1nLeqLjQ2VlOulhy58iVxN5d0Q2TEV6MPr+wA6lluGEC5890db42elDUvTbbMcjHGrT7WA4eEhNLqVT35NhLruSPkwg1UCAUz94Dj23i6dqS1MPh40Oyi0W+wfoWYXIw+siweU3qKdQM/IWLUwDjgMQuiK+CTyRgR/Cg+XmfazCLiF1JChK7C2x+ROCl4t2WjYngGRxBWRQqqrNqx1EesLx8Z8GOimBJK3Ip3O0TWp1z6fhibUBvCtBpCBH7Wz0MrsYEtW/6gd/rLbB2IcMxOrxgW5u+/ZBOjd+9Zg9SRf7ln5tqXgM7wZE2rj4u7BOezWvuyca2TpJkQOR8U/bR+LRjmN6RAS7MCfYSPtJWSbZYnQL8vGmJb39SyiYiER2Via1nlShjJEe3JgCwTOTiIQJ5h+NQeEs7qWkpIDJiQHb7VwcR7T1gLGhKAqUT5DPO5zvGPny/DOh+Lo+Xhxf5wTkF5p5yY0vM1gw2UZQ2nhCedQ+PBxACaAeuBYTyBs9aNWvYATPBLUtXJ3H/+rMIUQ3Xz5MJKdV6OhLEEK73rb9hfjPlA0gKO4j120U6VHh4AJvL3WqjaY/KCbwpCzUCADZmnJdpD4p4U5ry6/YuhcWXcVV4dFm5J8qADBWw9jPITjUtkf0lhIJkzhXLTcXQBZaaunvCCxyWh6ifYzNTTCGJcUD6DyfGam2zj4qdBy7DwBaL2S2IxicF7F2ubPDvx0+DEQVydAIF4Utn+/niyxDQpGlaaG5eRQcfYEHaZeHBOfZ8x6KnSsZnB8YZbLVBcEF3Mv/87cj4r/BYDYAaUWrrm/rWPImSVpvPlB3xQvVG305B+bCj4kIW4ZWzFnX7/nApDibPZxncAV04laDsD872g54z55DZylkUKHXF7Y5iFwsc0HDovYpJ1P+XIAb4pKZnw/e2BrTZn6jCeAAvAt6Z8EdXqS/KoRwK37xhZL7w17n2PYpqnoCtRAvnU/CocUq+el+PFEwM2GkhLBAJXvVbqxBMfPWlA8XMNY1+dfsV9Uy0C+WgSzcXw/ylN23DlELK9DPZ1nzFCvyDWygh1ABv0LXhuVuDEraYOrX0J/NpbYoxjl/mfncXN1DorfumMjOo/dWEk/OvdZ8w/66CtISpGM2htGRpT929qEz+kRM+2XpAqcSS9GOrLWVVUVIm3Ez/yIqAWm019Td/ytbE6eeYJaY+mJpelcp0h+4Y1hmcF9J6cZQEJi7foY8n1psVTCzE0QYMX+ScYxKxb/bU9eproUaSNTxHeNhomtba4y/CfLAZYXndn5ndeIjFIsRWRpwX3HwrIsKxRgd52tRs/iun5uy44w8u2wZgayiPbOTWGXUn/BDqak5EZebXbdQHyE0yEhUO5HcDnE6xlAuZFDSKLDTTZz9bWcfe1wy8KhSOwh15cBRibt+faUQgl7/5na6Nl5d1o7iUWTjOhjQa4z2Pha1PNGSn0hZFeICMKGtHJ6EGQbB+HF6+M2e8YSQjJ2cnG2SVpdzXlnkzxYqwXv0s0WM8nggSh7Viq5joXNiF3RJ0A9637p1HFJd2I7GrQ4ZTOWRi8jcZaL/25Pox9feMT7VDPV6TT++0Ri3a1aLS8IABZh2dWfxnBmXDWPdvrxmBiF3eePVqd2ZM5bI9YAN23/3qVLElDeD61xvgRdjkXkl2tqif3zsX1gGp9mzEm6suh1kWL75XC2kXlrCreiNi2pfI+iWVFJDXPd3MBNp7VSAZRp1jpt3ug1pQEM470lZXwotpDljklvGxuNeKwTuKNJw0EK74nc0d851QXL9P4pxZdM7pkmbA7IU2S2Xa/AJRP2VOz3Kyp9oW6FgoQi4noNkoHeNnprbQod8n+dQSSbMzNRZIuL/riHaxoOHkaGYwROCZwqcbK1tUnU2Qt1J+3UTvklj6wOD/d8lrZG7ucjZiCyHxK5XVtzq9lDJ4N1FvARCTUfnLeOLc5bmrtGvb8mmsr0lDDyR5607k41wzglZH1fExfmsXrEjiNLSzSKGb7FVusl07/BgeCclDsQkds2G654GVeUpX7UHaqQBEmJsIyvfxvz85+WyRaoYuQfSH9WpJLeUoXpUt7+Crnl1Jqz+eARyCmzL59OUUBwBuoQAl5VddIrfG6xvDA/RZBOV5AfwjOrJ2xRo4N42rCSFCcnOY7xfewl6tVLetiM2tGLqRLc9k/owyHriX1A9BnluzfDc5xdEUKyuwzWPG+tZGNDV0WLl1JyHPflzcBpj92G0AR0lGaMSZuKui5/LUMn69X9wPKc6FVkNEHEjHjQKPQjuFCokjN+N/6DlMscpE48IhHIa0Ghrc36GwGEiPRymXWKD/di92yfjZjDM3fdHBdwSxJRSBVKHSwh6Ey1/zWZRZ4kk+KMS8HuroIw1UPa+PDVpsSIKvmqZnZisbfHFWNW/dl9n5+wM4VIzhmrETz3k9WU3s+z84SHh2f7dGT/G5WvoisBYAgwm+pqFS0A8xyhy4PiKfgS+6TgnQD5hDEerpzgFSaMcw3yvDZ0+xfL0yznf0uY8N6APiqHdoJZOWqTPnTIbeBLc5dvFdh+mvD+sDtl8BAWzYR7QkSgnx30Ru7TH5a/g4byacurCNvG0lTgpkj9w42uqBp1zMsKr2riOCQwfCRKkuSX9CGADOYGqCHh1JUsk6RwvI9OvM9fCJoL7Sap8NUQ7mAvdB2ougA01NdqxVo8NeGta0R9C7QybiN4uAtDxw2zLTG9+0we68JkqZrj9tJilUV/f4wOLc83GfstXOVF2bAJ6zf56YworQQEDj6QnC+lqyMkGAr0QuAikm0jqS7fy9bYSBz5hekPILc94b8aUau3Kt69QI1kFEmcb19aFQA4bSegA9/hFi61RDIVQ7iOBqViYdGaK8d3zH5qWIjed0hR9e6o4zELdXWhOVOcPCmZIYYXvgUsAyGUoCszsCiTdwOaPEL2kRnYh0mNSZGb6/kr8XfbyUdbEZ7mDBYy0yTDxhkrpIoJmVutN6FHk/E4cTEolaGnv7x+QxQIKZus8IEygpdtBDxj+lC5M6HaJ313pLDYbjpCA+oYl11ISRJ/fB2oIdDBHFLefQmF1uHk7vtSmIyI7Q9HG0qxu8QRWecP8ipKR1o4bGrAhR2KcGEDE6k8r2F7N9lNUZCswXi/EXaOlPb9fdsaw1Sspku1xrmyADIImEs//XiPqI3Jl8BlrsHf1mAVCBmlqE7usMbDEpilt45ia5CXzVqlIZ95Fesu48LEATS3dyXVEjwQAqVbFBttbLfXvX4LhaGKv6P3XBsKWvqEFfq1rPYdohHtQH03ehlVMpZ/BRCBFV6dffGCrIa7OngRAbORd6wsIcR/gQSxhfrfHFmb9Ws3Pk/SikwIvAIYljNbXbvIpKTROSiPcmBDp4hxLkrjR+MfBFZLV5I4usLY6WYmjhT2kzW9XAxxLYCELLIf6lg6p/GFgpoRTm+yQ6PYtmKVvdTHyBxv28y3vTiy+reYBZqmC7x0TDasiMCcA+TxdKgDY4s61MpZyI1+RUzeMfx1qh9MBXg1tI/HSKpcUj7+qTrwp35J3ezefo6UZiEWMPBtx0/tJyaej7NUmUHVRBJfB1q0bsw4yHfui2ZOPNh/6R2/I0j09t9QGeRxpuJzB6DNbaPTOmER6WTXYEGXq7DhzkvCP247uSz6r7MfaasDs419fVF4RAt4XoxkFRmk3sjrhpNSeuDoG5RpjE4pI3rH/ESPaF6RIIJBiAbVU/ct/nKrDmBQPBYlNob0WmW07GhOvvz0m/BXTsPB8qA8Iesm6PsDuOLEEm5+jbniDFyXfndwIXHgWBB1GCyGV52MU+5iXguncQS8T+WyxaPDqCCXMjwPJxGObdF8mBkG2+SpqaBQkeN+1IL8Cbb72d3ySQUR/uO+N9v36KAiKVEPx8EERU0vfKi53JWN50+LSYqgHmF0UrnnHCNpcwfX8ezokGL4sK/rgFZlXnIqg6a8EJh7DfMOwMgTwRjjZ+TrXsj7SA6EaMRroFgxXRIOGDPYZgkadllrCosfuVZqNQwAY1cDJzuD4ocR7PgZYXbCA3g9Jd1PRx7PyRTNad56qFMVIv/9AYYd32opL/KQOuEa2LIoyMUHWsHVeJEgDnTAizkdfigKSmZVUDrztoGXA+B+9B+MYT2q5BETXJUKRLiEw3upTpXnlh7hkEk8/0D3rV1lUxxSlnDzLfFArxdnXRhBNu085RxiTwTISjItGPuj0MQknBfLTi9AeLTT9QUKRG7bxHm7P2Kei6fVAeNBP31q/OVsTuBJZfKaxLodsCxObxFdyJNLV2tAt+2SCAO5/VWcDOd7Or0wzbVGwbXJr73+/PYn3VfNQ4CSxdqgXNPWDqh9ZFVRQbSeb+bFmOpdkO7C70y6dTSHVuHlIY33/KV1QHDJ226atG4ltS4fk0ZNDrmPZ2Lps6qyMYO+Wkmsyw/ECuxfXcZ0zM7vmLjkk/LsX/XG0vaL3KZb2C51I5TVf8fBJmMxHHzKvaXDwSTGiya0f8ZZ3olqbqcd2cjXM0jicXlX0cJsaB81POyuItwEiYZwsHn4gymrnlD0mfAro2YoSC7KxDdL1DQVO+0a7fN1fLkv8ElaXx46Z8EGJ/W6akIr6uEuiFIQB9fHujgNzIzAgaDEYVITJJO5XQkyimdgaTBvra1hUbw4jb8imqVpd7G9dSoQVNPatqBlbm7NLsdI/einfpw6HdFlo9bpLb/wBxf2BGK/YWhn6LhzEvBuRuBZJTDv7HV9WfnA2SyT3HV/F6f+23aOYC8rxO7QQ1FI4/0m/OAHdCwYedzx6F6TIlSh668B+Id3ZxNP3V+Z82Tt/AHYSzDsxyYC8mxyk+Za4Q6u8y70AKpUm1NPP2WMeSHfqCc5mUcG67RR+sJWZg7P5iG4FPnFmWKv1nwwk+fM0IIA5p7xmHnj1zbj89sN0hc81tzI6enBjIyPd6P5GXzsmp9IRHKS506SAEK7IxfjQLxkNK1x+M8YAYLrD1qWXqo03kTvXgYllmtbguZX1FQGpXYjbZzgqSLxcXTKqQ/GhYqBJzZtvPaYGODBTozt0Rw6/vP+hTUJGOAYcEWWr5Mqy4792lLWmElkf2k2HiF5268DSkEL2oQl+VXl2NXgbfa8xxQoI7lpuNkURcA/pNz/go3LD+w41q4eQy20ecjCwekr0XfODump0XPUm2vvNfk4P/tAVA2PLhl21zoFOrSKjd6D1AiMtz/f41uWlBWCDDY4tDRMhyGsls4GW7P8b0/dGx6VTgC6oCCWxMyJyOgl5RPaFDE/EzGGGL9XUm5X9L3crn0DvEELm/Vx6HwlGWtnfZK7dA8/zJkr9b7PBgLeFlmXyfUBxZHF8kxgW5tcxvkEz0roS70jNLvk3QNCTUIwCHnqk5NRDEaewDCzjTR5lKzNzx1RHHJNiZZJ0lXrAsSM03iKPyYNdJfMwUAvRlKP49yIx7XS9cvseBWVvGNAc2I0PmR6Xc9KjqauqjgG/Q8i16OIPtQ2Ll3qDkunTNq2O65AEFG5qycHaB2/159N4n67iMEpyNowNdkq/ZlDxsX4dRKNvBUJaYqhID70qa2Rgq8+AzqTaJhuYrqrDDO1n/0rWggrBcFsYwo7ujJZblKGamFf+3B5MTAXNUOKn5PW91Gx56gtqTqz1dYMML1dFR/KZUZom7Wky7v9EfKnYbBseAvDuBFBFFCuXnhvWc/JS4ipUIe59Ls/kL+W5lteo1xt5bkJYfug17vGw6cqrOjTG4nQXZ+RbEDCMTf5JZ4DBcuVv+tGPyucc3B6R9NMF/lc4ubulrqcBPhRUjGBILbQ+4uBJ9eUHMAj2ijfMskRMLcV5FdgqIWhiEvxNVlZSRrzTzySfBUjZHCJQtbgDZ8nRWLwk6rQKWD5aSHuJh0vBgvlNTP+a4P7p59l0FYBPtoNpiFl/dOo05KHesQCueTxj7IB6io9sqTWxTu2PK2C3ACiXWNyxs52441hxg3eco87pSRV1NUvQeac35o3tgUpXtmtl2yHh3QO1mQ55wSqIri3PtVxJ57l0nOuyav/0ixzLEq3QlLZmLb8Y2JVlrdQMjhpcC1j0DS+VHrYIB4JgyXacVu9PCRoC5Y2+p8qfeJA3OFreaabxWxz5omyn/l55+ufQkO5e9iODCdLWl2crwLrUpaMCi8EUcVXGb3Z8oBCUdwuuohn1sivwQp1O+DaRFYXIbHQibdPfq4dU8WeiYJ4WKMlNEuQr/BRIGwOrAIM3Ppjmzvh27Lyx6xK14sUHgNy2ggNG57CBbXznFP/0NVrUQef5mMdso3AJ33SJxInqYebzcZ2pEVYHYczXE/+mcptBHb4ANtGohwQabL1xmFHav/wFH/al8TKjzGnYiFLEifJHL7OJD0x/rtzWuCrDToEWPBNtRKXFZqz/kBH6gsxzy/TUzP6R+C/A456FbGm8soK/uYyafgNmX0re6fgXeehUvtDCXdAUJElJt7AMv+VMdIrrOK7TAaHo6E8Khx1rq48yOqMqtC08so9cQh/AV760CiEtSm6PBL7JKCZBV4m7t8Gbbc4TQRawpuwTFyS/vt1JBnAQUBDPdEddlJlVAfbGy+OKkohOw9BB/JY9rDZQK1o/kpfl82umHijUnj0gVqhJCsrzUxYl+ygkRPDEPZqUIo/+AtsGplmBSxL8bUE1iBc8lCtShF2iqMC1DdHIH1DcucbSNtxOF9LY4IMng4T9eTYzDr+gnOPVxWBYMambJUexTzxyvFOneFg3r4FBEHqG3QZRgnKISYUQKv9B23A8vhFRe8uNZpBtiMtXqOQlVEbO/HzkRbqVaGj4s2XRVlhO+ewkvEaTp4pNLXG1OVF6ncxf3Fq94KmGuG29LLsFI1fuX35J0TsRNGo+TCioyTrXLVEjPztNVQL1/q5tGSrMPhfJEaQxHcrnqhVVqN1gfF+JK9Pgcud/lGa+Ig7eKQpJuUN+PYhBYQ/b6ahi4nLNe5+d8rQlfK/gl3OQ3WDGWuUMOt1YlBKoX+99JWlZr6tTAVgDF0NSHs5fqbU0euO7cXKnvVB3taBFHP6/KKZCBfGqzNo6DgZgiAELh1EYOni64dmOWUuwAQCKu+L8tnTFLlL6uKkaNtO8YGlOBVU9mQFYx4aGPgGEI/HTycxYXBClfKbmSErtcsuhalOh73FnzRz/thPjvRJcRwPtZmCHs1nYjivLMWWGprl4fRUOlrCDiwNU+9TZuaVsuCxj/4DzKfcla139igH7Z+0uskWkEq/c0mrsRLlVpl8ln0G77hwK9rLKc+RLeI6KLKy3Um5C6Of3qiKNoY/7ad3EFvdP4VICsuTMTii/bee9efmKAiym0A+l3hS7SofuEJ46In7BEO+Kf597wnd6s5mL1d5zNRBdOEmfNKyPdUuCW3u/SfFQes7nYlfV/B1DOE9p/pmgK+bx+eZdZUMu44uBGlaPvej5wxU9aumiyt/uCCZ4PyO0OYfFAMMqTaYcI8GxYeHO/3tDJsJisLleLpS/gvPLbEksIm3R4OCJ21S4P//uyzQ4EJZyYmWZjtknKJbz0vFEi0zDWnZHl4kvpMSPlVI8cEAG5r0JoNN59joEsMhUcPZ1YtIDYX9cnR711x6SQEnBGgTz6d3b1iebIdotlgqE03w87xlD0+qEykcVizaOB3Z+ocaMGWybZTIdpR4niV9mDm65EzKK8VQq59iMlABk54A7zAlMdkYNmaRuWJN+bLJ7RqEZf8vrpM0+3cwD0NctuwJJA13JIJVFlPStNIXzAW4pp1OnTx3rMZQfF+o4p92WDkF2tx1MUdC14Er9l1RlYsEYnOubj2IotL4tkgKwnE219ZsjXb8PJFkzakaWhRBJAkgbR6myiYFsJgC/lellsN9g1ML0j4HX4rwIzHbq20FDkBdfqN9SUnIbJf0QQr+QxHx4f0kRekXaqKZYUXYMbRKa6OObLPOaKGft7xFAgT2pHuSw7kdfloER91zsJPWQJbkAzyDFkkgUg80kW7n7n+WBN3CMXA3lU6QR23Ipx/98577h2OGkpcp5YiTX/TikBkcza+iwBGNBi/j+GwW8tGbKxpiSNEQqUDdqfscbVMQ+OSYGoeQKSLwREfUGDjR/emc+ZAJsy3sraTZkpHFZAI69dwO1dvsOw/Q+O/2lgghmEsk6NKzmfI+OYuOG2UoagP9Le/y9UABk4VHk54+6fW891qe1yVDT2KUc5hNeePBaQwVb5BQYPt/+2xEpqsHC4GY37hXyRSGvfwYa7DGUDbMKd8vud28h67mpOl7fe4uFRe/HOKf3TFs+9RX+QpL0+C2b4R/8VfkUQOABt4tcaDV34nU/UFXBUDvPYMYe0F24AZPIWphY9bLwt+tWvmuWwhvAgPN1rxvo3hpXvQNSPsVKgFUKENrmSCjWPYCUoQfJFpepI6oqpsVwJt6IlBFGO4soABNOS2KtnF9P7E9sSLK1WWOdGvYNhxKO5/D5ACMSM3oLy6XvjzPe57hP26DKKsIbhLZqcz8tJOcm1zlVKV87cVqDh5iOgGkNIKp7JU8eBp4VRPvv6peu3DR+ROhro3GOnpo6Cdltkq395hUi+pDXzwcONA2YjC4BKvX3JGZi77wJboSzwwPelRCe5297Gau3hHdjkNfDMaoCdfo4BX1IthlFNEHUm2nTsuiPe/rOux7FSlxIwT09NqnvyBmWQYcleqlPEreuoCZRFvXL07v84AxlxNdJM/atDmCjpmzumIoYOf4uVqV/8ZnSwV78WW0S0R7AwI0EDq4B6IaI6AUBwPrNLY0eeSw24zQ6qVAgBGW5aK79Mg+Skj4XxdPl8axMl4x6nwmnAfEBIju1ssp4yr/gdi9kl+ScGW3r5NVqJ1fXRkW9O0A6JBottvWGypQioSH2C46bepNpt5dXRK28XY0hseEnW9fDBaUMHziavWy8Q7jttulrsjOd5WunqGz20rPiwX/3fdKuQgv0g4CDqGBMamo9htCyKqN0qTOxWP5MmZG0lur+eIMwtcrfYqJujT19J3dps8mrCySt1MRdmlNIykG8cIMszw/nMlRV1DmpxNn2zf3gflXm1sXSH00EqrICj29dnyNSbIteQOqjPLqBf2QDDVVCAgcCz7vER9m5X4XkTIeB4ppqaFa2UHE05QSkAhs7FkyPf40UFGlKG8GnrdKq0ZLUk9m5jleTBwhdDsYP8HCDKRE6LS48qLHD4pvSl3XFvmH8KBEmyeyNwwJzAJQd8MqhmKsdandB6Ec1bHOw8agmVGP/vvY2C60X8AnR2r2HhdkUbclW9+ozjmxmipA1AJIZnqxg4aa1Le0RHfU2vkpf68y/rFMYgCXue7eNqxoS0NkOw9a9/WcDFJOh0Grb8zYjPgaSDENIFMCM0H5OlIqq2r2FKGkaQSMzVm87r9L7fysa4xxVMD0h7CIExLBVbCe1/r/WavK3yPhHVe3XBjyVTDOqI4/90N/Cm5KnqxFrVYOHbwMIXa3GwNwVME+38OpXvNwD6l+jN8BDCRDEjGDFC+WObTdm+5/tfm0QeEfVUYFtA7gTobiCnl8rywroMyBHNClofz+W7OhssrGuos+fRhh8kBA+Ni0fYdhKK+qCZaY0LUDpn17UUKCX6dOZccCYzSsD2iSQP74pFnhlkOzACsapdT20zbjF6ZqLgELUPT8IglaX38zP6zfdyBF+NjNf247XNtmIz4QCO5iRy/GcS8jjaWMfTxI3EbUvzrprtgRQDOz/eMnyVQVbbFiTMZfhfQLeu+j6iY0Qs/QYGFdHefwzAYuVpPhVZK/tXsy6DAioLlmNDzAu1eQ5ihCnobO+MOZtSD0+uTpiOAvPwGWf52xDUHj4zbdFtZULPV4c1TmWflDGMkg/Ia6kPHprHErwFTGoBg+1D6oX8lSPdz5srAF0RbktUTmq44+USAYYowZQOVbM3BWMc603Oy9SQD3buNTgzJ7yaMBbo/pjkzVrpW5xYH0Ra11ykiz32vo4nBg9Zvm92KHWhJm7uQJV5DMPA1JHBWBMcjz/uZupwXqjoTffeHZ17N3waXUaR7cZDs94ewlhsbQrmI7/A4zJDUZj0qKiVQhn3f3AneEhDwl6GUdCBdKY14q9n6ay58twW2PRXXPJ6UE6TUs6oqH/0xgDpP3bx/mfcCUy5oo91agCPtpTfowGZ0tyw5mIOsUqvdURDhjuWLX/WIqaPlYx3zmJ3ahTcxtC5xQgKWrQskF57LaOvwYN0lzIwz/joNYkiZwLyB7Joi0CsWWRC6SapEN5TClIisNQtNPmfwKaKYb+Hguo76RtcQMXdRZWjEJNHq8KZKeg/uWWDOW6aygLP9JDrNNW7JfWDyHPR8GL+29zBAD5FY1WZXsmYfdKU1VTLLzAHERJJGTpwKZH5k0uZrDYM8zG9WX+RVDM8bsmN8cI2wKz0Td8GEq9T4DvY6FuhMsqPGHC1tkLdxuwBYP0Lu2RvjXaxodrZhKfkkIwGcfm+lFS4WMFPCz3FwWwuvNLNqv7c85xnk3aXWl49yCW0YTzTqwyKuKWSIFJum5G8BBjvxx2yDOZMh18M2WhRGX5VA0p3eAilBsGa54P+iEat2c0lLnTrXg7fzDLJrjO/213hRmT/92zHwHShntUiR+9KUWKWRcx9OrMWfefEo/p2FR7dbNWoP/P/se7JJUfBzJixcPvTzMvSTQrccDAmpwoLnh6pnsAF37U9Cakvwb0EZzywhYhfUyAZ4oAu4R1X55yrbJifKRbLIC6NaYqZxbpzV9ec4/SFSjJKEvmVGa9tHfUJayAvrPPbVHNaxlbdJOOn7f43GTTdGGufXu/daAhuYtol2y5rFVUxlDpyKCfYRz3fOyJZEjhxizetlF5kpK8kUuEpKNWnSG9VEdmcn7Tu0/U9Pho+IZiTincXepD9zQXGusmr6j19TKRCe4dmbGmRl1cDDNABYeOKT51fHc6+d1Q9T2n1UMmkd+aiSUgNIrogqtnInezaEs7HmtmpjKttWg7ulLhPvEEnGE5TqPY3iCItPzYojGET4V755b+cNmqdG6OBTlbYjDs4AAp+ho1Iq8R/eWa0/FOyB4K5JLQ/WqwpaNPuaoufHcJMEld4peiw/7uIRZ9U4otV2lACBY2PfSUUu7vJ/iZUtvPoJmd8K/BmbnNo2iumTtQxEeARnjsHdzf1JrE1L6NGFsI7t81c5GCgmWILKM5pWDA5HO53I6aju6916JkUl1YcYyk9Hwwf/waKzGbNaeXD2d1jBd+rriDyPgR5p32kxAb41vjMM5QjUrVztISMmbVDBnx2qArnLJ6ECRGZcfK4U6LCAMxRtE+Y32MobWIYqbeJLCsaF4pCXyZjPABVmN36NRAavX8RXO80JuF2m/Snmg2NL0dSW67EVH9I4fcFSjpL73r6ohLh/V+uK3786Tpz4u9p1byZEEFVjn4eK4wBNeQ7DGhdbFbRTt6/9b55EBMfJGakrqZ4U+Fgnh2uIpidUcG+iBjHE5HMRX2ZKkKLyYQElkw/Kbj2w8OvDaxd8rzWoSUnwkiP9DB4L1FBdrrf9anTqNfPehHTBlyG9cgcQLrR8tQEZN9zuxs8BV1Zf+cIk9kSStcCODphQCbZP7NYhgTuqPh967gyo6DhJVEeM/gq2arEo3NkVtX7D7mzM4zzsjwEazeZbygY6xwP5F5NLqPJ0Hxncni2XMn/GdHQmTbQF1zee4LOhZaDlBzMZLsKXcJ3sJsBmPODcSW/FKYiVgzz7wLdz0C3bFpTwedWpIZzG+H0kpS6hOFF5yNj/xUGHEQK75qxYUFuXq2vFITPVf7aaAWUF+eBV5VbBqFcUccHNaTmGaDdRTdXTurKJ8ATxX0DHWz2qNhGP4nrYJRCKI12hvvahdfR6RlR+zca42mjybVuHEEGrU2KvnHy9+mmlQDH4jYHZKC6knkne5Q28ldgrISAF0p2u8YVTy2bGLZqUkIV6zWDXi0DuZMiQhOJwUgZQNnrjzpboxif7CaCAFdxHukA5fPTubF6aLOTWCnS/EP8ZSOIyNGpkn86BVLEgxNoCo5XDdJHdnSB0Zy+5O4NQSsoKdZzikwg0eSvXAE6j6WW27irlXjNHHxiuOY/LaFsSgXv62JfK2/O09r1DMjpxv32Y457Wd8wFBf9V6i6CdLP2Z9qNFsxcP88S7N6b5FAkZAkO78T3f4mpUVnXed/QQC1AAudBr+gg118i202+jHf4m1tBvD2iwt/8PqoAWQSajReU2kDJ91lZ9cqfgKVbzge5mUlKDSh7aeClFOoVz9UEdTQyNyjj+u7JaX9DWyqtt6955fcvBJF1aKEjjPQjYV4+FQr9Fnd8NqWavBRL91OUcILzXVselzvLQtPmmvtdhkUNi8G+O+b/qcVyHvls9lJjRGbe0YWtuq9zXA02yIjtBjoQd1vY0EmEFvb3u3xiPt9Wix6NZ7ljWQVbw229SAPrh/hsIECHTLmxKxWD3/K6TUieQeqJIfpcIoOQcgmvHDyyRUevzKImeikRzg+ly1+qSicz7hh/DCm/39Fyk6M86XNkhcEgJKANNt1matUHBPuMmqkqR0Irsee0uIofjg8efSzC4Ml6OzAV1PuydANODV+SaVqKrg8qTvT2ROpiQHqoOAq3EdFRo1QW+1ak/AYmGEVA4cF99A82GRm5mLHhLHqOSqBVNF5d+tjFko2morW+bAtWqE3Mhi2uYPJEeL+puWOoJaLV9uHtQIj2GvjqEnPiF3gSNk2kq1rb+v31DDwcalu1nsmfE1n7J39uQgliDyyoBoudkZrUtnIUrDsC6iGs/DA1YU+EpC8VYQ4iw91D0O8kJIRK0Zo3YzUzYnm6vxq+9EDAP5SWf+Eyupwlhcyq7rgfu0UcsS/cyy18bZBvpooyg1q0GNkTJ+MwtXBtDoaChHEqMdF/a7GjUgboSb8jHDJrfqRhQ/bbI62r8nHoOa6UgOaJLxxg1EhXpXmkd3Rch7uNxgpPzxP/mBdrGsygnoth1z7Q/YLYJb7LwpuGREdhP+ef4imi3CBmJrq9pWR8/s43S4uxqNYHUv9ha9RBACBhuz+S4xTQTZaCKSoDHnxC8CxGhiHczvJUTlt4rrWQpu9+AvsrR2wMvwqpTTd2ETTsO/P3JJiLBUvcs0TXCPCRY2h9Nx8ZqMz8XSEqa9ByDLoNM8PxxK/62v/Wkztb9dlxfHsl4u4UjIZo5lD7knNDevOZvFRYHhwFE22lXrX+Sffrt3y9R1DKaG/GlAPLQQX/Hetzpmce0TT69U3cFZSUWj1hcJa25OoCXx3O5jXSizjPu68eF6JRu4ly0GPmihJAcdY54LAu+PeTtHdGWaRfb6RVp9zxwP+2PoTSQm+qFhD5LkhsYuT1IwWLIAUjU9P0z7IOUj2QP4sYABt2vX5hJCVUnjOBPVGQTmwyR8LSRc2WvhlmD4DMitovW8AmruHvsuxxMnY/ybXB0f6jgvY+7tMu0sJN5r4DBEBXa37SH5PepbiAlY5L6+09qF9dbg57qZdXr+Lkj+9ODwIdoY9Ogs9QXAMPBK9sNLNDM1mFaODMVpqeBBx3+/X8BkyPofOmxl+kYJsG1PP50FDBXj0A4uVUwSXOnyDvjHd5pupMiy5DyOMVDjPDi22YVTeKKPxtGz5/wLm/x/DzHO4PBKlriUyR2fdazZ8MZwZO2yzm40RwLqezNhsNT7aqhOqWBMfTbYcyVtVzrROKLQ/cw8h9MBYgLQZ5m7RtajLhjAmwWRubbOysVY9+MbTxulvSqQymjxTj0/yGmowXOk8LorLHbyciHZbi5Wipq5e028xOnXPq0SO1Ei/BmXFCr+iw4toQwld1d5KXZJaq1eDPduqLEuVRpKA9CzB7KJsTTpdrYpMaOsIFM7Wgr9Oh/caoRAohQN6A6HSrmbUuxffYlS4ymc4W40QYfauuqpQ/JTXe2l3gW1vBU3Q0CQWi+YnGMAlM7QCe806vIrrgQmejgYb3z21bFn0KNZj8qMbtk0fubcrDYYwmBhjZezZtAK7N3MQKKCODWwtmN/WYEGctudKJzRB3xrBGIXPbh2oyOsQ4psvw2packPl36ulG2AlW5rvS3xsDrZG0jPgcLNOBZVquBKudvtx5EyYnivmLREWPn30cbkfL4RsfTwuJVSFZZJFh6UkofGq/bkz/WqbPwyDk8xppCVNz7JQstijvxEWrb40THMQJebLnzyY2q2jx2SLecaR7/0b676f5ddR3aDQqQxzS6YlPvFcYbw+8vic5SAk75H9CSsEorQCVlJSk7DU5HBRkzDnV2QtTJe9fsfqy1sQNBXqUXzv+3HDVDSjlHNPKEmNGm5+zlEP/Pa0mLR8hxOG5PeuHfsO4YAaC+btxGwKVWC9Se7tv8fBJBx1n+Kox6GyPB1SVukkNQkjh9dl8s6dR8uwRo6Ep3zrpyoDHwNvpGU0zV5/27gpveUjCyrt2ZF4TOPsS/WygLkfE2dbNXsNDXjU0kggbh+REnbrOGVNbeYAoc4ZX0aRdyTYOFzlRKaGo4MoHLkMH9FMwYlY+jItBYVbIzsByLIUmu7xM7N3q4VtOAzdBtYpwYx/5yTIIJ9yh2VZWg/uPZimDRgASUeaIeF/TU+n3NBLOkQvsf4CKuJi9s4FqpE2p0HLaw6yIcFU8mcl8Jx6XPWv+eL9Uv+Eyr1QVYQfaJcVwJ6kjFn9GSZ3uvbIxaZMwi7x+nNLp60sgdzogotqc5oVT+LDsygUDk+S361me7L2BWYFkcDER/Rx+J0tgDZ6wwKRu7kFtxCpqtt19WgsF6LzpqmDlLORvOsY68JnuZgBdo7ozFmFR6uGXxbySNeCvPKl92vkVsYEYjZ70nSsNQz9WiIy0pcd4Cjnd16gHVj3X+IIr+ZH/gTnYy0JQvVtpoQKA3yqTH8ZK5WAWFLSXjNeHCwtYmaan6uJoOWW3ktmR0n9j0uxSEniCHfobcaa4adhh6U65iKCHer9DsvpoFJxkj5jhGLhPSjJ+hLddzatV/1Ocn1CE5uZoZAMtgkhUYN5zk9+VUjJxOTjDsX8kQFan+fCSw0rK8IhXNp3dynfHXSYCNq076Pn60lpsgbLC41pl75UNjAtdkXJ0OFBP9SOFxYd/qxoACmCf2c4BNjgll3P8P77ikGQPLbKe6Bprf5RR7SLTcoLj+WEriYD+XvlnCQ6gwN09MIkc6PH+xS8JfJD7iyBoSsLx/L/1AzaxG7e0eIP2dxroERhpC6jg8arrg7XQBksDHIJZIPRhy16WjWaucMUOLtxrgBU9rezETjoCtMnBYdaOAagkVHdueRkp+p0+SRoZ4ejQaCwhOiYRYYJC7NsV73oO8dwYLioC3qILoo9B/eMud5uERJdTB+L3gaZcXObntZ43fegezhpmSwHyw4dM10xfsXF1MY5XAR1XmGR9Qz8Yrc2BSBiUUf1wSye1tGQLKtmsheBI0zWEKzJu8/tdWQ84lcWgnXo9INPwDU5XiJi0OyBQbwRH1ahR14L10g9kAYWlDK/0N3VzcgYYursjTtw/2wSHmfTGJsx5NOXmMmVliBLLHGu6G0jFBLZtUkH7EzFzorhlKhKRrLqXXlXpO8crQ3CHEcZLu9XzwCc9SvkPe94gxwonijdizLHtGfLLKLF1cdtXMFa7Mf4P/JQHiBZIRXBzCKoqPaIuvh7X4/SQdEJnxbsIECUF90ZnrLUpBjTXiX4XAc3Mse7eTXKyZp8Q3Sf1S3esZyDQl+BBER4PmbGOeQ+K1112FbEeyqQZg56WiQ0jRCUmP+Kew9A1ZxSjutLVOfkpuBwoSkP4RGNoe7WrmyTXKI6nk1Tnz0oe2Vm3PjBDf8Gwhe+fwAYSAjlPra1TtCj1uu1GcdIAm6ViQn9Srqf1ym9fPIxInLxt48mCIl6DSTi4ZJ+XkJrz2dXWQqhpSF4nNWapdIjJH+p1Opedufkw0xHlr4vORb9BCJ3W8vAPdZSqI7VxbNaaOfqhI/8w7L9horVKv7MLnEr2l2XgUM6+i5Ix58xgRlYVxa+ltEdaupD5yktPEOlldMIatEHTM9j7h7hxVvQPEbtQP6BmDdVaPz2u/o7+Aiy4lsXGE+Km2ss6828uqY4y28croxcwQBaemP2+4hEA88WmmXnQTmIMFje/i5qVzP/dynhApy5GEB55hU7+jPdveexxyrULupZB1hjyqISvKscuKXOXZUnp8dPLlTkOIlOhMu9t4Vx5PLPIDK0SdUiZ95AlS0+/1macnq6hXYYejgXigt9NePxN2PY9CC0HftH0q8httvBeLZ48ootbmSIZgK7/Wm1zqq/lUDZBL6CYC5KDyLg/WfRKIQMNyN2X432uLr/f/9AoV132hvDNWvIbdgJKmzFwnqjd8+MjwrCINW480Y/0ve7EpvtXHg4WzJv5MuILg89gjdMk86QRO9Q/YKdmb+HV6eMqRTq/oudO/E6zvH3NzGgHNz/zI4Clc1kXUMDTrnDpBI2KbWe//7iI6d1A8nhX4F+4tGki7hfsA4VOK83fdLmcdAGqQRjtItVXa3J7vhE+x0h3K+fVJpM2FZDdY7gVF9ME1rtQmyQOE+F7b6vQAUregqMnIegpxtIKRhyTvfx+DFWZLf+VUZHUO+CicH8sE+9LpldACFUpG+WMfE56X+8xIB5l+Eu4ij2kBUNYythq4o1kyIEuD1kt9XQ97gS9+waaIHokWae6jm/Y8Govgmk31Z2M0SBZAIeudbA/y6RkBys3zsWVHoPxD73jIs92cougppJ3Uxf/pQcoOw/qt20epdVJgHhT5/Rg5mNf+bvQ4LJnwSxs7VE9Qc/myZF4IFBUAom49bMTIghVW6RJ2gfXkP6ovc0THTEpxZWx4zTkARVTfH75vftaIkZptS+h3ERciwL+zFBfxojqrdRqqdkYWAVmXpf+ueckOfXPrN5b9eEwl8OJWgoXwyPM73RDn5ix09+qYTUbhIRquBAIHnO03H3q5TFdSXzP+sPDF+FV61ALiJwLttts7/NF2qhFJI57p4sixeZfoEtm0Dg5wGwPCH6tc6aqO8oe5R+IkDR8TuyFEN2w2kBdTxxvejaSoap3bQlCW4svakUIjVrpe7zCbbcGL0xSe/T3hysCfb20Xj0oFitmmY1Q+1QAbHJj3MfeeZfxuvYYoF7mLnb9sF2SPQEFrRwt08qapY0ODw4ReEM3TamVg4j3BvgKWWLIeWrMXPSM+I3hBzjUn6TbqMNWIPDWj5FBYrWBwXYB71BOpmX+5iYomjHoQ7LUcQ867QRS3qZXYnBbLy/FO2tEGfzE/rGyNxED2nvMySIIs4Fx3fZIsIZn/tCkocG9krZ5TWha4eDI3zmyCQeBMYsXlRDNsMfjEEBFh6/Qhq12c9IUp606kEY5bwbG/QnU+IAyJhlftn2f8iRL5A7v4R9oAJGU2GYjNHqZUGg2z6az4YMtQyXcV9X9WBRlaYnfVIRsmuVGDhDBIoG6C8AkCK6LdXd0NgeShgVCNpx7iacd6L5r4rVi1Gco6rCBwBfwyIJs4Fhnq8IZrURn9zhkJ2FenUPijnbIom4cDNJT3zqMfvySGt4ko2KqwoGDH25QLfuWMbcuRhuQwYKgCX9VgClxETR6DM5DNjTv7F3ysG0kI8NKZ5AZDzjJnJD4VVPwVR/fNKHpzgM8QQGSapVEbQCuiSw0xjHphp0eDxZeames1Mp9WwQ2puhmhj5ql1Lv0eYJEpN8RFa01yfNY0KZkTpYzcO/Ckhbb36k9esVXSMPl1G/K7/sR9Mcqvz7tEmdFwGaO02c6azfLxlRg6byx5y5aqHXBgH+N8X+0pGSjHsaENs0tEcJU4XtLrRLBJGIFVEe3TvIYkvc3siaU1d3xi9t7TPq1L/+hMRqojqmp8jBLyo7KEuYZeOKHFM3mUkV+XkyhiFhmwxtLgSsGMbh8fE6hCR2rTOIinlmsF74yj7IpViQkLbyCbrvDt5/yX6I7Y1abrFs7QBI3D9QnlxlwbgZHvFTKeaFKcI3NvUQFQURMimQ5M+eF6vwSlYff+7/cWpYmvPrIh9BVONzVYOe2tQdAWWT5fJSYL5Upt0L6Dl/pZObBEdo+FPC4b2+iU09eJ6vb/kc2/uq9CvCUV9KB+C/CPAJdOu7vq8wf/Yxy8081PEnm7VGsIzzoFYnDvfYTUyPhdXV2yICWljxWqkyEe4e1n+SZCRACDyiLTdzj5Dq5ThMdA+CNJhV09iM2iW1Pgf2XiLDkIpNo8ugDtNdVTMEBsO+uHzrqEI+EwMOFr2gevD8TkmyjvrYH9Bw6rkARUFwc7DRpOCIaACn2Edjv7bmiS3MFeVgdj1y0Rv+v1DYqY6EwHst3CNlpq6XBW7Q/fu+F1R20aHUR5Z1LIZ7wvY0E/w99bKzAyUjG7671ZUYF6F5+Ynv4Cm0twLZ+GTrBp8VL/LMeq8XYgzYldrklMglyWJS7iWBhdA5GraO3m3rO2AorN4N62bHcpIhG8kbvIkybnRVTEWt5a5f7iIYJN61OO1gLp+lMKa9CuaUR/y9eoF3/jHgqh6iPSadglFYQ/GTsLkzIXMTFtBelXwJHtvmQtoXItuOsLGvL2IK/M295YD8SaNfSND8zTfgUXGYQRyrzsPYC1cxWOto+YkW9R3EinZBFUy/5HWXF6WeqLcPADGeJH3U642mjV9hMqA/GY+7DcN2bpls25VizlGv+FyH0qhDmmd0gUS8y90rDX+Xk6y6McJ6S7gM/DYcoTHv/2NeKg4rjMw8TqrlL9LBcLKWQxtuJxVX7ObKDCs6fNlfUj6iRrGPFdJD+ziFknCJKgixZ5RJQEQZi2MefRmUYi5crYu3Oh50a5Jf+upvNzFAo7KhxO8WRvoqnLO0wvvdcPsaVUOIcvfZoUierdTyFyoxwnJI91KCBroEodybtBGshuLseewOL8RJP+H2Oqsca/SYdeeRtivXY+FFQeTQ33eeX3DdtS0+wgHXVCCQk/CkG/az4aY+ExO9eyJRmpeKAXose57USPZEoRKo6m3uIY0rsGhjw0xAS7X1DuBTFVuo29v3dChgu70cPjpl5/xQmrPdA36PXNZRWOszr9FtTYYxG7dHUooremnYo1QnUGWsN/xygLq9TDGLLhVH/pc4pD+15uGiALFzU4PINmfD25G8LAsJea1dQlpC1s7rkYJUQqIwFNDY4Eh0dawLn8fCol/rhUCEbEHM1dJlCBpXxKfm7zt/ZpsbXgy68nEkEoLjs9rk0E9GFFZoYLZv/4qZR7nl7qBbeALu0FWvdWoNb4hCvlkME+i5nbMafn9uVxxXlpXBlOxHA7IKvKJLMXQanWkuK9A+2VI1JSDoY06+R0/g5TPJIHfO3roljfhM9ncx6Qrk66xY1H0+2UgF+oQgm28A27u9+T4rGo0sT6suA8Jdwthg1T9gojZro33dFb5pubkZ5ZHchLzsKkibaR3DHxf769V4iImNuKKrpgMMK8vcvF4YgFx9Asca63MVyNPtp5+zXPASns3bwdmsxnn1S54GTdkB4DwX4L7JXMnQGqIaS+mPgWxbIZbFcDNIrMilEIEGFczfvcACtmReTyzqnpITyfsh5QK4RKX9ZWtvUy4bWXjsLYbNV7MrrZsT82c9cmf4f8I0sSYqVIlcUYgI782imxBuEKs3OWcogWDmwlr9TGLtVSSTlyzHUW4PU9f7Wv06gLioBSoAf5esTj3FD9kKtTKQZfTKEIOcCYWcfIk4IkcfoFGKSLqsHhBpBOTfEJ6dxkBJXCSlknDrb8XJYO4/96XFd4ThAg4/Heg3u5p1kP3QG2yMuUrty2cFQaT3cWMABIB2diEu/1KfFFSKbfjTp8aUhb99C/ZA5m7h8JWsGwT5Ml9Uhw6CmNHyRA15TyVwIsOH0I1tFeVqQaoqT7wGjyqrJ9bI+WtpjMv5CAGQfj+k2aPOJZ/zLvxAtkd/Bzh9BZPEwVE0I0DI82uWK72P5+mHKig5zbXYrQE5bSNA9/gHvSND2qLV3hLPnoJp5q/NeZX7mhb2aWf7qkF8iM4HEHQ6YiYA+E+kPmfMGabHq62QBi8sSJ3yb68iTcA4YT6f+gJb6G3adGkY9eeu7XQZiQEi2fXRSKUOj/zLkyh4R3hOAX6xhT1yCvCHT2Jb9tAzSMxe0RFbM3g6b/VHgP8nyZkt45j1ZYBTwOpQIaFU7nU5focNbiclNOds9b6I+FOnBXwyAf1ViJPMKBBofmR8wg+77g5o3CiYUzQ+KdNxUo14XQc58/GKrIq3XSIefM9azql5sX7KlTsU8DGT1HlHIYnd10cJYsAEHoN0mLKcHTySHsjTFesKWsmK+siZFXhlavE6F44mweXOrX6FBoELRrvIrsst4OH+O47VaML4CK/cNrjlTodfRr3u2XZsHCcw9kXLGX/15sm10DYmP3G3387x7LDyVoplrs0pzIvfcy41eb2Ob/wM6tQNLxQKnfSbL0eyYL+RWR09qeHT/lWpCFvcISYlmdF/jMaIWDyxE/LA1tguYOSiQtSqHfgqHr1n/k5nFhnUBnU1J1eys/8qySmWwIplgfD3uNcFHlg6trf2B11Om/f7E9onO53sWHhas4nNuhBJsUn2OjOnOAFZi2dcAvexHytVxIdybjHcEdXUcp0jkab19hwZ0RddTUGjtyulBmpbfGD+4d+oynTEjmMlYS/pfoCyhEk9XbgbBf7wtFs5qleFrCmB0NrUYZLxmw+2wFqYEUy2hYP3ZxY8uhRZeFXZfhOD58zGBx7lo4yMjiBc0zvOGqVQm8d4tk1CRpyGJOGJWVU4EpHPxqgMP6hV7f0IxJugziIEJHavrZauRXe0/THYEOKpl/a4jm/fah+oAzHRBqwetjJBSjNp5LaZ3ZUNQElZJBDOF1e4muumSHF6da394Cvppq45QN1B2wYBfbx4Y9fnq5b+heTNTCmP9XhMQGniDhmdhGzfPUY5YPvTUhEcaaA2ucNDUO/xvaUVhXDIodrM/05R31bnFkjUjn34N7Aiuagl9VB9SjYsu83Ws9eoevaZVwZMC4uiZko2GtNzZCyMHRq6GKhvEGBiM1gLyvMZk3eR2dGcn19YX72JnDBY6RWncG7lGAg0YZR9lyoCyQ13gtnyBi05gPlO9yOeIYGqQrhgRpR+pAvx4czdaBMpVI7SgZMAhMSsdPUEQ9stTtwSabBmrln0uHsOMhDvi0bNRUWUmqnu3eiLgzk2XKGyTaHCe59vZZcmDkk8aOO6pTw5H+DWALBPMcCOmfIz4cF9E5zesXbQkQNDFk7vlnAcetbpid+Ce9MnTb3Clhv0lL7lyusJYCpLpalVXmQ67YNR+IIDh9vW7XeWnU3FFfdnO0yqCON1josSLVMTTaH/T3Q7Y+gOUofDwwXaGyGRB+4GRC2kk7zANlgd7PmE5kXda4IpmTbP2OqUJ/O9EXW4aslQR5PtYy3tNMamtk4Lwzb6WIFll7MVBneG5vPfEGslblvK4unzLLIvceI6WxhiZNc/nr10k9nn8ikKPz5jmA9oC+lWIE8QR4XYTcO6WZ7VMORykmWLBbTE1NQc8/TBpYSaYjlsyOK50EEwZC6/hyMiltFDU/OcVfSs/4s0Rk68qJkU5mIFxzQcySQSzLKmqQzkbb2ZlC8MLMP8Tt/ui2UK3r3IoyOWjDNfAV+2/iYAbaU/gcEuC9PqZbBCpHpobrsMSJpIpAbdk+lZArMaQfdQP2kY9Krk6TsjNb/ad7Ghc/HTlJyxRISEoijGyuLhUJB5Ch35PrR1oibmRE3vvhC5cWj/AFFMlliT5ELHoj9ieMLEG0BOkVRUXKuv2bfaF8AdXORnzTtMfXYqB8UVY5TvybX4Mkg9YXaiDDrp7KV8wVHpmx3MIlmRkznG4Q7DbYNTZBEi2yxQfQW37NrAOyCP8AXP/EHi/BLLFg/ip1tleZLojlnpdzKgSmJyi4IRDWNifCtFxTRjzh2z9DNa3KUZLZnixrksQWHwp2gRkmuu7HYPHYIQrdjih0WnNb7CL7hFDLjbfGaVLQh5Fu7SHtZTqDYzgY4QnM/x2PC8v6+qmCAMbOvWxZOIxjgpUF1ud2/e41K1bJAXPTZ0ctJLsigJDqNH6fNsXGGXNx7cwJPgP6INK3Qxc3ylfv0L1e9m37k+CqkJJTN6MvvQuae8WjO1l0JvBh6yHIrZgf/Bt/DNS1QULgHfUCLdwH6GVXxn8JChzrTEJL4dTZGD6nCwPWD+eeU/jxNc/wph/HYngIZcSTOnA7ZoHemc7pUYXx0Nr45Sbce9CyAvFnCzoIYbXxoDXYVwt/7sf509VEfvoLzjbFrRKr4vntb5dgeDiwRX6neO0yQZsOSoVjVvOOSAuP4PT+ezKgOTL5CMeBFh5fTyCTneXHNexLrs1pBpLHH3kmt/Gi6938ByjJyGR1wM7/rvRQQoS1drQjQ0vefqIJKlavxUAyi0PuILAyGGfaeCzz00DKjY1cowpRuwwf7rYPEZOByjttnqj6EUZ84F5gZp+4HJmTpMjNq0q/lyKFhwHKG0wkVp5h+gESx82VKGR+mbao8YOh23JnEy+eNJ45yos7d1gFc6GC67dt+OzE5TpAYicEpe2YtuuIHNt0hQpdLBdS8eqx9D9RSrya3h16jYIp9Ogfv58USTrQa6bOJgC6Fuw3VSohoUOQpQ/XY+PVKw2eV8Q1N6yxzymT6QIiLizm3kcA+jtFVJVj/IlTTGr7Tj6P8fQmh0ag3AJfRbLs8nmEQ1QHGUtaUv9djTgKNG5hVLyiujHLL77tNlHcYLwqquU6Z2V+WMoDwfBiMDqK39/tNhs7dXQhQTHYkold5VgNmV+WJr8ETyoKTHTS8g1RZL+KCbZw1LZoGTgR6eNleq+XGRggG9pbw1+WcW0jzJpvQle+pDWTA3yPaJogeuohg7EijR/48Se6kjwNpGStelAHWNOtzrfgmNxtH9r1eSRWLz79nRNF5th43Vy+rZ9FcwK7PlfJojQmk6yDIgDVpS2IJtFflHkl2pdrA/ZK4Grks9dfURGUNk54HimplKaYEZX5dE2M9W/60vxTLBE6XeIZ01h4YiHBHGMX+eAHZAHpSk2dFZUbQL/ylbq8VdzyOCnwzB532xAsz2XqmJFNJCZ6YuvEpyZtLa07GuhPki8MeZUI63KN4jC30SSX7/bWpsMyfpqrzmMI+cCYlmRUB0Mu4kG/untuIlFzWG2JnuSThOvNB87WuxDF4K9MPLtApA2nPV+2yMqZtQu/5eBgMzg8/6FBhddJz3kV0onK4Jbo71w6dhI4czF3ksh7/wVe0vAH8B/pVGb1v7xscPIhg6KL+hvTtq6g1+kCPpBURUhkj6yrfPgZ3/Xtc22MaQJp0ouI8smF0IW7P8ZfkCNRlxyoz5rOlXJ2YoBYf+hZJACLpIW6Ecg7s2fptIWtvuAgGvGV7dSNLkYv17ghjkJQx6tLucnApd6V56PAKNj/7Yyi6MOC9uwvXC4HnQSolMT49c6/5ZRIfWauOyw+arQBxET3gqjgZPldHDuhPDdYxffuJ1ityuwa75OUwVzCfQ3DhhKAfuieBFYqqN1i5usxjNFwKad4V39gjt2wLjcS1yX59qz0LCyVW9KbSYU9A28hy5DC7hdtdQxRU9PX4vfg8R4KZzpT7OhJe4Rwnuob88KsYJT3Xdb5uQj/iI2b9k+IAL2RazReg2nxwi3ia771jH8mWcStAs1NJu+cMgx6oarFqLe8b1HSRxQ7za0WtQhVKdhOSo+l5MyUbO7l4rtMf8vOidRDYSBoESyiDirZR/lirb7mNwOHR9B00U3KDHjR+/6/p0FjHCVpWNOzJcWfIRQkZ6XmbdXoGNbYi+/6K31kVQSpEiFHlf0XTAzQKDh03BJv6aoldSXInQfAEINY34mN7TGvaILI1iq1F8qQD9LdUyM1y1GkmIcoViAyaqPmTF6srtanuyTM4L1D0wyuj0tEVAfuycGdwEON4fnsCqlt5T6S1obgnUutprS4s5WpzQgzd4U9TRXJErli2+o2bS7A/uISBZhgh/679K/zLda6gWtuZwAvTGNdCbAN9uwZti3Hk9kKWrIq/zDHz00+fSYLcc5sgjgY5sWd/F9nGirgGojICMTxUzGmVVyjsC+0iZ7i++UKuLA2KCekIgylXj+DAZVKUFgBgXYW5+1bwyASMUltB5MhCcaMuivyyhZw3MJ7OjjmJyH+sH7zwWOwFaztw+KQpl6ETunGZ4wgXDkkep9RDpXHKdERy5R1KfOfi61l4kXklOVi+UvIPbGuKxTqSuKxjgg5aUU0X3V/EKdOugbYyeYKlYTyfe6Py6u2Z+A0k4k2giHiUVqkoC8MKxTXxmChSs68WryAMhUxyo84ORdwTONcLdmrVJbnyH+ugmyyx9iKEPADsMijuo2U3uJDa7Wnfr9gcycQq006VxIwrhk0FV/BDjqzquNOsEJXdrimGw0G+JVU4/5BNk+lE5kSCYz9cOOfNBtbtPUoVHnu1jfPwwGlaTc7GUxPcDFnEgwaHh5znVnSwPAAdXz5o6vI34Epz0NKfx11wmUjfW8nTAn60/CwPV4XjHM2yzXbq/EA9hUimpPyH+gMWQc8fiEpaTtk7l1iADxvDO8EMdlaQ0nXdXnhCuCrsoC+Uvlb9IaXpTbhDyzTzYYUPRsJ1khYU6+UMPk1YHn7mE5V3/F28Yia/wrwDdF+R6TmVzsqudzix7NyUGk46wXs0WaHIURcZDicGiV7SEhoVNTU0zgBoaSd49LNnCcmSgWRMUa0JKdpcVnfovdDcIyEcqOXD4VeP1baW1O5XKi8DuZzNuEL/drafxlkHz2RIla0Jp8ILNn7S3fdeg9UhAx9q0+SKtkZq2KsJrdjjyAjr3GfTjVIDAz98414NxYOtS7EWs2ZaFK7+4WBYoC5Hkeq4b/TVXen2W5sxGUXGVbea0PfIOieEzqtacY9iZH8JBwrLvaO9mQx8S8Xs1qoQA5mRuhLUFIcDGMj1wJK/K+vclB5Bl071Plrpq5+L4WJ77f/haemR3QBDVN+DYo/NMMFkqokI7b1nRwuzDmI5dEx4XMlGANd6UtZZVQ12+CHjwiLfAM9yPWaei6wRjGbxBRZUWxyt/lA3BanlqVbrdSdMBG5p3j4Pa9sSfYjUr77zB9h2qpnC6V8u1+XFmGBTP3y97KCCHykGfB6mbCNng2OYcDfFxSp12MaqtqOwry+xB9gUkHlnfW9DENAGqcYOxFOWwZHAJEeIuPuyLr3pc8euQGkJA6K1rmHJDoeAl370hmHY+Wk02WBNr6bOj8owlbEPXZobBQ/xU4JVN9l2GH0nnIedokXyCvBiq+jOf90wECFhhyXgaKiOos+J5t5i72+cySCooSeyr88ULT2mwUuMCLDw9Pty72PByiEtatpiqNeZF8Kladg4jD+8iY+w8ru/PveAVmrABMft/YevFyzmyB1LNidUz8yrnolKmitwK2bPJrQzSfyMg7RCZtnj801QmxB2Hh1RdODJ04NYCR84mkyeVmLrySQsPfWBiZawIPusj3W803YTrCIFZh55a7RhYSAh5uolGsv0TMC+pfZ8CJFMfhrjIkPX4iPlpoVij0m+1EDPaObMhssohxiQLjAb8un88eH/6Z8SnJxoDDY9JjIkM28xe9G9BMqE8CdRizNqXF+yzFoq+i0JXmGCunk6mGwVz7dw0Aht2yZLXL1jgrrUpP84ikBVljLiJmABWcOUt5aq4e2FLPP4IYwNw6/6kBGhUw92jqGvzzSz2IXFoSGkFThCZ6Hdi95k3hbTR+UyOtNXxKf3qOHtoG1+tO5u2H6XvCe4OZ0IsSdV2C22f4X0XRjnoLI9dkAJcmaPzyLbgrWgj/dizWHsrNz5PzGCCZ7zywhZMyk6RrEJ5ucZ5k4Fosm8+U94ZyJFHYaHthMhJSLgoHd9plpggxNFeaBMx2BdSg8d0qM1P9s3xHTr7n+uvFsfU5qJafAkyfAi/gC+OLxCw0uMl/XJ+id3bpdG4VxQwyKvZaxCWrPaRHIy9KcdR43jv9jfykGUTzB9KjyF1G0SkyMHMeY5wgAmcEp9B8ffD92GR4FQExXAD/Rm70xyf9mrg0HowJ+Y5o1trz3gJx6Em+pGPt0PvCVSXsmyA7BLMqIiL8iKyvmFzR0O7FJPoUD5dZJ1eKn4tDUJJ4Umb72XTHqR1qs8KsHPpu1Bas2jM6FoTMyoX5aScTz2RVJH0xso6SkxxuMBg3uUblz4fj83SnK1GADX8ZJtrY6l5lrbF1/ZuSi1BShVAdFnfBB3Sh1SW4KQz2mL+Y4svWwspzeGp4W6pTFKdMDjOxHzkJHkAfLjLjqf+T1Axa9og+Cl7gRTi70bSWjsQM9F19HqH1IdJOoerLMQTLpuVpFU//G6/hsxG6sFsnzMJ7n73SbIizBrcriqJQot6sKe+uP1gONUVuBIPlDJA49atkvafSdkS4NR+zciAFrwoHjdIsVSJKqDxAVrM15uFJb4cUI1Z5j3Wgo4gLqLZDMdNtYKJ1P7oBTGSBKZGTqguAYXj9FtcQ4sSbuwAvEKj0iSHfGzNYpAzMhIVEl+O5tVLe4s/3uEd9Gsrl6bogS5HKQwX3XK8Vnj7lf+5qIQiTSzRnfkEpdxxgU0LAZG7OSxjiHkVD2gFaZ1GjKhIedce7dFUwac8qA8Ut250wwH7O4rKHFECWEhhPfyyNNFFWeFrcIjCB9QkpXuz0U80DXFirexggv6bCvxlzrpYL2A02HykHogeIIum14ATyzZnKSfKNZqYUHkFr6qN2/mPO1WK01C9CpwXcl3fLEficn+qMiFNH5a/JFJBAF2ZZWJ5EP8mGzPCF9CDlr0z0YHruP+6bAUG47CNw5yDdR0WDTjq/DqDE8W+/fc6iTB4r9945YbHjR76ZqoOFAkp3KnRniRLdWK5iKvLCCH/Jf9vzHnX4LfdHlAiEucOADd6aaTJnMDTB0DnLoW9pvA/TvJPoH2GYOwUyBgDkGv7VLqRPzjz9nIWylnnWqIlm7L9YRAuucHIleKaTQCeUrXP0Wnyp2nmBxzeDiVOPsap6l6MYLHO4xg8HBAK3J1dgvBpIjcYDKZexJV5mf8c0hpw5ODKTwdkKCeeTezcPXh/9nI/FlRcIYy8sH3nKCQ0EEucVi+uinLNXGTmZXSuB5jYC2k1R6X8FYDLSs7G3qg+Wa30/SZZVsN+vbIWPDRqs9HMz/V2eXRrxClGwzMRZTnpwuqrD1GTjLUluOf9uPygJGxe+/EB6Ak5UCCsCWe2GLD5iZX8ywqGyaP9CGKOOsQ504tSVjAMPPpKo7Ex8LT3xYdh4QReijfasLvMKd8/bu689y+WY+S8IO9LXV7KYzmOOycnb7imsjeiBPCZgNd2Hd2fLIQOaLorPkKjFZcGRaNO6lp+pBPTMvw9QIbYuQZBlhu48VmV3i/3Y0m71BChUWR3cdNSS4D96YC5J0Y7ZFqMHBW6G9p9pf1EMvsoq2dzX2wSvNYXqdP47zyePLrk+nreb97cBNao7U34lHDXeFQ+HqT8XvcE26g42SyQZmHFRlH2UZ0kohpcgm7Li2wAo0IHMre/0XfRV0HtarB6og11KC3Z7/RUcqKzEPA7ZEJQgZNgBZE02MFT702HN67p516Nvqkm0Gjx83wQdQMeqxlml8LDK0V5SdTdnatEK7C+bhiQ3CLRBupVuTeGYhJY/BbrqiE1SY1vdXZ2SFuvNbcrI6ErGJV8/qH1acDEtu58Cm9IYXlR4R//8FS+sjKjiIPcuzVQ+9bV25MODrRYTzxFJYbLhp2Um/HKOncgLdKHj7tOrMZfxR6CrV1qRAGh+vD5dMMDkqvh3RtFI8M/B+95gOm4879zLjARkfVycAOqjJdoBfgWjWNsJnafTkmc7B3nIQv/Doeol9zaGW/DlpeEHHLSCVAFpPcoRFbXqIB0NIfCnsKcK8GmaNVe1S1WmDjR9kV2WjYdDpu3d+gX3edjZ363f9jQEbUhFXtuRXOQv+gmYCubqBrqUoagUdP7xj0HIFEZg93/KZ2CrZfN9t0A6WcpUJBI5WLyoLnqf11jJxzi7XP7icTGifXh8HPdPwOvmb7A1BFcfY2H1yrgpQ9LL1WPc8f4dqfuE91BNq8DtcEql3/06rGk4gsNyWI77GnH9IKwUsAFlrpUmA3zzUPojorig8/2Cbd3TjsCKM9wxliCLyKPngKsM1KFkqM6bMFtyxYYrU2eewcxYM6RkLIzuCbt2tjjkrWkSVoIS5lGaeH9ACsgsCD8uBJTg2FG+jOXwTTSCvGIWOiSPmrIKKcqEISVvUcMWhHEeUKjXTMdtBmPl8s4WipwTYa2j7rmaa0RNf7IXAOT77NGep/q0h0KdWRo5UPERTufgAqHgtum1dZEPq6OH8ILA+nokd8MXPhCko+zgkNqNlrLQew5ugiVBI+TSaF0+Nh/0lIpsCoBQWlDacVD+Vx3x3aSXTbkp6URafBo7r4W0YMJYL0MnwFM5mzSBvH459mHAZ0yzT09dEXgjVW9/ggg2LxRO6yGo5FTpGQS5EwMSjG3crtd3U4X4CO+KX5W46TC5B/X/DpEipFhWLaE6rpYO0r44KwsS9Ge9H2dfFY3QNvXA1sWHN6WR25HgQ091u/FmxcmTXpvXerH0b5xRi1MwmGmrK4ZAT1TapoD8+smzXuW4xfFWkVDOL7zk9xNtB53A3+dJrIzc5OTB601UXSFtQkX3hWaSnhB0fIWaxp9w7vGQDYtDAeTTDigrLMhVNfLUpJcIxhrMjO0Amicb+Ubauev6gApJbByzVQRTWq047GGRSYgxukHnlk5+xWTYTi31cQQCJ9ILZRJ3tV05M1AIgNeeDW2H8IBJqkzSl9nnKSajGYOD7eMyjHHWbG4SEV8CvAH8Iew6SodPSlX4spOyb4O8XdYQ2bne98jMMolgBIbc8j1VfPhmdPcqVcmf5qMjZcC2VzGSMF9s4863hYPVGq86Huy5cmg6zBz+qDU3yje9vmEr3yJ6kZhF5z8UdlkJdjq/581O9VuCR2B3lyEAfQoUZot9HdVILawreyRxAy11JlpE3UoO/fi5/5omkUs0A7Gvb5+bsteFVIW+9l+qR2dINow47smAidv0bLLEr/yqKcUanjvixyzAQCM5CVzq0r7rDR9M7wjLxBq9eBWRVmyK9TfSJqXHjL8T3l8phqzWGZrkRC5oiPO6C5Wf59fFDP+ituUaiEqytebX0Feyu7U5Leql5gBMTdDPsmK7KUOyA5TuWxjGc7dN7kJKEYpro0VWRhjMArMIGbutu6vN2OSHb6nvd508S4Q34uCRKu96bSAD7YHASNVhzXv8N8jroYf5Y7E9s4wTpkvo3BZkkWqpF0M1vka3jjUC/JuZvw9V8avX+D9bciICl12vr/bQJxDe+TN9MQwDJwOe5HRWZKtCtH/1/2brHVDE381FF3JIILjZf20UTFL4MLwmZtFv3M88Bv1x6hEyoaAlZ5p5QEWzlw8bJBt8orARhiododtduYtJBSF7octT9JzbeKdozaif0LBWL/u9RjbeVNLZ8UV44Ye6Sz56Vn8QlwftWL01WoPryii3ZZ930Zx6Ins/HGvGQmHAD+2qvuKQAs8Y6ublb+Dvhp3Y2NNMjsuzOvb6m4YtkPzbhlctKadex8tBQuo0zhmSxfDIZm5VnEDdG2vZ6kcykYFxgAz3wrkVyXQnwxyQIeYMIHQYT+257jBWD0yJIiC3PqmohMzTC/65XVgSsowG2kgnlR7pYY18nBQ8aVfJ64D79rH2pymM4xMU1Zk/OS14XiDcldhO0c0RhQxiPSY72XYxpiaKVYmzOcEvI1PzQa7+LVZ6pBIwn8ffWvhqa38b3IskTs4RBkYs9i+i9/AqdAQg2IOeWv2fuo5tEcFyefI9nATJXQchbBEQO2Cj3kaBe2X+81o97B22kYSwjOkgZybf53qZFQ6p/N0dL/VnuL1cYTGi8k6rMpkKGx4j+Mc/fcHUVNXTKhyO10FkvHiN+qSbJGepJ/aLXoLZ8RET0Bshv/4hAQgzeS7yl0n74cedqdnmAeHmQ2CyXvMM0MWpEvA2ezZIKU+WvUSaGpTt1kvMloerqnqxHLfT01Yh2n3iD29EWnrQsyjedi1I5SUgvQKBM9G+oAai15cO1con2QFz3UK7w7ZgzM+vPmbk2QqR87fzlbdTSAhrLXzqVfLnWBA/4+5aC+0BRMZ6iX9lH3QXtKU9D01K3HprdilL456y5lsl38VQaMbz9hk0LgquziMY01Znz2WE4ClHG9cF/e7stVmn89oNFUE9NZ1RAc97KzDEWHLoKwlCG6L20/2Gj7/M6PDhsvhY+FMzYRg+v/0jo2gPT0UTCfaLBDRVvKQgUSYPMG1dr6ox7ohepBUS0msHq/V7A6Y9WfKDgSLatqTzwhOXnuXAoFc1LsdlV/Nv7XHqg5TAohZGa1mOn44SyY1fyPMCxL1QmxvhBC7mxDyj9DUnBpbjdAzrBW0mUzZ51brDVW3f0A8oKL6FYBf0mwK6YxDMJogq94OPgpZyKHKBYvJXMfs6u0pYnEn/jPeTVQMK6uY9Egww5setjqwdQmwi1ea0/uoNw7QKPorCWZohFt4VB+HUy/ObjCDdxryIg/y0wXGMwFyftSyf0v/ESOVaUNOHg1aA0SQ0KOwx/oqBneMvSoxZc7SqvQaHcx3ZLg7I0FQgQ9799KuVGTfGNgWvzIMnHqMNnCyCLJMNoNQK9XA4Wkq+6tVuCUREehKj+szE6KlaSwgAPfb6JeGqIyBrjJK/wNw2yPaYB9wHia3A56M5r4OplAvdVjO1vrsc4I8LAy1zqqpo0yM1hfixHeLNDG6ufXaX/4mWxYpqL3hBHpPbnox49P3jj/wGgdZFaJe1JTer036xd0Xak5qCI6SV86xqAdAChv6sj7ESw0SU7w0leCi/08lfYfucRQHdzjO3JkA7lvHw0ouMCSCweP+ms5HlStT1HLlgQ/pkLQ0HiDkuoPtTY6fDW0UPlH3ebKJKJsiIlEwAnWQ1ExfQhfs1IRdbEO6sgyC7u2YqSye9WFoH3s0+d4P2X78UPcUsRitbiSflMds3+5ixk47wEAbwHOouv3l0AUb9zZIP32hh+8n3fJx3LXT4wqErJXRmufydvyJuKW5IkA+rD7B5y3hJGUFrf+je8x2WEZ93MMZZjKF3R4hY4E82J7y0z9znWEXqtnGce0dejOBkrf6CbP1VCh4ixhRvmOXO9yA0A2XQqeWYNfk1eUkRWlybRDBiE5SOOtjudxOpqC6Hv0XRqdL58/dsrEItVoppvb13l9MrZRKzOe/vtw9JP9aAkOa7ra6MbT/3YE4LlEJ5ticKWKe+rOGibg+N20Vx6Vg7J3byZG9+hIpULnZWH4Tq3LmlMA+oUfgAbbzPl3twbDuQozSElI95KSsXaBWevUxIWPQdY+4eolMlTtLwn+51SP6BWFEiioYy+r2Rza4OqKJPMbx7t0CZCtpMKxYQ5JCowbAH7J4Y3Eh3C04j1H/2a7qH3cVo01mg0KjVVR59qENmLLCnQ4LNMS3i2XshEK7QAIvi4D+egZPpMUywog3s+tqRiaGXIEMFp3rd3TuvLXVT9tpJGxjgQLGMKXmGL1MVjoN97by2NaOn0JoIbOQqeBIHTVbBYNON5DD3XP+rStPIfVbuHd+90TJpGh8BlfV0dLneK2wDMnndVGVvQLhvaQxu6sL3XsvtxmQzeFWUSHLeAlmTc9yNQKkXtOJWS9faewS8yotiXdJQ6EI1vpVOHgh46gljSllVDRx9qlH7i2QFU/dKpaQEbpAFUBI/eSUGbpgT2ORGcUGXXDWjQJQo+nCkQVnIMRUCP367os5Iw4Rb3LDvOi+/mwcBozzUa4WkjVcSIURKO3RTFCiY9j3O6C5MBS6Y0WbBooC0nOzhKxL8xMIIaM/tnyEzIdlABrz3f9XlCiQ0hh+C7/bNp14eUvnjcHWjBOSw8E7BjzeXkRQkpIuZSOriwZ8PiOLZxCkXFOQ4hbXa4Tu69lccJ9Hd0F1lxkg5QnAhhfx5WdcTkBH3SibBUMCLPb/cYypz6s4GGDMV5smYibldp//j9gbCEhqanpxLsoexOMik4SOt879z21iz+8V3wgG8CicQsmxcsqCc5QUqOZhnpO4qAFgzHF+noxN835P4xf5EsOcPvYWwtzK3WEYVGy5tuvxE5WZB246SGIDgeC4sMge0B4p70Tse4b6NjlPHW+90GmqnySqY83r0ilaew46qmwi4RzmOcPehbn4YPCoISjQ44RURV++dfU53vcKhkSj6cWuh75tdSSUNMysFwoP+lN2gGTwxOfrha9wWxDPpimhEBVrt6dcBIvdoUbCLTDQDZuUOVVhZP4sATqq8z7Ai0STnGxzKmAHG+3I+/tvrDN/OOTHwR6W5aWSRj+M5wmS5hfdvimlus2z4pE6RV+l6scSEX3XjFUVgbSuuufln4qZfmgBxNvIZmkPtMh4WHAtuqRVdgDOLksqdhjqc9jrNVpRsYL4L5fXaKhNXYNJfTorxbaoSpoqj6ZEp05xsc4y4Qryx7BRs3iYvuHRbCUsiCPmmGdUPXDn6H7woEjiz1YeriH6NPF5au5aVrtcw0DvEgLLKMuVq6QvzE1mu+x9AFhhIEE3jVvzGWs7x+IBGJ2hfG8Kb57q5sDsPmddrc0s2doavGt3j59SpKkbETAVxcSwwHbpAEsYTNPM1KhVl7EPpQp+gNotyPx7hI11xG47CrYE7+4xlCFpaDwvf9FWescjE9qNrcgCXvSeme0GAOo6QjsttWQcRguwWZb6OG1VPN2xZcfyUeEGLHhPkrziDDf4SHNaCcXXJ9CtFdyRMVueZNWqaoSKhpFI91MMLSXju3pGbSzJlM8FPf/oxZbRADvlZZCyb8fbb4mQVBZZ3GWV4hj4PCrLA1qQvEqs9XLsRnoal9WaSQhWRzLJmCurnGGRc6wxyAAejp0pAR70k0M8R+ziXphTbSz5jU2xp2cFe1EhegrqPqjFAtYWbYwsm9X969oYf76RSVpD5DfI8iDfFILBkfvnZaZtHikQ2tfNY1T0QOYafZ+dfiQjWZxqrDxXDWbc/jYZSbOzpgJ0HvC9wodOgTk5d5d9dmNrnM0LH8bvtI4zgktUZdf/DkYM10EF8yMhbFqvpMTi+TaLBUNd9aLSzSGAqu41xsKxsEYHFPhxozYZMPCafc4U5t8Ja7k34czb9pTsN2JFnwl8AmZSpI39KzBoEcD8fz0CAcio2KlaDIhPF8V0HkEbwc2c0mkpBazhOMI1d4cxnKG15nlJ+haP4D9g/H1z7jIEHS7enL9st+r19iJpqLFuJiKD2NT7LXyBzaAcFxIJ/fo4roeZSvHUyfgqUjSVcPiszEAuk4Fgqjxih+ln6TZW8b5sbDIvrB1Ul++c1B63XbFgHdVJTaRPzIXeh5f5u+QYvfa7pHyQV0ZUIv4SnfFMvTC0g0/fdaaBd9rcpxu/CBpbobKZgCIyVRDZGdPlZs8UGyu7+Hxb64E/k0YIIyG0d7ZSIcU1dOwyAQt25Ow5B4W/oUhgU+Gf+qB/Eqf+V11+GylEkiyGag2sSabnAwgaqTr549u7USX8FH6EnKLv1g9jl2zIU7C6GM3aeDn8kP+9aBM0Agrl165RV4/UHaXPnrBjs3YOHlrMK9jziNkwwt6+rC5FPPvSm2uVuOQouD4+Rk/8X2VoT+8bijB9PNpfsOsNhiSOVgntu7dzfzJItraFExs2ylPt0vanTgZJP3SIxPvZsgaDSBNmxIh0KPLS+EZkJ1Xy0gY8WVOZDbYF9v0GJta6+GUy7ek8lisYumJ1nyw90NF5n7L6H1aFMYqA/WI2COJA7pWaf9Ugf5pniETIJNyNXtonwZOLeCG380p2a2m5Fs4WDJIbVCtkJ77ah+h3HMvJJ0fzW8OXfnZDuzbWB935lP5zr2+vOc7CL44LjNt8p2deJJKd+d8n1mwKwxWxUjkxJRVlpIqwq1a+Sfeu1oNGDaOXyS/LVoiWAi4/RFFK77j8sVBWyTeqc13DCYWKdEbHTgEcIdtBewm3fvU99V8J4gYLJijdis2O/D+3FBz8kG/SwAXwjzKgO1TmXuA3syLPxxfnEUxttkUPpzQJgAzcN6o79tpHr3QWX3TVy4USKZJPX/G7/sFv7TB2RKaM9LvG8518UTl/oNK6/mqMpSOqsv0xRVzNjumgamqz/e3LG3e1lkrW5SquqlrDJIrN90AProjO2hsva2vAv1ZNPbHVfvH6K8KnMmDbXcZImS+YAXafdXLVILS/Q0MSKuRaLPQABT6AsH1SpBlkiSLXyhT/gT5IbfD6Z1Jx0n7l33o2uGW4lgd8BRn8WUeEHBHEn2SCXVQwlREQtvN7iSC2y8qSngF4ytc3vgOucrGccauebyUn9sdKmkhMom+XHRGLg4yr7NW/ZAq8UDCTjimw0unj204NYoihtZTNdXwgmCpqzA6Y4a3S/braI7FEXELgpjVSnB+dqkyFq3Tny2G8lAz1OtN0TZdE3wgbqL8XtsE5Ut1NayTqmPNmEhJVC0f6ZfMop0HP5VawTxA+lq1XoeRAoIGH0ojuV+9O13sh2V2zoxj5jVyNGuZDtqZVlEeSIRI05PVi7nZfKw+EuT5YTkdX/qnx/AmQXABJR8mEbt5A8Oab2RqMdG+P0zvDI0gODnGDSO2w4ZOrD1zi5LnYaIljibbOMhpDWcwsd6Ry5eUmiLQ24OpaErO6a3/sYLybm9xOJLqfn7DNg/5SKBxEfKNyyUYP4KtkSMQI5Xo7dHcIhqH4l3CRK/gB7WtFU6bj0mReNJIitL8grYbUyZpqDuMDT5s5WQsWjOEmRSbMiH7HIkEIPvRu0WxMnRCJKjGFWdlKGqK96T7jlsEHCjsPjk/9VEQ4W5qB2tRAFGJ5YGgbmyYxqxGxduvkNdd3IZKcIbvtEtH4X7aHeyV4Dcn4wkEzUNRRhISM51Av5I1mwi2lj3DP8d6K9iFzNVDCSb+eb9pBu+SEqYrvFC8WKSi8OcZDj50KV871120hgz6n6OZy1KOh8OzKNuCKFt9mVlUfJKzD9gcuL53q+oTHGGIKFz4+4/zLC13N3l3y4Fn9dzM02uGyBGoJXmF3jrwW9OguOsh1FVykE1suM6kC/e005VRngkgcn29tixbfGSx7k8JzTId+5wTXE1HgKXCtGlwA7L6FxS+RUGGP2az1Em91D7THACjjqlVdoDOltQ7Yb4S8n4kG/m/CvtFfQB0e/e/JMgICLGKds6v5THENB7WYOdJ0P5s3GQzdbeXjUAG5Y2WCUBs5LZ6xDZzv1L7jfUHqBbmnHW7U4g+UTYB/tW7B0Ya0JAbpzWFSoVQH6CbY6q9fM8ccelwWdxeWdjZm+TcmBAHpje+emw8T5mUgl7Omvks7D2xk04/HjynzVyBN2dI3dBgxTkB1keL9tMN0WgyjY0ddKI8pigHP9lOa8hb7F2bZIa/FqS6JJPPHnlyPbVl+weIG7j4ocmWH/OkvaT4qtcbnafk2ocwOkjSqUob66ehit1UDMwKXreD2R92MZugTHNe/PWAZesANg9eBbm2p+4kqK52j8MW3AhqaffDN+kK195DUM4FLVYm8BQhOF+OWoM5tTD8LImCNRenutbU6qRxpaMDXCBU37/K3Y7eobcg/IaZaBuw44FteI67Hdgufk5VqCDjlK7jDBUtVq07hpPI9ymWW/m3nNLQlusNGDSBNYXOUBDRWNnHira/1eo9GEwVgpXn2tG1PUUxT15p/fbfGXCvpsj0QlzwErC0ge/Oqlsh7E0QhpqDAcvlBJOiXDD/bv01SkM269rmghWHJPUbmpq4trj7H6cCMXMIwWgOLaTXR0w3tamzJpReC8FXDNwkxSCbmg/ag17JdPyptz7mR3k6KvXor6tFCfEv85TW7CDWLEap1AC12Ym+LK9/CxdKPnXz9Qz4xNXGn3sG1wAfthifQfjDyiCnLo2uhuMzI9yKxH4PUTt52mReMLmnHFrrLpDYcPC+cU7ge55guYhGv/ANB92YzoXrI+Hs6gdXnnfE8GGhfydGwvKBKCtpDecGnu41Mz28j9/LTVtSV9WZEoxANMgPGo4BDbY2p69ixYGQWATdyg9TRDAK7f/Lrlubat60yuVZ9wcwqZ7NBP71mX6NEgdvfK1EgMnkZzsDQl/wWDHdAoOYCo4pKwY5I/V26cKTO4aMYcV/YDdgglOtas2KtIXBJAcgotsV4YfF+CDN4T5WdX808VdXh3/UXLrAdcMDF3QIXj1HyUHIOkXBH7DXICbJt9eNiowRXiuB0d1J/FqjPFe2IlNdXnwFwpRusB5PLSv0Lk/AdI1gQmao8wwLmnoh/L9riMbMMsWAOI+5B71d+lGTKlxx4hQn4ixRfedyZUUsRcpGrgAS1XqCKzggl0/LFuyQpe9BsgvZGkEHQ4ELkl6bcLtiHZ+7uFxmRjnV7v8PP1Whug1igIT3OTMnmb/dGJPuGKY5fRdvWoatxfNU3ABi+fY7eHiPqC0gQDpAC19twVfWBtBur+ST+y7fzmSE5Q0C3mcp8/31XIdqm7sEZJHtFnXBgaTyG+fWRGAY70K10IBvKH2TE6IMzm1k92/Cn2payTupKTtojgP3uaWIgFVgV0lD0WGR0PanqiKtrBFwqznvb/rz2PgpSjWd2BESLQpxY+6tmKXZnjvY9xfR12CQ8o/aKz1t+XxCSzy0uE5f/kaFUCrwxjL8gT7SEUJshp//5/yvPFJHgJlgsvXp+gRQCSzz+vS6rl3BhMsbj/HzwJYz8GsWppOQDGVswlOHEaFE/qhImhDrt2DUfNxtt21GW7KwJRn9/mtYIjlnnwgESPEpwoLyTru3SsVGzRxnZG6x+BiseUs57lTdb3H8KG7UPeH1SSjy9wZHELnar9x5cOtOR7lOvyjWm4Ab18Q+qoMxxLCFit0V8SmOu7AU8XGY3eSXb6Ly+kaQmDkRlOstgmcj+rD34KNz7LTvLL0O1Z9J/nCjp+1flOFgtbd7Yg0t5eNrPuppxYxJfSpnJRNL4S3YTffnV+x+zVsuioseET/On2wNi/TnL2rAQIKswi7Er3Sv48D/+PLsa2WJOSk6DqcCLmusILDiz0FwKEhMewrxtNyM2IAE0/6hiopIQoUgC6U8CLirhWbfVibSnCGZlF5uywIcaUlcEaYP/evokbi1NSquO62XNnWR4+fB3M1N7LaI5pwdHYOKEjg9OaSiTtEDypKGOVxZhdQS0jEvZ46foNS4SBpwZfPn60p6pQldNUmimhWeU5LUnEpZYjPJU6hmAsh4AKaLFfJANrZ9ou428yoEIFuiY9UgOYkqtSUocWxyijxK+NTtuDdbh7NJcyLIl6CUBWQjZiL34Bk0Qe3vmT9tpIKus3r5CvEdEu5Va2Wxm8CQJT9bESzuFBeH0QIRybKFAUVqNa9tCXukd1jwLXYKWsuMuFda8R1UjVG2cvAZ+R3lBV+nLksL4Ti6lubX3hKFcSyFsG5rK9pJt5nlSGIkBLP/HFqLL/KX0S96NdOo4CS+GYPBk+lBZxz6Yie12vvUj8l4t1ik/5PmvbLOTPCcaoPeZ7APUQIKIcxcNUDin3R1okbeAUGwt7Ja3G0ntQokBhlajisyXeqbfPLrTTKpTauclKp+DGdyBsbzFHEYtIqZnlLe5wjluF/UID6EgwWPGj0FVKM59Jom3+0Y1QTb+IKqHZv/0FIEEuVItlJHSixdza2w0UN80Hyc/eUGv6SBybC/EEs9cOcLBR1eeQXXe7p7hfIhtxxBrGhk9n7jom/4LXF125WzPmMCUiNyE8iO7sVSmRf/iSNFBveZWGPeCirfJ8a43fk5jCfA3NPEJyMAamu3Q5im0DKo8aonWXtye9iE8vraixlVTAGSXFMjP3+XiOE9jrnXTDzARnt7+9gvHctQpaAI0za6N7bq9R1lb55jILwmx4Ih4OA0K1/Xx7B9jytPFBRhEO8xqXLhxotsIRjnGRvnkMK/KJ1YhE9T2mNmclLYgMSn+7dzik8BzoHt+EcXstV8yNpTspqsnS96ATq3A66NbF449w9JqViBt4gWi7yVzt3kR4XSJ8iEB5anMqG+EsSyrMQVv0sMeEysGx+yYs6G2xPJw3zqTq4RzDQXPhYra/VMlt7E8zzl4D7L3HS3kkWf4ZkmFmnjcENPQdkmohl6p/gqkOg+8McyzNxxb5Fl19DsSr3MTuSMqhSKDn95ibzYCEdrZXJiKaqu7BFBuju+jSObOPchog2IsE/u/3U/UK2mntvSnD0qNkPYoRTskBnLJ3NJamL0V4sEbryX8NMr7MKMJ0+h2+xMKY4KERpvUrd0c6ABXWHqLdY1QTugC/5dhdoLy3+KwgG5FnL0MZw6qvOvHkKQRoQrcKLuwUld15s05QxurH67A9eAr02a/vUWNBIgP6vOa69ZZuZKElWttIerRDGIAkZ54fw7HBctSZtfspPxaliwbOEH/Laxot3ZQonzvXknSVodzZHA1Jw7BcNRsYvl+KJ0Y6pMRPpIbaN/QSuHtnjUoej+vlVhq5021xMUPKxCK/D8rSRbOmduHG85/JrIimgo5wXWP83lLvRaxwCxeTGVt44fTUqsfUARmQcS3f5DbHR9SZ4nJYIEvcCjIqLezJ3I6S7xBop57j3ZyMQX0Xxr5mc6IUmrlOXM9fJG5iDZQQ9rWsGZ0Y26GzTAEsD6pjPuDa1XAT1MRpxyZ8zN53sl1YEV0E0EHvZqcnBnqMTXRh6zC9PwDXEk3OHs2zLLIjBhY5+7lDxp1X0qcm8XtWorat33mUx+kEDDgaDUdpclQq/ZM6mMYoF433nKbCKDxCozugSPVaRjNPosMDy8FujvIJSb763XuBGBIYLS9x+HZhYiUa9xod0xKV9aRt7yczWWlLgfK8qn4fULHMBSP48m/wTWfDBdTH8uDAKt5WM033+2bCpxDhmZtE+d7XP65yBTOf9/EWaCG+Gs9/5kVbWS0JlfoDH6Si2tVCzCRGfV0XZAUWfXOMJ5F9dkMagbwaeqVqqbVONDQGg8zID5MUV7IkazdAz4JLOXsn1RuZnoZNIGV2Na15+dRKYUAmXFmkWBJpPMBwT8N4bd8VZwBnhm3WzH9S0sbpoP0sgf2OmPvQ6smMyfkVK+OLjXYubmtioAhdwDb5/pLRg3PGwfHEz6v9OOe4AK8iw2cma49tV44In8Rc9jGcqSQlFXPdlC8366ke4U/ITFy0/SQBl1vWvGk40KycwWGaLf8cCtEi/4X2W8961i6lYnpfNQhGcQyC8s2oIOW+Pw545Thq3ZBEyNC8YDr/pzCEmBI8U3A4IiQJoHiD9kUMNd8wfzysC2Kqc4OGeWYsJxmDev4Jn4HV+vqpgN6xxSEMABhRMdTteHiJAgnQEX9BR2V1sNqh5EcMvQNYYa5+bblQn7Rli1UFCtQkP6ECmGkxmPNkg2CGS2mmf0/WEuTZSyPMtbbrnftPgleOmJ3jSm0m1EU9fQHQo1NZti+KczpJ8mSYIVtXzXh4rNJcL3Fm7Bbftpjmj5UnuDpPk8HvqKOj2DGJyk4R0Md1x7umiH0DTOXaLwO0EI94k7n6R8nfqiwekgUQZ1rRek0HViM5YN0JLWp4f4NRE8ErcGNSHZd58+9Kx8lmkc9ogfQmX0rX1kB8QQzNbH+eVDee0jOQNUgQcew3y+0QbifXrtLHXDIxsqsej41Kz7vfcQRE1zUnY2phYNILK8a657zyHNMzPiRhxs28s1JX2kiCMEloubOXnc8BzU+n7LM9wztf63eFWN/eWHXVivSdCWg5DfWsk2CF8aFJrOP277QEPdkWlOlewCVEkLjyd5wUn9ZzaKOJKnDQDLfliiRLTKlU8TOeQj8jOU8FfpM9tayJTDpxw6sVlZuJRAILfxn+QAGIB/W1FGDjuuVu62hFDBdvzVSfge95Ebf9pclp0GrpV3S+gwBWn5J7aGiim/fRyIN7YVVXJsnAnVeq90vDdAV0XearTqjT2Ck/AMkBW6T/ls/6VUVnFWs01wxkahKR0tRwyLRKgHefm3RWie/pTVQpUMZw+/7ozQSW+7vuZd8lsvT1iX5rwlpiaFnOnDbHsr1As6vLETd5HVbcBCGbJHcS7ax9Byd50jdYyagUtjAaHYX8ryyuR/bDkw1o4j8+hXMfbzy+CVmgrfRDyl4dn+5LxrqRAXLoDKpQREAHqdLSsVSJh1s8KnZ/SsUVq27cq+O6LMSBmhT4X3E750rmWwCsoCre6bT//oFWYALjp2SbcxnULBaTvnYDHtfEbO1m/3c9nJk8ZO5KHQTV88ivTWN/S2EXwmisTPdcupMrvI8e48QZdkZu9WHyKron7MKhGFJw6Z0KZ3tleVrvvJo89siUwByPY+Hs4gkKPBQbLQOaedcv/xeM+Ih8rl1eHEC/C65xWVciToVqSGp9HfbhVzFSrO6kBnv7mJwnRLvMEwqiNankVdJJMw4icU3lKyw/ecNSWIUddqlbThYMiq8nHjRRufs+28cq0OI9zhpvxFvFgSZE/eAYvm0x+9lZO+EH9NkBngaqU1NMYhdombNuy3awUN9p0mJQ//e9L65YbShgoc+ZUlNy+c6F6gDEHXV0JrzevPIZFAe2RyRa2dNqzLvihAAMCszYueqszzXRkSyobx5+LTLK2V3lfg3wbS9DzP3QW7VHdHbjZcttQRvtjrGveJnNn2DE2ZDIbvkCrT0H8RzbGDdmIq4P1ey+hoY/W6NuZKOz4dv4HUNznxdKV1Wf3MvqUv35r2jTKvpPWBUWNm5fytX/QJwp6qkIOsSx7Y67BSCbCDVLM8/VcMG+T0j+INrgL9sfT1ICtACH8BI0G6ViUZPVzzCmQHW2oVIwZjAoFl6+meO/pD8teO1E+1y03mCpYfW9S8qhtH2GhlFlebPf4NbezVv9xbXKWz0xezRNQWqUqtYRTUbuzK7KTvjG4rQHfzBpVmK4wDLnSIwdSzTSk1fPNeY0WOpPZTLlvQ59xwgfFrb326vT2hS1JAZ9E6sujFtKTiJ7bxI6o4cBhDaX+adXREThhR+MwA4TqD7rga/o9iY7d6TVRe14CS2S3iSQsD0R6ApnhG/2Wa0A0AY2NtWTjmabdKU+KgIRDP9RQYVjXiF1qC+xyNVG03I9vpmEpY/G/zC4nLOKgXAZ/uTikHI9Afbkhfgfgo9arWbix5eH7WUo9RQygDzwCnVSjbXc7MihEufVj6WGbK963pw8VjY3RS8IH1cy2yZbIcKLO5CgAUcXJfF2+McnDLKtXxyZaf7SPA6KJq+zF2NHyfoeTOwHhGqNcnHVr1hT73pcoyXyfvCYBnG1Bp/aR9t8hoI7CXM3UZOisWGA1SHZ2jf7k9GlRnp3mF/c1AV+JjvUsnZrsybEOQJg/dn/9eJkyykQHjbF56zgcPX6DdMG03WKUMlYz+uOZ+5DZy9E9MZOZ9GMoLFdrIPPQQLjv+GlCMpoyHPXkzIODjHAID2PrnaRpqWVHh0rnieDILKq+Emrd5RnjgE9pDUXWTmHaKuqqYlcgEz4zbi46dbWrAAFBjsQq1rLHIiPJEcwFLCOY4JNlXRXQJqCUKXk2d1RSBGzDP6HDSpo863BhVRFFF6uIpjQV7j5ebFe3UkkO/+coIo2BTAcgBqOtQ134s9a4QJvofuqBYMGOBMsWZ+sn/2AOxDx6SfAnDFGw==`;
-
-
-Uint8Array.from(atob(($06269ad78f3c5fdf$export$2e2bcd8739ae039)), (c)=>c.charCodeAt(0));
-
-
-
-const $05f6997e4b65da14$var$bluenoiseBits = Uint8Array.from(atob(($06269ad78f3c5fdf$export$2e2bcd8739ae039)), (c)=>c.charCodeAt(0));
-/**
- * 
- * @param {*} timerQuery 
- * @param {THREE.WebGLRenderer} gl 
- * @param {N8AOPass} pass 
- */ function $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, pass) {
-    const available = gl.getQueryParameter(timerQuery, gl.QUERY_RESULT_AVAILABLE);
-    if (available) {
-        const elapsedTimeInNs = gl.getQueryParameter(timerQuery, gl.QUERY_RESULT);
-        const elapsedTimeInMs = elapsedTimeInNs / 1000000;
-        pass.lastTime = elapsedTimeInMs;
-    } else // If the result is not available yet, check again after a delay
-    setTimeout(()=>{
-        $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, pass);
-    }, 1);
-}
-class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
-    /**
-     * 
-     * @param {THREE.Scene} scene
-     * @param {THREE.Camera} camera 
-     * @param {number} width 
-     * @param {number} height
-     *  
-     * @property {THREE.Scene} scene
-     * @property {THREE.Camera} camera
-     * @property {number} width
-     * @property {number} height
-     */ constructor(scene, camera, width = 512, height = 512){
-        super();
-        this.width = width;
-        this.height = height;
-        this.clear = true;
-        this.camera = camera;
-        this.scene = scene;
-        /**
-         * @type {Proxy & {
-         * aoSamples: number,
-         * aoRadius: number,
-         * denoiseSamples: number,
-         * denoiseRadius: number,
-         * distanceFalloff: number,
-         * intensity: number,
-         * denoiseIterations: number,
-         * renderMode: 0 | 1 | 2 | 3 | 4,
-         * color: THREE.Color,
-         * gammaCorrection: Boolean,
-         * logarithmicDepthBuffer: Boolean
-         * }
-         */ this.configuration = new Proxy({
-            aoSamples: 16,
-            aoRadius: 5.0,
-            denoiseSamples: 8,
-            denoiseRadius: 12,
-            distanceFalloff: 1.0,
-            intensity: 5,
-            denoiseIterations: 2.0,
-            renderMode: 0,
-            color: new Color(0, 0, 0),
-            gammaCorrection: true,
-            logarithmicDepthBuffer: false,
-            screenSpaceRadius: false,
-            halfRes: false,
-            depthAwareUpsampling: true
-        }, {
-            set: (target, propName, value)=>{
-                const oldProp = target[propName];
-                target[propName] = value;
-                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.logarithmicDepthBuffer);
-                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
-                if (propName === "halfRes" && oldProp !== value) {
-                    this.configureAOPass(this.configuration.logarithmicDepthBuffer);
-                    this.configureHalfResTargets();
-                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
-                    this.setSize(this.width, this.height);
-                }
-                if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
-                return true;
-            }
-        });
-        /** @type {THREE.Vector3[]} */ this.samples = [];
-        /** @type {number[]} */ this.samplesR = [];
-        /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
-        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
-        this.configureSampleDependentPasses();
-        this.configureHalfResTargets();
-        //  this.effectCompisterQuad = new FullScreenTriangle(new THREE.ShaderMaterial(EffectCompositer));
-        this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
-            minFilter: LinearFilter,
-            magFilter: NearestFilter
-        });
-        this.beautyRenderTarget.depthTexture = new DepthTexture(this.width, this.height, UnsignedIntType);
-        this.beautyRenderTarget.depthTexture.format = DepthFormat;
-        this.writeTargetInternal = new WebGLRenderTarget(this.width, this.height, {
-            minFilter: LinearFilter,
-            magFilter: LinearFilter,
-            depthBuffer: false
-        });
-        this.readTargetInternal = new WebGLRenderTarget(this.width, this.height, {
-            minFilter: LinearFilter,
-            magFilter: LinearFilter,
-            depthBuffer: false
-        });
-        /** @type {THREE.DataTexture} */ this.bluenoise = new DataTexture($05f6997e4b65da14$var$bluenoiseBits, 128, 128);
-        this.bluenoise.colorSpace = NoColorSpace;
-        this.bluenoise.wrapS = RepeatWrapping;
-        this.bluenoise.wrapT = RepeatWrapping;
-        this.bluenoise.minFilter = NearestFilter;
-        this.bluenoise.magFilter = NearestFilter;
-        this.bluenoise.needsUpdate = true;
-        this.lastTime = 0;
-        this._r = new Vector2$1();
-        this._c = new Color();
-    }
-    configureHalfResTargets() {
-        if (this.configuration.halfRes) {
-            this.depthDownsampleTarget = /*new THREE.WebGLRenderTarget(this.width / 2, this.height / 2, {
-                               minFilter: THREE.NearestFilter,
-                               magFilter: THREE.NearestFilter,
-                               depthBuffer: false,
-                               format: THREE.RedFormat,
-                               type: THREE.FloatType
-                           });*/ new WebGLMultipleRenderTargets(this.width / 2, this.height / 2, 2);
-            this.depthDownsampleTarget.texture[0].format = RedFormat;
-            this.depthDownsampleTarget.texture[0].type = FloatType;
-            this.depthDownsampleTarget.texture[0].minFilter = NearestFilter;
-            this.depthDownsampleTarget.texture[0].magFilter = NearestFilter;
-            this.depthDownsampleTarget.texture[0].depthBuffer = false;
-            this.depthDownsampleTarget.texture[1].format = RGBAFormat;
-            this.depthDownsampleTarget.texture[1].type = HalfFloatType;
-            this.depthDownsampleTarget.texture[1].minFilter = NearestFilter;
-            this.depthDownsampleTarget.texture[1].magFilter = NearestFilter;
-            this.depthDownsampleTarget.texture[1].depthBuffer = false;
-            this.depthDownsampleQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(($26aca173e0984d99$export$1efdf491687cd442)));
-        } else {
-            if (this.depthDownsampleTarget) {
-                this.depthDownsampleTarget.dispose();
-                this.depthDownsampleTarget = null;
-            }
-            if (this.depthDownsampleQuad) {
-                this.depthDownsampleQuad.dispose();
-                this.depthDownsampleQuad = null;
-            }
-        }
-    }
-    configureSampleDependentPasses() {
-        this.configureAOPass(this.configuration.logarithmicDepthBuffer);
-        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
-    }
-    configureAOPass(logarithmicDepthBuffer = false) {
-        this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
-        this.samplesR = this.generateHemisphereSamplesR(this.configuration.aoSamples);
-        const e = {
-            ...($1ed45968c1160c3c$export$c9b263b9a17dffd7)
-        };
-        e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
-        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
-        if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
-        if (this.effectShaderQuad) {
-            this.effectShaderQuad.material.dispose();
-            this.effectShaderQuad.material = new ShaderMaterial(e);
-        } else this.effectShaderQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(e));
-    }
-    configureDenoisePass(logarithmicDepthBuffer = false) {
-        this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
-        const p = {
-            ...($e52378cd0f5a973d$export$57856b59f317262e)
-        };
-        p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
-        if (logarithmicDepthBuffer) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
-        if (this.poissonBlurQuad) {
-            this.poissonBlurQuad.material.dispose();
-            this.poissonBlurQuad.material = new ShaderMaterial(p);
-        } else this.poissonBlurQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(p));
-    }
-    configureEffectCompositer(logarithmicDepthBuffer = false) {
-        const e = {
-            ...($12b21d24d1192a04$export$a815acccbd2c9a49)
-        };
-        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
-        if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
-        if (this.effectCompositerQuad) {
-            this.effectCompositerQuad.material.dispose();
-            this.effectCompositerQuad.material = new ShaderMaterial(e);
-        } else this.effectCompositerQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(e));
-    }
-    /**
-         * 
-         * @param {Number} n 
-         * @returns {THREE.Vector3[]}
-         */ generateHemisphereSamples(n) {
-        const points = [];
-        for(let k = 0; k < n; k++){
-            const theta = 2.399963 * k;
-            const r = Math.sqrt(k + 0.5) / Math.sqrt(n);
-            const x = r * Math.cos(theta);
-            const y = r * Math.sin(theta);
-            // Project to hemisphere
-            const z = Math.sqrt(1 - (x * x + y * y));
-            points.push(new Vector3$1(x, y, z));
-        }
-        return points;
-    }
-    /**
-         * 
-         * @param {number} n 
-         * @returns {number[]}
-         */ generateHemisphereSamplesR(n) {
-        let samplesR = [];
-        for(let i = 0; i < n; i++)samplesR.push((i + 1) / n);
-        return samplesR;
-    }
-    /**
-         * 
-         * @param {number} numSamples 
-         * @param {number} numRings 
-         * @returns {THREE.Vector2[]}
-         */ generateDenoiseSamples(numSamples, numRings) {
-        const angleStep = 2 * Math.PI * numRings / numSamples;
-        const invNumSamples = 1.0 / numSamples;
-        const radiusStep = invNumSamples;
-        const samples = [];
-        let radius = invNumSamples;
-        let angle = 0;
-        for(let i = 0; i < numSamples; i++){
-            samples.push(new Vector2$1(Math.cos(angle), Math.sin(angle)).multiplyScalar(Math.pow(radius, 0.75)));
-            radius += radiusStep;
-            angle += angleStep;
-        }
-        return samples;
-    }
-    setSize(width, height) {
-        this.width = width;
-        this.height = height;
-        const c = this.configuration.halfRes ? 0.5 : 1;
-        this.beautyRenderTarget.setSize(width, height);
-        this.writeTargetInternal.setSize(width * c, height * c);
-        this.readTargetInternal.setSize(width * c, height * c);
-        if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(width * c, height * c);
-    }
-    render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
-        if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
-            this.configuration.logarithmicDepthBuffer = renderer.capabilities.logarithmicDepthBuffer;
-            this.configureAOPass(this.configuration.logarithmicDepthBuffer);
-            this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
-            this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
-        }
-        let gl;
-        let ext;
-        let timerQuery;
-        if (this.debugMode) {
-            gl = renderer.getContext();
-            ext = gl.getExtension("EXT_disjoint_timer_query_webgl2");
-            if (ext === null) {
-                console.error("EXT_disjoint_timer_query_webgl2 not available, disabling debug mode.");
-                this.debugMode = false;
-            }
-        }
-        renderer.setRenderTarget(this.beautyRenderTarget);
-        renderer.render(this.scene, this.camera);
-        if (this.debugMode) {
-            timerQuery = gl.createQuery();
-            gl.beginQuery(ext.TIME_ELAPSED_EXT, timerQuery);
-        }
-        const xrEnabled = renderer.xr.enabled;
-        renderer.xr.enabled = false;
-        this.camera.updateMatrixWorld();
-        this._r.set(this.width, this.height);
-        let trueRadius = this.configuration.aoRadius;
-        if (this.configuration.halfRes && this.configuration.screenSpaceRadius) trueRadius *= 0.5;
-        if (this.configuration.halfRes) {
-            renderer.setRenderTarget(this.depthDownsampleTarget);
-            this.depthDownsampleQuad.material.uniforms.sceneDepth.value = this.beautyRenderTarget.depthTexture;
-            this.depthDownsampleQuad.material.uniforms.resolution.value = this._r;
-            this.depthDownsampleQuad.material.uniforms["near"].value = this.camera.near;
-            this.depthDownsampleQuad.material.uniforms["far"].value = this.camera.far;
-            this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
-            this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
-            this.depthDownsampleQuad.render(renderer);
-        }
-        this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
-        this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.beautyRenderTarget.depthTexture;
-        this.effectShaderQuad.material.uniforms["sceneNormal"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[1] : null;
-        this.effectShaderQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
-        this.effectShaderQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
-        this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
-        this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
-        this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
-        this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
-        this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
-        this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
-        this.effectShaderQuad.material.uniforms["samplesR"].value = this.samplesR;
-        this.effectShaderQuad.material.uniforms["bluenoise"].value = this.bluenoise;
-        this.effectShaderQuad.material.uniforms["radius"].value = trueRadius;
-        this.effectShaderQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
-        this.effectShaderQuad.material.uniforms["near"].value = this.camera.near;
-        this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
-        this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
-        this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
-        this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
-        // Start the AO
-        renderer.setRenderTarget(this.writeTargetInternal);
-        this.effectShaderQuad.render(renderer);
-        // End the AO
-        // Start the blur
-        for(let i = 0; i < this.configuration.denoiseIterations; i++){
-            [this.writeTargetInternal, this.readTargetInternal] = [
-                this.readTargetInternal,
-                this.writeTargetInternal
-            ];
-            this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
-            this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.beautyRenderTarget.depthTexture;
-            this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
-            this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
-            this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
-            this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
-            this.poissonBlurQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
-            this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
-            this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
-            this.poissonBlurQuad.material.uniforms["radius"].value = this.configuration.denoiseRadius * (this.configuration.halfRes ? 0.5 : 1);
-            this.poissonBlurQuad.material.uniforms["worldRadius"].value = trueRadius;
-            this.poissonBlurQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
-            this.poissonBlurQuad.material.uniforms["index"].value = i;
-            this.poissonBlurQuad.material.uniforms["poissonDisk"].value = this.samplesDenoise;
-            this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
-            this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
-            this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
-            this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
-            renderer.setRenderTarget(this.writeTargetInternal);
-            this.poissonBlurQuad.render(renderer);
-        }
-        // Now, we have the blurred AO in writeTargetInternal
-        // End the blur
-        // Start the composition
-        this.effectCompositerQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
-        this.effectCompositerQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
-        this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
-        this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
-        this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
-        this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectCompositerQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
-        this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
-        this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.beautyRenderTarget.depthTexture;
-        this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
-        this.effectCompositerQuad.material.uniforms["blueNoise"].value = this.bluenoise;
-        this.effectCompositerQuad.material.uniforms["intensity"].value = this.configuration.intensity;
-        this.effectCompositerQuad.material.uniforms["renderMode"].value = this.configuration.renderMode;
-        this.effectCompositerQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
-        this.effectCompositerQuad.material.uniforms["radius"].value = trueRadius;
-        this.effectCompositerQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
-        this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
-        this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
-        this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
-        renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
-        this.effectCompositerQuad.render(renderer);
-        if (this.debugMode) {
-            gl.endQuery(ext.TIME_ELAPSED_EXT);
-            $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, this);
-        }
-        renderer.xr.enabled = xrEnabled;
-    }
-    /**
-         * Enables the debug mode of the AO, meaning the lastTime value will be updated.
-         */ enableDebugMode() {
-        this.debugMode = true;
-    }
-    /**
-         * Disables the debug mode of the AO, meaning the lastTime value will not be updated.
-         */ disableDebugMode() {
-        this.debugMode = false;
-    }
-    /**
-         * Sets the display mode of the AO
-         * @param {"Combined" | "AO" | "No AO" | "Split" | "Split AO"} mode - The display mode. 
-         */ setDisplayMode(mode) {
-        this.configuration.renderMode = [
-            "Combined",
-            "AO",
-            "No AO",
-            "Split",
-            "Split AO"
-        ].indexOf(mode);
-    }
-    /**
-         * 
-         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra"} mode 
-         */ setQualityMode(mode) {
-        if (mode === "Performance") {
-            this.configuration.aoSamples = 8;
-            this.configuration.denoiseSamples = 4;
-            this.configuration.denoiseRadius = 12;
-        } else if (mode === "Low") {
-            this.configuration.aoSamples = 16;
-            this.configuration.denoiseSamples = 4;
-            this.configuration.denoiseRadius = 12;
-        } else if (mode === "Medium") {
-            this.configuration.aoSamples = 16;
-            this.configuration.denoiseSamples = 8;
-            this.configuration.denoiseRadius = 12;
-        } else if (mode === "High") {
-            this.configuration.aoSamples = 64;
-            this.configuration.denoiseSamples = 8;
-            this.configuration.denoiseRadius = 6;
-        } else if (mode === "Ultra") {
-            this.configuration.aoSamples = 64;
-            this.configuration.denoiseSamples = 16;
-            this.configuration.denoiseRadius = 6;
-        }
-    }
-}
-
-/**
- * NVIDIA FXAA by Timothy Lottes
- * https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
- * - WebGL port by @supereggbert
- * http://www.glge.org/demos/fxaa/
- * Further improved by Daniel Sturk
- */
-
-const FXAAShader = {
-
-	uniforms: {
-
-		'tDiffuse': { value: null },
-		'resolution': { value: new Vector2$1( 1 / 1024, 1 / 512 ) }
-
-	},
-
-	vertexShader: /* glsl */`
-
-		varying vec2 vUv;
-
-		void main() {
-
-			vUv = uv;
-			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-		}`,
-
-	fragmentShader: `
-	precision highp float;
-
-	uniform sampler2D tDiffuse;
-
-	uniform vec2 resolution;
-
-	varying vec2 vUv;
-
-	// FXAA 3.11 implementation by NVIDIA, ported to WebGL by Agost Biro (biro@archilogic.com)
-
-	//----------------------------------------------------------------------------------
-	// File:        es3-kepler\FXAA\assets\shaders/FXAA_DefaultES.frag
-	// SDK Version: v3.00
-	// Email:       gameworks@nvidia.com
-	// Site:        http://developer.nvidia.com/
-	//
-	// Copyright (c) 2014-2015, NVIDIA CORPORATION. All rights reserved.
-	//
-	// Redistribution and use in source and binary forms, with or without
-	// modification, are permitted provided that the following conditions
-	// are met:
-	//  * Redistributions of source code must retain the above copyright
-	//    notice, this list of conditions and the following disclaimer.
-	//  * Redistributions in binary form must reproduce the above copyright
-	//    notice, this list of conditions and the following disclaimer in the
-	//    documentation and/or other materials provided with the distribution.
-	//  * Neither the name of NVIDIA CORPORATION nor the names of its
-	//    contributors may be used to endorse or promote products derived
-	//    from this software without specific prior written permission.
-	//
-	// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-	// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-	// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-	// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-	// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-	// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-	// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-	// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-	// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-	// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-	//
-	//----------------------------------------------------------------------------------
-
-	#ifndef FXAA_DISCARD
-			//
-			// Only valid for PC OpenGL currently.
-			// Probably will not work when FXAA_GREEN_AS_LUMA = 1.
-			//
-			// 1 = Use discard on pixels which don't need AA.
-			//     For APIs which enable concurrent TEX+ROP from same surface.
-			// 0 = Return unchanged color on pixels which don't need AA.
-			//
-			#define FXAA_DISCARD 0
-	#endif
-
-	/*--------------------------------------------------------------------------*/
-	#define FxaaTexTop(t, p) texture2D(t, p, -100.0)
-	#define FxaaTexOff(t, p, o, r) texture2D(t, p + (o * r), -100.0)
-	/*--------------------------------------------------------------------------*/
-
-	#define NUM_SAMPLES 5
-
-	// assumes colors have premultipliedAlpha, so that the calculated color contrast is scaled by alpha
-	float contrast( vec4 a, vec4 b ) {
-			vec4 diff = abs( a - b );
-			return max( max( max( diff.r, diff.g ), diff.b ), diff.a );
-	}
-
-	/*============================================================================
-
-									FXAA3 QUALITY - PC
-
-	============================================================================*/
-
-	/*--------------------------------------------------------------------------*/
-	vec4 FxaaPixelShader(
-			vec2 posM,
-			sampler2D tex,
-			vec2 fxaaQualityRcpFrame,
-			float fxaaQualityEdgeThreshold,
-			float fxaaQualityinvEdgeThreshold
-	) {
-			vec4 rgbaM = FxaaTexTop(tex, posM);
-			vec4 rgbaS = FxaaTexOff(tex, posM, vec2( 0.0, 1.0), fxaaQualityRcpFrame.xy);
-			vec4 rgbaE = FxaaTexOff(tex, posM, vec2( 1.0, 0.0), fxaaQualityRcpFrame.xy);
-			vec4 rgbaN = FxaaTexOff(tex, posM, vec2( 0.0,-1.0), fxaaQualityRcpFrame.xy);
-			vec4 rgbaW = FxaaTexOff(tex, posM, vec2(-1.0, 0.0), fxaaQualityRcpFrame.xy);
-			// . S .
-			// W M E
-			// . N .
-
-			bool earlyExit = max( max( max(
-					contrast( rgbaM, rgbaN ),
-					contrast( rgbaM, rgbaS ) ),
-					contrast( rgbaM, rgbaE ) ),
-					contrast( rgbaM, rgbaW ) )
-					< fxaaQualityEdgeThreshold;
-			// . 0 .
-			// 0 0 0
-			// . 0 .
-
-			#if (FXAA_DISCARD == 1)
-					if(earlyExit) FxaaDiscard;
-			#else
-					if(earlyExit) return rgbaM;
-			#endif
-
-			float contrastN = contrast( rgbaM, rgbaN );
-			float contrastS = contrast( rgbaM, rgbaS );
-			float contrastE = contrast( rgbaM, rgbaE );
-			float contrastW = contrast( rgbaM, rgbaW );
-
-			float relativeVContrast = ( contrastN + contrastS ) - ( contrastE + contrastW );
-			relativeVContrast *= fxaaQualityinvEdgeThreshold;
-
-			bool horzSpan = relativeVContrast > 0.;
-			// . 1 .
-			// 0 0 0
-			// . 1 .
-
-			// 45 deg edge detection and corners of objects, aka V/H contrast is too similar
-			if( abs( relativeVContrast ) < .3 ) {
-					// locate the edge
-					vec2 dirToEdge;
-					dirToEdge.x = contrastE > contrastW ? 1. : -1.;
-					dirToEdge.y = contrastS > contrastN ? 1. : -1.;
-					// . 2 .      . 1 .
-					// 1 0 2  ~=  0 0 1
-					// . 1 .      . 0 .
-
-					// tap 2 pixels and see which ones are "outside" the edge, to
-					// determine if the edge is vertical or horizontal
-
-					vec4 rgbaAlongH = FxaaTexOff(tex, posM, vec2( dirToEdge.x, -dirToEdge.y ), fxaaQualityRcpFrame.xy);
-					float matchAlongH = contrast( rgbaM, rgbaAlongH );
-					// . 1 .
-					// 0 0 1
-					// . 0 H
-
-					vec4 rgbaAlongV = FxaaTexOff(tex, posM, vec2( -dirToEdge.x, dirToEdge.y ), fxaaQualityRcpFrame.xy);
-					float matchAlongV = contrast( rgbaM, rgbaAlongV );
-					// V 1 .
-					// 0 0 1
-					// . 0 .
-
-					relativeVContrast = matchAlongV - matchAlongH;
-					relativeVContrast *= fxaaQualityinvEdgeThreshold;
-
-					if( abs( relativeVContrast ) < .3 ) { // 45 deg edge
-							// 1 1 .
-							// 0 0 1
-							// . 0 1
-
-							// do a simple blur
-							return mix(
-									rgbaM,
-									(rgbaN + rgbaS + rgbaE + rgbaW) * .25,
-									.4
-							);
-					}
-
-					horzSpan = relativeVContrast > 0.;
-			}
-
-			if(!horzSpan) rgbaN = rgbaW;
-			if(!horzSpan) rgbaS = rgbaE;
-			// . 0 .      1
-			// 1 0 1  ->  0
-			// . 0 .      1
-
-			bool pairN = contrast( rgbaM, rgbaN ) > contrast( rgbaM, rgbaS );
-			if(!pairN) rgbaN = rgbaS;
-
-			vec2 offNP;
-			offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;
-			offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;
-
-			bool doneN = false;
-			bool doneP = false;
-
-			float nDist = 0.;
-			float pDist = 0.;
-
-			vec2 posN = posM;
-			vec2 posP = posM;
-
-			int iterationsUsed = 0;
-			int iterationsUsedN = 0;
-			int iterationsUsedP = 0;
-			for( int i = 0; i < NUM_SAMPLES; i++ ) {
-					iterationsUsed = i;
-
-					float increment = float(i + 1);
-
-					if(!doneN) {
-							nDist += increment;
-							posN = posM + offNP * nDist;
-							vec4 rgbaEndN = FxaaTexTop(tex, posN.xy);
-							doneN = contrast( rgbaEndN, rgbaM ) > contrast( rgbaEndN, rgbaN );
-							iterationsUsedN = i;
-					}
-
-					if(!doneP) {
-							pDist += increment;
-							posP = posM - offNP * pDist;
-							vec4 rgbaEndP = FxaaTexTop(tex, posP.xy);
-							doneP = contrast( rgbaEndP, rgbaM ) > contrast( rgbaEndP, rgbaN );
-							iterationsUsedP = i;
-					}
-
-					if(doneN || doneP) break;
-			}
-
-
-			if ( !doneP && !doneN ) return rgbaM; // failed to find end of edge
-
-			float dist = min(
-					doneN ? float( iterationsUsedN ) / float( NUM_SAMPLES - 1 ) : 1.,
-					doneP ? float( iterationsUsedP ) / float( NUM_SAMPLES - 1 ) : 1.
-			);
-
-			// hacky way of reduces blurriness of mostly diagonal edges
-			// but reduces AA quality
-			dist = pow(dist, .5);
-
-			dist = 1. - dist;
-
-			return mix(
-					rgbaM,
-					rgbaN,
-					dist * .5
-			);
-	}
-
-	void main() {
-			const float edgeDetectionQuality = .2;
-			const float invEdgeDetectionQuality = 1. / edgeDetectionQuality;
-
-			gl_FragColor = FxaaPixelShader(
-					vUv,
-					tDiffuse,
-					resolution,
-					edgeDetectionQuality, // [0,1] contrast needed, otherwise early discard
-					invEdgeDetectionQuality
-			);
-
-	}
-	`
-
-};
-
-/**
- * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
- */
-class ProjectionManager {
-    constructor(components, camera) {
-        this.components = components;
-        this._previousDistance = -1;
-        this._camera = camera;
-        const perspective = "Perspective";
-        this._currentCamera = camera.get(perspective);
-        this._currentProjection = perspective;
-    }
-    get projection() {
-        return this._currentProjection;
-    }
-    /**
-     * Sets the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
-     *
-     * @param projection - the new projection to set. If it is the current projection,
-     * it will have no effect.
-     */
-    async setProjection(projection) {
-        if (this.projection === projection)
-            return;
-        if (projection === "Orthographic") {
-            this.setOrthoCamera();
-        }
-        else {
-            await this.setPerspectiveCamera();
-        }
-        await this.updateActiveCamera();
-    }
-    setOrthoCamera() {
-        // Matching orthographic camera to perspective camera
-        // Resource: https://stackoverflow.com/questions/48758959/what-is-required-to-convert-threejs-perspective-camera-to-orthographic
-        if (this._camera.currentMode.id === "FirstPerson") {
-            return;
-        }
-        this._previousDistance = this._camera.controls.distance;
-        this._camera.controls.distance = 200;
-        const { width, height } = this.getDims();
-        this.setupOrthoCamera(height, width);
-        this._currentCamera = this._camera.get("Orthographic");
-        this._currentProjection = "Orthographic";
-    }
-    // This small delay is needed to hide weirdness during the transition
-    async updateActiveCamera() {
-        await new Promise((resolve) => {
-            setTimeout(() => {
-                this._camera.activeCamera = this._currentCamera;
-                resolve();
-            }, 50);
-        });
-    }
-    getDims() {
-        const lineOfSight = new THREE$1.Vector3();
-        this._camera.get("Perspective").getWorldDirection(lineOfSight);
-        const target = new THREE$1.Vector3();
-        this._camera.controls.getTarget(target);
-        const distance = target
-            .clone()
-            .sub(this._camera.get("Perspective").position);
-        const depth = distance.dot(lineOfSight);
-        const dims = this.components.renderer.getSize();
-        const aspect = dims.x / dims.y;
-        const camera = this._camera.get("Perspective");
-        const height = depth * 2 * Math.atan((camera.fov * (Math.PI / 180)) / 2);
-        const width = height * aspect;
-        return { width, height };
-    }
-    setupOrthoCamera(height, width) {
-        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.ZOOM;
-        const pCamera = this._camera.get("Perspective");
-        const oCamera = this._camera.get("Orthographic");
-        oCamera.zoom = 1;
-        oCamera.left = width / -2;
-        oCamera.right = width / 2;
-        oCamera.top = height / 2;
-        oCamera.bottom = height / -2;
-        oCamera.updateProjectionMatrix();
-        oCamera.position.copy(pCamera.position);
-        oCamera.quaternion.copy(pCamera.quaternion);
-        this._camera.controls.camera = oCamera;
-    }
-    async setPerspectiveCamera() {
-        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
-        const pCamera = this._camera.get("Perspective");
-        const oCamera = this._camera.get("Orthographic");
-        pCamera.position.copy(oCamera.position);
-        pCamera.quaternion.copy(oCamera.quaternion);
-        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
-        this._camera.controls.distance = this._previousDistance;
-        await this._camera.controls.zoomTo(1);
-        pCamera.updateProjectionMatrix();
-        this._camera.controls.camera = pCamera;
-        this._currentCamera = pCamera;
-        this._currentProjection = "Perspective";
-    }
-}
-
-/**
- * A {@link NavigationMode} that allows 3D navigation and panning
- * like in many 3D and CAD softwares.
- */
-class OrbitMode {
-    constructor(camera) {
-        this.camera = camera;
-        /** {@link NavigationMode.enabled} */
-        this.enabled = true;
-        /** {@link NavigationMode.id} */
-        this.id = "Orbit";
-        /** {@link NavigationMode.projectionChanged} */
-        this.projectionChanged = new Event();
-        this.activateOrbitControls();
-    }
-    /** {@link NavigationMode.toggle} */
-    toggle(active) {
-        this.enabled = active;
-        if (active) {
-            this.activateOrbitControls();
-        }
-    }
-    activateOrbitControls() {
-        const controls = this.camera.controls;
-        controls.minDistance = 1;
-        controls.maxDistance = 300;
-        controls.truckSpeed = 2;
-    }
-}
-
-/**
- * A {@link NavigationMode} that allows first person navigation,
- * simulating FPS video games.
- */
-class FirstPersonMode {
-    constructor(camera) {
-        this.camera = camera;
-        /** {@link NavigationMode.enabled} */
-        this.enabled = false;
-        /** {@link NavigationMode.id} */
-        this.id = "FirstPerson";
-        /** {@link NavigationMode.projectionChanged} */
-        this.projectionChanged = new Event();
-    }
-    /** {@link NavigationMode.toggle} */
-    toggle(active) {
-        this.enabled = active;
-        if (active) {
-            const projection = this.camera.getProjection();
-            if (projection !== "Perspective") {
-                this.camera.setNavigationMode("Orbit");
-                return;
-            }
-            this.setupFirstPersonCamera();
-        }
-    }
-    setupFirstPersonCamera() {
-        const controls = this.camera.controls;
-        const cameraPosition = new THREE$1.Vector3();
-        controls.camera.getWorldPosition(cameraPosition);
-        const newTargetPosition = new THREE$1.Vector3();
-        controls.distance--;
-        controls.camera.getWorldPosition(newTargetPosition);
-        controls.minDistance = 1;
-        controls.maxDistance = 1;
-        controls.distance = 1;
-        controls.moveTo(newTargetPosition.x, newTargetPosition.y, newTargetPosition.z);
-        controls.truckSpeed = 50;
-        controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
-        controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM_TRUCK;
-    }
-}
-
-/**
- * A {@link NavigationMode} that allows to navigate floorplans in 2D,
- * like many BIM tools.
- */
-class PlanMode {
-    constructor(camera) {
-        this.camera = camera;
-        /** {@link NavigationMode.enabled} */
-        this.enabled = false;
-        /** {@link NavigationMode.id} */
-        this.id = "Plan";
-        /** {@link NavigationMode.projectionChanged} */
-        this.projectionChanged = new Event();
-        this.mouseInitialized = false;
-        this.defaultAzimuthSpeed = camera.controls.azimuthRotateSpeed;
-        this.defaultPolarSpeed = camera.controls.polarRotateSpeed;
-    }
-    /** {@link NavigationMode.toggle} */
-    toggle(active) {
-        this.enabled = active;
-        const controls = this.camera.controls;
-        controls.azimuthRotateSpeed = active ? 0 : this.defaultAzimuthSpeed;
-        controls.polarRotateSpeed = active ? 0 : this.defaultPolarSpeed;
-        if (!this.mouseInitialized) {
-            this.mouseAction1 = controls.touches.one;
-            this.mouseAction2 = controls.touches.two;
-            this.mouseInitialized = true;
-        }
-        if (active) {
-            controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
-            controls.touches.one = CameraControls.ACTION.TOUCH_TRUCK;
-            controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM;
-        }
-        else {
-            controls.mouseButtons.left = CameraControls.ACTION.ROTATE;
-            controls.touches.one = this.mouseAction1;
-            controls.touches.two = this.mouseAction2;
-        }
-    }
-}
-
-/**
- * A flexible camera that uses
- * [yomotsu's cameracontrols](https://github.com/yomotsu/camera-controls) to
- * easily control the camera in 2D and 3D. It supports multiple navigation
- * modes, such as 2D floor plan navigation, first person and 3D orbit.
- */
-class OrthoPerspectiveCamera extends SimpleCamera {
-    constructor(components) {
-        super(components);
-        /**
-         * Event that fires when the {@link CameraProjection} changes.
-         */
-        this.projectionChanged = new Event();
-        this._userInputButtons = {};
-        this._frustumSize = 50;
-        this._navigationModes = new Map();
-        this._orthoCamera = this.newOrthoCamera();
-        this._navigationModes.set("Orbit", new OrbitMode(this));
-        this._navigationModes.set("FirstPerson", new FirstPersonMode(this));
-        this._navigationModes.set("Plan", new PlanMode(this));
-        this.currentMode = this._navigationModes.get("Orbit");
-        this.currentMode.toggle(true, { preventTargetAdjustment: true });
-        this.toggleEvents(true);
-        this._projectionManager = new ProjectionManager(components, this);
-        this.uiElement = this.setUI();
-    }
-    setUI() {
-        const mainButton = new Button(this.components, {
-            materialIconName: "video_camera_back",
-        });
-        const projection = new Button(this.components, {
-            materialIconName: "camera",
-            name: "Projection",
-        });
-        const perspective = new Button(this.components, { name: "Perspective" });
-        perspective.active = true;
-        perspective.onclick = () => this.setProjection("Perspective");
-        const orthographic = new Button(this.components, { name: "Orthographic" });
-        orthographic.onclick = () => this.setProjection("Orthographic");
-        projection.addChild(perspective, orthographic);
-        const navigation = new Button(this.components, {
-            materialIconName: "open_with",
-            name: "Navigation",
-        });
-        const orbit = new Button(this.components, { name: "Orbit Around" });
-        orbit.onclick = () => this.setNavigationMode("Orbit");
-        const plan = new Button(this.components, { name: "Plan View" });
-        plan.onclick = () => this.setNavigationMode("Plan");
-        const firstPerson = new Button(this.components, { name: "First person" });
-        firstPerson.onclick = () => this.setNavigationMode("FirstPerson");
-        navigation.addChild(orbit, plan, firstPerson);
-        mainButton.addChild(navigation, projection);
-        this.projectionChanged.on((camera) => {
-            if (camera instanceof THREE$1.PerspectiveCamera) {
-                perspective.active = true;
-                orthographic.active = false;
-            }
-            else {
-                perspective.active = false;
-                orthographic.active = true;
-            }
-        });
-        return mainButton;
-    }
-    /** {@link Disposable.dispose} */
-    dispose() {
-        super.dispose();
-        this.toggleEvents(false);
-        this._orthoCamera.removeFromParent();
-    }
-    /**
-     * Similar to {@link Component.get}, but with an optional argument
-     * to specify which camera to get.
-     *
-     * @param projection - The camera corresponding to the
-     * {@link CameraProjection} specified. If no projection is specified,
-     * the active camera will be returned.
-     */
-    get(projection) {
-        if (!projection) {
-            return this.activeCamera;
-        }
-        return projection === "Orthographic"
-            ? this._orthoCamera
-            : this._perspectiveCamera;
-    }
-    /** Returns the current {@link CameraProjection}. */
-    getProjection() {
-        return this._projectionManager.projection;
-    }
-    /**
-     * Changes the current {@link CameraProjection} from Ortographic to Perspective
-     * and Viceversa.
-     */
-    async toggleProjection() {
-        const projection = this.getProjection();
-        const newProjection = projection === "Perspective" ? "Orthographic" : "Perspective";
-        await this.setProjection(newProjection);
-    }
-    /**
-     * Sets the current {@link CameraProjection}. This triggers the event
-     * {@link projectionChanged}.
-     *
-     * @param projection - The new {@link CameraProjection} to set.
-     */
-    async setProjection(projection) {
-        await this._projectionManager.setProjection(projection);
-        this.projectionChanged.trigger(this.activeCamera);
-    }
-    /**
-     * Allows or prevents all user input.
-     *
-     * @param active - whether to enable or disable user inputs.
-     */
-    toggleUserInput(active) {
-        if (active) {
-            this.enableUserInput();
-        }
-        else {
-            this.disableUserInput();
-        }
-    }
-    /**
-     * Sets a new {@link NavigationMode} and disables the previous one.
-     *
-     * @param mode - The {@link NavigationMode} to set.
-     */
-    setNavigationMode(mode) {
-        if (this.currentMode.id === mode)
-            return;
-        this.currentMode.toggle(false);
-        if (!this._navigationModes.has(mode)) {
-            throw new Error("The specified mode does not exist!");
-        }
-        this.currentMode = this._navigationModes.get(mode);
-        this.currentMode.toggle(true);
-    }
-    /** Updates the aspect ratio of the camera to match the Renderer's aspect ratio. */
-    updateAspect() {
-        super.updateAspect();
-        this.setOrthoCameraAspect();
-    }
-    /**
-     * Make the camera view fit all the specified meshes.
-     *
-     * @param meshes the meshes to fit. If it is not defined, it will
-     * evaluate {@link Components.meshes}.
-     * @param offset the distance to the fit object
-     */
-    async fit(meshes = this.components.meshes, offset = 1.5) {
-        if (!this.enabled)
-            return;
-        const maxNum = Number.MAX_VALUE;
-        const minNum = Number.MIN_VALUE;
-        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
-        const max = new THREE$1.Vector3(minNum, minNum, minNum);
-        for (const mesh of meshes) {
-            const box = new THREE$1.Box3().setFromObject(mesh);
-            if (box.min.x < min.x)
-                min.x = box.min.x;
-            if (box.min.y < min.y)
-                min.y = box.min.y;
-            if (box.min.z < min.z)
-                min.z = box.min.z;
-            if (box.max.x > max.x)
-                max.x = box.max.x;
-            if (box.max.y > max.y)
-                max.y = box.max.y;
-            if (box.max.z > max.z)
-                max.z = box.max.z;
-        }
-        const box = new THREE$1.Box3(min, max);
-        const sceneSize = new THREE$1.Vector3();
-        box.getSize(sceneSize);
-        const sceneCenter = new THREE$1.Vector3();
-        box.getCenter(sceneCenter);
-        const radius = Math.max(sceneSize.x, sceneSize.y, sceneSize.z) * offset;
-        const sphere = new THREE$1.Sphere(sceneCenter, radius);
-        await this.controls.fitToSphere(sphere, true);
-    }
-    disableUserInput() {
-        this._userInputButtons.left = this.controls.mouseButtons.left;
-        this._userInputButtons.right = this.controls.mouseButtons.right;
-        this._userInputButtons.middle = this.controls.mouseButtons.middle;
-        this._userInputButtons.wheel = this.controls.mouseButtons.wheel;
-        this.controls.mouseButtons.left = 0;
-        this.controls.mouseButtons.right = 0;
-        this.controls.mouseButtons.middle = 0;
-        this.controls.mouseButtons.wheel = 0;
-    }
-    enableUserInput() {
-        if (Object.keys(this._userInputButtons).length === 0)
-            return;
-        this.controls.mouseButtons.left = this._userInputButtons.left;
-        this.controls.mouseButtons.right = this._userInputButtons.right;
-        this.controls.mouseButtons.middle = this._userInputButtons.middle;
-        this.controls.mouseButtons.wheel = this._userInputButtons.wheel;
-    }
-    newOrthoCamera() {
-        const dims = this.components.renderer.getSize();
-        const aspect = dims.x / dims.y;
-        return new THREE$1.OrthographicCamera((this._frustumSize * aspect) / -2, (this._frustumSize * aspect) / 2, this._frustumSize / 2, this._frustumSize / -2, 0.1, 1000);
-    }
-    setOrthoCameraAspect() {
-        const size = this.components.renderer.getSize();
-        const aspect = size.x / size.y;
-        this._orthoCamera.left = (-this._frustumSize * aspect) / 2;
-        this._orthoCamera.right = (this._frustumSize * aspect) / 2;
-        this._orthoCamera.top = this._frustumSize / 2;
-        this._orthoCamera.bottom = -this._frustumSize / 2;
-        this._orthoCamera.updateProjectionMatrix();
-    }
-    toggleEvents(active) {
-        const modes = Object.values(this._navigationModes);
-        for (const mode of modes) {
-            if (active) {
-                mode.projectionChanged.on(this.projectionChanged.trigger);
-            }
-            else {
-                mode.projectionChanged.reset();
-            }
-        }
-    }
-}
-
-// Gets the plane information (ax + by + cz = d) of each face, where:
-// - (a, b, c) is the normal vector of the plane
-// - d is the signed distance to the origin
-function getPlaneDistanceMaterial() {
-    return new THREE$1.ShaderMaterial({
-        clipping: true,
-        uniforms: {},
-        vertexShader: `
-    varying vec4 vColor;
-    
-    #include <clipping_planes_pars_vertex>
-  
-    void main() {
-       #include <begin_vertex>
-    
-       vec4 absPosition = vec4(position, 1.0);
-       vec3 trueNormal = normal;
-       
-       #ifdef USE_INSTANCING
-          absPosition = instanceMatrix * absPosition;
-          trueNormal = (instanceMatrix * vec4(normal, 0.)).xyz;
-       #endif
-       
-       absPosition = modelMatrix * absPosition;
-       trueNormal = (normalize(modelMatrix * vec4(trueNormal, 0.))).xyz;
-       
-       vec3 planePosition = absPosition.xyz / 40.;
-       float d = abs(dot(trueNormal, planePosition));
-       vColor = vec4(abs(trueNormal), d);
-       gl_Position = projectionMatrix * viewMatrix * absPosition;
-       
-       #include <project_vertex>
-       #include <clipping_planes_vertex>
-    }
-    `,
-        fragmentShader: `
-    varying vec4 vColor;
-    
-    #include <clipping_planes_pars_fragment>
-  
-    void main() {
-      #include <clipping_planes_fragment>
-      gl_FragColor = vColor;
-    }
-    `,
-    });
-}
-
-// Gets the plane information (ax + by + cz = d) of each face, where:
-// - (a, b, c) is the normal vector of the plane
-// - d is the signed distance to the origin
-function getProjectedNormalMaterial() {
-    return new THREE$1.ShaderMaterial({
-        clipping: true,
-        uniforms: {},
-        vertexShader: `
-    varying vec3 vCameraPosition;
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    
-    #include <clipping_planes_pars_vertex>
-  
-    void main() {
-       #include <begin_vertex>
-       
-       vec4 absPosition = vec4(position, 1.0);
-       vNormal = normal;
-       
-       #ifdef USE_INSTANCING
-          absPosition = instanceMatrix * absPosition;
-          vNormal = (instanceMatrix * vec4(normal, 0.)).xyz;
-       #endif
-       
-       absPosition = modelMatrix * absPosition;
-       vNormal = (normalize(modelMatrix * vec4(vNormal, 0.))).xyz;
-       
-       gl_Position = projectionMatrix * viewMatrix * absPosition;
-       
-       vCameraPosition = cameraPosition;
-       vPosition = absPosition.xyz;
-       
-       #include <project_vertex>
-       #include <clipping_planes_vertex>
-    }
-    `,
-        fragmentShader: `
-    varying vec3 vCameraPosition;
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    
-    #include <clipping_planes_pars_fragment>
-  
-    void main() {
-      #include <clipping_planes_fragment>
-      vec3 cameraPixelVec = normalize(vCameraPosition - vPosition);
-      float difference = abs(dot(vNormal, cameraPixelVec));
-      gl_FragColor = vec4(difference, difference, difference, 1.);
-    }
-    `,
-    });
-}
-
-// Follows the structure of
-// 		https://github.com/mrdoob/three.js/blob/master/examples/jsm/postprocessing/OutlinePass.js
-class CustomEffectsPass extends Pass {
-    constructor(resolution, components) {
-        super();
-        this.excludedMeshes = [];
-        this._color = 0x999999;
-        this._opacity = 0.4;
-        this._tolerance = 3;
-        this._correctColor = false;
-        this._glossEnabled = true;
-        this._glossExponent = 0.7;
-        this._minGloss = -0.15;
-        this._maxGloss = 0.15;
-        this.renderScene = components.scene.get();
-        this.renderCamera = components.camera.get();
-        this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
-        this.fsQuad = new FullScreenQuad();
-        this.fsQuad.material = this.createOutlinePostProcessMaterial();
-        this.planeBuffer = this.newRenderTarget();
-        this.glossBuffer = this.newRenderTarget();
-        const normalMaterial = getPlaneDistanceMaterial();
-        normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
-        this.normalOverrideMaterial = normalMaterial;
-        const glossMaterial = getProjectedNormalMaterial();
-        glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
-        this.glossOverrideMaterial = glossMaterial;
-    }
-    get color() {
-        return this._color;
-    }
-    set color(color) {
-        this._color = color;
-        const material = this.fsQuad.material;
-        material.uniforms.outlineColor.value.set(color);
-    }
-    get tolerance() {
-        return this._tolerance;
-    }
-    set tolerance(value) {
-        this._tolerance = value;
-        const material = this.fsQuad.material;
-        material.uniforms.tolerance.value = value;
-    }
-    get opacity() {
-        return this._opacity;
-    }
-    set opacity(value) {
-        this._opacity = value;
-        const material = this.fsQuad.material;
-        material.uniforms.opacity.value = value;
-    }
-    get correctColor() {
-        return this._correctColor;
-    }
-    set correctColor(active) {
-        this._correctColor = active;
-        const value = active ? 1 : 0;
-        const material = this.fsQuad.material;
-        material.uniforms.correctColor.value = value;
-    }
-    get glossEnabled() {
-        return this._glossEnabled;
-    }
-    set glossEnabled(active) {
-        this._glossEnabled = active;
-        const material = this.fsQuad.material;
-        material.uniforms.glossEnabled.value = active ? 1 : 0;
-    }
-    get glossExponent() {
-        return this._glossExponent;
-    }
-    set glossExponent(value) {
-        this._glossExponent = value;
-        const material = this.fsQuad.material;
-        material.uniforms.glossExponent.value = value;
-    }
-    get minGloss() {
-        return this._minGloss;
-    }
-    set minGloss(value) {
-        this._minGloss = value;
-        const material = this.fsQuad.material;
-        material.uniforms.minGloss.value = value;
-    }
-    get maxGloss() {
-        return this._maxGloss;
-    }
-    set maxGloss(value) {
-        this._maxGloss = value;
-        const material = this.fsQuad.material;
-        material.uniforms.maxGloss.value = value;
-    }
-    dispose() {
-        this.planeBuffer.dispose();
-        this.glossBuffer.dispose();
-        this.normalOverrideMaterial.dispose();
-        this.glossOverrideMaterial.dispose();
-        this.fsQuad.dispose();
-    }
-    setSize(width, height) {
-        this.planeBuffer.setSize(width, height);
-        this.glossBuffer.setSize(width, height);
-        this.resolution.set(width, height);
-        const material = this.fsQuad.material;
-        material.uniforms.screenSize.value.set(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y);
-    }
-    render(renderer, writeBuffer, readBuffer) {
-        // Turn off writing to the depth buffer
-        // because we need to read from it in the subsequent passes.
-        const depthBufferValue = writeBuffer.depthBuffer;
-        writeBuffer.depthBuffer = false;
-        // 1. Re-render the scene to capture all normals in a texture.
-        const previousOverrideMaterial = this.renderScene.overrideMaterial;
-        const previousBackground = this.renderScene.background;
-        this.renderScene.background = null;
-        for (const mesh of this.excludedMeshes) {
-            mesh.visible = false;
-        }
-        // Render normal pass
-        renderer.setRenderTarget(this.planeBuffer);
-        this.renderScene.overrideMaterial = this.normalOverrideMaterial;
-        renderer.render(this.renderScene, this.renderCamera);
-        // Render gloss pass
-        if (this._glossEnabled) {
-            renderer.setRenderTarget(this.glossBuffer);
-            this.renderScene.overrideMaterial = this.glossOverrideMaterial;
-            renderer.render(this.renderScene, this.renderCamera);
-        }
-        for (const mesh of this.excludedMeshes) {
-            mesh.visible = true;
-        }
-        this.renderScene.overrideMaterial = previousOverrideMaterial;
-        this.renderScene.background = previousBackground;
-        const material = this.fsQuad.material;
-        material.uniforms.planeBuffer.value = this.planeBuffer.texture;
-        material.uniforms.glossBuffer.value = this.glossBuffer.texture;
-        material.uniforms.sceneColorBuffer.value = readBuffer.texture;
-        // 2. Draw the outlines using the normal texture
-        // and combine it with the scene color
-        if (this.renderToScreen) {
-            // If this is the last effect, then renderToScreen is true.
-            // So we should render to the screen by setting target null
-            // Otherwise, just render into the writeBuffer that the next effect will use as its read buffer.
-            renderer.setRenderTarget(null);
-            this.fsQuad.render(renderer);
-        }
-        else {
-            renderer.setRenderTarget(writeBuffer);
-            this.fsQuad.render(renderer);
-        }
-        // Reset the depthBuffer value so we continue writing to it in the next render.
-        writeBuffer.depthBuffer = depthBufferValue;
-    }
-    get vertexShader() {
-        return `
-			varying vec2 vUv;
-			void main() {
-				vUv = uv;
-				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-			}
-			`;
-    }
-    get fragmentShader() {
-        return `
-	  uniform sampler2D sceneColorBuffer;
-	  uniform sampler2D planeBuffer;
-	  uniform sampler2D glossBuffer;
-	  uniform vec4 screenSize;
-	  uniform vec3 outlineColor;
-      uniform int width;
-	  uniform float opacity;
-      uniform float tolerance;
-      uniform float correctColor;
-      uniform float glossExponent;
-      uniform float minGloss;
-      uniform float maxGloss;
-      uniform float glossEnabled;
-
-			varying vec2 vUv;
-
-			vec4 getValue(sampler2D buffer, int x, int y) {
-				return texture2D(buffer, vUv + screenSize.zw * vec2(x, y));
-			}
-
-      float normalDiff(vec3 normal1, vec3 normal2) {
-        return ((dot(normal1, normal2) - 1.) * -1.) / 2.;
-      }
-
-      // Returns 0 if it's background, 1 if it's not
-      float getIsBackground(vec3 normal) {
-        float background = 1.0;
-        background *= step(normal.x, 0.);
-        background *= step(normal.y, 0.);
-        background *= step(normal.z, 0.);
-        background = (background - 1.) * -1.;
-        return background;
-      }
-
-			void main() {
-				vec3 sceneColor = getValue(sceneColorBuffer, 0, 0).rgb;
-				vec3 normSceneColor = normalize(sceneColor);
-        vec4 color = vec4(outlineColor,1.);
-
-        vec4 plane = getValue(planeBuffer, 0, 0);
-				vec3 normal = plane.xyz;
-        float distance = plane.w;
-
-        vec3 normalTop = getValue(planeBuffer, 0, width).rgb;
-        vec3 normalBottom = getValue(planeBuffer, 0, -width).rgb;
-        vec3 normalRight = getValue(planeBuffer, width, 0).rgb;
-        vec3 normalLeft = getValue(planeBuffer, -width, 0).rgb;
-        vec3 normalTopRight = getValue(planeBuffer, width, width).rgb;
-        vec3 normalTopLeft = getValue(planeBuffer, -width, width).rgb;
-        vec3 normalBottomRight = getValue(planeBuffer, width, -width).rgb;
-        vec3 normalBottomLeft = getValue(planeBuffer, -width, -width).rgb;
-
-        float distanceTop = getValue(planeBuffer, 0, width).a;
-        float distanceBottom = getValue(planeBuffer, 0, -width).a;
-        float distanceRight = getValue(planeBuffer, width, 0).a;
-        float distanceLeft = getValue(planeBuffer, -width, 0).a;
-        float distanceTopRight = getValue(planeBuffer, width, width).a;
-        float distanceTopLeft = getValue(planeBuffer, -width, width).a;
-        float distanceBottomRight = getValue(planeBuffer, width, -width).a;
-        float distanceBottomLeft = getValue(planeBuffer, -width, -width).a;
-        
-        vec3 sceneColorTop = normalize(getValue(sceneColorBuffer, 1, 0).rgb);
-        vec3 sceneColorBottom = normalize(getValue(sceneColorBuffer, -1, 0).rgb);
-        vec3 sceneColorLeft = normalize(getValue(sceneColorBuffer, 0, -1).rgb);
-        vec3 sceneColorRight = normalize(getValue(sceneColorBuffer, 0, 1).rgb);
-        vec3 sceneColorTopRight = normalize(getValue(sceneColorBuffer, 1, 1).rgb);
-        vec3 sceneColorBottomRight = normalize(getValue(sceneColorBuffer, -1, 1).rgb);
-        vec3 sceneColorTopLeft = normalize(getValue(sceneColorBuffer, 1, 1).rgb);
-        vec3 sceneColorBottomLeft = normalize(getValue(sceneColorBuffer, -1, 1).rgb);
-
-        // Checks if the planes of this texel and the neighbour texels are different
-
-        float planeDiff = 0.0;
-
-        planeDiff += step(0.001, normalDiff(normal, normalTop));
-        planeDiff += step(0.001, normalDiff(normal, normalBottom));
-        planeDiff += step(0.001, normalDiff(normal, normalLeft));
-        planeDiff += step(0.001, normalDiff(normal, normalRight));
-        planeDiff += step(0.001, normalDiff(normal, normalTopRight));
-        planeDiff += step(0.001, normalDiff(normal, normalTopLeft));
-        planeDiff += step(0.001, normalDiff(normal, normalBottomRight));
-        planeDiff += step(0.001, normalDiff(normal, normalBottomLeft));
-        
-        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTop));
-        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottom));
-        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorLeft));
-        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorRight));
-       	planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTopRight));
-        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTopLeft));
-        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottomRight));
-        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottomLeft));
-
-        planeDiff += step(0.001, abs(distance - distanceTop));
-        planeDiff += step(0.001, abs(distance - distanceBottom));
-        planeDiff += step(0.001, abs(distance - distanceLeft));
-        planeDiff += step(0.001, abs(distance - distanceRight));
-        planeDiff += step(0.001, abs(distance - distanceTopRight));
-        planeDiff += step(0.001, abs(distance - distanceTopLeft));
-        planeDiff += step(0.001, abs(distance - distanceBottomRight));
-        planeDiff += step(0.001, abs(distance - distanceBottomLeft));
-
-        // Add extra background outline
-
-        int width2 = width + 1;
-        vec3 normalTop2 = getValue(planeBuffer, 0, width2).rgb;
-        vec3 normalBottom2 = getValue(planeBuffer, 0, -width2).rgb;
-        vec3 normalRight2 = getValue(planeBuffer, width2, 0).rgb;
-        vec3 normalLeft2 = getValue(planeBuffer, -width2, 0).rgb;
-        vec3 normalTopRight2 = getValue(planeBuffer, width2, width2).rgb;
-        vec3 normalTopLeft2 = getValue(planeBuffer, -width2, width2).rgb;
-        vec3 normalBottomRight2 = getValue(planeBuffer, width2, -width2).rgb;
-        vec3 normalBottomLeft2 = getValue(planeBuffer, -width2, -width2).rgb;
-
-        planeDiff += -(getIsBackground(normalTop2) - 1.);
-        planeDiff += -(getIsBackground(normalBottom2) - 1.);
-        planeDiff += -(getIsBackground(normalRight2) - 1.);
-        planeDiff += -(getIsBackground(normalLeft2) - 1.);
-        planeDiff += -(getIsBackground(normalTopRight2) - 1.);
-        planeDiff += -(getIsBackground(normalBottomRight2) - 1.);
-        planeDiff += -(getIsBackground(normalBottomRight2) - 1.);
-        planeDiff += -(getIsBackground(normalBottomLeft2) - 1.);
-
-        // Tolerance sets the minimum amount of differences to consider
-        // this texel an edge
-
-        float outline = step(tolerance, planeDiff);
-
-        // Exclude background and apply opacity
-
-        float background = getIsBackground(normal);
-        outline *= background;
-        outline *= opacity;
-        
-        // Correct color to make it look similar to sao postprocessing colors
-        
-        float factor = clamp(correctColor * 1.5, 1., 4.);
-        float sum = 0.05 * step(1.5, factor);
-        float r = pow(sceneColor.r + sum, 1. / factor);
-        float g = pow(sceneColor.g + sum, 1. / factor);
-        float b = pow(sceneColor.b + sum, 1. / factor);
-        vec4 corrected = vec4(r, g, b, 1.);
-        
-        // Add gloss
-        
-        vec3 gloss = getValue(glossBuffer, 0, 0).xyz;
-        float diffGloss = abs(maxGloss - minGloss);
-        vec3 glossExpVector = vec3(glossExponent,glossExponent,glossExponent);
-        gloss = min(pow(gloss, glossExpVector), vec3(1.,1.,1.));
-        gloss *= diffGloss;
-        gloss += minGloss;
-        vec4 glossedColor = corrected + vec4(gloss, 1.) * glossEnabled;
-        
-        corrected = mix(corrected, glossedColor, background);
-        
-        gl_FragColor = mix(corrected, color, outline);
-	}
-			`;
-    }
-    createOutlinePostProcessMaterial() {
-        return new THREE$1.ShaderMaterial({
-            uniforms: {
-                opacity: { value: this._opacity },
-                correctColor: { value: 1 },
-                debugVisualize: { value: 0 },
-                sceneColorBuffer: { value: null },
-                tolerance: { value: this._tolerance },
-                planeBuffer: { value: null },
-                glossBuffer: { value: null },
-                glossEnabled: { value: 1 },
-                minGloss: { value: -0.4 },
-                maxGloss: { value: 0 },
-                glossExponent: { value: this._glossExponent },
-                width: { value: 1 },
-                outlineColor: { value: new THREE$1.Color(this._color) },
-                screenSize: {
-                    value: new THREE$1.Vector4(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y),
-                },
-            },
-            vertexShader: this.vertexShader,
-            fragmentShader: this.fragmentShader,
-        });
-    }
-    newRenderTarget() {
-        const planeBuffer = new THREE$1.WebGLRenderTarget(this.resolution.x, this.resolution.y);
-        planeBuffer.texture.colorSpace = "srgb-linear";
-        planeBuffer.texture.format = THREE$1.RGBAFormat;
-        planeBuffer.texture.type = THREE$1.HalfFloatType;
-        planeBuffer.texture.minFilter = THREE$1.NearestFilter;
-        planeBuffer.texture.magFilter = THREE$1.NearestFilter;
-        planeBuffer.texture.generateMipmaps = false;
-        planeBuffer.stencilBuffer = false;
-        return planeBuffer;
-    }
-}
-
-// TODO: Clean up and document this
-// source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
-class Postproduction {
-    constructor(components, renderer) {
-        this.components = components;
-        this.renderer = renderer;
-        this.excludedItems = new Set();
+        this.name = "SimpleCanvas2D";
+        this.id = generateUUID().toLowerCase();
         this._enabled = false;
-        this._initialized = false;
-        this._saoEnabled = false;
-        this._customEffectsEnabled = true;
-        this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
-        this._renderTarget.texture.colorSpace = "srgb-linear";
-        this.composer = new EffectComposer(this.renderer, this._renderTarget);
-        this.composer.setSize(window.innerWidth, window.innerHeight);
+        this._viewport = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        this._size = new Vector2$1();
+        this._undoList = [];
+        this._components = components;
+        const defaultConfig = {
+            fillColor: "transparent",
+            strokeColor: "#ff0000",
+            strokeWidth: 4,
+        };
+        this.config = { ...defaultConfig, ...(config !== null && config !== void 0 ? config : {}) };
+        this._viewport.classList.add("absolute", "top-0", "right-0");
+        // this._viewport.setAttribute("preserveAspectRatio", "xMidYMid")
+        this._viewport.setAttribute("width", "100%");
+        this._viewport.setAttribute("height", "100%");
+        // const renderer = this._components.renderer;
+        // const rendererSize = renderer.getSize();
+        // const width = rendererSize.x
+        // const height = rendererSize.y
+        // this._viewport.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        this.setUI();
+        this.enabled = false;
+        const viewerContainer = components.renderer.get().domElement
+            .parentElement;
+        viewerContainer.append(this._viewport);
+        window.addEventListener("resize", () => this.resize());
     }
     get enabled() {
         return this._enabled;
     }
-    set enabled(active) {
-        if (!this._initialized) {
-            this.initialize();
-        }
-        this._enabled = active;
-    }
-    get saoEnabled() {
-        return this._saoEnabled;
-    }
-    set saoEnabled(active) {
-        if (this._saoEnabled === active)
-            return;
-        this._saoEnabled = active;
-        if (!this.n8ao)
-            return;
-        if (active) {
-            this.composer.addPass(this.n8ao);
-            if (this.customEffects && this._customEffectsEnabled) {
-                this.composer.removePass(this.customEffects);
-                this.composer.addPass(this.customEffects);
-                this.customEffects.correctColor = false;
-            }
+    set enabled(value) {
+        this._enabled = value;
+        this.resize();
+        this._undoList = [];
+        this.uiElement.toolbar.visible = value;
+        if (value) {
+            this._viewport.classList.remove("pointer-events-none");
         }
         else {
-            this.composer.removePass(this.n8ao);
-            if (this.customEffects) {
-                this.customEffects.correctColor = true;
-            }
+            this.clear();
+            this.uiElement.settingsWindow.visible = false;
+            this._viewport.classList.add("pointer-events-none");
         }
     }
-    get customEffectsEnabled() {
-        return this._customEffectsEnabled;
+    set config(value) {
+        this._config = { ...this._config, ...value };
     }
-    set customEffectsEnabled(active) {
-        if (this._customEffectsEnabled === active)
-            return;
-        this._customEffectsEnabled = active;
-        if (!this.customEffects)
-            return;
-        if (active) {
-            this.composer.addPass(this.customEffects);
-        }
-        else {
-            this.composer.removePass(this.customEffects);
-        }
-    }
-    dispose() {
-        var _a, _b, _c, _d;
-        this._renderTarget.dispose();
-        (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
-        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.dispose();
-        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.dispose();
-        (_d = this.n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
-        this.excludedItems.clear();
-    }
-    setSize(width, height) {
-        var _a, _b, _c;
-        this.composer.setSize(width, height);
-        (_a = this.n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
-        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
-        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
-    }
-    update() {
-        if (!this._enabled)
-            return;
-        this.composer.render();
-    }
-    updateCamera() {
-        const camera = this.components.camera.get();
-        if (this.n8ao) {
-            this.n8ao.camera = camera;
-        }
-        if (this.customEffects) {
-            this.customEffects.renderCamera = camera;
-        }
-        if (this._basePass) {
-            this._basePass.camera = camera;
-        }
-    }
-    initialize() {
-        const scene = this.components.scene.get();
-        const camera = this.components.camera.get();
-        if (!scene || !camera)
-            return;
-        if (this.components.camera instanceof OrthoPerspectiveCamera) {
-            this.components.camera.projectionChanged.on(() => {
-                this.updateCamera();
-            });
-        }
-        const renderer = this.components.renderer;
-        this.renderer.clippingPlanes = renderer.clippingPlanes;
-        this.addBasePass(scene, camera);
-        this.addSaoPass(scene, camera);
-        this.addOutlinePass();
-        // this.addFXAAPass();
-        this._initialized = true;
-    }
-    updateProjection(camera) {
-        this.composer.passes.forEach((pass) => {
-            // @ts-ignore
-            pass.camera = camera;
-        });
-        this.update();
-    }
-    addOutlinePass() {
-        const customOutline = new CustomEffectsPass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
-        this.customEffects = customOutline;
-        this.composer.addPass(customOutline);
-    }
-    // TODO: Work in progress, this needs adjustment
-    // private addGlossPass() {
-    //   const customGloss = new CustomGlossPass(
-    //     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    //     this.components
-    //   );
-    //
-    //   this.gloss = customGloss;
-    //   this.composer.addPass(customGloss);
-    // }
-    addSaoPass(scene, camera) {
-        const { width, height } = this.components.renderer.getSize();
-        this.n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
-        // this.composer.addPass(this.n8ao);
-        const { configuration } = this.n8ao;
-        configuration.aoSamples = 16;
-        configuration.denoiseSamples = 1;
-        configuration.denoiseRadius = 13;
-        configuration.aoRadius = 1;
-        configuration.distanceFalloff = 4;
-        configuration.aoRadius = 1;
-        configuration.intensity = 4;
-        configuration.halfRes = true;
-        configuration.color = new THREE$1.Color().setHex(0xcccccc, "srgb-linear");
-    }
-    addFXAAPass() {
-        const effectFXAA = new ShaderPass(FXAAShader);
-        effectFXAA.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
-        this._fxaaPass = effectFXAA;
-        this.composer.addPass(effectFXAA);
-    }
-    addBasePass(scene, camera) {
-        this._basePass = new RenderPass(scene, camera);
-        this.composer.addPass(this._basePass);
-    }
-}
-
-/**
- * Renderer that uses efficient postproduction effects (e.g. Ambient Occlusion).
- */
-class PostproductionRenderer extends SimpleRenderer {
-    constructor(components, container) {
-        super(components, container);
-        this.postproduction = new Postproduction(components, this._renderer);
-        this.setPostproductionSize();
-    }
-    /** {@link Updateable.update} */
-    update(_delta) {
-        var _a, _b;
-        this.beforeUpdate.trigger(this);
-        const scene = (_a = this.components.scene) === null || _a === void 0 ? void 0 : _a.get();
-        const camera = (_b = this.components.camera) === null || _b === void 0 ? void 0 : _b.get();
-        if (!scene || !camera)
-            return;
-        if (this.postproduction.enabled) {
-            this.postproduction.composer.render();
-        }
-        else {
-            this._renderer.render(scene, camera);
-        }
-        this._renderer2D.render(scene, camera);
-        this.afterUpdate.trigger(this);
-    }
-    /** {@link Disposable.dispose}. */
-    dispose() {
-        super.dispose();
-        this.postproduction.dispose();
-    }
-    /** {@link Resizeable.resize}. */
-    resize() {
-        super.resize();
-        if (this.postproduction) {
-            this.setPostproductionSize();
-        }
-    }
-    setPostproductionSize() {
-        const { clientWidth, clientHeight } = this.container;
-        this.postproduction.setSize(clientWidth, clientHeight);
-    }
-}
-
-class SimpleAngle extends Component {
-    constructor(components, settings) {
-        super();
-        this.name = "SimpleAngle";
-        this._startPoint = null;
-        this._endPoint = null;
-        this._center = null;
-        this._root = new Group();
-        this._tempLine = null;
-        this._isHovering = false;
-        this._points = [];
-        this._angles = [];
-        this._visible = true;
-        /** {@link Updateable.beforeUpdate} */
-        this.beforeUpdate = new Event();
-        /** {@link Updateable.afterUpdate} */
-        this.afterUpdate = new Event();
-        const { color, dashSize, endPointSize, gapSize, lineOpacity } = settings;
-        this._components = components;
-        this._raycaster = new SimpleRaycaster(components);
-        this._enabled = false;
-        this._angleDegrees = 0;
-        this._lines = [];
-        this._endPointSize = endPointSize;
-        this._lineMaterial = new LineDashedMaterial({
-            dashSize: dashSize || 1,
-            depthTest: false,
-            gapSize: gapSize || 0,
-            opacity: lineOpacity || 1,
-        });
-        this.color = new Color(color !== null && color !== void 0 ? color : "#222");
-        this._htmlPreview = document.createElement("div");
-        this._htmlPreview.className = DimensionPreviewClassName;
-        this._htmlPreview.style.backgroundColor = color
-            ? color instanceof Color
-                ? color.getHexString()
-                : color
-            : "#0f0";
-        this._previewElement = new CSS2DObject(this._htmlPreview);
-        this._previewElement.visible = false;
-        this.addToScene(this._root);
-        this.setUI();
-    }
-    /** {@link Component.get} */
-    get() {
-        return "";
+    get config() {
+        return this._config;
     }
     setUI() {
-        const button = new Button(this._components, {
-            materialIconName: "square_foot",
+        const undoDrawingBtn = new Button(this._components, {
+            materialIconName: "undo",
         });
+        undoDrawingBtn.onclick = () => {
+            if (this._viewport.lastChild) {
+                this._undoList.push(this._viewport.lastChild);
+                this._viewport.lastChild.remove();
+            }
+        };
+        const redoDrawingBtn = new Button(this._components, {
+            materialIconName: "redo",
+        });
+        redoDrawingBtn.onclick = () => {
+            const childNode = this._undoList[this._undoList.length - 1];
+            if (childNode) {
+                this._undoList.pop();
+                this._viewport.append(childNode);
+            }
+        };
+        const clearDrawingBtn = new Button(this._components, {
+            materialIconName: "delete",
+        });
+        clearDrawingBtn.onclick = () => this.clear();
+        // #region Settings window
+        const settingsWindow = new FloatingWindow(this._components, {
+            title: "Drawing settings",
+            id: this.id,
+        });
+        settingsWindow.visible = false;
         const viewerContainer = this._components.renderer.get().domElement
             .parentElement;
-        const createDimension = () => this.create();
-        button.onclick = () => {
-            if (!this.enabled) {
-                viewerContainer.addEventListener("click", createDimension);
-                button.active = true;
-                this.enabled = true;
-            }
-            else {
-                this.enabled = false;
-                button.active = false;
-                viewerContainer.removeEventListener("click", createDimension);
-            }
-        };
-        button.active = this.enabled;
-        this.uiElement = button;
-        window.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && this.enabled) {
-                this.cancelDrawing();
-                // if (this._temp.isDragging) { this.cancelDrawing() } else { this.enabled = false }
-            }
+        viewerContainer.append(settingsWindow.get());
+        const strokeWidth = new RangeInput(this._components, {
+            label: "Stroke width",
+            name: "stroke-width",
+            min: 2,
+            max: 6,
+            initialValue: this.config.strokeWidth,
+            id: this.id,
         });
-    }
-    create() {
-        var _a;
-        if (!this._startPoint) {
-            this._startPoint = this.addPoint();
-            if (this._startPoint) {
-                this._points.push(this._startPoint);
-                this._angles.push({
-                    angleDegrees: 0,
-                    points: this._points,
-                    tagDegrees: null,
-                    insideArc: null,
-                    color: this.color,
-                });
-                this._isHovering = true;
-            }
-            return null;
-        }
-        if (!this._center) {
-            this._center = this.addPoint();
-            if (this._center) {
-                this._points.push(this._center);
-                this.addLine(this._startPoint, this._center);
-                (_a = this._tempLine) === null || _a === void 0 ? void 0 : _a.dispose();
-                this._tempLine = null;
-            }
-            return null;
-        }
-        if (!this._endPoint && this._isHovering) {
-            return this.closeAngle();
-        }
-    }
-    addPoint() {
-        if (!this.cast) {
-            return null;
-        }
-        return this.cast.point;
-    }
-    drawing() {
-        if (!this.cast)
-            return;
-        if (this._tempLine) {
-            this._tempLine.endPoint = this.cast.point;
-        }
-        else {
-            this._tempLine = this.createLine(this._points[this._points.length - 1], this.cast.point);
-        }
-    }
-    closeAngle() {
-        if (!this.cast || !this._center)
-            return;
-        this.addLine(this._center, this.cast.point);
-        this._isHovering = false;
-        this.currentAngle.points.push(this.cast.point);
-        this.currentAngle.angleDegrees = this._angleDegrees;
-        this.cancelDrawing();
-        return this.currentAngle;
-    }
-    addLine(start, end) {
-        const line = this.createLine(start, end);
-        this._lines.push(line);
-    }
-    createLine(start, end) {
-        return new SimpleDimensionLine(this._components, {
-            start,
-            end,
-            lineMaterial: this._lineMaterial,
-            endpoint: this.newEndpointMesh,
-        });
-    }
-    cancelDrawing() {
-        if (!this._tempLine) {
-            return;
-        }
-        this._tempLine.dispose();
-        this._tempLine = null;
-        this._isHovering = false;
-        this._angleDegrees = 0;
-        this._points = [];
-        this._startPoint = null;
-        this._center = null;
-        this._endPoint = null;
-    }
-    get newEndpointMesh() {
-        const geometry = new SphereGeometry(this._endPointSize);
-        const material = new MeshBasicMaterial({
-            color: this.color,
-            depthTest: false,
-            transparent: true,
-            opacity: 0.5,
-        });
-        return new Mesh(geometry, material);
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(enabled) {
-        this._enabled = enabled;
-        this.previewVisible = enabled;
-    }
-    /**
-     * The [Color](https://threejs.org/docs/#api/en/math/Color)
-     * of the geometry of the dimensions.
-     */
-    set color(color) {
-        this.newEndpointMesh.material.color = color;
-        this._lineMaterial.color = color;
-    }
-    get color() {
-        return this._lineMaterial.color;
-    }
-    set previewVisible(visible) {
-        const scene = this._components.scene.get();
-        if (visible) {
-            scene.add(this._previewElement);
-        }
-        else {
-            this._previewElement.removeFromParent();
-        }
-    }
-    get cast() {
-        return this._raycaster.castRay();
-    }
-    /** {@link Updateable.update} */
-    update() {
-        if (this._enabled) {
+        strokeWidth.onChange.on((value) => {
             // @ts-ignore
-            this.beforeUpdate.trigger(this);
-            if (!this.cast)
-                return;
-            this._previewElement.visible = !!this.cast;
-            this._previewElement.position.set(this.cast.point.x, this.cast.point.y, this.cast.point.z);
-            const size = `${10 / this.cast.distance}rem`;
-            this._htmlPreview.style.width = size;
-            this._htmlPreview.style.height = size;
-            if (this._points.length >= 2) {
-                this.setAngleDegrees(this.cast.point);
-            }
-            if (this._isHovering)
-                this.drawing();
+            this.config = { strokeWidth: value };
+        });
+        const strokeColorInput = new ColorInput(this._components, {
+            label: "Stroke color",
+            initialValue: this.config.strokeColor,
+            name: "stroke-color",
+            id: this.id,
+        });
+        strokeColorInput.onChange.on((value) => {
+            // @ts-ignore
+            this.config = { strokeColor: value };
+        });
+        const fillColorInput = new ColorInput(this._components, {
+            label: "Fill color",
+            initialValue: this.config.fillColor,
+            name: "fill-color",
+            id: this.id,
+        });
+        fillColorInput.onChange.on((value) => {
+            // @ts-ignore
+            this.config = { fillColor: value };
+        });
+        settingsWindow.addChild(strokeColorInput, fillColorInput, strokeWidth);
+        const settingsBtn = new Button(this._components, {
+            materialIconName: "settings",
+        });
+        settingsBtn.onclick = () => {
+            settingsWindow.visible = !settingsWindow.visible;
+            settingsBtn.active = settingsWindow.visible;
+        };
+        settingsWindow.onHidden.on(() => (settingsBtn.active = false));
+        const toolbar = new Toolbar(this._components, { position: "right" });
+        toolbar.addChild(settingsBtn, undoDrawingBtn, redoDrawingBtn, clearDrawingBtn);
+        this.uiElement = { toolbar, settingsWindow };
+    }
+    get() {
+        return this._viewport;
+    }
+    clear() {
+        const viewport = this.get();
+        this._undoList = [];
+        while (viewport.firstChild) {
+            viewport.removeChild(viewport.firstChild);
         }
     }
-    setAngleDegrees(pointB) {
-        const pointA = this._points[0];
-        const center = this._points[1];
-        const aToCenter = pointA.clone().sub(center);
-        const bToCenter = pointB.clone().sub(center);
-        const radians = aToCenter.angleTo(bToCenter);
-        const degrees = parseFloat((radians * (180 / Math.PI)).toFixed(2));
-        this._angleDegrees = degrees;
-        if (this.currentAngle.tagDegrees) {
-            this.currentAngle.tagDegrees.tagContent = this._angleDegrees.toString();
-            if (this.currentAngle.insideArc) {
-                this.removeFromScene(this.currentAngle.insideArc);
-            }
-            this.setInsideArc(pointB);
+    getDrawing() {
+        return this.get().childNodes;
+    }
+    //   setDrawing() {
+    //         if (!this.enabled) {  }
+    //     }
+    /** {@link Resizeable.resize}. */
+    resize() {
+        const renderer = this._components.renderer;
+        const rendererSize = renderer.getSize();
+        const width = this.enabled ? rendererSize.x : 0;
+        const height = this.enabled ? rendererSize.y : 0;
+        this._size.set(width, height);
+        // this._viewport.setAttribute("viewBox", `0 0 ${this._size.x} ${this._size.y}`);
+    }
+    /** {@link Resizeable.getSize}. */
+    getSize() {
+        return this._size;
+    }
+}
+
+class Simple2DMarker extends Component {
+    constructor(components, marker) {
+        super();
+        this.name = "Simple2DMarker";
+        this.enabled = true;
+        this._visible = true;
+        this._components = components;
+        let _marker;
+        if (marker) {
+            _marker = marker;
         }
         else {
-            const pointTag = new Vector3$1(center.x, center.y - 0.3, center.z);
-            this.currentAngle.tagDegrees = new SimpleTag(pointTag, this._angleDegrees, "º");
-            this.addToScene(this.currentAngle.tagDegrees.get());
-            // this.setInsideArc(pointA, center, pointB)
-            this.setInsideArc(pointA);
+            _marker = document.createElement("div");
+            _marker.className =
+                "w-[15px] h-[15px] border-3 border-solid border-red-600";
         }
+        this._marker = new CSS2DObject(_marker);
+        this._components.scene.get().add(this._marker);
+        this.visible = true;
     }
-    get currentAngle() {
-        return this._angles[this._angles.length - 1];
+    set visible(value) {
+        this._visible = value;
+        this._marker.visible = value;
     }
-    setInsideArc(pointB) {
-        const pointA = this._points[0];
-        const center = this._points[1];
-        // calculate min-distances between lines
-        const rate = Math.min(pointA.distanceTo(center), pointB.distanceTo(center)) * 0.2;
-        const curveOriginA = center
-            .clone()
-            .add(pointA.clone().sub(center).normalize().multiplyScalar(rate));
-        const curveOriginB = center
-            .clone()
-            .add(pointB.clone().sub(center).normalize().multiplyScalar(rate));
-        const curve = new CatmullRomCurve3([curveOriginA, curveOriginB], true, "centripetal");
-        const geometry = new BufferGeometry().setFromPoints(curve.getPoints(12));
-        const material = new LineBasicMaterial({ color: this.color });
-        this.currentAngle.insideArc = new Line(geometry, material);
-        this.addToScene(this.currentAngle.insideArc);
-        const renderer = this._components.renderer;
-        if (renderer instanceof PostproductionRenderer) {
-            renderer.postproduction.excludedItems.add(this.currentAngle.insideArc);
-        }
-    }
-    addToScene(item) {
-        this._components.scene.get().add(item);
-    }
-    removeFromScene(item) {
-        this._components.scene.get().remove(item);
-    }
-    /** {@link Hideable.visible} */
     get visible() {
         return this._visible;
     }
-    /** {@link Hideable.visible} */
-    set visible(state) {
-        this._visible = state;
-        if (!this._visible) {
-            this.enabled = false;
-        }
-        for (const line of this._lines) {
-            line.visible = this._visible;
-        }
-        for (const angle of this._angles) {
-            if (angle.insideArc) {
-                angle.insideArc.visible = this._visible;
-            }
-            if (angle.tagDegrees) {
-                angle.tagDegrees.get().visible = this._visible;
-            }
-        }
-        this._root.visible = this._visible;
+    toggleVisibility() {
+        this.visible = !this.visible;
     }
-    /** {@link Disposable.dispose} */
     dispose() {
-        for (const line of this._lines) {
-            line.dispose();
-        }
-        for (const angle of this._angles) {
-            if (angle.insideArc) {
-                this.removeFromScene(angle.insideArc);
+        this._marker.removeFromParent();
+        this._marker.element.remove();
+    }
+    get() {
+        return this._marker;
+    }
+}
+
+// TODO: Clean up and document
+// TODO: Disable / enable instance color for instance meshes
+class MaterialManager extends Component {
+    constructor(components) {
+        super();
+        this._originalBackground = null;
+        this.enabled = true;
+        this.name = "MaterialManager";
+        this._originals = {};
+        this._list = {};
+        this._components = components;
+    }
+    get() {
+        return Object.keys(this._list);
+    }
+    set(active, ids = Object.keys(this._list)) {
+        for (const id of ids) {
+            const { material, meshes } = this._list[id];
+            for (const mesh of meshes) {
+                if (active) {
+                    if (!this._originals[mesh.uuid]) {
+                        this._originals[mesh.uuid] = { material: mesh.material };
+                    }
+                    if (mesh instanceof THREE$1.InstancedMesh && mesh.instanceColor) {
+                        this._originals[mesh.uuid].instances = mesh.instanceColor;
+                        mesh.instanceColor = null;
+                    }
+                    mesh.material = material;
+                }
+                else {
+                    if (!this._originals[mesh.uuid])
+                        continue;
+                    mesh.material = this._originals[mesh.uuid].material;
+                    const instances = this._originals[mesh.uuid].instances;
+                    if (mesh instanceof THREE$1.InstancedMesh && instances) {
+                        mesh.instanceColor = instances;
+                    }
+                }
             }
-            if (angle.tagDegrees) {
-                this.removeFromScene(angle.tagDegrees.get());
-            }
         }
-        this.removeFromScene(this._root);
-        this.enabled = false;
+    }
+    dispose() {
+        for (const id in this._list) {
+            const { material } = this._list[id];
+            material.dispose();
+        }
+        this._list = {};
+        this._originals = {};
+        this._components = null;
+    }
+    setBackgroundColor(color) {
+        const scene = this._components.scene.get();
+        if (!this._originalBackground) {
+            this._originalBackground = scene.background;
+        }
+        if (this._originalBackground) {
+            scene.background = color;
+        }
+    }
+    resetBackgroundColor() {
+        const scene = this._components.scene.get();
+        if (this._originalBackground) {
+            scene.background = this._originalBackground;
+        }
+    }
+    addMaterial(id, material) {
+        if (this._list[id]) {
+            throw new Error("This ID already exists!");
+        }
+        this._list[id] = { material, meshes: new Set() };
+    }
+    addMeshes(id, meshes) {
+        if (!this._list[id]) {
+            throw new Error("This ID doesn't exists!");
+        }
+        for (const mesh of meshes) {
+            this._list[id].meshes.add(mesh);
+        }
     }
 }
 
@@ -22267,874 +18462,6 @@ function mergeAttributes( attributes ) {
 
 	return new BufferAttribute$1( array, itemSize, normalized );
 
-}
-
-class SimpleArea extends Component {
-    constructor(components, settings) {
-        super();
-        this.name = "SimpleArea";
-        // private _volumeHeight: number = 0
-        this._areaCutPlane = null;
-        this._volumeEdges = null;
-        this._root = null;
-        this._tempLine = null;
-        this._hasVolumeCalculation = false;
-        this._outterCastPlane = null;
-        this._heightTag = null;
-        this._areaCenter = null;
-        this._outterCastNormal = null;
-        /** {@link Updateable.beforeUpdate} */
-        this.beforeUpdate = new Event();
-        /** {@link Updateable.afterUpdate} */
-        this.afterUpdate = new Event();
-        const { color, dashSize, endPointSize, forceHorizontal, gapSize, lineOpacity, snapDistance, snapPointFixed, } = settings;
-        this._components = components;
-        /** The minimum distance to force the dimension cursor to a vertex. */
-        this._snapDistance = snapDistance !== null && snapDistance !== void 0 ? snapDistance : 0.25;
-        this._snapPointFixed = snapPointFixed || false;
-        this._lineMaterial = new THREE$1.LineDashedMaterial({
-            dashSize: dashSize || 1,
-            depthTest: false,
-            gapSize: gapSize || 0,
-            opacity: lineOpacity || 1,
-        });
-        this._enabled = false;
-        this._visible = true;
-        this._root = new THREE$1.Group();
-        this._isHovering = false;
-        this._endPointSize = endPointSize || 0.2;
-        this._perimeter = 0;
-        this._areas = [];
-        this._areaPoints = [];
-        this._areaLines = [];
-        this._forceHorizontal = forceHorizontal !== null && forceHorizontal !== void 0 ? forceHorizontal : forceHorizontal;
-        this._raycaster = new SimpleRaycaster(components);
-        this.color = new THREE$1.Color(color || "#222");
-        this._htmlPreview = document.createElement("div");
-        this._htmlPreview.className = DimensionPreviewClassName;
-        this._htmlPreview.style.backgroundColor = color
-            ? color instanceof THREE$1.Color
-                ? color.getHexString()
-                : color
-            : "#0f0";
-        this._previewElement = new CSS2DObject(this._htmlPreview);
-        this._previewElement.visible = false;
-        this.addToScene(this._root);
-        this.setUI();
-    }
-    setUI() {
-        const button = new Button(this._components, {
-            materialIconName: "square_foot",
-        });
-        const viewerContainer = this._components.renderer.get().domElement
-            .parentElement;
-        const createDimension = () => this.create();
-        button.onclick = () => {
-            if (!this.enabled) {
-                viewerContainer.addEventListener("click", createDimension);
-                button.active = true;
-                this.enabled = true;
-            }
-            else {
-                this.enabled = false;
-                button.active = false;
-                viewerContainer.removeEventListener("click", createDimension);
-            }
-        };
-        button.active = this.enabled;
-        this.uiElement = button;
-        window.addEventListener("keydown", (e) => {
-            if (!this.enabled) {
-                return;
-            }
-            if (e.key === "Escape") {
-                this.cancelDrawing();
-                // if (this._temp.isDragging) { this.cancelDrawing() } else { this.enabled = false }
-            }
-            else if (e.key === "Enter") {
-                this.closeArea();
-            }
-        });
-    }
-    /** {@link Component.get} */
-    get() {
-        return this._areas;
-    }
-    get cast() {
-        return this._outterCastPlane
-            ? this._raycaster.castRay([
-                this._outterCastPlane,
-                ...this._components.meshes,
-            ])
-            : this._raycaster.castRay();
-    }
-    create() {
-        var _a;
-        if (!this._enabled) {
-            return;
-        }
-        if (!this._isHovering) {
-            this._perimeter = 0;
-            // this._areas.push([])
-            if (this._forceHorizontal) {
-                this.startHorizontalArea();
-                return;
-            }
-            const point = (_a = this.cast) === null || _a === void 0 ? void 0 : _a.point;
-            if (point) {
-                this._areaPoints.push(point);
-            }
-            this._isHovering = true;
-            return;
-        }
-        this.continueArea();
-    }
-    startHorizontalArea() {
-        if (!this.cast)
-            return;
-        const point = this._snapPointFixed && this.closestVertex
-            ? this.closestVertex
-            : this.cast.point;
-        if (!point)
-            return;
-        this._areaPoints.push(point);
-        if (this._forceHorizontal) {
-            this.addHorizontalPlanes(point);
-        }
-        this._isHovering = true;
-    }
-    addHorizontalPlanes(point) {
-        const plane = new THREE$1.PlaneGeometry(1000, 1000);
-        plane.rotateX(Math.PI / 2);
-        const material = new THREE$1.MeshBasicMaterial({
-            color: this.color,
-            transparent: true,
-            opacity: 0.1,
-            side: THREE$1.DoubleSide,
-        });
-        this._outterCastPlane = new THREE$1.Mesh(plane, material);
-        this._outterCastPlane.position.set(point.x, point.y, point.z);
-    }
-    continueArea() {
-        var _a;
-        if (this.closestVertex || this.cast) {
-            const point = this._snapPointFixed
-                ? this.closestVertex
-                : (_a = this.cast) === null || _a === void 0 ? void 0 : _a.point;
-            if (!point) {
-                return;
-            }
-            this._areaPoints.push(point);
-            const checkCreateCoplanarPlane = !this._forceHorizontal &&
-                this._areaPoints.length === 3 &&
-                !this._outterCastPlane;
-            if (checkCreateCoplanarPlane) {
-                this.addCoplanarPlane();
-            }
-            // switch to min-threshold calculation
-            if (point.x === this._areaPoints[0].x &&
-                point.y === this._areaPoints[0].y &&
-                point.z === this._areaPoints[0].z &&
-                this._areaPoints.length > 2) {
-                this.closeArea();
-                return;
-            }
-            this._tempLine = this.createDimension();
-            if (this._tempLine) {
-                this._areaLines.push(this._tempLine);
-            }
-        }
-    }
-    closeArea() {
-        var _a;
-        const line = this.createDimension(true);
-        const area = this.getArea();
-        if (!line || !this._root || !this._areaCenter || !area) {
-            return;
-        }
-        this._areaLines.push(line);
-        // @ts-ignore
-        this._perimeter += line._length;
-        this.cancelDrawing();
-        for (let i = 0; i < this._areaPoints.length; i++) {
-            if (i > 0) {
-                this._perimeter += this._areaPoints[i - 1].distanceTo(this._areaPoints[i]);
-            }
-        }
-        this._areaPoints.push(this._areaPoints[0]);
-        const perimeter = parseFloat(this._perimeter.toFixed(2));
-        (_a = this._areaCutPlane) === null || _a === void 0 ? void 0 : _a.dispose();
-        this._areas[this._areas.length - 1] = {
-            points: this._areaPoints,
-            perimeter,
-            area,
-            color: this.color,
-        };
-        if (this._outterCastPlane)
-            this.removeFromScene(this._outterCastPlane);
-        const tagPointPerimeter = new THREE$1.Vector3(this._areaPoints[0].x, this._areaPoints[0].y - 0.1, this._areaPoints[0].z);
-        const perimeterTag = new SimpleTag(tagPointPerimeter, perimeter, "Perimeter");
-        const areaTag = new SimpleTag(this._areaCenter, area, "Area m²");
-        this._root.add(perimeterTag.get());
-        this._root.add(areaTag.get());
-        if (!this.hasVolumeCalculation) {
-            this._isHovering = false;
-            this._areaPoints = [];
-        }
-        return { perimeter, area };
-    }
-    addCoplanarPlane() {
-        var _a;
-        const origin = (_a = this.cast) === null || _a === void 0 ? void 0 : _a.point;
-        if (!origin) {
-            return;
-        }
-        const normal = new THREE$1.Vector3()
-            .crossVectors(this._areaPoints[1].clone().sub(this._areaPoints[0]), this._areaPoints[2].clone().sub(this._areaPoints[0]))
-            .normalize();
-        if ((normal.y > normal.x && normal.y > normal.z) ||
-            (normal.y < normal.x && normal.y < normal.z)) {
-            normal.negate();
-        }
-        this._outterCastNormal = normal;
-        const plane = new THREE$1.PlaneGeometry(100, 100);
-        plane.lookAt(normal);
-        const material = new THREE$1.MeshBasicMaterial({
-            color: this.color,
-            transparent: true,
-            opacity: 0.0001,
-            side: THREE$1.DoubleSide,
-        });
-        const meshPlane = new THREE$1.Mesh(plane, material);
-        meshPlane.position.set(this._areaPoints[0].x, this._areaPoints[0].y, this._areaPoints[0].z);
-        meshPlane.renderOrder = Number.MAX_SAFE_INTEGER;
-        this._outterCastPlane = meshPlane;
-    }
-    update() {
-        if (this._enabled) {
-            // @ts-ignore
-            this.beforeUpdate.trigger(this);
-            if (!this.cast)
-                return;
-            if (!this.closestVertex)
-                return;
-            this._previewElement.visible = !!this.closestVertex && !!this.cast;
-            this._previewElement.position.set(this._snapPointFixed ? this.closestVertex.x : this.cast.point.x, this._snapPointFixed ? this.closestVertex.y : this.cast.point.y, this._snapPointFixed ? this.closestVertex.z : this.cast.point.z);
-            const size = `${10 / this.cast.distance}rem`;
-            this._htmlPreview.style.width = size;
-            this._htmlPreview.style.height = size;
-            if (this._isHovering)
-                this.drawing();
-        }
-    }
-    drawing() {
-        if (!this.cast || !this.closestVertex)
-            return;
-        if (this.hasVolumeCalculation && this._isHovering) {
-            if (this._volumeMesh && this._volumeEdges) {
-                this.removeFromScene(this._volumeMesh);
-                this.removeFromScene(this._volumeEdges);
-            }
-            const depth = this.cast.point.y - this._areaPoints[0].y;
-            this.addVolumeMesh(depth);
-            return;
-        }
-        if (!this._tempLine && this.tempDimensionEnd()) {
-            this._tempLine = this.createDimension();
-            if (this._tempLine) {
-                this._areaLines.push(this._tempLine);
-            }
-        }
-        else if (this._tempLine) {
-            const endPoint = this.tempDimensionEnd();
-            if (endPoint) {
-                this._tempLine.endPoint = endPoint;
-            }
-        }
-    }
-    createDimension(isClose = false) {
-        const start = this._areaPoints[this._areaPoints.length - 1];
-        const end = this.tempDimensionEnd(isClose);
-        return end
-            ? new SimpleDimensionLine(this._components, {
-                start,
-                end,
-                endpoint: this.newEndpointMesh,
-                lineMaterial: this._lineMaterial,
-            })
-            : null;
-    }
-    tempDimensionEnd(isClose = false) {
-        if (isClose) {
-            return this._areaPoints[0];
-        }
-        if (!this.cast && !this.closestVertex) {
-            return;
-        }
-        if (!this._outterCastPlane) {
-            return;
-        }
-        if (this._snapPointFixed && this.closestVertex) {
-            return this._forceHorizontal
-                ? new THREE$1.Vector3(this.closestVertex.x, this._outterCastPlane.position.y, this.closestVertex.z)
-                : this.closestVertex;
-        }
-        if (this.cast) {
-            return this._forceHorizontal
-                ? new THREE$1.Vector3(this.cast.point.x, this._outterCastPlane.position.y, this.cast.point.z)
-                : this.cast.point;
-        }
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(enabled) {
-        this._enabled = enabled;
-        this.previewVisible = enabled;
-    }
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(visible) {
-        for (const line of this._areaLines) {
-            // @ts-ignore
-            line._root.visible = visible;
-            line.label.visible = visible;
-            // @ts-ignore
-            line._line.visible = visible;
-        }
-        if (this._root) {
-            for (const child of this._root.children) {
-                child.visible = visible;
-            }
-        }
-        if (!visible) {
-            this.enabled = false;
-        }
-        this._visible = visible;
-    }
-    get color() {
-        return this._lineMaterial.color;
-    }
-    /**
-     * The [Color](https://threejs.org/docs/#api/en/math/Color)
-     * of the geometry of the dimensions.
-     */
-    set color(color) {
-        this.newEndpointMesh.material.color = color;
-        this._lineMaterial.color = color;
-    }
-    get previewVisible() {
-        if (this._previewElement.parent) {
-            return true;
-        }
-        return false;
-    }
-    set previewVisible(visible) {
-        const scene = this._components.scene.get();
-        if (visible) {
-            scene.add(this._previewElement);
-        }
-        else {
-            this._previewElement.removeFromParent();
-        }
-    }
-    get newEndpointMesh() {
-        const geometry = new THREE$1.SphereGeometry(this._endPointSize);
-        const material = new THREE$1.MeshBasicMaterial({
-            color: this.color,
-            depthTest: false,
-            transparent: true,
-            opacity: 0.5,
-        });
-        return new THREE$1.Mesh(geometry, material);
-    }
-    get closestVertex() {
-        if (!this.cast)
-            return;
-        let closestVertex = new THREE$1.Vector3();
-        let vertexFound = false;
-        let closestDistance = Number.MAX_SAFE_INTEGER;
-        // @ts-ignore
-        const vertices = SimpleDimensions.getVertices(this.cast);
-        vertices === null || vertices === void 0
-            ? void 0
-            : vertices.forEach((vertex) => {
-                var _a;
-                if (!vertex) {
-                    return;
-                }
-                const distance = (_a = this.cast) === null || _a === void 0 ? void 0 : _a.point.distanceTo(vertex);
-                if (!distance) {
-                    return;
-                }
-                if (distance > closestDistance || distance > this._snapDistance) {
-                    return;
-                }
-                vertexFound = true;
-                closestVertex = vertex;
-                closestDistance = distance;
-            });
-        return vertexFound ? closestVertex : this.cast.point;
-    }
-    get forceHorizontal() {
-        return this._forceHorizontal;
-    }
-    set forceHorizontal(horizontal) {
-        this._forceHorizontal = horizontal;
-    }
-    get hasVolumeCalculation() {
-        return this._hasVolumeCalculation;
-    }
-    set hasVolumeCalculation(isVolumeCalculation) {
-        this._hasVolumeCalculation = isVolumeCalculation;
-    }
-    getArea() {
-        if (this._forceHorizontal) {
-            return this.areaShape(this._areaPoints);
-        }
-        if (!this._outterCastNormal || !this._outterCastPlane) {
-            return;
-        }
-        const group = new THREE$1.Group();
-        group.add(this._outterCastPlane);
-        for (const point of this._areaPoints) {
-            const mesh = new THREE$1.Mesh(new THREE$1.BoxGeometry(this._endPointSize, this._endPointSize, this._endPointSize), new THREE$1.MeshBasicMaterial({
-                color: "#f00",
-            }));
-            mesh.position.set(point.x, point.y, point.z);
-            group.add(mesh);
-        }
-        const quaternion = new THREE$1.Quaternion();
-        quaternion.setFromUnitVectors(this._outterCastNormal.clone(), new THREE$1.Vector3(0, 1, 0));
-        const euler = new THREE$1.Euler();
-        euler.setFromQuaternion(quaternion);
-        group.rotation.copy(euler);
-        const points = [];
-        for (const child of group.children) {
-            points.push(child.getWorldPosition(new THREE$1.Vector3()));
-        }
-        return this.areaShape(points);
-    }
-    areaShape(points) {
-        this._areaCenter = this.getAreaCenter(points);
-        const area = THREE$1.ShapeUtils.area(points.map((p) => {
-            return {
-                x: p.x,
-                y: p.z,
-            };
-        }));
-        return area > 0
-            ? parseFloat(area.toFixed(2))
-            : parseFloat(`-${area.toFixed(2)}`);
-    }
-    getAreaCenter(points) {
-        const centerPoint = new THREE$1.Vector3();
-        for (const point of this._areaPoints) {
-            centerPoint.add(point);
-        }
-        return centerPoint.divideScalar(points.length);
-    }
-    addVolumeMesh(depth) {
-        const shape = new THREE$1.Shape().setFromPoints(this._areaPoints.map((p) => {
-            return new THREE$1.Vector2(p.x, p.z);
-        }));
-        const extruded = new THREE$1.ExtrudeGeometry(shape, {
-            depth,
-            bevelEnabled: false,
-        });
-        this._volumeMesh = new THREE$1.Mesh(extruded, new THREE$1.MeshBasicMaterial({
-            color: this.color,
-            transparent: true,
-            opacity: 0.1,
-            side: THREE$1.DoubleSide,
-        }));
-        if (depth > 0) {
-            this._volumeMesh.position.y = this._areaPoints[0].y + depth;
-        }
-        else {
-            this._volumeMesh.position.y = this._areaPoints[0].y - 0.25;
-        }
-        this._volumeMesh.rotation.set(Math.PI / 2, 0, 0);
-        this._volumeMesh.renderOrder = Number.MAX_SAFE_INTEGER;
-        this._components.scene.get().add(this._volumeMesh);
-        const lines = new THREE$1.EdgesGeometry(this._volumeMesh.geometry);
-        this._volumeEdges = new THREE$1.LineSegments(lines, this._lineMaterial);
-        this._volumeEdges.rotation.set(Math.PI / 2, 0, 0);
-        this._volumeEdges.position.y = this._areaPoints[0].y + depth;
-        this._volumeEdges.renderOrder = Number.MAX_SAFE_INTEGER;
-        this._components.scene.get().add(this._volumeEdges);
-        const renderer = this._components.renderer;
-        if (renderer instanceof PostproductionRenderer) {
-            renderer.postproduction.excludedItems.add(this._volumeMesh);
-            renderer.postproduction.excludedItems.add(this._volumeEdges);
-        }
-        this.setHeightTag(depth);
-    }
-    getVolume() {
-        var _a;
-        const merged = mergeGeometries([this._volumeMesh.geometry]);
-        const volume = parseFloat(this.volumeCalculation(merged).toFixed(2));
-        this._areas[this._areas.length - 1].volume = volume;
-        const volumeTag = new SimpleTag(this.volumeMeshCenter, volume, "Volume m³");
-        (_a = this._root) === null || _a === void 0 ? void 0 : _a.add(volumeTag.get());
-        this._isHovering = false;
-        this.cancelDrawing();
-        this._areaPoints = [];
-        return volume;
-    }
-    volumeCalculation(geometry) {
-        const triangleVolume = (p1, p2, p3) => {
-            return p1.dot(p2.cross(p3)) / 6.0;
-        };
-        const position = geometry.attributes.position;
-        let volume = 0;
-        const p1 = new THREE$1.Vector3();
-        const p2 = new THREE$1.Vector3();
-        const p3 = new THREE$1.Vector3();
-        const faces = position.count / 3;
-        for (let i = 0; i < faces; i++) {
-            p1.fromBufferAttribute(position, i * 3 + 0);
-            p2.fromBufferAttribute(position, i * 3 + 1);
-            p3.fromBufferAttribute(position, i * 3 + 2);
-            volume += triangleVolume(p1, p2, p3);
-        }
-        return volume;
-    }
-    setHeightTag(depth) {
-        var _a;
-        if (this._heightTag) {
-            this._heightTag.get().position.y = this._areaPoints[0].y + depth / 2;
-            this._heightTag.tagContent = parseFloat(depth.toFixed(2));
-        }
-        else {
-            const heightCenter = new THREE$1.Vector3(this._areaPoints[0].x, this._areaPoints[0].y + depth / 2, this._areaPoints[0].z);
-            this._heightTag = new SimpleTag(heightCenter, parseFloat(depth.toFixed(2)), "Height m");
-            (_a = this._root) === null || _a === void 0 ? void 0 : _a.add(this._heightTag.get());
-        }
-    }
-    get volumeMeshCenter() {
-        const box = new THREE$1.Box3().setFromObject(this._volumeMesh);
-        return box.getCenter(new THREE$1.Vector3());
-    }
-    addToScene(item) {
-        this._components.scene.get().add(item);
-    }
-    removeFromScene(item) {
-        this._components.scene.get().remove(item);
-    }
-    cancelDrawing() {
-        var _a;
-        if (!this._tempLine) {
-            return;
-        }
-        this._tempLine.dispose();
-        (_a = this._areaCutPlane) === null || _a === void 0 ? void 0 : _a.dispose();
-        this._tempLine = null;
-        this._areaCutPlane = null;
-        this._volumeEdges = null;
-        this._outterCastPlane = null;
-        this._heightTag = null;
-        this._areaCenter = null;
-        this._outterCastNormal = null;
-    }
-    /** {@link Disposable.dispose} */
-    dispose() {
-        var _a, _b;
-        this._visible = false;
-        this._enabled = false;
-        this._areaLines.forEach((a) => a.dispose());
-        for (const child of (_b = (_a = this._root) === null || _a === void 0 ? void 0 : _a.children) !== null && _b !== void 0 ? _b : []) {
-            this.removeFromScene(child);
-        }
-        if (this._root) {
-            this.removeFromScene(this._root);
-        }
-        this._root = null;
-        this._areas = [];
-        this._areaPoints = [];
-        this._areaLines = [];
-        this._previewElement.removeFromParent();
-        this._previewElement.element.remove();
-    }
-}
-
-class SimpleSVGViewport extends Component {
-    constructor(components, config) {
-        super();
-        this.name = "SimpleCanvas2D";
-        this.id = generateUUID().toLowerCase();
-        this._enabled = false;
-        this._viewport = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        this._size = new Vector2$1();
-        this._undoList = [];
-        this._components = components;
-        const defaultConfig = {
-            fillColor: "transparent",
-            strokeColor: "#ff0000",
-            strokeWidth: 4,
-        };
-        this.config = { ...defaultConfig, ...(config !== null && config !== void 0 ? config : {}) };
-        this._viewport.classList.add("absolute", "top-0", "right-0");
-        // this._viewport.setAttribute("preserveAspectRatio", "xMidYMid")
-        this._viewport.setAttribute("width", "100%");
-        this._viewport.setAttribute("height", "100%");
-        // const renderer = this._components.renderer;
-        // const rendererSize = renderer.getSize();
-        // const width = rendererSize.x
-        // const height = rendererSize.y
-        // this._viewport.setAttribute("viewBox", `0 0 ${width} ${height}`);
-        this.setUI();
-        this.enabled = false;
-        const viewerContainer = components.renderer.get().domElement
-            .parentElement;
-        viewerContainer.append(this._viewport);
-        window.addEventListener("resize", () => this.resize());
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        this.resize();
-        this._undoList = [];
-        this.uiElement.toolbar.visible = value;
-        if (value) {
-            this._viewport.classList.remove("pointer-events-none");
-        }
-        else {
-            this.clear();
-            this.uiElement.settingsWindow.visible = false;
-            this._viewport.classList.add("pointer-events-none");
-        }
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    setUI() {
-        const undoDrawingBtn = new Button(this._components, {
-            materialIconName: "undo",
-        });
-        undoDrawingBtn.onclick = () => {
-            if (this._viewport.lastChild) {
-                this._undoList.push(this._viewport.lastChild);
-                this._viewport.lastChild.remove();
-            }
-        };
-        const redoDrawingBtn = new Button(this._components, {
-            materialIconName: "redo",
-        });
-        redoDrawingBtn.onclick = () => {
-            const childNode = this._undoList[this._undoList.length - 1];
-            if (childNode) {
-                this._undoList.pop();
-                this._viewport.append(childNode);
-            }
-        };
-        const clearDrawingBtn = new Button(this._components, {
-            materialIconName: "delete",
-        });
-        clearDrawingBtn.onclick = () => this.clear();
-        // #region Settings window
-        const settingsWindow = new FloatingWindow(this._components, {
-            title: "Drawing settings",
-            initialWidth: 230,
-            id: this.id,
-        });
-        settingsWindow.visible = false;
-        const viewerContainer = this._components.renderer.get().domElement
-            .parentElement;
-        viewerContainer.append(settingsWindow.get());
-        const strokeWidth = new RangeInput(this._components, {
-            label: "Stroke width",
-            name: "stroke-width",
-            min: 2,
-            max: 6,
-            initialValue: this.config.strokeWidth,
-            id: this.id,
-        });
-        strokeWidth.onChange.on((value) => {
-            // @ts-ignore
-            this.config = { strokeWidth: value };
-        });
-        const strokeColorInput = new ColorInput(this._components, {
-            label: "Stroke color",
-            initialValue: this.config.strokeColor,
-            name: "stroke-color",
-            id: this.id,
-        });
-        strokeColorInput.onChange.on((value) => {
-            // @ts-ignore
-            this.config = { strokeColor: value };
-        });
-        const fillColorInput = new ColorInput(this._components, {
-            label: "Fill color",
-            initialValue: this.config.fillColor,
-            name: "fill-color",
-            id: this.id,
-        });
-        fillColorInput.onChange.on((value) => {
-            // @ts-ignore
-            this.config = { fillColor: value };
-        });
-        settingsWindow.addChild(strokeColorInput, fillColorInput, strokeWidth);
-        const settingsBtn = new Button(this._components, {
-            materialIconName: "settings",
-        });
-        settingsBtn.onclick = () => {
-            settingsWindow.visible = !settingsWindow.visible;
-            settingsBtn.active = settingsWindow.visible;
-        };
-        settingsWindow.onHidden.on(() => (settingsBtn.active = false));
-        const toolbar = new Toolbar(this._components, { position: "right" });
-        toolbar.addChild(settingsBtn, undoDrawingBtn, redoDrawingBtn, clearDrawingBtn);
-        this.uiElement = { toolbar, settingsWindow };
-    }
-    get() {
-        return this._viewport;
-    }
-    clear() {
-        const viewport = this.get();
-        this._undoList = [];
-        while (viewport.firstChild) {
-            viewport.removeChild(viewport.firstChild);
-        }
-    }
-    getDrawing() {
-        return this.get().childNodes;
-    }
-    //   setDrawing() {
-    //         if (!this.enabled) {  }
-    //     }
-    /** {@link Resizeable.resize}. */
-    resize() {
-        const renderer = this._components.renderer;
-        const rendererSize = renderer.getSize();
-        const width = this.enabled ? rendererSize.x : 0;
-        const height = this.enabled ? rendererSize.y : 0;
-        this._size.set(width, height);
-        // this._viewport.setAttribute("viewBox", `0 0 ${this._size.x} ${this._size.y}`);
-    }
-    /** {@link Resizeable.getSize}. */
-    getSize() {
-        return this._size;
-    }
-}
-
-class Simple2DMarker extends Component {
-    constructor(components, position) {
-        super();
-        this.name = "Simple2DMarker";
-        this.enabled = true;
-        this._visible = true;
-        this._components = components;
-        const marker = document.createElement("div");
-        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
-        this._marker = new CSS2DObject(marker);
-        this.visible = true;
-        this._components.scene.get().add(this._marker);
-        if (position) {
-            this._marker.position.copy(position);
-        }
-    }
-    set visible(value) {
-        this._visible = value;
-        this._marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
-    get() {
-        return this._marker;
-    }
-}
-
-// TODO: Clean up and document
-// TODO: Disable / enable instance color for instance meshes
-class MaterialManager extends Component {
-    constructor(components) {
-        super();
-        this._originalBackground = null;
-        this.enabled = true;
-        this.name = "MaterialManager";
-        this._originals = {};
-        this._list = {};
-        this._components = components;
-    }
-    get() {
-        return Object.keys(this._list);
-    }
-    set(active, ids = Object.keys(this._list)) {
-        for (const id of ids) {
-            const { material, meshes } = this._list[id];
-            for (const mesh of meshes) {
-                if (active) {
-                    if (!this._originals[mesh.uuid]) {
-                        this._originals[mesh.uuid] = { material: mesh.material };
-                    }
-                    if (mesh instanceof THREE$1.InstancedMesh && mesh.instanceColor) {
-                        this._originals[mesh.uuid].instances = mesh.instanceColor;
-                        mesh.instanceColor = null;
-                    }
-                    mesh.material = material;
-                }
-                else {
-                    if (!this._originals[mesh.uuid])
-                        continue;
-                    mesh.material = this._originals[mesh.uuid].material;
-                    const instances = this._originals[mesh.uuid].instances;
-                    if (mesh instanceof THREE$1.InstancedMesh && instances) {
-                        mesh.instanceColor = instances;
-                    }
-                }
-            }
-        }
-    }
-    dispose() {
-        for (const id in this._list) {
-            const { material } = this._list[id];
-            material.dispose();
-        }
-        this._list = {};
-        this._originals = {};
-        this._components = null;
-    }
-    setBackgroundColor(color) {
-        const scene = this._components.scene.get();
-        if (!this._originalBackground) {
-            this._originalBackground = scene.background;
-        }
-        if (this._originalBackground) {
-            scene.background = color;
-        }
-    }
-    resetBackgroundColor() {
-        const scene = this._components.scene.get();
-        if (this._originalBackground) {
-            scene.background = this._originalBackground;
-        }
-    }
-    addMaterial(id, material) {
-        if (this._list[id]) {
-            throw new Error("This ID already exists!");
-        }
-        this._list[id] = { material, meshes: new Set() };
-    }
-    addMeshes(id, meshes) {
-        if (!this._list[id]) {
-            throw new Error("This ID doesn't exists!");
-        }
-        for (const mesh of meshes) {
-            this._list[id].meshes.add(mesh);
-        }
-    }
 }
 
 class GeometryUtils {
@@ -95152,88 +90479,521 @@ class IfcJsonExporter {
     }
 }
 
+class LineIntersectionPicker extends Component {
+    constructor(components, config) {
+        super();
+        this.name = "LineIntersectionPicker";
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this._pickedPoint = null;
+        this._raycaster = new Raycaster();
+        this._originVector = new Vector3$1();
+        this._components = components;
+        this.config = {
+            snapDistance: 0.25,
+            ...config,
+        };
+        if (this._raycaster.params.Line) {
+            this._raycaster.params.Line.threshold = 0.2;
+        }
+        this._mouse = new Mouse(components.renderer.get().domElement);
+        const marker = document.createElement("div");
+        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
+        this._marker = new CSS2DObject(marker);
+        this._marker.visible = false;
+        this._components.scene.get().add(this._marker);
+        this.enabled = false;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    get config() {
+        return this._config;
+    }
+    /** {@link Updateable.update} */
+    update() {
+        if (!this.enabled) {
+            return;
+        }
+        this.beforeUpdate.trigger(this);
+        this._raycaster.setFromCamera(this._mouse.position, this._components.camera.get());
+        // @ts-ignore
+        const lines = this._components.meshes.filter((mesh) => mesh.isLine);
+        const intersects = this._raycaster.intersectObjects(lines);
+        // console.log(intersects)
+        if (intersects.length !== 2) {
+            this._pickedPoint = null;
+            this.updateMarker();
+            return;
+        }
+        // if (!intersects[0].index || !intersects[1].index) {return}
+        const lineA = intersects[0].object;
+        const lineB = intersects[1].object;
+        const indices = [intersects[0].index, intersects[1].index];
+        const hitPoint = new Vector3$1()
+            .copy(intersects[0].point)
+            .add(intersects[1].point)
+            .multiplyScalar(0.5);
+        const isSameElement = lineA.uuid === lineB.uuid;
+        if (isSameElement) {
+            const line = lineA;
+            const pos = line.geometry.getAttribute("position");
+            const vectorA = new Vector3$1().fromBufferAttribute(pos, indices[0]);
+            const vectorB = new Vector3$1().fromBufferAttribute(pos, indices[0] + 1);
+            const vectorC = new Vector3$1().fromBufferAttribute(pos, indices[1]);
+            const vectorD = new Vector3$1().fromBufferAttribute(pos, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        else {
+            const pos1 = lineA.geometry.getAttribute("position");
+            const pos2 = lineB.geometry.getAttribute("position");
+            const vectorA = new Vector3$1().fromBufferAttribute(pos1, indices[0]);
+            const vectorB = new Vector3$1().fromBufferAttribute(pos1, indices[0] + 1);
+            const vectorC = new Vector3$1().fromBufferAttribute(pos2, indices[1]);
+            const vectorD = new Vector3$1().fromBufferAttribute(pos2, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        this.afterUpdate.trigger(this);
+    }
+    findIntersection(p1, p2, p3, p4) {
+        const line1Dir = p2.sub(p1);
+        const line2Dir = p4.sub(p3);
+        const lineDirCross = new Vector3$1().crossVectors(line1Dir, line2Dir);
+        const denominator = lineDirCross.lengthSq();
+        if (denominator === 0) {
+            return null;
+        }
+        const lineToPoint = p3.sub(p1);
+        const lineToPointCross = new Vector3$1().crossVectors(lineDirCross, lineToPoint);
+        const t1 = lineToPointCross.dot(line2Dir) / denominator;
+        const intersectionPoint = new Vector3$1().addVectors(p1, line1Dir.multiplyScalar(t1));
+        return intersectionPoint;
+    }
+    updateMarker() {
+        var _a;
+        this._marker.visible = !!this._pickedPoint;
+        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
+    }
+    get() {
+        return this._pickedPoint;
+    }
+}
+
+class VertexPicker extends Component {
+    constructor(components, config) {
+        var _a;
+        super();
+        this.name = "VertexPicker";
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this._pickedPoint = null;
+        this._enabled = false;
+        this._workingPlane = null;
+        this._components = components;
+        this.config = {
+            snapDistance: 0.25,
+            showOnlyVertex: false,
+            ...config,
+        };
+        this._marker = new Simple2DMarker(components, this.config.previewElement);
+        this._marker.visible = false;
+        (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
+        this.enabled = false;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set workingPlane(plane) {
+        this._workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._workingPlane;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    get config() {
+        return this._config;
+    }
+    get _raycaster() {
+        return this._components.raycaster;
+    }
+    update() {
+        if (!this.enabled)
+            return;
+        this.beforeUpdate.trigger(this);
+        const intersects = this._raycaster.castRay();
+        if (!intersects) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        const point = this.getClosestVertex(intersects);
+        if (!point) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        const isOnPlane = !this.workingPlane
+            ? true
+            : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
+        if (!isOnPlane) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        this._pickedPoint = point;
+        this._marker.visible = true;
+        this._marker
+            .get()
+            .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
+        this.afterUpdate.trigger(this);
+    }
+    getClosestVertex(intersects) {
+        let closestVertex = new THREE$1.Vector3();
+        let vertexFound = false;
+        let closestDistance = Number.MAX_SAFE_INTEGER;
+        const vertices = this.getVertices(intersects);
+        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
+            if (!vertex)
+                return;
+            const distance = intersects.point.distanceTo(vertex);
+            if (distance > closestDistance || distance > this._config.snapDistance)
+                return;
+            vertexFound = true;
+            closestVertex = vertex;
+            closestDistance = intersects.point.distanceTo(vertex);
+        });
+        if (vertexFound)
+            return closestVertex;
+        return this.config.showOnlyVertex ? null : intersects.point;
+    }
+    getVertices(intersects) {
+        const mesh = intersects.object;
+        if (!intersects.face || !mesh)
+            return null;
+        const geom = mesh.geometry;
+        return [
+            this.getVertex(intersects.face.a, geom),
+            this.getVertex(intersects.face.b, geom),
+            this.getVertex(intersects.face.c, geom),
+        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
+    }
+    getVertex(index, geom) {
+        if (index === undefined)
+            return null;
+        const vertices = geom.attributes.position;
+        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
+    }
+    dispose() {
+        this._marker.dispose();
+    }
+    get() {
+        return this._pickedPoint;
+    }
+}
+
+class GeometryVerticesMarker extends Component {
+    constructor(components, geometry) {
+        super();
+        this.name = "GeometryVerticesMarker";
+        this.enabled = true;
+        this._markers = [];
+        this._visible = true;
+        const position = geometry.getAttribute("position");
+        for (let index = 0; index < position.count; index++) {
+            const marker = new Simple2DMarker(components);
+            marker
+                .get()
+                .position.set(position.getX(index), position.getY(index), position.getZ(index));
+            this._markers.push(marker);
+        }
+    }
+    set visible(value) {
+        this._visible = value;
+        for (const marker of this._markers)
+            marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
+    dispose() {
+        for (const marker of this._markers)
+            marker.dispose();
+    }
+    get() {
+        return this._markers;
+    }
+}
+
+class IfcPropertiesUtils {
+    static getUnits(properties) {
+        var _a;
+        const { IFCUNITASSIGNMENT } = WEBIFC;
+        const allUnits = this.findItemOfType(properties, IFCUNITASSIGNMENT);
+        if (!allUnits)
+            return 1;
+        for (const unitRef of allUnits.Units) {
+            if (unitRef.value === undefined || unitRef.value === null)
+                continue;
+            const unit = properties[unitRef.value];
+            if (!unit.UnitType || !unit.UnitType.value)
+                continue;
+            const value = unit.UnitType.value;
+            if (value !== "LENGTHUNIT")
+                continue;
+            let factor = 1;
+            let unitValue = 1;
+            if (unit.Name.value === "METRE")
+                unitValue = 1;
+            if (unit.Name.value === "FOOT")
+                unitValue = 0.3048;
+            if (((_a = unit.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI")
+                factor = 0.001;
+            return unitValue * factor;
+        }
+        return 1;
+    }
+    static findItemOfType(properties, type) {
+        for (const id in properties) {
+            const property = properties[id];
+            if (property.type === type) {
+                return property;
+            }
+        }
+        return null;
+    }
+    static getAllItemsOfType(properties, type) {
+        const found = [];
+        for (const id in properties) {
+            const property = properties[id];
+            if (property.type === type) {
+                found.push(property);
+            }
+        }
+        return found;
+    }
+    static getRelationMap(properties, relationType, onElementsFound) {
+        const defaultCallback = () => { };
+        const _onElementsFound = onElementsFound !== null && onElementsFound !== void 0 ? onElementsFound : defaultCallback;
+        const arrayProperties = Object.values(properties);
+        const result = {};
+        arrayProperties.forEach((prop) => {
+            var _a;
+            const isRelation = prop.type === relationType;
+            const relatingKey = Object.keys(prop).find((key) => key.startsWith("Relating"));
+            const relatedKey = Object.keys(prop).find((key) => key.startsWith("Related"));
+            if (!(isRelation && relatingKey && relatedKey))
+                return;
+            const relating = properties[(_a = prop[relatingKey]) === null || _a === void 0 ? void 0 : _a.value];
+            const related = prop[relatedKey];
+            if (!related)
+                return;
+            const elements = related.map((el) => {
+                return el.value;
+            });
+            _onElementsFound(relating.expressID, elements);
+            result[relating.expressID] = elements;
+        });
+        return result;
+    }
+    static getQsetQuantities(properties, expressID, onQuantityFound) {
+        var _a;
+        const defaultCallback = () => { };
+        const _onQuantityFound = onQuantityFound !== null && onQuantityFound !== void 0 ? onQuantityFound : defaultCallback;
+        const pset = properties[expressID];
+        if ((pset === null || pset === void 0 ? void 0 : pset.type) !== IFCELEMENTQUANTITY)
+            return null;
+        const quantities = (_a = pset.Quantities) !== null && _a !== void 0 ? _a : [{}];
+        const qtos = quantities.map((prop) => {
+            if (prop.value)
+                _onQuantityFound(prop.value);
+            return prop.value;
+        });
+        return qtos.filter((prop) => prop !== null);
+    }
+    static getPsetProps(properties, expressID, onPropFound) {
+        var _a;
+        const defaultCallback = () => { };
+        const _onPropFound = onPropFound !== null && onPropFound !== void 0 ? onPropFound : defaultCallback;
+        const pset = properties[expressID];
+        if ((pset === null || pset === void 0 ? void 0 : pset.type) !== IFCPROPERTYSET)
+            return null;
+        const hasProperties = (_a = pset.HasProperties) !== null && _a !== void 0 ? _a : [{}];
+        const props = hasProperties.map((prop) => {
+            if (prop.value)
+                _onPropFound(prop.value);
+            return prop.value;
+        });
+        return props.filter((prop) => prop !== null);
+    }
+    static getPsetRel(properties, psetID) {
+        const arrayProperties = Object.values(properties);
+        if (!properties[psetID])
+            return undefined;
+        const rel = arrayProperties.find((data) => {
+            var _a;
+            const isRelation = data.type === IFCRELDEFINESBYPROPERTIES;
+            const relatesToPset = ((_a = data.RelatingPropertyDefinition) === null || _a === void 0 ? void 0 : _a.value) === psetID;
+            if (!(isRelation && relatesToPset))
+                return false;
+            return true;
+        });
+        return rel;
+    }
+    static getQsetRel(properties, qsetID) {
+        return IfcPropertiesUtils.getPsetRel(properties, qsetID);
+    }
+}
+
 class IfcPropertiesManager extends Component {
     constructor(components, ifcApi) {
         super();
         this.name = "PropertiesManager";
         this.enabled = true;
-        this._changesList = [];
-        this._psetsList = [];
-        this._allowedSchemas = ["IFC2X3", "IFC4", "IFC4_3"];
+        this._changeMap = {};
         this._components = components;
         this._ifcApi = ifcApi !== null && ifcApi !== void 0 ? ifcApi : new IfcAPI2();
+        this._ifcApi.SetWasmPath("/", true);
         this._ifcApi.Init();
     }
-    addPset(name, description, groupId) {
-        const pset = {
-            name,
-            description,
-            elements: [],
-            props: [],
-        };
-        this._psetsList.push({ ...pset, id: groupId });
-        return pset;
+    increaseMaxID(model) {
+        model.ifcFileData.maxExpressID++;
     }
-    addProperty(pset, prop) {
-        pset.props.push(prop);
+    getIFCInfo(model) {
+        const properties = model.properties;
+        if (!properties)
+            throw new Error("FragmentsGroup properties not found");
+        const schema = model.ifcFileData.schema;
+        if (!schema)
+            throw new Error("IFC Schema not found");
+        return { properties, schema };
     }
-    addChange(change, id) {
-        const _id = `${id}/${change.expressID}/${change.propName}`;
-        this._changesList = this._changesList.filter((_change) => {
-            return `${_change.id}/${_change.expressID}/${_change.propName}` !== _id;
-        });
-        this._changesList.push({
-            ...change,
-            id,
-        });
+    newGUID(model) {
+        const { schema } = this.getIFCInfo(model);
+        return new WEBIFC[schema].IfcGloballyUniqueId(generateIfcGUID());
     }
-    saveOnIfc(ifc, ids) {
-        const modelID = this._ifcApi.OpenModel(ifc);
-        const schema = this._ifcApi.GetModelSchema(modelID);
-        if (!this._allowedSchemas.includes(schema)) {
-            return null;
+    getOwnerHistory(model) {
+        const { properties } = this.getIFCInfo(model);
+        const ownerHistory = IfcPropertiesUtils.findItemOfType(properties, IFCOWNERHISTORY);
+        if (!ownerHistory)
+            throw new Error("No OwnerHistory was found.");
+        const ownerHistoryHandle = new Handle(ownerHistory.expressID);
+        return { ownerHistory, ownerHistoryHandle };
+    }
+    registerChange(model, expressID) {
+        if (!this._changeMap[model.uuid])
+            this._changeMap[model.uuid] = new Set();
+        this._changeMap[model.uuid].add(expressID);
+    }
+    setData(model, ...dataToSave) {
+        const { properties } = this.getIFCInfo(model);
+        for (const data of dataToSave) {
+            const expressID = data.expressID;
+            if (!expressID)
+                continue;
+            properties[expressID] = data;
+            this.registerChange(model, expressID);
         }
-        // #region Property changes
-        const matchingChanges = this._changesList.filter((change) => {
-            return ids ? ids.includes(change.id) : true;
-        });
-        matchingChanges.forEach((change) => {
-            const { expressID, propName, newValue } = change;
-            const line = this._ifcApi.GetLine(modelID, expressID);
-            if (!line) {
-                console.warn(`ExpressID: ${expressID}} doesn't exists in the IFC file.`);
-                return;
-            }
-            line[propName] = newValue;
-            this._ifcApi.WriteLine(modelID, line);
-        });
-        // #endregion Property changes
-        // #region Psets
-        let maxExpressId = this._ifcApi.GetMaxExpressID(modelID);
-        const ownerHistory = this._ifcApi.GetLineIDsWithType(modelID, IFCOWNERHISTORY);
-        const matchingPsets = this._psetsList.filter((pset) => {
-            return ids ? ids.includes(pset.id) : true;
-        });
-        matchingPsets.forEach((pset) => {
-            const _pset = new WEBIFC[schema].IfcPropertySet(maxExpressId++, new WEBIFC[schema].IfcGloballyUniqueId(generateIfcGUID()), new Handle(ownerHistory.get(0)), new WEBIFC[schema].IfcLabel(pset.name), null, []);
-            if (pset.description) {
-                _pset.Description = new WEBIFC[schema].IfcText(pset.description);
-            }
-            pset.props.forEach((prop) => {
-                const _prop = new WEBIFC[schema].IfcPropertySingleValue(maxExpressId++, new IFC2X3.IfcIdentifier(prop.name), null, 
-                // @ts-ignore
-                new IFC2X3[prop.type](prop.value.toString()), null);
-                _pset.HasProperties.push(new Handle(_prop.expressID));
-                this._ifcApi.WriteLine(modelID, _prop);
-            });
-            const rel = new WEBIFC[schema].IfcRelDefinesByProperties(maxExpressId++, new WEBIFC[schema].IfcGloballyUniqueId(generateIfcGUID()), new Handle(ownerHistory.get(0)), null, null, [], new Handle(_pset.expressID));
-            pset.elements.forEach((element) => {
-                rel.RelatedObjects.push(new Handle(element));
-            });
-            this._ifcApi.WriteLine(modelID, _pset);
-            this._ifcApi.WriteLine(modelID, rel);
-        });
-        // #endregion Psets
+    }
+    newPset(model, name, description) {
+        const { schema } = this.getIFCInfo(model);
+        const { ownerHistoryHandle } = this.getOwnerHistory(model);
+        this.increaseMaxID(model);
+        const psetGlobalId = this.newGUID(model);
+        const psetName = new WEBIFC[schema].IfcLabel(name);
+        const psetDescription = description
+            ? new WEBIFC[schema].IfcText(description)
+            : null;
+        const pset = new WEBIFC[schema].IfcPropertySet(model.ifcFileData.maxExpressID, psetGlobalId, ownerHistoryHandle, psetName, psetDescription, []);
+        this.increaseMaxID(model);
+        const relGlobalId = this.newGUID(model);
+        const rel = new WEBIFC[schema].IfcRelDefinesByProperties(model.ifcFileData.maxExpressID, relGlobalId, ownerHistoryHandle, null, null, [], new Handle(pset.expressID));
+        this.setData(model, pset, rel);
+        return { pset, rel };
+    }
+    newSingleProperty(model, type, name, value) {
+        const { schema } = this.getIFCInfo(model);
+        this.increaseMaxID(model);
+        const propName = new WEBIFC[schema].IfcIdentifier(name);
+        // @ts-ignore
+        const propValue = new WEBIFC[schema][type](value);
+        const prop = new WEBIFC[schema].IfcPropertySingleValue(model.ifcFileData.maxExpressID, propName, null, propValue, null);
+        this.setData(model, prop);
+        return prop;
+    }
+    newSingleStringProperty(model, type, name, value) {
+        return this.newSingleProperty(model, type, name, value);
+    }
+    newSingleNumericProperty(model, type, name, value) {
+        return this.newSingleProperty(model, type, name, value);
+    }
+    newSingleBooleanProperty(model, type, name, value) {
+        return this.newSingleProperty(model, type, name, value);
+    }
+    addElementToPset(model, psetID, ...elementExpressID) {
+        const { properties } = this.getIFCInfo(model);
+        const rel = IfcPropertiesUtils.getPsetRel(properties, psetID);
+        if (!rel)
+            return;
+        for (const expressID of elementExpressID) {
+            const elementHandle = new Handle(expressID);
+            rel.RelatedObjects.push(elementHandle);
+        }
+        this.registerChange(model, psetID);
+    }
+    addPropToPset(model, psetID, ...propID) {
+        const { properties } = this.getIFCInfo(model);
+        const pset = properties[psetID];
+        if (!pset)
+            throw new Error(`PsetID: ${psetID} not found in FragmentsGroup properties.`);
+        for (const expressID of propID) {
+            const elementHandle = new Handle(expressID);
+            pset.HasProperties.push(elementHandle);
+        }
+        this.registerChange(model, psetID);
+    }
+    saveOnIfc(model, ifcToSaveOn) {
+        const { properties } = this.getIFCInfo(model);
+        const modelID = this._ifcApi.OpenModel(ifcToSaveOn);
+        for (const expressID of this._changeMap[model.uuid]) {
+            const data = properties[expressID];
+            if (!data)
+                continue;
+            this._ifcApi.WriteLine(modelID, data);
+        }
         const modifiedIFC = this._ifcApi.SaveModel(modelID);
         this._ifcApi.CloseModel(modelID);
         return modifiedIFC;
@@ -95243,11 +91003,90 @@ class IfcPropertiesManager extends Component {
     }
 }
 
+function getElementPsets(properties, expressID, onPsetFound) {
+    const defaultCallback = () => { };
+    const _onPsetFound = onPsetFound !== null && onPsetFound !== void 0 ? onPsetFound : defaultCallback;
+    const arrayProperties = Object.values(properties);
+    const psets = arrayProperties.map((entity) => {
+        var _a, _b, _c;
+        const isRel = (entity === null || entity === void 0 ? void 0 : entity.type) === IFCRELDEFINESBYPROPERTIES;
+        if (!isRel)
+            return null;
+        const psetExpressID = (_a = entity.RelatingPropertyDefinition) === null || _a === void 0 ? void 0 : _a.value;
+        const isPset = ((_b = properties[psetExpressID]) === null || _b === void 0 ? void 0 : _b.type) === IFCPROPERTYSET;
+        if (!isPset)
+            return null;
+        const relatedObjects = (_c = entity.RelatedObjects) !== null && _c !== void 0 ? _c : [{}];
+        const elements = relatedObjects.map((obj) => {
+            return obj.value;
+        });
+        if (!elements.includes(expressID))
+            return null;
+        _onPsetFound(psetExpressID);
+        return psetExpressID;
+    });
+    return psets.filter((pset) => pset !== null);
+}
+
+function getElementQsets(properties, expressID, onQsetFound) {
+    const defaultCallback = () => { };
+    const _onQsetFound = onQsetFound !== null && onQsetFound !== void 0 ? onQsetFound : defaultCallback;
+    const arrayProperties = Object.values(properties);
+    const psets = arrayProperties.map((entity) => {
+        var _a, _b, _c;
+        const isRel = (entity === null || entity === void 0 ? void 0 : entity.type) === IFCRELDEFINESBYPROPERTIES;
+        if (!isRel)
+            return null;
+        const qsetExpressID = (_a = entity.RelatingPropertyDefinition) === null || _a === void 0 ? void 0 : _a.value;
+        const isQset = ((_b = properties[qsetExpressID]) === null || _b === void 0 ? void 0 : _b.type) === IFCELEMENTQUANTITY;
+        if (!isQset)
+            return null;
+        const relatedObjects = (_c = entity.RelatedObjects) !== null && _c !== void 0 ? _c : [{}];
+        const elements = relatedObjects.map((obj) => {
+            return obj.value;
+        });
+        if (!elements.includes(expressID))
+            return null;
+        _onQsetFound(qsetExpressID);
+        return qsetExpressID;
+    });
+    return psets.filter((pset) => pset !== null);
+}
+
+function getElementStorey(properties, expressID, onStoreyFound) {
+    const defaultCallback = () => { };
+    const _onStoreyFound = onStoreyFound !== null && onStoreyFound !== void 0 ? onStoreyFound : defaultCallback;
+    const arrayProperties = Object.values(properties);
+    const psets = arrayProperties.map((entity) => {
+        var _a, _b, _c;
+        const isRel = (entity === null || entity === void 0 ? void 0 : entity.type) === IFCRELCONTAINEDINSPATIALSTRUCTURE;
+        if (!isRel)
+            return null;
+        const storeyExpressID = (_a = entity.RelatingStructure) === null || _a === void 0 ? void 0 : _a.value;
+        const isStorey = ((_b = properties[storeyExpressID]) === null || _b === void 0 ? void 0 : _b.type) === IFCBUILDINGSTOREY;
+        if (!isStorey)
+            return null;
+        const relatedObjects = (_c = entity.RelatedElements) !== null && _c !== void 0 ? _c : [{}];
+        const elements = relatedObjects.map((obj) => {
+            return obj.value;
+        });
+        if (!elements.includes(expressID))
+            return null;
+        _onStoreyFound(storeyExpressID);
+        return storeyExpressID;
+    });
+    return psets.filter((pset) => pset !== null);
+}
+
 class EditProp extends SimpleUIComponent {
     constructor(components) {
         const div = document.createElement("div");
         div.className =
-            "absolute flex flex-col rounded-md top-5 left-5 p-4 bg-ifcjs-100 gap-y-2 items-center";
+            "flex flex-col rounded-md p-4 bg-ifcjs-100 gap-y-2 items-center shadow-md";
+        const title = document.createElement("h3");
+        title.className = "text-white";
+        title.textContent = "Edit property";
+        div.append(title);
         super(components, div);
         this.name = "EditProp";
         this.nameInput = new TextInput(components);
@@ -95258,8 +91097,10 @@ class EditProp extends SimpleUIComponent {
             materialIconName: "check",
             name: "Accept",
         });
-        this.acceptButton.get().classList.remove("hover:bg-ifcjs-200");
-        this.acceptButton.get().classList.add("hover:bg-green-500");
+        this.acceptButton
+            .get()
+            .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
+        this.acceptButton.get().classList.add("hover:bg-[#55A014]", "grow");
         this.cancelButton = new Button(components, {
             materialIconName: "clear",
             name: "Cancel",
@@ -95267,19 +91108,145 @@ class EditProp extends SimpleUIComponent {
         this.cancelButton
             .get()
             .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
-        this.cancelButton.get().classList.add("hover:bg-red-500");
+        this.cancelButton.get().classList.add("hover:bg-red-500", "grow");
         this.cancelButton.onclick = () => {
             this.visible = false;
         };
         const buttonsStack = new UIComponentsStack(components, "Horizontal");
-        buttonsStack.get().classList.add("gap-x-2", "mt-2");
+        buttonsStack.get().classList.add("gap-x-2", "mt-2", "w-full");
         buttonsStack.addChild(this.acceptButton, this.cancelButton);
         this.addChild(this.nameInput, this.valueInput, buttonsStack);
     }
 }
 
+class NewProp extends SimpleUIComponent {
+    constructor(components) {
+        const div = document.createElement("div");
+        div.className =
+            "flex flex-col rounded-md p-4 bg-ifcjs-100 gap-y-2 items-center shadow-md";
+        const title = document.createElement("h3");
+        title.className = "text-white";
+        title.textContent = "New property";
+        div.append(title);
+        super(components, div);
+        this.name = "NewProp";
+        this.nameInput = new TextInput(components);
+        this.nameInput.labelElement.textContent = "Name";
+        this.valueInput = new TextInput(components);
+        this.valueInput.labelElement.textContent = "Value";
+        this.typeInput = new Dropdown(components, "Type");
+        this.typeInput.addOption("IfcText", "IfcReal", "IfcBoolean");
+        this.acceptButton = new Button(components, {
+            materialIconName: "check",
+            name: "Accept",
+        });
+        this.acceptButton
+            .get()
+            .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
+        this.acceptButton.get().classList.add("hover:bg-[#55A014]", "grow");
+        this.acceptButton.onclick = () => { };
+        this.cancelButton = new Button(components, {
+            materialIconName: "clear",
+            name: "Cancel",
+        });
+        this.cancelButton
+            .get()
+            .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
+        this.cancelButton.get().classList.add("hover:bg-red-500", "grow");
+        this.cancelButton.onclick = () => {
+            this.nameInput.clear();
+            this.valueInput.clear();
+            this.typeInput.clear();
+            this.visible = false;
+        };
+        const buttonsStack = new UIComponentsStack(components, "Horizontal");
+        buttonsStack.get().classList.add("gap-x-2", "mt-2", "w-full");
+        buttonsStack.addChild(this.acceptButton, this.cancelButton);
+        this.addChild(this.nameInput, this.typeInput, this.valueInput, buttonsStack);
+    }
+}
+
+class NewPset extends SimpleUIComponent {
+    constructor(components) {
+        const div = document.createElement("div");
+        div.className =
+            "flex flex-col rounded-md p-4 bg-ifcjs-100 gap-y-2 items-center shadow-md";
+        const title = document.createElement("h3");
+        title.className = "text-white";
+        title.textContent = "Add property set";
+        div.append(title);
+        super(components, div);
+        this.name = "NewPset";
+        // #region New Pset
+        const newPsetContainer = new UIComponentsStack(components);
+        newPsetContainer.get().classList.add("gap-y-2");
+        this.nameInput = new TextInput(components);
+        this.nameInput.labelElement.textContent = "Name";
+        this.descriptionInput = new TextInput(components);
+        this.descriptionInput.labelElement.textContent = "Description";
+        newPsetContainer.addChild(this.nameInput, this.descriptionInput);
+        // #endregion
+        // #region Existing Pset
+        const existingPsetContainer = new UIComponentsStack(components);
+        existingPsetContainer.get().classList.add("w-full");
+        const existingPsets = new Dropdown(components);
+        existingPsets.addOption("My custom pset");
+        existingPsets.labelElement.textContent = "Property set";
+        existingPsetContainer.addChild(existingPsets);
+        // #endregion
+        // #region Bottom Stack
+        this.acceptButton = new Button(components, {
+            materialIconName: "check",
+            name: "Accept",
+        });
+        this.acceptButton
+            .get()
+            .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
+        this.acceptButton.get().classList.add("hover:bg-[#55A014]", "grow");
+        this.cancelButton = new Button(components, {
+            materialIconName: "clear",
+            name: "Cancel",
+        });
+        this.cancelButton
+            .get()
+            .classList.remove("hover:bg-ifcjs-200", "hover:text-ifcjs-100");
+        this.cancelButton.get().classList.add("hover:bg-red-500", "grow");
+        this.cancelButton.onclick = () => {
+            this.visible = false;
+        };
+        const bottomStack = new UIComponentsStack(components, "Horizontal");
+        bottomStack.get().classList.add("gap-x-2", "mt-2", "w-full");
+        bottomStack.addChild(this.acceptButton, this.cancelButton);
+        // #endregion
+        // #region Top Stack
+        const newPset = new CheckboxInput(components);
+        newPset.labelElement.textContent = "New";
+        const existingPset = new CheckboxInput(components);
+        existingPset.labelElement.textContent = "Existing";
+        newPset.onChange.on((v) => {
+            const value = Boolean(v);
+            existingPset.inputValue = !value;
+            existingPsetContainer.visible = !value;
+            newPsetContainer.visible = value;
+        });
+        existingPset.onChange.on((v) => {
+            const value = Boolean(v);
+            newPset.inputValue = !value;
+            newPsetContainer.visible = !value;
+            existingPsetContainer.visible = value;
+        });
+        const topStack = new UIComponentsStack(components, "Horizontal");
+        topStack.get().classList.add("gap-x-4", "my-2");
+        topStack.addChild(newPset, existingPset);
+        // #endregion
+        this.addChild(topStack, newPsetContainer, existingPsetContainer, bottomStack);
+        newPset.inputValue = true;
+        existingPsetContainer.visible = false;
+    }
+}
+
 class PropertyTag extends SimpleUIComponent {
-    constructor(components, propLabel, propValue) {
+    constructor(components) {
         const wrapper = document.createElement("div");
         wrapper.className =
             "flex gap-x-2 hover:bg-ifcjs-120 py-1 px-3 rounded-md items-center min-h-[40px]";
@@ -95290,11 +91257,10 @@ class PropertyTag extends SimpleUIComponent {
         this._rightContainer = document.createElement("div");
         this._labelElement = document.createElement("p");
         this._valueElement = document.createElement("p");
-        this._label = "Property";
-        this._value = "Value";
+        this._label = null;
+        this._value = null;
         this._labelElement.className = "text-sm text-gray-400 font-medium";
-        this.label = propLabel;
-        this.value = propValue;
+        this._valueElement.className = "text-base";
         tagInfo.append(this._labelElement, this._valueElement);
         wrapper.append(tagInfo, this._rightContainer);
         this._rightContainer.className = "flex gap-x-2";
@@ -95310,8 +91276,9 @@ class PropertyTag extends SimpleUIComponent {
         return this._value;
     }
     set value(value) {
+        var _a;
         this._value = value;
-        this._valueElement.textContent = value.toString();
+        this._valueElement.textContent = (_a = value === null || value === void 0 ? void 0 : value.toString()) !== null && _a !== void 0 ? _a : null;
     }
     addChild(...items) {
         items.forEach((item) => {
@@ -95321,178 +91288,122 @@ class PropertyTag extends SimpleUIComponent {
     }
 }
 
-function getElementPsets(properties, expressID, onPsetFound) {
-    const defaultCallback = () => { };
-    const _onPsetFound = onPsetFound !== null && onPsetFound !== void 0 ? onPsetFound : defaultCallback;
-    const arrayProperties = Object.values(properties);
-    const psets = arrayProperties.map((entity) => {
-        var _a, _b, _c;
-        const isRel = (entity === null || entity === void 0 ? void 0 : entity.type) === IFCRELDEFINESBYPROPERTIES;
-        if (!isRel) {
-            return null;
-        }
-        const psetExpressID = (_a = entity.RelatingPropertyDefinition) === null || _a === void 0 ? void 0 : _a.value;
-        const isPset = ((_b = properties[psetExpressID]) === null || _b === void 0 ? void 0 : _b.type) === IFCPROPERTYSET;
-        if (!isPset) {
-            return null;
-        }
-        const relatedObjects = (_c = entity.RelatedObjects) !== null && _c !== void 0 ? _c : [{}];
-        const elements = relatedObjects.map((obj) => {
-            return obj.value;
-        });
-        if (!elements.includes(expressID)) {
-            return null;
-        }
-        _onPsetFound(psetExpressID);
-        return psetExpressID;
-    });
-    return psets.filter((pset) => pset !== null);
-}
-
-function getElementQsets(properties, expressID, onQsetFound) {
-    const defaultCallback = () => { };
-    const _onQsetFound = onQsetFound !== null && onQsetFound !== void 0 ? onQsetFound : defaultCallback;
-    const arrayProperties = Object.values(properties);
-    const psets = arrayProperties.map((entity) => {
-        var _a, _b, _c;
-        const isRel = (entity === null || entity === void 0 ? void 0 : entity.type) === IFCRELDEFINESBYPROPERTIES;
-        if (!isRel) {
-            return null;
-        }
-        const qsetExpressID = (_a = entity.RelatingPropertyDefinition) === null || _a === void 0 ? void 0 : _a.value;
-        const isQset = ((_b = properties[qsetExpressID]) === null || _b === void 0 ? void 0 : _b.type) === IFCELEMENTQUANTITY;
-        if (!isQset) {
-            return null;
-        }
-        const relatedObjects = (_c = entity.RelatedObjects) !== null && _c !== void 0 ? _c : [{}];
-        const elements = relatedObjects.map((obj) => {
-            return obj.value;
-        });
-        if (!elements.includes(expressID)) {
-            return null;
-        }
-        _onQsetFound(qsetExpressID);
-        return qsetExpressID;
-    });
-    return psets.filter((pset) => pset !== null);
-}
-
-function getPsetProps(properties, expressID, onPropFound) {
-    var _a;
-    const defaultCallback = () => { };
-    const _onPropFound = onPropFound !== null && onPropFound !== void 0 ? onPropFound : defaultCallback;
-    const pset = properties[expressID];
-    if ((pset === null || pset === void 0 ? void 0 : pset.type) !== IFCPROPERTYSET) {
-        return null;
-    }
-    const hasProperties = (_a = pset.HasProperties) !== null && _a !== void 0 ? _a : [{}];
-    const props = hasProperties.map((prop) => {
-        if (prop.value) {
-            _onPropFound(prop.value);
-        }
-        return prop.value;
-    });
-    return props.filter((prop) => prop !== null);
-}
-
-function getQsetQuantities(properties, expressID, onQuantityFound) {
-    var _a;
-    const defaultCallback = () => { };
-    const _onQuantityFound = onQuantityFound !== null && onQuantityFound !== void 0 ? onQuantityFound : defaultCallback;
-    const pset = properties[expressID];
-    if ((pset === null || pset === void 0 ? void 0 : pset.type) !== IFCELEMENTQUANTITY) {
-        return null;
-    }
-    const quantities = (_a = pset.Quantities) !== null && _a !== void 0 ? _a : [{}];
-    const qtos = quantities.map((prop) => {
-        if (prop.value) {
-            _onQuantityFound(prop.value);
-        }
-        return prop.value;
-    });
-    return qtos.filter((prop) => prop !== null);
-}
-
-function getRelationMap(properties, relationType, onElementsFound) {
-    const defaultCallback = () => { };
-    const _onElementsFound = onElementsFound !== null && onElementsFound !== void 0 ? onElementsFound : defaultCallback;
-    const arrayProperties = Object.values(properties);
-    const result = {};
-    arrayProperties.forEach((prop) => {
-        var _a;
-        const isRelation = prop.type === relationType;
-        const relatingKey = Object.keys(prop).find((key) => key.startsWith("Relating"));
-        const relatedKey = Object.keys(prop).find((key) => key.startsWith("Related"));
-        if (!(isRelation && relatingKey && relatedKey)) {
-            return;
-        }
-        const relating = properties[(_a = prop[relatingKey]) === null || _a === void 0 ? void 0 : _a.value];
-        const related = prop[relatedKey];
-        if (!related) {
-            return;
-        }
-        const elements = related.map((el) => {
-            return el.value;
-        });
-        _onElementsFound(relating.expressID, elements);
-        result[relating.expressID] = elements;
-    });
-    return result;
-}
-
-// eslint-disable-next-line max-classes-per-file
-// TODO: Clean up, make more modular and decouple from fragments.
-// @ts-ignore
-var IfcTokenType;
-(function (IfcTokenType) {
-    IfcTokenType[IfcTokenType["UNKNOWN"] = 0] = "UNKNOWN";
-    IfcTokenType[IfcTokenType["STRING"] = 1] = "STRING";
-    IfcTokenType[IfcTokenType["LABEL"] = 2] = "LABEL";
-    IfcTokenType[IfcTokenType["ENUM"] = 3] = "ENUM";
-    IfcTokenType[IfcTokenType["REAL"] = 4] = "REAL";
-    IfcTokenType[IfcTokenType["REF"] = 5] = "REF";
-    IfcTokenType[IfcTokenType["EMPTY"] = 6] = "EMPTY";
-    IfcTokenType[IfcTokenType["SET_BEGIN"] = 7] = "SET_BEGIN";
-    IfcTokenType[IfcTokenType["SET_END"] = 8] = "SET_END";
-    IfcTokenType[IfcTokenType["LINE_END"] = 9] = "LINE_END";
-})(IfcTokenType || (IfcTokenType = {}));
-class PropertiesProcessor extends Component {
-    constructor(components, fragmentHighlighter, config) {
+class IfcPropertiesProcessor extends Component {
+    constructor(components, config) {
         super();
         this.name = "PropertiesParser";
         this.enabled = true;
-        this._map = {};
+        this._attributesToIgnore = [
+            "OwnerHistory",
+            "ObjectPlacement",
+            "Representation",
+            "CompositionType",
+            "Material",
+            "ReferencedSource",
+        ];
+        this._indexMap = {};
+        this._processedModels = [];
+        this._renderFunctions = {};
+        // @ts-ignore
+        this._uiList = {};
         this._config = {
             selectionHighlighter: "select",
         };
-        this.components = components;
+        this._components = components;
         this._config = { ...this._config, ...config };
-        this._fragmentsHighlighter = fragmentHighlighter;
-        this._propsList = new UIComponentsStack(this.components, "Vertical");
-        this._editInput = new EditProp(this.components);
+        this._propsList = new UIComponentsStack(this._components, "Vertical");
+        this._editInput = new EditProp(this._components);
         this._editInput.visible = false;
         this._editInput.nameInput.visible = false;
-        this.components.ui.add(this._editInput);
+        this._newInput = new NewProp(this._components);
+        this._newInput.visible = false;
+        this._newPsetInput = new NewPset(this._components);
+        this._newPsetInput.visible = false;
+        this._editContainer = new UIComponentsStack(this._components);
+        this._editContainer.onHidden.on(() => {
+            this._editInput.visible = false;
+            this._newInput.visible = false;
+            this._newPsetInput.visible = false;
+        });
+        this._components.ui.add(this._editContainer);
+        this._editContainer.get().classList.add("absolute", "top-5", "left-5");
+        this._editContainer.addChild(this._editInput, this._newInput, this._newPsetInput);
+        this._newPsetBtn = new Button(this._components, {
+            materialIconName: "add",
+            name: "Add property set",
+        });
+        this._newPsetBtn.visible = false;
+        this._newPsetBtn.onclick = () => {
+            this._editContainer.visible = true;
+            this._editInput.visible = false;
+            this._newInput.visible = false;
+            this._newPsetInput.visible = true;
+            this._editContainerPopper.update();
+        };
         this.propsManager = new IfcPropertiesManager(components);
-        this.setEventListeners();
+        this.groupButtons = new UIComponentsStack(this._components, "Horizontal");
+        this.groupButtons.get().classList.add("my-[8px]");
+        this.setGroupButtons();
         this.setUI();
+        this.setNewPsetLogic();
+        this._renderFunctions = {
+            0: (properties, expressID) => this.createAttributesUI(properties, expressID),
+            [IFCPROPERTYSET]: (properties, expressID) => this.createPsetUI(properties, expressID),
+            [IFCELEMENTQUANTITY]: (properties, expressID) => this.createQsetUI(properties, expressID),
+        };
+    }
+    setGroupButtons() {
+        // const addBtn = new Button(this._components, { materialIconName: "add" });
+        // addBtn.onclick = () => {
+        //   this._editContainer.visible = true;
+        //   this._editInput.visible = false;
+        //   this._newInput.visible = true;
+        //   this._newPsetInput.visible = false;
+        //   this._editContainerPopper.update();
+        // };
+        // const removeBtn = new Button(this._components, {
+        //   materialIconName: "delete",
+        // });
+        // const editBtn = new Button(this._components, {
+        //   materialIconName: "edit",
+        // });
+        // this.groupButtons.addChild(addBtn);
+    }
+    setNewPsetLogic() {
+        // this._newPsetInput.acceptButton.onclick = () => {
+        //   const pset = new PropertyGroup(
+        //     this._components,
+        //     this._newPsetInput.nameInput.inputValue
+        //   );
+        //   pset.actionButtons = this.groupButtons;
+        //   pset.description = this._newPsetInput.descriptionInput.inputValue;
+        //   const selection = this._fragmentsHighlighter.selection.select;
+        //   for (const fragmentID in selection) {
+        //     const elements = selection[fragmentID];
+        //     for (const expressID of elements) {
+        //       const elementPropertiesManager = this._indexMap[fragmentID][expressID];
+        //       elementPropertiesManager.addGroup(pset);
+        //       this.renderProperties(fragmentID, expressID);
+        //     }
+        //   }
+        //   this._editContainer.visible = false;
+        // };
     }
     setUI() {
-        const container = new FloatingWindow(this.components, {
-            title: "Properties List",
-        });
-        this.components.ui.add(container);
+        const container = new FloatingWindow(this._components);
+        this._components.ui.add(container);
+        container.title = "Properties List";
         container.visible = false;
-        container.addChild(this._propsList);
-        const showButton = new Button(this.components, {
+        const topMenu = new UIComponentsStack(this._components, "Horizontal");
+        topMenu.addChild(this._newPsetBtn);
+        container.addChild(topMenu, this._propsList);
+        const showButton = new Button(this._components, {
             materialIconName: "list",
         });
-        container.onVisible.on(() => (showButton.active = true));
-        container.onHidden.on(() => (showButton.active = false));
         showButton.onclick = () => {
             container.visible = !container.visible;
         };
-        this._editInputPopper = createPopper(container.get(), this._editInput.get(), {
+        this._editContainerPopper = createPopper(container.get(), this._editContainer.get(), {
             modifiers: [
                 {
                     name: "offset",
@@ -95500,365 +91411,205 @@ class PropertiesProcessor extends Component {
                 },
                 {
                     name: "preventOverflow",
-                    // @ts-ignore
-                    options: { boundary: this.components.ui.viewerContainer },
+                    options: { boundary: this._components.ui.viewerContainer },
                 },
             ],
         });
-        this._editInputPopper.setOptions({ placement: "right" });
-        container.onMoved.on(() => {
-            this._editInputPopper.update();
-        });
-        container.onResized.on(() => {
-            this._editInputPopper.update();
-        });
-        container.onHidden.on(() => {
-            this._editInput.visible = false;
-        });
-        this.uiElement = {
-            container,
-            showButton,
-        };
+        this._editContainerPopper.setOptions({ placement: "right" });
+        container.onMoved.on(() => this._editContainerPopper.update());
+        container.onResized.on(() => this._editContainerPopper.update());
+        container.onHidden.on(() => (this._editInput.visible = false));
+        container.onVisible.on(() => (showButton.active = true));
+        container.onHidden.on(() => (showButton.active = false));
+        this.uiElement = { container, showButton };
     }
-    setEventListeners() {
-        var _a, _b;
-        const highlighterEvents = this._fragmentsHighlighter.events;
-        (_a = highlighterEvents[this._config.selectionHighlighter]) === null || _a === void 0 ? void 0 : _a.onClear.on(() => {
-            this.uiElement.container.description = null;
-            this._editInput.visible = false;
-            this._propsList.dispose(true);
-        });
-        (_b = highlighterEvents[this._config.selectionHighlighter]) === null || _b === void 0 ? void 0 : _b.onHighlight.on((selection) => {
-            const fragmentIDs = Object.keys(selection);
-            if (fragmentIDs.length !== 1) {
-                this._propsList.dispose(true);
-                return;
-            }
-            const fragmentID = fragmentIDs[0];
-            const expressIDs = [...selection[fragmentID]];
-            if (expressIDs.length !== 1) {
-                this._propsList.dispose(true);
-                return;
-            }
-            const expressID = expressIDs[0];
-            this.renderProperties(fragmentID, expressID);
-        });
+    cleanPropertiesList() {
+        this._propsList.dispose(true);
+        this.uiElement.container.description = null;
+        this._editContainer.visible = false;
+        this._newPsetBtn.visible = false;
+        this._propsList.children = [];
     }
     get() {
-        return this._map;
+        return this._indexMap;
     }
-    // TODO: Some of these take an array of strings and another an array of functions. Is it correct?
-    process(properties, expressIDFragmentIDMap) {
-        const processResult = {};
-        // @ts-ignore
-        const idsStrings = Object.values(expressIDFragmentIDMap).flat();
-        const expressIDs = idsStrings.map((id) => parseInt(id, 10));
-        this.processElements(properties, idsStrings, processResult);
-        this.processStoreys(properties, processResult);
-        this.processGroups(properties, processResult);
-        this.processQsets(properties, processResult, expressIDs);
-        this.processPsets(properties, processResult, expressIDs);
-        for (const fragmentID in expressIDFragmentIDMap) {
-            const expressIDs = expressIDFragmentIDMap[fragmentID];
-            this._map[fragmentID] = {};
-            expressIDs.forEach((expressID) => {
-                this._map[fragmentID][expressID] = processResult[expressID];
-            });
-        }
-        return processResult;
+    process(model) {
+        const properties = model.properties;
+        if (!properties)
+            throw new Error("FragmentsGroup properties not found");
+        this._processedModels.push(model);
+        this._indexMap[model.uuid] = {};
+        this.indexTypes(model);
+        this.indexStructure(model);
+        this.indexProperties(model);
+        this.indexMaterials(model);
+        this.indexClassifications(model);
+        this.indexGroups(model);
     }
-    groupProperties(props) {
-        const groups = {};
-        for (const name in props) {
-            const prop = props[name];
-            if (!groups[prop.group]) {
-                groups[prop.group] = [];
+    indexGroups(model) {
+        IfcPropertiesUtils.getRelationMap(model.properties, IFCRELASSIGNSTOGROUP, (groupID, relatedIDs) => {
+            this.setEntityIndex(model, groupID);
+            for (const expressID of relatedIDs) {
+                const entityIndex = this.setEntityIndex(model, expressID);
+                entityIndex.add(groupID);
             }
-            groups[prop.group].push(prop);
-        }
-        return groups;
+        });
     }
-    renderProperties(fragmentID, expressID) {
+    indexClassifications(model) {
+        IfcPropertiesUtils.getRelationMap(model.properties, IFCRELASSOCIATESCLASSIFICATION, (classificationID, relatedIDs) => {
+            const classificationEntity = model.properties[classificationID];
+            const classificationIndex = this.setEntityIndex(model, classificationID);
+            classificationIndex.add(classificationEntity.ReferencedSource.value);
+            this.setEntityIndex(model, classificationEntity.ReferencedSource.value);
+            for (const expressID of relatedIDs) {
+                const entityIndex = this.setEntityIndex(model, expressID);
+                entityIndex.add(classificationID);
+            }
+        });
+    }
+    indexTypes(model) {
+        IfcPropertiesUtils.getRelationMap(model.properties, IFCRELDEFINESBYTYPE, (typeID, relatedIDs) => {
+            this.setEntityIndex(model, typeID);
+            for (const expressID of relatedIDs) {
+                const entityIndex = this.setEntityIndex(model, expressID);
+                entityIndex.add(typeID);
+            }
+        });
+    }
+    indexStructure(model) {
+        IfcPropertiesUtils.getRelationMap(model.properties, IFCRELCONTAINEDINSPATIALSTRUCTURE, (structureID, relatedIDs) => {
+            this.setEntityIndex(model, structureID);
+            for (const expressID of relatedIDs) {
+                const entityIndex = this.setEntityIndex(model, expressID);
+                entityIndex.add(structureID);
+            }
+        });
+    }
+    indexProperties(model) {
+        IfcPropertiesUtils.getRelationMap(model.properties, IFCRELDEFINESBYPROPERTIES, (relatingID, relatedIDs) => {
+            for (const expressID of relatedIDs) {
+                const entityIndex = this.setEntityIndex(model, expressID);
+                entityIndex.add(relatingID);
+            }
+        });
+    }
+    indexMaterials(model) {
+        IfcPropertiesUtils.getRelationMap(model.properties, IFCRELASSOCIATESMATERIAL, (relatingID, relatedIDs) => {
+            let relatingEntity = model.properties[relatingID];
+            if (relatingEntity.type === IFCMATERIALLAYERSETUSAGE)
+                relatingEntity = model.properties[relatingEntity.ForLayerSet.value];
+            if (relatingEntity.type !== IFCMATERIALLAYERSET)
+                return;
+            const relatingIndex = this.setEntityIndex(model, relatingEntity.expressID);
+            for (const layerHandle of relatingEntity.MaterialLayers) {
+                const layerID = layerHandle.value;
+                relatingIndex.add(layerID);
+                const layerIndex = this.setEntityIndex(model, layerID);
+                const materialID = model.properties[layerID].Material.value;
+                layerIndex.add(materialID);
+                this.setEntityIndex(model, materialID);
+            }
+            for (const expressID of relatedIDs) {
+                const entityIndex = this.setEntityIndex(model, expressID);
+                entityIndex.add(relatingEntity.expressID);
+            }
+        });
+    }
+    setEntityIndex(model, expressID) {
+        if (!this._indexMap[model.uuid][expressID])
+            this._indexMap[model.uuid][expressID] = new Set();
+        return this._indexMap[model.uuid][expressID];
+    }
+    generate(model, expressID) {
+        var _a, _b, _c;
+        const properties = model.properties;
+        if (!properties)
+            throw new Error("FragmentsGroup properties not found.");
+        const modelElementsIndexation = this._indexMap[model.uuid];
+        if (!modelElementsIndexation)
+            throw new Error("FragmentsGroup properties are not indexed.");
+        const elementPropsIndexation = (_a = modelElementsIndexation[expressID]) !== null && _a !== void 0 ? _a : [];
+        const mainGroup = new TreeView(this._components, `${IfcCategoryMap[properties[expressID].type]}: ${expressID}`);
+        mainGroup.titleElement.description = (_b = properties[expressID].Name) === null || _b === void 0 ? void 0 : _b.value;
+        mainGroup.addChild(...this.createAttributesUI(properties, expressID));
+        const subGroups = []; // Other groups representing direct relations with the provided expressID
+        for (const id of elementPropsIndexation) {
+            if (modelElementsIndexation[id]) {
+                const [mg, ...sg] = this.generate(model, id);
+                mg.addChild(...sg);
+                subGroups.push(mg);
+            }
+            else {
+                const entity = properties[id];
+                const renderFunction = (_c = this._renderFunctions[entity.type]) !== null && _c !== void 0 ? _c : this._renderFunctions[0];
+                mainGroup.addChild(...renderFunction(properties, id));
+            }
+        }
+        return [mainGroup, ...subGroups];
+    }
+    renderProperties(model, expressID) {
+        var _a, _b;
+        this.cleanPropertiesList();
+        const ui = this.generate(model, expressID);
+        this._newPsetBtn.visible = true;
+        this.uiElement.container.description =
+            (_b = (_a = model.properties[expressID].Name) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "Unnamed Element";
+        this._propsList.addChild(...ui);
+    }
+    createAttributesUI(properties, expressID) {
         var _a;
-        this._propsList.dispose(true);
-        const fragmentProperties = this.get()[fragmentID];
-        if (!fragmentProperties) {
-            return;
+        const attributesGroup = new TreeView(this._components, "Attributes");
+        const elementAttributes = properties[expressID];
+        for (const name in elementAttributes) {
+            const ignorable = this._attributesToIgnore.includes(name);
+            const value = (_a = elementAttributes[name]) === null || _a === void 0 ? void 0 : _a.value;
+            if (ignorable || !value)
+                continue;
+            const tag = new PropertyTag(this._components);
+            tag.label = name[0].toUpperCase() + name.slice(1);
+            tag.value = value;
+            attributesGroup.addChild(tag);
         }
-        const elementProperties = fragmentProperties[expressID];
-        if (!elementProperties) {
-            return;
-        }
-        const groupedProperties = this.groupProperties(elementProperties);
-        const name = (_a = groupedProperties.Attributes) === null || _a === void 0 ? void 0 : _a.find((v) => v.name.value === "Name");
-        if (name) {
-            this.uiElement.container.description = name.value.value.toString();
-        }
-        for (const groupName in groupedProperties) {
-            const groupTree = new TreeView(this.components, groupName);
-            this._propsList.addChild(groupTree);
-            const props = groupedProperties[groupName];
-            props.forEach((prop) => {
-                const value = typeof prop.value.value === "number"
-                    ? prop.value.value.toPrecision(4)
-                    : prop.value.value;
-                const propTag = new PropertyTag(this.components, prop.name.value, value);
-                groupTree.addChild(propTag);
-                const editButton = new Button(this.components, {
-                    materialIconName: "edit",
-                });
-                editButton.visible = false;
-                editButton.onclick = () => {
-                    this._editInput.nameInput.inputValue = prop.name.value;
-                    this._editInput.valueInput.labelElement.textContent = `${prop.group}: ${prop.name.value}`;
-                    this._editInput.valueInput.inputValue = value.toString();
-                    this._editInput.visible = true;
-                    this._editInputPopper.update();
-                    this._editInput.acceptButton.onclick = () => {
-                        this._editInput.visible = false;
-                        const inputValue = this._editInput.valueInput.inputValue;
-                        prop.value.value = inputValue;
-                        propTag.value = inputValue;
-                        if (prop.value.Constructor && prop.value.key) {
-                            this.propsManager.addChange({
-                                expressID: prop.expressID,
-                                propName: prop.value.key,
-                                newValue: new prop.value.Constructor(inputValue),
-                            }, fragmentID);
-                        }
-                    };
-                };
-                propTag.addChild(editButton);
-                propTag.get().onmouseover = () => {
-                    editButton.visible = true;
-                };
-                propTag.get().onmouseout = () => {
-                    editButton.visible = false;
-                };
-            });
-            groupTree.collapse(true);
-        }
+        return [attributesGroup];
     }
-    storeProperty(props, expressID, data) {
-        if (!props[expressID]) {
-            props[expressID] = {};
-        }
-        props[expressID][`${data.name.prefix}${data.name.value}`] = data;
-    }
-    /**
-     * @description Foundation function that returns entity attributes.
-     * @param model
-     * @param expressID
-     */
-    processAttributes(properties, expressID, options) {
-        const props = properties[expressID];
-        if (!props) {
-            return null;
-        }
-        const _options = { group: "Attributes", prefix: "", ...options };
-        const { group, prefix } = _options;
-        const attrs = [
-            "GlobalId",
-            "IfcEntity",
-            "Name",
-            "Description",
-            "Tag",
-            "Type",
-            "LongName",
-        ];
-        const attributes = {};
-        attrs.forEach((attribute) => {
-            var _a;
-            if (props[attribute]) {
-                const key = attribute[0].toLocaleLowerCase() + attribute.slice(1);
-                const value = {
-                    name: {
-                        prefix,
-                        value: attribute,
-                        type: 1,
-                        Constructor: null,
-                    },
-                    value: {
-                        ...props[attribute],
-                        Constructor: (_a = props[attribute].constructor) !== null && _a !== void 0 ? _a : null,
-                        key: attribute,
-                    },
-                    group,
-                    expressID: props.expressID,
-                };
-                attributes[key] = value;
-            }
-        });
-        return attributes;
-    }
-    processElements(properties, expressIDs, props) {
-        const arrayProperties = Object.values(properties);
-        // #region Building properties
-        let buildingAttributes;
-        const building = arrayProperties.find((prop) => prop.type === IFCBUILDING);
-        if (building) {
-            buildingAttributes = this.processAttributes(properties, building.expressID, {
-                group: "Building",
-                prefix: "Building",
-            });
-        }
-        // #endregion
-        // #region Site properties
-        let siteAttributes;
-        const site = arrayProperties.find((prop) => prop.type === IFCSITE);
-        if (site) {
-            siteAttributes = this.processAttributes(properties, site.expressID, {
-                group: "Site",
-                prefix: "Site",
-            });
-        }
-        // #endregion
-        expressIDs.forEach((expressID) => {
-            const elementAttributes = this.processAttributes(properties, Number(expressID));
-            if (elementAttributes) {
-                for (const name in elementAttributes) {
-                    // @ts-ignore
-                    const attribute = elementAttributes[name];
-                    this.storeProperty(props, Number(expressID), attribute);
-                }
-            }
-            if (buildingAttributes) {
-                const { globalId, type, tag, ifcEntity, ...attrs } = buildingAttributes;
-                for (const name in attrs) {
-                    // @ts-ignore
-                    const attribute = attrs[name];
-                    this.storeProperty(props, Number(expressID), attribute);
-                }
-            }
-            if (siteAttributes) {
-                const { globalId, type, tag, ifcEntity, ...attrs } = siteAttributes;
-                for (const name in attrs) {
-                    // @ts-ignore
-                    const attribute = attrs[name];
-                    this.storeProperty(props, Number(expressID), attribute);
-                }
-            }
-        });
-    }
-    processPsets(properties, props, expressIDs) {
-        expressIDs.forEach((elementID) => {
-            getElementPsets(properties, Number(elementID), (psetID) => {
-                const pset = properties[psetID];
-                getPsetProps(properties, psetID, (propertyID) => {
-                    var _a, _b, _c, _d, _e, _f, _g;
-                    const prop = properties[propertyID];
-                    const value = ((_a = prop.NominalValue) === null || _a === void 0 ? void 0 : _a.constructor.name) === "IfcBoolean"
-                        ? prop.NominalValue.value === "T"
-                        : (_b = prop.NominalValue) === null || _b === void 0 ? void 0 : _b.value;
-                    const data = {
-                        name: {
-                            prefix: "",
-                            ...prop.Name,
-                            Constructor: (_d = (_c = prop.Name) === null || _c === void 0 ? void 0 : _c.constructor) !== null && _d !== void 0 ? _d : null,
-                        },
-                        value: {
-                            value,
-                            type: (_e = prop.NominalValue) === null || _e === void 0 ? void 0 : _e.type,
-                            Constructor: (_g = (_f = prop.NominalValue) === null || _f === void 0 ? void 0 : _f.constructor) !== null && _g !== void 0 ? _g : null,
-                            key: "NominalValue",
-                        },
-                        group: pset.Name.value,
-                        expressID: prop.expressID,
-                    };
-                    this.storeProperty(props, elementID, data);
-                });
-            });
-        });
-    }
-    processQsets(properties, props, expressIDs) {
-        expressIDs.forEach((elementID) => {
-            getElementQsets(properties, Number(elementID), (qsetID) => {
-                const qset = properties[qsetID];
-                getQsetQuantities(properties, qsetID, (quantityID) => {
-                    var _a, _b, _c, _d, _e, _f, _g, _h;
-                    const qto = properties[quantityID];
-                    const entityName = IfcCategoryMap[qto.type];
-                    let valuePropName = entityName
-                        .replace(/IFCQUANTITY/, "")
-                        .toLowerCase();
-                    valuePropName = `${valuePropName[0].toUpperCase() + valuePropName.slice(1)}Value`;
-                    const data = {
-                        name: {
-                            prefix: "",
-                            ...qto.Name,
-                            typeConstructor: (_b = (_a = qto.Name) === null || _a === void 0 ? void 0 : _a.constructor.name) !== null && _b !== void 0 ? _b : null,
-                            Constructor: (_d = (_c = qto.Name) === null || _c === void 0 ? void 0 : _c.constructor) !== null && _d !== void 0 ? _d : null,
-                        },
-                        value: {
-                            ...qto[valuePropName],
-                            typeConstructor: (_f = (_e = qto[valuePropName]) === null || _e === void 0 ? void 0 : _e.constructor.name) !== null && _f !== void 0 ? _f : null,
-                            Constructor: (_h = (_g = qto[valuePropName]) === null || _g === void 0 ? void 0 : _g.constructor) !== null && _h !== void 0 ? _h : null,
-                            key: valuePropName,
-                        },
-                        group: qset.Name.value,
-                        expressID: qto.expressID,
-                    };
-                    this.storeProperty(props, Number(elementID), data);
-                });
-            });
-        });
-    }
-    processStoreys(properties, props) {
-        getRelationMap(properties, IFCRELCONTAINEDINSPATIALSTRUCTURE, (storeyID, expressIDs) => {
-            const storey = properties[storeyID];
-            const storeyAttributes = this.processAttributes(properties, storeyID, {
-                group: "Storey",
-                prefix: "Storey",
-            });
-            expressIDs.forEach((expressID) => {
-                var _a, _b, _c, _d;
-                if (storey.Elevation) {
-                    const elevation = {
-                        name: {
-                            prefix: "",
-                            value: "StoreyElevation",
-                            type: 1,
-                            Constructor: null,
-                        },
-                        value: {
-                            ...storey.Elevation,
-                            typeConstructor: (_b = (_a = storey.Elevation) === null || _a === void 0 ? void 0 : _a.constructor.name) !== null && _b !== void 0 ? _b : null,
-                            Constructor: (_d = (_c = storey.Elevation) === null || _c === void 0 ? void 0 : _c.constructor) !== null && _d !== void 0 ? _d : null,
-                            key: "Elevation",
-                        },
-                        group: "Storey",
-                        expressID: storey.expressID,
-                    };
-                    this.storeProperty(props, expressID, elevation);
-                }
-                if (storeyAttributes) {
-                    const { globalId, type, tag, ifcEntity, ...attrs } = storeyAttributes;
-                    for (const name in attrs) {
-                        // @ts-ignore
-                        const attribute = attrs[name];
-                        this.storeProperty(props, expressID, attribute);
-                    }
-                }
-            });
-        });
-    }
-    processGroups(properties, props) {
-        getRelationMap(properties, IFCRELASSIGNSTOGROUP, (groupID, expressIDs) => {
+    createPsetUI(properties, psetID) {
+        var _a, _b;
+        const uiGroups = [];
+        const pset = properties[psetID];
+        if (pset.type !== IFCPROPERTYSET)
+            return uiGroups;
+        const uiGroup = new TreeView(this._components, (_b = (_a = pset.Name) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "Unnamed Pset");
+        IfcPropertiesUtils.getPsetProps(properties, psetID, (propID) => {
             var _a, _b;
-            const group = properties[groupID];
-            const groupAttributes = this.processAttributes(properties, groupID, {
-                group: `Group: ${(_a = group.Name) === null || _a === void 0 ? void 0 : _a.value}`,
-                prefix: `Group: ${(_b = group.Name) === null || _b === void 0 ? void 0 : _b.value}`,
-            });
-            expressIDs.forEach((expressID) => {
-                if (groupAttributes === null || groupAttributes === void 0 ? void 0 : groupAttributes.name) {
-                    this.storeProperty(props, expressID, groupAttributes.name);
-                }
-                if (groupAttributes === null || groupAttributes === void 0 ? void 0 : groupAttributes.description) {
-                    this.storeProperty(props, expressID, groupAttributes.description);
-                }
-            });
+            const prop = properties[propID];
+            const tag = new PropertyTag(this._components);
+            tag.label = (_b = (_a = prop.Name) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "Unnamed Property";
+            tag.value = prop.NominalValue.value;
+            uiGroup.addChild(tag);
         });
+        uiGroups.push(uiGroup);
+        return uiGroups;
+    }
+    createQsetUI(properties, qsetID) {
+        var _a, _b;
+        const uiGroups = [];
+        const qset = properties[qsetID];
+        if (qset.type !== IFCELEMENTQUANTITY)
+            return uiGroups;
+        const uiGroup = new TreeView(this._components, (_b = (_a = qset.Name) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "Unnamed Qset");
+        IfcPropertiesUtils.getQsetQuantities(properties, qsetID, (quantityID) => {
+            var _a, _b;
+            const quantity = properties[quantityID];
+            const valueKey = Object.keys(quantity).find((key) => key.endsWith("Value"));
+            if (!valueKey)
+                return;
+            const tag = new PropertyTag(this._components);
+            tag.label = (_b = (_a = quantity.Name) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "Unnamed Quantity";
+            tag.value = quantity[valueKey].value;
+            uiGroup.addChild(tag);
+        });
+        uiGroups.push(uiGroup);
+        return uiGroups;
     }
 }
 
@@ -96302,7 +92053,7 @@ class FragmentIfcLoader extends Component {
         const fileOpener = document.createElement("input");
         fileOpener.type = "file";
         fileOpener.accept = ".ifc";
-        fileOpener.style.visibility = "collapse";
+        fileOpener.style.display = "none";
         document.body.appendChild(fileOpener);
         fileOpener.onchange = async () => {
             if (fileOpener.files === null || fileOpener.files.length === 0)
@@ -96313,8 +92064,7 @@ class FragmentIfcLoader extends Component {
             const result = await this.load(data);
             const scene = this._components.scene.get();
             scene.add(result);
-            button.clicked.trigger(result);
-            fileOpener.remove();
+            button.onClicked.trigger(result);
         };
         button.onclick = () => {
             fileOpener.click();
@@ -96437,6 +92187,8 @@ class FragmentHighlighter extends Component {
         return { id: itemID, fragments };
     }
     highlightByID(name, ids, removePrevious = true) {
+        if (!this.enabled)
+            return;
         if (removePrevious) {
             this.clear(name);
         }
@@ -97176,6 +92928,445 @@ class FragmentExploder extends Component {
             0, 0, 1, 0,
             0, w, 0, 1,
         ]);
+    }
+}
+
+/**
+ * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
+ */
+class ProjectionManager {
+    constructor(components, camera) {
+        this.components = components;
+        this._previousDistance = -1;
+        this._camera = camera;
+        const perspective = "Perspective";
+        this._currentCamera = camera.get(perspective);
+        this._currentProjection = perspective;
+    }
+    get projection() {
+        return this._currentProjection;
+    }
+    /**
+     * Sets the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
+     *
+     * @param projection - the new projection to set. If it is the current projection,
+     * it will have no effect.
+     */
+    async setProjection(projection) {
+        if (this.projection === projection)
+            return;
+        if (projection === "Orthographic") {
+            this.setOrthoCamera();
+        }
+        else {
+            await this.setPerspectiveCamera();
+        }
+        await this.updateActiveCamera();
+    }
+    setOrthoCamera() {
+        // Matching orthographic camera to perspective camera
+        // Resource: https://stackoverflow.com/questions/48758959/what-is-required-to-convert-threejs-perspective-camera-to-orthographic
+        if (this._camera.currentMode.id === "FirstPerson") {
+            return;
+        }
+        this._previousDistance = this._camera.controls.distance;
+        this._camera.controls.distance = 200;
+        const { width, height } = this.getDims();
+        this.setupOrthoCamera(height, width);
+        this._currentCamera = this._camera.get("Orthographic");
+        this._currentProjection = "Orthographic";
+    }
+    // This small delay is needed to hide weirdness during the transition
+    async updateActiveCamera() {
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                this._camera.activeCamera = this._currentCamera;
+                resolve();
+            }, 50);
+        });
+    }
+    getDims() {
+        const lineOfSight = new THREE$1.Vector3();
+        this._camera.get("Perspective").getWorldDirection(lineOfSight);
+        const target = new THREE$1.Vector3();
+        this._camera.controls.getTarget(target);
+        const distance = target
+            .clone()
+            .sub(this._camera.get("Perspective").position);
+        const depth = distance.dot(lineOfSight);
+        const dims = this.components.renderer.getSize();
+        const aspect = dims.x / dims.y;
+        const camera = this._camera.get("Perspective");
+        const height = depth * 2 * Math.atan((camera.fov * (Math.PI / 180)) / 2);
+        const width = height * aspect;
+        return { width, height };
+    }
+    setupOrthoCamera(height, width) {
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.ZOOM;
+        const pCamera = this._camera.get("Perspective");
+        const oCamera = this._camera.get("Orthographic");
+        oCamera.zoom = 1;
+        oCamera.left = width / -2;
+        oCamera.right = width / 2;
+        oCamera.top = height / 2;
+        oCamera.bottom = height / -2;
+        oCamera.updateProjectionMatrix();
+        oCamera.position.copy(pCamera.position);
+        oCamera.quaternion.copy(pCamera.quaternion);
+        this._camera.controls.camera = oCamera;
+    }
+    async setPerspectiveCamera() {
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        const pCamera = this._camera.get("Perspective");
+        const oCamera = this._camera.get("Orthographic");
+        pCamera.position.copy(oCamera.position);
+        pCamera.quaternion.copy(oCamera.quaternion);
+        this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        this._camera.controls.distance = this._previousDistance;
+        await this._camera.controls.zoomTo(1);
+        pCamera.updateProjectionMatrix();
+        this._camera.controls.camera = pCamera;
+        this._currentCamera = pCamera;
+        this._currentProjection = "Perspective";
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows 3D navigation and panning
+ * like in many 3D and CAD softwares.
+ */
+class OrbitMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = true;
+        /** {@link NavigationMode.id} */
+        this.id = "Orbit";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+        this.activateOrbitControls();
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        if (active) {
+            this.activateOrbitControls();
+        }
+    }
+    activateOrbitControls() {
+        const controls = this.camera.controls;
+        controls.minDistance = 1;
+        controls.maxDistance = 300;
+        controls.truckSpeed = 2;
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows first person navigation,
+ * simulating FPS video games.
+ */
+class FirstPersonMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = false;
+        /** {@link NavigationMode.id} */
+        this.id = "FirstPerson";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        if (active) {
+            const projection = this.camera.getProjection();
+            if (projection !== "Perspective") {
+                this.camera.setNavigationMode("Orbit");
+                return;
+            }
+            this.setupFirstPersonCamera();
+        }
+    }
+    setupFirstPersonCamera() {
+        const controls = this.camera.controls;
+        const cameraPosition = new THREE$1.Vector3();
+        controls.camera.getWorldPosition(cameraPosition);
+        const newTargetPosition = new THREE$1.Vector3();
+        controls.distance--;
+        controls.camera.getWorldPosition(newTargetPosition);
+        controls.minDistance = 1;
+        controls.maxDistance = 1;
+        controls.distance = 1;
+        controls.moveTo(newTargetPosition.x, newTargetPosition.y, newTargetPosition.z);
+        controls.truckSpeed = 50;
+        controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
+        controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM_TRUCK;
+    }
+}
+
+/**
+ * A {@link NavigationMode} that allows to navigate floorplans in 2D,
+ * like many BIM tools.
+ */
+class PlanMode {
+    constructor(camera) {
+        this.camera = camera;
+        /** {@link NavigationMode.enabled} */
+        this.enabled = false;
+        /** {@link NavigationMode.id} */
+        this.id = "Plan";
+        /** {@link NavigationMode.projectionChanged} */
+        this.projectionChanged = new Event();
+        this.mouseInitialized = false;
+        this.defaultAzimuthSpeed = camera.controls.azimuthRotateSpeed;
+        this.defaultPolarSpeed = camera.controls.polarRotateSpeed;
+    }
+    /** {@link NavigationMode.toggle} */
+    toggle(active) {
+        this.enabled = active;
+        const controls = this.camera.controls;
+        controls.azimuthRotateSpeed = active ? 0 : this.defaultAzimuthSpeed;
+        controls.polarRotateSpeed = active ? 0 : this.defaultPolarSpeed;
+        if (!this.mouseInitialized) {
+            this.mouseAction1 = controls.touches.one;
+            this.mouseAction2 = controls.touches.two;
+            this.mouseInitialized = true;
+        }
+        if (active) {
+            controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
+            controls.touches.one = CameraControls.ACTION.TOUCH_TRUCK;
+            controls.touches.two = CameraControls.ACTION.TOUCH_ZOOM;
+        }
+        else {
+            controls.mouseButtons.left = CameraControls.ACTION.ROTATE;
+            controls.touches.one = this.mouseAction1;
+            controls.touches.two = this.mouseAction2;
+        }
+    }
+}
+
+/**
+ * A flexible camera that uses
+ * [yomotsu's cameracontrols](https://github.com/yomotsu/camera-controls) to
+ * easily control the camera in 2D and 3D. It supports multiple navigation
+ * modes, such as 2D floor plan navigation, first person and 3D orbit.
+ */
+class OrthoPerspectiveCamera extends SimpleCamera {
+    constructor(components) {
+        super(components);
+        /**
+         * Event that fires when the {@link CameraProjection} changes.
+         */
+        this.projectionChanged = new Event();
+        this._userInputButtons = {};
+        this._frustumSize = 50;
+        this._navigationModes = new Map();
+        this._orthoCamera = this.newOrthoCamera();
+        this._navigationModes.set("Orbit", new OrbitMode(this));
+        this._navigationModes.set("FirstPerson", new FirstPersonMode(this));
+        this._navigationModes.set("Plan", new PlanMode(this));
+        this.currentMode = this._navigationModes.get("Orbit");
+        this.currentMode.toggle(true, { preventTargetAdjustment: true });
+        this.toggleEvents(true);
+        this._projectionManager = new ProjectionManager(components, this);
+        this.uiElement = this.setUI();
+    }
+    setUI() {
+        const mainButton = new Button(this.components, {
+            materialIconName: "video_camera_back",
+        });
+        const projection = new Button(this.components, {
+            materialIconName: "camera",
+            name: "Projection",
+        });
+        const perspective = new Button(this.components, { name: "Perspective" });
+        perspective.active = true;
+        perspective.onclick = () => this.setProjection("Perspective");
+        const orthographic = new Button(this.components, { name: "Orthographic" });
+        orthographic.onclick = () => this.setProjection("Orthographic");
+        projection.addChild(perspective, orthographic);
+        const navigation = new Button(this.components, {
+            materialIconName: "open_with",
+            name: "Navigation",
+        });
+        const orbit = new Button(this.components, { name: "Orbit Around" });
+        orbit.onclick = () => this.setNavigationMode("Orbit");
+        const plan = new Button(this.components, { name: "Plan View" });
+        plan.onclick = () => this.setNavigationMode("Plan");
+        const firstPerson = new Button(this.components, { name: "First person" });
+        firstPerson.onclick = () => this.setNavigationMode("FirstPerson");
+        navigation.addChild(orbit, plan, firstPerson);
+        mainButton.addChild(navigation, projection);
+        this.projectionChanged.on((camera) => {
+            if (camera instanceof THREE$1.PerspectiveCamera) {
+                perspective.active = true;
+                orthographic.active = false;
+            }
+            else {
+                perspective.active = false;
+                orthographic.active = true;
+            }
+        });
+        return mainButton;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        super.dispose();
+        this.toggleEvents(false);
+        this._orthoCamera.removeFromParent();
+    }
+    /**
+     * Similar to {@link Component.get}, but with an optional argument
+     * to specify which camera to get.
+     *
+     * @param projection - The camera corresponding to the
+     * {@link CameraProjection} specified. If no projection is specified,
+     * the active camera will be returned.
+     */
+    get(projection) {
+        if (!projection) {
+            return this.activeCamera;
+        }
+        return projection === "Orthographic"
+            ? this._orthoCamera
+            : this._perspectiveCamera;
+    }
+    /** Returns the current {@link CameraProjection}. */
+    getProjection() {
+        return this._projectionManager.projection;
+    }
+    /**
+     * Changes the current {@link CameraProjection} from Ortographic to Perspective
+     * and Viceversa.
+     */
+    async toggleProjection() {
+        const projection = this.getProjection();
+        const newProjection = projection === "Perspective" ? "Orthographic" : "Perspective";
+        await this.setProjection(newProjection);
+    }
+    /**
+     * Sets the current {@link CameraProjection}. This triggers the event
+     * {@link projectionChanged}.
+     *
+     * @param projection - The new {@link CameraProjection} to set.
+     */
+    async setProjection(projection) {
+        await this._projectionManager.setProjection(projection);
+        this.projectionChanged.trigger(this.activeCamera);
+    }
+    /**
+     * Allows or prevents all user input.
+     *
+     * @param active - whether to enable or disable user inputs.
+     */
+    toggleUserInput(active) {
+        if (active) {
+            this.enableUserInput();
+        }
+        else {
+            this.disableUserInput();
+        }
+    }
+    /**
+     * Sets a new {@link NavigationMode} and disables the previous one.
+     *
+     * @param mode - The {@link NavigationMode} to set.
+     */
+    setNavigationMode(mode) {
+        if (this.currentMode.id === mode)
+            return;
+        this.currentMode.toggle(false);
+        if (!this._navigationModes.has(mode)) {
+            throw new Error("The specified mode does not exist!");
+        }
+        this.currentMode = this._navigationModes.get(mode);
+        this.currentMode.toggle(true);
+    }
+    /** Updates the aspect ratio of the camera to match the Renderer's aspect ratio. */
+    updateAspect() {
+        super.updateAspect();
+        this.setOrthoCameraAspect();
+    }
+    /**
+     * Make the camera view fit all the specified meshes.
+     *
+     * @param meshes the meshes to fit. If it is not defined, it will
+     * evaluate {@link Components.meshes}.
+     * @param offset the distance to the fit object
+     */
+    async fit(meshes = this.components.meshes, offset = 1.5) {
+        if (!this.enabled)
+            return;
+        const maxNum = Number.MAX_VALUE;
+        const minNum = Number.MIN_VALUE;
+        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
+        const max = new THREE$1.Vector3(minNum, minNum, minNum);
+        for (const mesh of meshes) {
+            const box = new THREE$1.Box3().setFromObject(mesh);
+            if (box.min.x < min.x)
+                min.x = box.min.x;
+            if (box.min.y < min.y)
+                min.y = box.min.y;
+            if (box.min.z < min.z)
+                min.z = box.min.z;
+            if (box.max.x > max.x)
+                max.x = box.max.x;
+            if (box.max.y > max.y)
+                max.y = box.max.y;
+            if (box.max.z > max.z)
+                max.z = box.max.z;
+        }
+        const box = new THREE$1.Box3(min, max);
+        const sceneSize = new THREE$1.Vector3();
+        box.getSize(sceneSize);
+        const sceneCenter = new THREE$1.Vector3();
+        box.getCenter(sceneCenter);
+        const radius = Math.max(sceneSize.x, sceneSize.y, sceneSize.z) * offset;
+        const sphere = new THREE$1.Sphere(sceneCenter, radius);
+        await this.controls.fitToSphere(sphere, true);
+    }
+    disableUserInput() {
+        this._userInputButtons.left = this.controls.mouseButtons.left;
+        this._userInputButtons.right = this.controls.mouseButtons.right;
+        this._userInputButtons.middle = this.controls.mouseButtons.middle;
+        this._userInputButtons.wheel = this.controls.mouseButtons.wheel;
+        this.controls.mouseButtons.left = 0;
+        this.controls.mouseButtons.right = 0;
+        this.controls.mouseButtons.middle = 0;
+        this.controls.mouseButtons.wheel = 0;
+    }
+    enableUserInput() {
+        if (Object.keys(this._userInputButtons).length === 0)
+            return;
+        this.controls.mouseButtons.left = this._userInputButtons.left;
+        this.controls.mouseButtons.right = this._userInputButtons.right;
+        this.controls.mouseButtons.middle = this._userInputButtons.middle;
+        this.controls.mouseButtons.wheel = this._userInputButtons.wheel;
+    }
+    newOrthoCamera() {
+        const dims = this.components.renderer.getSize();
+        const aspect = dims.x / dims.y;
+        return new THREE$1.OrthographicCamera((this._frustumSize * aspect) / -2, (this._frustumSize * aspect) / 2, this._frustumSize / 2, this._frustumSize / -2, 0.1, 1000);
+    }
+    setOrthoCameraAspect() {
+        const size = this.components.renderer.getSize();
+        const aspect = size.x / size.y;
+        this._orthoCamera.left = (-this._frustumSize * aspect) / 2;
+        this._orthoCamera.right = (this._frustumSize * aspect) / 2;
+        this._orthoCamera.top = this._frustumSize / 2;
+        this._orthoCamera.bottom = -this._frustumSize / 2;
+        this._orthoCamera.updateProjectionMatrix();
+    }
+    toggleEvents(active) {
+        const modes = Object.values(this._navigationModes);
+        for (const mode of modes) {
+            if (active) {
+                mode.projectionChanged.on(this.projectionChanged.trigger);
+            }
+            else {
+                mode.projectionChanged.reset();
+            }
+        }
     }
 }
 
@@ -98785,6 +94976,2901 @@ class EdgesClipper extends SimpleClipper {
 }
 
 /**
+ * Full-screen textured quad shader
+ */
+
+const CopyShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'opacity': { value: 1.0 }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform float opacity;
+
+		uniform sampler2D tDiffuse;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			gl_FragColor = texture2D( tDiffuse, vUv );
+			gl_FragColor.a *= opacity;
+
+
+		}`
+
+};
+
+class Pass {
+
+	constructor() {
+
+		this.isPass = true;
+
+		// if set to true, the pass is processed by the composer
+		this.enabled = true;
+
+		// if set to true, the pass indicates to swap read and write buffer after rendering
+		this.needsSwap = true;
+
+		// if set to true, the pass clears its buffer before rendering
+		this.clear = false;
+
+		// if set to true, the result of the pass is rendered to screen. This is set automatically by EffectComposer.
+		this.renderToScreen = false;
+
+	}
+
+	setSize( /* width, height */ ) {}
+
+	render( /* renderer, writeBuffer, readBuffer, deltaTime, maskActive */ ) {
+
+		console.error( 'THREE.Pass: .render() must be implemented in derived pass.' );
+
+	}
+
+	dispose() {}
+
+}
+
+// Helper for passes that need to fill the viewport with a single quad.
+
+const _camera = new OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+
+// https://github.com/mrdoob/three.js/pull/21358
+
+const _geometry = new BufferGeometry();
+_geometry.setAttribute( 'position', new Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
+_geometry.setAttribute( 'uv', new Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
+
+class FullScreenQuad {
+
+	constructor( material ) {
+
+		this._mesh = new Mesh( _geometry, material );
+
+	}
+
+	dispose() {
+
+		this._mesh.geometry.dispose();
+
+	}
+
+	render( renderer ) {
+
+		renderer.render( this._mesh, _camera );
+
+	}
+
+	get material() {
+
+		return this._mesh.material;
+
+	}
+
+	set material( value ) {
+
+		this._mesh.material = value;
+
+	}
+
+}
+
+class ShaderPass extends Pass {
+
+	constructor( shader, textureID ) {
+
+		super();
+
+		this.textureID = ( textureID !== undefined ) ? textureID : 'tDiffuse';
+
+		if ( shader instanceof ShaderMaterial ) {
+
+			this.uniforms = shader.uniforms;
+
+			this.material = shader;
+
+		} else if ( shader ) {
+
+			this.uniforms = UniformsUtils.clone( shader.uniforms );
+
+			this.material = new ShaderMaterial( {
+
+				defines: Object.assign( {}, shader.defines ),
+				uniforms: this.uniforms,
+				vertexShader: shader.vertexShader,
+				fragmentShader: shader.fragmentShader
+
+			} );
+
+		}
+
+		this.fsQuad = new FullScreenQuad( this.material );
+
+	}
+
+	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
+		if ( this.uniforms[ this.textureID ] ) {
+
+			this.uniforms[ this.textureID ].value = readBuffer.texture;
+
+		}
+
+		this.fsQuad.material = this.material;
+
+		if ( this.renderToScreen ) {
+
+			renderer.setRenderTarget( null );
+			this.fsQuad.render( renderer );
+
+		} else {
+
+			renderer.setRenderTarget( writeBuffer );
+			// TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
+			if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
+			this.fsQuad.render( renderer );
+
+		}
+
+	}
+
+	dispose() {
+
+		this.material.dispose();
+
+		this.fsQuad.dispose();
+
+	}
+
+}
+
+class MaskPass extends Pass {
+
+	constructor( scene, camera ) {
+
+		super();
+
+		this.scene = scene;
+		this.camera = camera;
+
+		this.clear = true;
+		this.needsSwap = false;
+
+		this.inverse = false;
+
+	}
+
+	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
+		const context = renderer.getContext();
+		const state = renderer.state;
+
+		// don't update color or depth
+
+		state.buffers.color.setMask( false );
+		state.buffers.depth.setMask( false );
+
+		// lock buffers
+
+		state.buffers.color.setLocked( true );
+		state.buffers.depth.setLocked( true );
+
+		// set up stencil
+
+		let writeValue, clearValue;
+
+		if ( this.inverse ) {
+
+			writeValue = 0;
+			clearValue = 1;
+
+		} else {
+
+			writeValue = 1;
+			clearValue = 0;
+
+		}
+
+		state.buffers.stencil.setTest( true );
+		state.buffers.stencil.setOp( context.REPLACE, context.REPLACE, context.REPLACE );
+		state.buffers.stencil.setFunc( context.ALWAYS, writeValue, 0xffffffff );
+		state.buffers.stencil.setClear( clearValue );
+		state.buffers.stencil.setLocked( true );
+
+		// draw into the stencil buffer
+
+		renderer.setRenderTarget( readBuffer );
+		if ( this.clear ) renderer.clear();
+		renderer.render( this.scene, this.camera );
+
+		renderer.setRenderTarget( writeBuffer );
+		if ( this.clear ) renderer.clear();
+		renderer.render( this.scene, this.camera );
+
+		// unlock color and depth buffer for subsequent rendering
+
+		state.buffers.color.setLocked( false );
+		state.buffers.depth.setLocked( false );
+
+		// only render where stencil is set to 1
+
+		state.buffers.stencil.setLocked( false );
+		state.buffers.stencil.setFunc( context.EQUAL, 1, 0xffffffff ); // draw if == 1
+		state.buffers.stencil.setOp( context.KEEP, context.KEEP, context.KEEP );
+		state.buffers.stencil.setLocked( true );
+
+	}
+
+}
+
+class ClearMaskPass extends Pass {
+
+	constructor() {
+
+		super();
+
+		this.needsSwap = false;
+
+	}
+
+	render( renderer /*, writeBuffer, readBuffer, deltaTime, maskActive */ ) {
+
+		renderer.state.buffers.stencil.setLocked( false );
+		renderer.state.buffers.stencil.setTest( false );
+
+	}
+
+}
+
+class EffectComposer {
+
+	constructor( renderer, renderTarget ) {
+
+		this.renderer = renderer;
+
+		this._pixelRatio = renderer.getPixelRatio();
+
+		if ( renderTarget === undefined ) {
+
+			const size = renderer.getSize( new Vector2$1() );
+			this._width = size.width;
+			this._height = size.height;
+
+			renderTarget = new WebGLRenderTarget( this._width * this._pixelRatio, this._height * this._pixelRatio );
+			renderTarget.texture.name = 'EffectComposer.rt1';
+
+		} else {
+
+			this._width = renderTarget.width;
+			this._height = renderTarget.height;
+
+		}
+
+		this.renderTarget1 = renderTarget;
+		this.renderTarget2 = renderTarget.clone();
+		this.renderTarget2.texture.name = 'EffectComposer.rt2';
+
+		this.writeBuffer = this.renderTarget1;
+		this.readBuffer = this.renderTarget2;
+
+		this.renderToScreen = true;
+
+		this.passes = [];
+
+		this.copyPass = new ShaderPass( CopyShader );
+
+		this.clock = new Clock();
+
+	}
+
+	swapBuffers() {
+
+		const tmp = this.readBuffer;
+		this.readBuffer = this.writeBuffer;
+		this.writeBuffer = tmp;
+
+	}
+
+	addPass( pass ) {
+
+		this.passes.push( pass );
+		pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+	}
+
+	insertPass( pass, index ) {
+
+		this.passes.splice( index, 0, pass );
+		pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+	}
+
+	removePass( pass ) {
+
+		const index = this.passes.indexOf( pass );
+
+		if ( index !== - 1 ) {
+
+			this.passes.splice( index, 1 );
+
+		}
+
+	}
+
+	isLastEnabledPass( passIndex ) {
+
+		for ( let i = passIndex + 1; i < this.passes.length; i ++ ) {
+
+			if ( this.passes[ i ].enabled ) {
+
+				return false;
+
+			}
+
+		}
+
+		return true;
+
+	}
+
+	render( deltaTime ) {
+
+		// deltaTime value is in seconds
+
+		if ( deltaTime === undefined ) {
+
+			deltaTime = this.clock.getDelta();
+
+		}
+
+		const currentRenderTarget = this.renderer.getRenderTarget();
+
+		let maskActive = false;
+
+		for ( let i = 0, il = this.passes.length; i < il; i ++ ) {
+
+			const pass = this.passes[ i ];
+
+			if ( pass.enabled === false ) continue;
+
+			pass.renderToScreen = ( this.renderToScreen && this.isLastEnabledPass( i ) );
+			pass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime, maskActive );
+
+			if ( pass.needsSwap ) {
+
+				if ( maskActive ) {
+
+					const context = this.renderer.getContext();
+					const stencil = this.renderer.state.buffers.stencil;
+
+					//context.stencilFunc( context.NOTEQUAL, 1, 0xffffffff );
+					stencil.setFunc( context.NOTEQUAL, 1, 0xffffffff );
+
+					this.copyPass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime );
+
+					//context.stencilFunc( context.EQUAL, 1, 0xffffffff );
+					stencil.setFunc( context.EQUAL, 1, 0xffffffff );
+
+				}
+
+				this.swapBuffers();
+
+			}
+
+			if ( MaskPass !== undefined ) {
+
+				if ( pass instanceof MaskPass ) {
+
+					maskActive = true;
+
+				} else if ( pass instanceof ClearMaskPass ) {
+
+					maskActive = false;
+
+				}
+
+			}
+
+		}
+
+		this.renderer.setRenderTarget( currentRenderTarget );
+
+	}
+
+	reset( renderTarget ) {
+
+		if ( renderTarget === undefined ) {
+
+			const size = this.renderer.getSize( new Vector2$1() );
+			this._pixelRatio = this.renderer.getPixelRatio();
+			this._width = size.width;
+			this._height = size.height;
+
+			renderTarget = this.renderTarget1.clone();
+			renderTarget.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+		}
+
+		this.renderTarget1.dispose();
+		this.renderTarget2.dispose();
+		this.renderTarget1 = renderTarget;
+		this.renderTarget2 = renderTarget.clone();
+
+		this.writeBuffer = this.renderTarget1;
+		this.readBuffer = this.renderTarget2;
+
+	}
+
+	setSize( width, height ) {
+
+		this._width = width;
+		this._height = height;
+
+		const effectiveWidth = this._width * this._pixelRatio;
+		const effectiveHeight = this._height * this._pixelRatio;
+
+		this.renderTarget1.setSize( effectiveWidth, effectiveHeight );
+		this.renderTarget2.setSize( effectiveWidth, effectiveHeight );
+
+		for ( let i = 0; i < this.passes.length; i ++ ) {
+
+			this.passes[ i ].setSize( effectiveWidth, effectiveHeight );
+
+		}
+
+	}
+
+	setPixelRatio( pixelRatio ) {
+
+		this._pixelRatio = pixelRatio;
+
+		this.setSize( this._width, this._height );
+
+	}
+
+	dispose() {
+
+		this.renderTarget1.dispose();
+		this.renderTarget2.dispose();
+
+		this.copyPass.dispose();
+
+	}
+
+}
+
+class RenderPass extends Pass {
+
+	constructor( scene, camera, overrideMaterial, clearColor, clearAlpha ) {
+
+		super();
+
+		this.scene = scene;
+		this.camera = camera;
+
+		this.overrideMaterial = overrideMaterial;
+
+		this.clearColor = clearColor;
+		this.clearAlpha = ( clearAlpha !== undefined ) ? clearAlpha : 0;
+
+		this.clear = true;
+		this.clearDepth = false;
+		this.needsSwap = false;
+		this._oldClearColor = new Color();
+
+	}
+
+	render( renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */ ) {
+
+		const oldAutoClear = renderer.autoClear;
+		renderer.autoClear = false;
+
+		let oldClearAlpha, oldOverrideMaterial;
+
+		if ( this.overrideMaterial !== undefined ) {
+
+			oldOverrideMaterial = this.scene.overrideMaterial;
+
+			this.scene.overrideMaterial = this.overrideMaterial;
+
+		}
+
+		if ( this.clearColor ) {
+
+			renderer.getClearColor( this._oldClearColor );
+			oldClearAlpha = renderer.getClearAlpha();
+
+			renderer.setClearColor( this.clearColor, this.clearAlpha );
+
+		}
+
+		if ( this.clearDepth ) {
+
+			renderer.clearDepth();
+
+		}
+
+		renderer.setRenderTarget( this.renderToScreen ? null : readBuffer );
+
+		// TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
+		if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
+		renderer.render( this.scene, this.camera );
+
+		if ( this.clearColor ) {
+
+			renderer.setClearColor( this._oldClearColor, oldClearAlpha );
+
+		}
+
+		if ( this.overrideMaterial !== undefined ) {
+
+			this.scene.overrideMaterial = oldOverrideMaterial;
+
+		}
+
+		renderer.autoClear = oldAutoClear;
+
+	}
+
+}
+
+/**
+ * postprocessing v6.31.0 build Sun May 07 2023
+ * https://github.com/pmndrs/postprocessing
+ * Copyright 2015-2023 Raoul van Rüschen
+ * @license Zlib
+ */
+
+
+// src/utils/BackCompat.js
+Number(REVISION.replace(/\D+/g, ""));
+new Camera();
+new Color();
+
+// src/effects/GodRaysEffect.js
+new Vector3$1();
+new Matrix4();
+
+// src/textures/lut/LookupTexture.js
+new Color();
+new Vector3$1();
+new Vector3$1();
+
+const $e4ca8dcb0218f846$var$_geometry = new BufferGeometry();
+$e4ca8dcb0218f846$var$_geometry.setAttribute("position", new BufferAttribute$1(new Float32Array([
+    -1,
+    -1,
+    3,
+    -1,
+    -1,
+    3
+]), 2));
+$e4ca8dcb0218f846$var$_geometry.setAttribute("uv", new BufferAttribute$1(new Float32Array([
+    0,
+    0,
+    2,
+    0,
+    0,
+    2
+]), 2));
+// Recent three.js versions break setDrawRange or itemSize <3 position
+$e4ca8dcb0218f846$var$_geometry.boundingSphere = new Sphere();
+$e4ca8dcb0218f846$var$_geometry.computeBoundingSphere = function() {};
+const $e4ca8dcb0218f846$var$_camera = new OrthographicCamera();
+class $e4ca8dcb0218f846$export$dcd670d73db751f5 {
+    constructor(material){
+        this._mesh = new Mesh($e4ca8dcb0218f846$var$_geometry, material);
+        this._mesh.frustumCulled = false;
+    }
+    render(renderer) {
+        renderer.render(this._mesh, $e4ca8dcb0218f846$var$_camera);
+    }
+    get material() {
+        return this._mesh.material;
+    }
+    set material(value) {
+        this._mesh.material = value;
+    }
+    dispose() {
+        this._mesh.material.dispose();
+        this._mesh.geometry.dispose();
+    }
+}
+
+
+
+const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
+    uniforms: {
+        "sceneDiffuse": {
+            value: null
+        },
+        "sceneDepth": {
+            value: null
+        },
+        "sceneNormal": {
+            value: null
+        },
+        "projMat": {
+            value: new Matrix4()
+        },
+        "viewMat": {
+            value: new Matrix4()
+        },
+        "projViewMat": {
+            value: new Matrix4()
+        },
+        "projectionMatrixInv": {
+            value: new Matrix4()
+        },
+        "viewMatrixInv": {
+            value: new Matrix4()
+        },
+        "cameraPos": {
+            value: new Vector3$1()
+        },
+        "resolution": {
+            value: new Vector2$1()
+        },
+        "time": {
+            value: 0.0
+        },
+        "samples": {
+            value: []
+        },
+        "samplesR": {
+            value: []
+        },
+        "bluenoise": {
+            value: null
+        },
+        "distanceFalloff": {
+            value: 1.0
+        },
+        "radius": {
+            value: 5.0
+        },
+        "near": {
+            value: 0.1
+        },
+        "far": {
+            value: 1000.0
+        },
+        "logDepth": {
+            value: false
+        },
+        "ortho": {
+            value: false
+        },
+        "screenSpaceRadius": {
+            value: false
+        }
+    },
+    vertexShader: /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position, 1);
+}`,
+    fragmentShader: /* glsl */ `
+    #define SAMPLES 16
+    #define FSAMPLES 16.0
+uniform sampler2D sceneDiffuse;
+uniform sampler2D sceneNormal;
+uniform highp sampler2D sceneDepth;
+uniform mat4 projectionMatrixInv;
+uniform mat4 viewMatrixInv;
+uniform mat4 projMat;
+uniform mat4 viewMat;
+uniform mat4 projViewMat;
+uniform vec3 cameraPos;
+uniform vec2 resolution;
+uniform float time;
+uniform vec3[SAMPLES] samples;
+uniform float[SAMPLES] samplesR;
+uniform float radius;
+uniform float distanceFalloff;
+uniform float near;
+uniform float far;
+uniform bool logDepth;
+uniform bool ortho;
+uniform bool screenSpaceRadius;
+uniform sampler2D bluenoise;
+    varying vec2 vUv;
+    highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
+    {
+        return (zFar * zNear) / (zFar - d * (zFar - zNear));
+    }
+    highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
+      return nearZ + (farZ - nearZ) * d;
+    }
+    highp float linearize_depth_log(highp float d, highp float nearZ,highp float farZ) {
+      float depth = pow(2.0, d * log2(farZ + 1.0)) - 1.0;
+      float a = farZ / (farZ - nearZ);
+      float b = farZ * nearZ / (nearZ - farZ);
+      float linDepth = a + b / depth;
+      return ortho ? linearize_depth_ortho(
+        linDepth,
+        nearZ,
+        farZ
+      ) :linearize_depth(linDepth, nearZ, farZ);
+    }
+
+    vec3 getWorldPosLog(vec3 posS) {
+      vec2 uv = posS.xy;
+      float z = posS.z;
+      float nearZ =near;
+      float farZ = far;
+      float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
+      float a = farZ / (farZ - nearZ);
+      float b = farZ * nearZ / (nearZ - farZ);
+      float linDepth = a + b / depth;
+      vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
+      vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+      return wpos.xyz / wpos.w;
+    }
+    vec3 getWorldPos(float depth, vec2 coord) {
+      #ifdef LOGDEPTH
+        return getWorldPosLog(vec3(coord, depth));
+      #endif
+      float z = depth * 2.0 - 1.0;
+      vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
+      vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+      // Perspective division
+     vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+     worldSpacePosition.xyz /= worldSpacePosition.w;
+      return worldSpacePosition.xyz;
+  }
+
+  vec3 computeNormal(vec3 worldPos, vec2 vUv) {
+    ivec2 p = ivec2(vUv * resolution);
+    float c0 = texelFetch(sceneDepth, p, 0).x;
+    float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+    float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+    float r1 = texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+    float r2 = texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+    float b2 = texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+    float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+    float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+    float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+
+    float dl = abs((2.0 * l1 - l2) - c0);
+    float dr = abs((2.0 * r1 - r2) - c0);
+    float db = abs((2.0 * b1 - b2) - c0);
+    float dt = abs((2.0 * t1 - t2) - c0);
+
+    vec3 ce = getWorldPos(c0, vUv).xyz;
+
+    vec3 dpdx = (dl < dr) ? ce - getWorldPos(l1, (vUv - vec2(1.0 / resolution.x, 0.0))).xyz
+                          : -ce + getWorldPos(r1, (vUv + vec2(1.0 / resolution.x, 0.0))).xyz;
+    vec3 dpdy = (db < dt) ? ce - getWorldPos(b1, (vUv - vec2(0.0, 1.0 / resolution.y))).xyz
+                          : -ce + getWorldPos(t1, (vUv + vec2(0.0, 1.0 / resolution.y))).xyz;
+
+    return normalize(cross(dpdx, dpdy));
+}
+
+void main() {
+      vec4 diffuse = texture2D(sceneDiffuse, vUv);
+      float depth = texture2D(sceneDepth, vUv).x;
+      if (depth == 1.0) {
+        gl_FragColor = vec4(vec3(1.0), 1.0);
+        return;
+      }
+      vec3 worldPos = getWorldPos(depth, vUv);
+    //  vec3 normal = texture2D(sceneNormal, vUv).rgb;//computeNormal(worldPos, vUv);
+      #ifdef HALFRES
+        vec3 normal = texture2D(sceneNormal, vUv).rgb;
+      #else
+        vec3 normal = computeNormal(worldPos, vUv);
+      #endif
+      vec4 noise = texture2D(bluenoise, gl_FragCoord.xy / 128.0);
+      vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
+      vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+      vec3 bitangent = cross(normal, tangent);
+      mat3 tbn = mat3(tangent, bitangent, normal);
+      float occluded = 0.0;
+      float totalWeight = 0.0;
+     /* float radiusScreen = distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(48.0, 0.0) / resolution)
+      );/*vUv.x < 0.5 ? radius : min(distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(100.0, 0.0) / resolution)
+      ), radius);
+      float distanceFalloffScreen = radiusScreen * 0.2;*/
+      float radiusToUse = screenSpaceRadius ? distance(
+        worldPos,
+        getWorldPos(depth, vUv +
+          vec2(radius, 0.0) / resolution)
+      ) : radius;
+      float distanceFalloffToUse =screenSpaceRadius ?
+          radiusToUse * distanceFalloff
+      : distanceFalloff;
+      float bias = (0.1 / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
+      for(float i = 0.0; i < FSAMPLES; i++) {
+        vec3 sampleDirection = 
+        tbn * 
+        samples[int(i)];
+        ;
+        float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
+        vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
+        vec4 offset = projViewMat * vec4(samplePos, 1.0);
+        offset.xyz /= offset.w;
+        offset.xyz = offset.xyz * 0.5 + 0.5;
+        float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+        /*float distSample = logDepth ? linearize_depth_log(sampleDepth, near, far) 
+         (ortho ?  linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far));*/
+        #ifdef LOGDEPTH
+        float distSample = linearize_depth_log(sampleDepth, near, far);
+        #else
+        float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
+        #endif
+        float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
+        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
+        vec2 diff = gl_FragCoord.xy - ( offset.xy * resolution);
+        float weight = dot(sampleDirection, normal);
+          occluded += rangeCheck * weight * 
+            (distSample + bias
+               < distWorld ? 1.0 : 0.0) * (
+          (dot(
+            diff,
+            diff
+             
+            ) < 1.0 || (sampleDepth == depth) || (
+              offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0
+            ) ? 0.0 : 1.0)
+          );
+          totalWeight += weight;
+      }
+      float occ = clamp(1.0 - occluded / totalWeight, 0.0, 1.0);
+      gl_FragColor = vec4(0.5 + 0.5 * normal, occ);
+}`
+};
+
+
+
+const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
+    uniforms: {
+        "sceneDiffuse": {
+            value: null
+        },
+        "sceneDepth": {
+            value: null
+        },
+        "tDiffuse": {
+            value: null
+        },
+        "projMat": {
+            value: new Matrix4()
+        },
+        "viewMat": {
+            value: new Matrix4()
+        },
+        "projectionMatrixInv": {
+            value: new Matrix4()
+        },
+        "viewMatrixInv": {
+            value: new Matrix4()
+        },
+        "cameraPos": {
+            value: new Vector3$1()
+        },
+        "resolution": {
+            value: new Vector2$1()
+        },
+        "color": {
+            value: new Vector3$1(0, 0, 0)
+        },
+        "blueNoise": {
+            value: null
+        },
+        "downsampledDepth": {
+            value: null
+        },
+        "time": {
+            value: 0.0
+        },
+        "intensity": {
+            value: 10.0
+        },
+        "renderMode": {
+            value: 0.0
+        },
+        "gammaCorrection": {
+            value: false
+        },
+        "logDepth": {
+            value: false
+        },
+        "ortho": {
+            value: false
+        },
+        "near": {
+            value: 0.1
+        },
+        "far": {
+            value: 1000.0
+        },
+        "screenSpaceRadius": {
+            value: false
+        },
+        "radius": {
+            value: 0.0
+        },
+        "distanceFalloff": {
+            value: 1.0
+        }
+    },
+    vertexShader: /* glsl */ `
+		varying vec2 vUv;
+		void main() {
+			vUv = uv;
+			gl_Position = vec4(position, 1);
+		}`,
+    fragmentShader: /* glsl */ `
+		uniform sampler2D sceneDiffuse;
+    uniform sampler2D sceneDepth;
+    uniform sampler2D downsampledDepth;
+    uniform sampler2D tDiffuse;
+    uniform sampler2D blueNoise;
+    uniform vec2 resolution;
+    uniform vec3 color;
+    uniform mat4 projectionMatrixInv;
+    uniform mat4 viewMatrixInv;
+    uniform float intensity;
+    uniform float renderMode;
+    uniform float near;
+    uniform float far;
+    uniform bool gammaCorrection;
+    uniform bool logDepth;
+    uniform bool ortho;
+    uniform bool screenSpaceRadius;
+    uniform float radius;
+    uniform float distanceFalloff;
+    varying vec2 vUv;
+    highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
+    {
+        return (zFar * zNear) / (zFar - d * (zFar - zNear));
+    }
+    highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
+      return nearZ + (farZ - nearZ) * d;
+    }
+    highp float linearize_depth_log(highp float d, highp float nearZ,highp float farZ) {
+      float depth = pow(2.0, d * log2(farZ + 1.0)) - 1.0;
+      float a = farZ / (farZ - nearZ);
+      float b = farZ * nearZ / (nearZ - farZ);
+      float linDepth = a + b / depth;
+      return ortho ? linearize_depth_ortho(
+        linDepth,
+        nearZ,
+        farZ
+      ) :linearize_depth(linDepth, nearZ, farZ);
+    }
+    vec3 getWorldPosLog(vec3 posS) {
+        vec2 uv = posS.xy;
+        float z = posS.z;
+        float nearZ =near;
+        float farZ = far;
+        float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
+        float a = farZ / (farZ - nearZ);
+        float b = farZ * nearZ / (nearZ - farZ);
+        float linDepth = a + b / depth;
+        vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
+        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+        return wpos.xyz / wpos.w;
+      }
+      vec3 getWorldPos(float depth, vec2 coord) {
+       // if (logDepth) {
+        #ifdef LOGDEPTH
+          return getWorldPosLog(vec3(coord, depth));
+        #endif
+      //  }
+        float z = depth * 2.0 - 1.0;
+        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
+        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+        // Perspective division
+       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+       worldSpacePosition.xyz /= worldSpacePosition.w;
+        return worldSpacePosition.xyz;
+    }
+  
+    vec3 computeNormal(vec3 worldPos, vec2 vUv) {
+      ivec2 p = ivec2(vUv * resolution);
+      float c0 = texelFetch(sceneDepth, p, 0).x;
+      float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+      float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+      float r1 = texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+      float r2 = texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+      float b2 = texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+      float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+      float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+      float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+  
+      float dl = abs((2.0 * l1 - l2) - c0);
+      float dr = abs((2.0 * r1 - r2) - c0);
+      float db = abs((2.0 * b1 - b2) - c0);
+      float dt = abs((2.0 * t1 - t2) - c0);
+  
+      vec3 ce = getWorldPos(c0, vUv).xyz;
+  
+      vec3 dpdx = (dl < dr) ? ce - getWorldPos(l1, (vUv - vec2(1.0 / resolution.x, 0.0))).xyz
+                            : -ce + getWorldPos(r1, (vUv + vec2(1.0 / resolution.x, 0.0))).xyz;
+      vec3 dpdy = (db < dt) ? ce - getWorldPos(b1, (vUv - vec2(0.0, 1.0 / resolution.y))).xyz
+                            : -ce + getWorldPos(t1, (vUv + vec2(0.0, 1.0 / resolution.y))).xyz;
+  
+      return normalize(cross(dpdx, dpdy));
+  }
+
+    #include <common>
+    #include <dithering_pars_fragment>
+    void main() {
+        //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
+        vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
+
+        #ifdef HALFRES 
+        float depth = texture2D(
+            sceneDepth,
+            vUv
+        ).x;
+        vec4 texel;
+        if (depth == 1.0) {
+            texel = vec4(0.0, 0.0, 0.0, 1.0);
+        } else {
+        vec3 worldPos = getWorldPos(depth, vUv);
+        vec3 normal = computeNormal(getWorldPos(depth, vUv), vUv);
+       // vec4 texel = texture2D(tDiffuse, vUv);
+       // Find closest depth;
+       float totalWeight = 0.0;
+       float radiusToUse = screenSpaceRadius ? distance(
+        worldPos,
+        getWorldPos(depth, vUv +
+          vec2(radius, 0.0) / resolution)
+      ) : radius;
+      float distanceFalloffToUse =screenSpaceRadius ?
+          radiusToUse * distanceFalloff
+      : distanceFalloff;
+        for(float x = -1.0; x <= 1.0; x++) {
+            for(float y = -1.0; y <= 1.0; y++) {
+                vec2 offset = vec2(x, y);
+                ivec2 p = ivec2(
+                    (vUv * resolution * 0.5) + offset
+                );
+                vec2 pUv = vec2(p) / (resolution * 0.5);
+                float sampleDepth = texelFetch(downsampledDepth,p, 0).x;
+                vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
+                vec3 normalSample = sampleInfo.xyz * 2.0 - 1.0;
+                vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
+                float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
+                float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
+                float weight = rangeCheck;
+                totalWeight += weight;
+                texel += sampleInfo * weight;
+            }
+        }
+        if (totalWeight == 0.0) {
+            texel = texture2D(tDiffuse, vUv);
+        } else {
+            texel /= totalWeight;
+        }
+    }
+        #else
+        vec4 texel = texture2D(tDiffuse, vUv);
+        #endif
+
+     
+        float finalAo = pow(texel.a, intensity);
+        if (renderMode == 0.0) {
+            gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+        } else if (renderMode == 1.0) {
+            gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+        } else if (renderMode == 2.0) {
+            gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
+        } else if (renderMode == 3.0) {
+            if (vUv.x < 0.5) {
+                gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
+            } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
+                gl_FragColor = vec4(1.0);
+            } else {
+                gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            }
+        } else if (renderMode == 4.0) {
+            if (vUv.x < 0.5) {
+                gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
+            } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
+                gl_FragColor = vec4(1.0);
+            } else {
+                gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            }
+        }
+        #include <dithering_fragment>
+        if (gammaCorrection) {
+            gl_FragColor = LinearTosRGB(gl_FragColor);
+        }
+    }
+    `
+};
+
+
+
+const $e52378cd0f5a973d$export$57856b59f317262e = {
+    uniforms: {
+        "sceneDiffuse": {
+            value: null
+        },
+        "sceneDepth": {
+            value: null
+        },
+        "tDiffuse": {
+            value: null
+        },
+        "projMat": {
+            value: new Matrix4()
+        },
+        "viewMat": {
+            value: new Matrix4()
+        },
+        "projectionMatrixInv": {
+            value: new Matrix4()
+        },
+        "viewMatrixInv": {
+            value: new Matrix4()
+        },
+        "cameraPos": {
+            value: new Vector3$1()
+        },
+        "resolution": {
+            value: new Vector2$1()
+        },
+        "time": {
+            value: 0.0
+        },
+        "r": {
+            value: 5.0
+        },
+        "blueNoise": {
+            value: null
+        },
+        "radius": {
+            value: 12.0
+        },
+        "worldRadius": {
+            value: 5.0
+        },
+        "index": {
+            value: 0.0
+        },
+        "poissonDisk": {
+            value: []
+        },
+        "distanceFalloff": {
+            value: 1.0
+        },
+        "near": {
+            value: 0.1
+        },
+        "far": {
+            value: 1000.0
+        },
+        "logDepth": {
+            value: false
+        },
+        "screenSpaceRadius": {
+            value: false
+        }
+    },
+    vertexShader: /* glsl */ `
+		varying vec2 vUv;
+		void main() {
+			vUv = uv;
+			gl_Position = vec4(position, 1.0);
+		}`,
+    fragmentShader: /* glsl */ `
+		uniform sampler2D sceneDiffuse;
+    uniform highp sampler2D sceneDepth;
+    uniform sampler2D tDiffuse;
+    uniform sampler2D blueNoise;
+    uniform mat4 projectionMatrixInv;
+    uniform mat4 viewMatrixInv;
+    uniform vec2 resolution;
+    uniform float r;
+    uniform float radius;
+     uniform float worldRadius;
+    uniform float index;
+     uniform float near;
+     uniform float far;
+     uniform float distanceFalloff;
+     uniform bool logDepth;
+     uniform bool screenSpaceRadius;
+    varying vec2 vUv;
+
+    highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
+    {
+        highp float z_n = 2.0 * d - 1.0;
+        return 2.0 * zNear * zFar / (zFar + zNear - z_n * (zFar - zNear));
+    }
+    highp float linearize_depth_log(highp float d, highp float nearZ,highp float farZ) {
+     float depth = pow(2.0, d * log2(farZ + 1.0)) - 1.0;
+     float a = farZ / (farZ - nearZ);
+     float b = farZ * nearZ / (nearZ - farZ);
+     float linDepth = a + b / depth;
+     return linearize_depth(linDepth, nearZ, farZ);
+   }
+   highp float linearize_depth_ortho(highp float d, highp float nearZ, highp float farZ) {
+     return nearZ + (farZ - nearZ) * d;
+   }
+   vec3 getWorldPosLog(vec3 posS) {
+     vec2 uv = posS.xy;
+     float z = posS.z;
+     float nearZ =near;
+     float farZ = far;
+     float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
+     float a = farZ / (farZ - nearZ);
+     float b = farZ * nearZ / (nearZ - farZ);
+     float linDepth = a + b / depth;
+     vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
+     vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+     return wpos.xyz / wpos.w;
+   }
+    vec3 getWorldPos(float depth, vec2 coord) {
+     #ifdef LOGDEPTH
+          return getWorldPosLog(vec3(coord, depth));
+     #endif
+        
+        float z = depth * 2.0 - 1.0;
+        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
+        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+        // Perspective division
+       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+       worldSpacePosition.xyz /= worldSpacePosition.w;
+        return worldSpacePosition.xyz;
+    }
+    #include <common>
+    #define NUM_SAMPLES 16
+    uniform vec2 poissonDisk[NUM_SAMPLES];
+    void main() {
+        const float pi = 3.14159;
+        vec2 texelSize = vec2(1.0 / resolution.x, 1.0 / resolution.y);
+        vec2 uv = vUv;
+        vec4 data = texture2D(tDiffuse, vUv);
+        float occlusion = data.a;
+        float baseOcc = data.a;
+        vec3 normal = data.rgb * 2.0 - 1.0;
+        float count = 1.0;
+        float d = texture2D(sceneDepth, vUv).x;
+        vec3 worldPos = getWorldPos(d, vUv);
+        float size = radius;
+        float angle;
+        if (index == 0.0) {
+             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).x * PI2;
+        } else if (index == 1.0) {
+             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).y * PI2;
+        } else if (index == 2.0) {
+             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).z * PI2;
+        } else {
+             angle = texture2D(blueNoise, gl_FragCoord.xy / 128.0).w * PI2;
+        }
+
+        mat2 rotationMatrix = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+        float radiusToUse = screenSpaceRadius ? distance(
+          worldPos,
+          getWorldPos(d, vUv +
+            vec2(worldRadius, 0.0) / resolution)
+        ) : worldRadius;
+        float distanceFalloffToUse =screenSpaceRadius ?
+            radiusToUse * distanceFalloff
+        : distanceFalloff;
+
+
+        for(int i = 0; i < NUM_SAMPLES; i++) {
+            vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
+            vec4 dataSample = texture2D(tDiffuse, uv + offset);
+            float occSample = dataSample.a;
+            vec3 normalSample = dataSample.rgb * 2.0 - 1.0;
+            float dSample = texture2D(sceneDepth, uv + offset).x;
+            vec3 worldPosSample = getWorldPos(dSample, uv + offset);
+            float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
+            float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
+            occlusion += occSample * rangeCheck;
+            count += rangeCheck;
+        }
+        occlusion /= count;
+        gl_FragColor = vec4(0.5 + 0.5 * normal, occlusion);
+    }
+    `
+};
+
+
+
+const $26aca173e0984d99$export$1efdf491687cd442 = {
+    uniforms: {
+        "sceneDepth": {
+            value: null
+        },
+        "resolution": {
+            value: new Vector2$1()
+        },
+        "near": {
+            value: 0.1
+        },
+        "far": {
+            value: 1000.0
+        },
+        "viewMatrixInv": {
+            value: new Matrix4()
+        },
+        "projectionMatrixInv": {
+            value: new Matrix4()
+        },
+        "logDepth": {
+            value: false
+        }
+    },
+    vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = vec4(position, 1);
+    }`,
+    fragmentShader: /* glsl */ `
+    uniform sampler2D sceneDepth;
+    uniform vec2 resolution;
+    uniform float near;
+    uniform float far;
+    uniform bool logDepth;
+    uniform mat4 viewMatrixInv;
+    uniform mat4 projectionMatrixInv;
+    varying vec2 vUv;
+    layout(location = 1) out vec4 gNormal;
+    vec3 getWorldPosLog(vec3 posS) {
+        vec2 uv = posS.xy;
+        float z = posS.z;
+        float nearZ =near;
+        float farZ = far;
+        float depth = pow(2.0, z * log2(farZ + 1.0)) - 1.0;
+        float a = farZ / (farZ - nearZ);
+        float b = farZ * nearZ / (nearZ - farZ);
+        float linDepth = a + b / depth;
+        vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
+        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+        return wpos.xyz / wpos.w;
+      }
+      vec3 getWorldPos(float depth, vec2 coord) {
+        if (logDepth) {
+          return getWorldPosLog(vec3(coord, depth));
+        }
+        float z = depth * 2.0 - 1.0;
+        vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
+        vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
+        // Perspective division
+       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+       worldSpacePosition.xyz /= worldSpacePosition.w;
+        return worldSpacePosition.xyz;
+    }
+  
+    vec3 computeNormal(vec3 worldPos, vec2 vUv) {
+      ivec2 p = ivec2(vUv * resolution);
+      float c0 = texelFetch(sceneDepth, p, 0).x;
+      float l2 = texelFetch(sceneDepth, p - ivec2(2, 0), 0).x;
+      float l1 = texelFetch(sceneDepth, p - ivec2(1, 0), 0).x;
+      float r1 = texelFetch(sceneDepth, p + ivec2(1, 0), 0).x;
+      float r2 = texelFetch(sceneDepth, p + ivec2(2, 0), 0).x;
+      float b2 = texelFetch(sceneDepth, p - ivec2(0, 2), 0).x;
+      float b1 = texelFetch(sceneDepth, p - ivec2(0, 1), 0).x;
+      float t1 = texelFetch(sceneDepth, p + ivec2(0, 1), 0).x;
+      float t2 = texelFetch(sceneDepth, p + ivec2(0, 2), 0).x;
+  
+      float dl = abs((2.0 * l1 - l2) - c0);
+      float dr = abs((2.0 * r1 - r2) - c0);
+      float db = abs((2.0 * b1 - b2) - c0);
+      float dt = abs((2.0 * t1 - t2) - c0);
+  
+      vec3 ce = getWorldPos(c0, vUv).xyz;
+  
+      vec3 dpdx = (dl < dr) ? ce - getWorldPos(l1, (vUv - vec2(1.0 / resolution.x, 0.0))).xyz
+                            : -ce + getWorldPos(r1, (vUv + vec2(1.0 / resolution.x, 0.0))).xyz;
+      vec3 dpdy = (db < dt) ? ce - getWorldPos(b1, (vUv - vec2(0.0, 1.0 / resolution.y))).xyz
+                            : -ce + getWorldPos(t1, (vUv + vec2(0.0, 1.0 / resolution.y))).xyz;
+  
+      return normalize(cross(dpdx, dpdy));
+  }
+    void main() {
+        vec2 uv = vUv - vec2(0.5) / resolution;
+        vec2 pixelSize = vec2(1.0) / resolution;
+        vec2[] uvSamples = vec2[4](
+            uv,
+            uv + vec2(pixelSize.x, 0.0),
+            uv + vec2(0.0, pixelSize.y),
+            uv + pixelSize
+        );
+        float depth00 = texture2D(sceneDepth, uvSamples[0]).r;
+        float depth10 = texture2D(sceneDepth, uvSamples[1]).r;
+        float depth01 = texture2D(sceneDepth, uvSamples[2]).r;
+        float depth11 = texture2D(sceneDepth, uvSamples[3]).r;
+        float minDepth = min(min(depth00, depth10), min(depth01, depth11));
+        float maxDepth = max(max(depth00, depth10), max(depth01, depth11));
+        float targetDepth = minDepth;
+        // Checkerboard pattern to avoid artifacts
+        if (mod(gl_FragCoord.x + gl_FragCoord.y, 2.0) > 0.5) { 
+            targetDepth = maxDepth;
+        }
+        int chosenIndex = 0;
+        float[] samples = float[4](depth00, depth10, depth01, depth11);
+        for(int i = 0; i < 4; ++i) {
+            if (samples[i] == targetDepth) {
+                chosenIndex = i;
+                break;
+            }
+        }
+        gl_FragColor = vec4(samples[chosenIndex], 0.0, 0.0, 1.0);
+        gNormal = vec4(computeNormal(
+            getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]), uvSamples[chosenIndex]
+        ), 0.0);
+       /* float[] samples = float[4](depth00, depth10, depth01, depth11);
+        float c = 0.25 * (depth00 + depth10 + depth01 + depth11);
+        float[] distances = float[4](depth00, depth10, depth01, depth11);
+        float maxDistance = max(max(distances[0], distances[1]), max(distances[2], distances[3]));
+
+        int remaining[3];
+        int rejected[3];
+        int i, j, k;
+
+        for(i = 0, j = 0, k = 0; i < 4; ++i) {
+            if (distances[i] < maxDistance) {
+                remaining[j++] = i;
+            } else {
+                rejected[k++] = i;
+            }
+        }
+        for(;j < 3;++j) {
+            remaining[j] = rejected[--k];
+        }
+        vec3 s = vec3(
+            samples[remaining[0]],
+            samples[remaining[1]],
+            samples[remaining[2]]
+        );
+        c = (s.x + s.y + s.z) / 3.0;
+
+        distances[0] = abs(c - s.x);
+        distances[1] = abs(c - s.y);
+        distances[2] = abs(c - s.z);
+
+        float minDistance = min(min(distances[0], distances[1]), distances[2]);
+
+        for(i = 0; i < 3; ++i) {
+            if (distances[i] == minDistance) {
+                break;
+            }
+        }*/
+      /*  gl_FragColor = vec4(samples[remaining[i]], 0.0, 0.0, 0.0);
+        gNormal = vec4(computeNormal(
+            getWorldPos(samples[remaining[i]], uvSamples[remaining[i]]), uvSamples[remaining[i]]
+        ), 0.0);*/
+    }`
+};
+
+
+
+
+
+
+
+
+
+var $06269ad78f3c5fdf$export$2e2bcd8739ae039 = `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`;
+
+
+Uint8Array.from(atob(($06269ad78f3c5fdf$export$2e2bcd8739ae039)), (c)=>c.charCodeAt(0));
+
+
+
+const $05f6997e4b65da14$var$bluenoiseBits = Uint8Array.from(atob(($06269ad78f3c5fdf$export$2e2bcd8739ae039)), (c)=>c.charCodeAt(0));
+/**
+ * 
+ * @param {*} timerQuery 
+ * @param {THREE.WebGLRenderer} gl 
+ * @param {N8AOPass} pass 
+ */ function $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, pass) {
+    const available = gl.getQueryParameter(timerQuery, gl.QUERY_RESULT_AVAILABLE);
+    if (available) {
+        const elapsedTimeInNs = gl.getQueryParameter(timerQuery, gl.QUERY_RESULT);
+        const elapsedTimeInMs = elapsedTimeInNs / 1000000;
+        pass.lastTime = elapsedTimeInMs;
+    } else // If the result is not available yet, check again after a delay
+    setTimeout(()=>{
+        $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, pass);
+    }, 1);
+}
+class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
+    /**
+     * 
+     * @param {THREE.Scene} scene
+     * @param {THREE.Camera} camera 
+     * @param {number} width 
+     * @param {number} height
+     *  
+     * @property {THREE.Scene} scene
+     * @property {THREE.Camera} camera
+     * @property {number} width
+     * @property {number} height
+     */ constructor(scene, camera, width = 512, height = 512){
+        super();
+        this.width = width;
+        this.height = height;
+        this.clear = true;
+        this.camera = camera;
+        this.scene = scene;
+        /**
+         * @type {Proxy & {
+         * aoSamples: number,
+         * aoRadius: number,
+         * denoiseSamples: number,
+         * denoiseRadius: number,
+         * distanceFalloff: number,
+         * intensity: number,
+         * denoiseIterations: number,
+         * renderMode: 0 | 1 | 2 | 3 | 4,
+         * color: THREE.Color,
+         * gammaCorrection: Boolean,
+         * logarithmicDepthBuffer: Boolean
+         * }
+         */ this.configuration = new Proxy({
+            aoSamples: 16,
+            aoRadius: 5.0,
+            denoiseSamples: 8,
+            denoiseRadius: 12,
+            distanceFalloff: 1.0,
+            intensity: 5,
+            denoiseIterations: 2.0,
+            renderMode: 0,
+            color: new Color(0, 0, 0),
+            gammaCorrection: true,
+            logarithmicDepthBuffer: false,
+            screenSpaceRadius: false,
+            halfRes: false,
+            depthAwareUpsampling: true
+        }, {
+            set: (target, propName, value)=>{
+                const oldProp = target[propName];
+                target[propName] = value;
+                if (propName === "aoSamples" && oldProp !== value) this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+                if (propName === "denoiseSamples" && oldProp !== value) this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
+                if (propName === "halfRes" && oldProp !== value) {
+                    this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+                    this.configureHalfResTargets();
+                    this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+                    this.setSize(this.width, this.height);
+                }
+                if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+                return true;
+            }
+        });
+        /** @type {THREE.Vector3[]} */ this.samples = [];
+        /** @type {number[]} */ this.samplesR = [];
+        /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
+        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+        this.configureSampleDependentPasses();
+        this.configureHalfResTargets();
+        //  this.effectCompisterQuad = new FullScreenTriangle(new THREE.ShaderMaterial(EffectCompositer));
+        this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
+            minFilter: LinearFilter,
+            magFilter: NearestFilter
+        });
+        this.beautyRenderTarget.depthTexture = new DepthTexture(this.width, this.height, UnsignedIntType);
+        this.beautyRenderTarget.depthTexture.format = DepthFormat;
+        this.writeTargetInternal = new WebGLRenderTarget(this.width, this.height, {
+            minFilter: LinearFilter,
+            magFilter: LinearFilter,
+            depthBuffer: false
+        });
+        this.readTargetInternal = new WebGLRenderTarget(this.width, this.height, {
+            minFilter: LinearFilter,
+            magFilter: LinearFilter,
+            depthBuffer: false
+        });
+        /** @type {THREE.DataTexture} */ this.bluenoise = new DataTexture($05f6997e4b65da14$var$bluenoiseBits, 128, 128);
+        this.bluenoise.colorSpace = NoColorSpace;
+        this.bluenoise.wrapS = RepeatWrapping;
+        this.bluenoise.wrapT = RepeatWrapping;
+        this.bluenoise.minFilter = NearestFilter;
+        this.bluenoise.magFilter = NearestFilter;
+        this.bluenoise.needsUpdate = true;
+        this.lastTime = 0;
+        this._r = new Vector2$1();
+        this._c = new Color();
+    }
+    configureHalfResTargets() {
+        if (this.configuration.halfRes) {
+            this.depthDownsampleTarget = /*new THREE.WebGLRenderTarget(this.width / 2, this.height / 2, {
+                               minFilter: THREE.NearestFilter,
+                               magFilter: THREE.NearestFilter,
+                               depthBuffer: false,
+                               format: THREE.RedFormat,
+                               type: THREE.FloatType
+                           });*/ new WebGLMultipleRenderTargets(this.width / 2, this.height / 2, 2);
+            this.depthDownsampleTarget.texture[0].format = RedFormat;
+            this.depthDownsampleTarget.texture[0].type = FloatType;
+            this.depthDownsampleTarget.texture[0].minFilter = NearestFilter;
+            this.depthDownsampleTarget.texture[0].magFilter = NearestFilter;
+            this.depthDownsampleTarget.texture[0].depthBuffer = false;
+            this.depthDownsampleTarget.texture[1].format = RGBAFormat;
+            this.depthDownsampleTarget.texture[1].type = HalfFloatType;
+            this.depthDownsampleTarget.texture[1].minFilter = NearestFilter;
+            this.depthDownsampleTarget.texture[1].magFilter = NearestFilter;
+            this.depthDownsampleTarget.texture[1].depthBuffer = false;
+            this.depthDownsampleQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(($26aca173e0984d99$export$1efdf491687cd442)));
+        } else {
+            if (this.depthDownsampleTarget) {
+                this.depthDownsampleTarget.dispose();
+                this.depthDownsampleTarget = null;
+            }
+            if (this.depthDownsampleQuad) {
+                this.depthDownsampleQuad.dispose();
+                this.depthDownsampleQuad = null;
+            }
+        }
+    }
+    configureSampleDependentPasses() {
+        this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+        this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
+    }
+    configureAOPass(logarithmicDepthBuffer = false) {
+        this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
+        this.samplesR = this.generateHemisphereSamplesR(this.configuration.aoSamples);
+        const e = {
+            ...($1ed45968c1160c3c$export$c9b263b9a17dffd7)
+        };
+        e.fragmentShader = e.fragmentShader.replace("16", this.configuration.aoSamples).replace("16.0", this.configuration.aoSamples + ".0");
+        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (this.configuration.halfRes) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
+        if (this.effectShaderQuad) {
+            this.effectShaderQuad.material.dispose();
+            this.effectShaderQuad.material = new ShaderMaterial(e);
+        } else this.effectShaderQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(e));
+    }
+    configureDenoisePass(logarithmicDepthBuffer = false) {
+        this.samplesDenoise = this.generateDenoiseSamples(this.configuration.denoiseSamples, 11);
+        const p = {
+            ...($e52378cd0f5a973d$export$57856b59f317262e)
+        };
+        p.fragmentShader = p.fragmentShader.replace("16", this.configuration.denoiseSamples);
+        if (logarithmicDepthBuffer) p.fragmentShader = "#define LOGDEPTH\n" + p.fragmentShader;
+        if (this.poissonBlurQuad) {
+            this.poissonBlurQuad.material.dispose();
+            this.poissonBlurQuad.material = new ShaderMaterial(p);
+        } else this.poissonBlurQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(p));
+    }
+    configureEffectCompositer(logarithmicDepthBuffer = false) {
+        const e = {
+            ...($12b21d24d1192a04$export$a815acccbd2c9a49)
+        };
+        if (logarithmicDepthBuffer) e.fragmentShader = "#define LOGDEPTH\n" + e.fragmentShader;
+        if (this.configuration.halfRes && this.configuration.depthAwareUpsampling) e.fragmentShader = "#define HALFRES\n" + e.fragmentShader;
+        if (this.effectCompositerQuad) {
+            this.effectCompositerQuad.material.dispose();
+            this.effectCompositerQuad.material = new ShaderMaterial(e);
+        } else this.effectCompositerQuad = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial(e));
+    }
+    /**
+         * 
+         * @param {Number} n 
+         * @returns {THREE.Vector3[]}
+         */ generateHemisphereSamples(n) {
+        const points = [];
+        for(let k = 0; k < n; k++){
+            const theta = 2.399963 * k;
+            const r = Math.sqrt(k + 0.5) / Math.sqrt(n);
+            const x = r * Math.cos(theta);
+            const y = r * Math.sin(theta);
+            // Project to hemisphere
+            const z = Math.sqrt(1 - (x * x + y * y));
+            points.push(new Vector3$1(x, y, z));
+        }
+        return points;
+    }
+    /**
+         * 
+         * @param {number} n 
+         * @returns {number[]}
+         */ generateHemisphereSamplesR(n) {
+        let samplesR = [];
+        for(let i = 0; i < n; i++)samplesR.push((i + 1) / n);
+        return samplesR;
+    }
+    /**
+         * 
+         * @param {number} numSamples 
+         * @param {number} numRings 
+         * @returns {THREE.Vector2[]}
+         */ generateDenoiseSamples(numSamples, numRings) {
+        const angleStep = 2 * Math.PI * numRings / numSamples;
+        const invNumSamples = 1.0 / numSamples;
+        const radiusStep = invNumSamples;
+        const samples = [];
+        let radius = invNumSamples;
+        let angle = 0;
+        for(let i = 0; i < numSamples; i++){
+            samples.push(new Vector2$1(Math.cos(angle), Math.sin(angle)).multiplyScalar(Math.pow(radius, 0.75)));
+            radius += radiusStep;
+            angle += angleStep;
+        }
+        return samples;
+    }
+    setSize(width, height) {
+        this.width = width;
+        this.height = height;
+        const c = this.configuration.halfRes ? 0.5 : 1;
+        this.beautyRenderTarget.setSize(width, height);
+        this.writeTargetInternal.setSize(width * c, height * c);
+        this.readTargetInternal.setSize(width * c, height * c);
+        if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(width * c, height * c);
+    }
+    render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
+        if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
+            this.configuration.logarithmicDepthBuffer = renderer.capabilities.logarithmicDepthBuffer;
+            this.configureAOPass(this.configuration.logarithmicDepthBuffer);
+            this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
+            this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+        }
+        let gl;
+        let ext;
+        let timerQuery;
+        if (this.debugMode) {
+            gl = renderer.getContext();
+            ext = gl.getExtension("EXT_disjoint_timer_query_webgl2");
+            if (ext === null) {
+                console.error("EXT_disjoint_timer_query_webgl2 not available, disabling debug mode.");
+                this.debugMode = false;
+            }
+        }
+        renderer.setRenderTarget(this.beautyRenderTarget);
+        renderer.render(this.scene, this.camera);
+        if (this.debugMode) {
+            timerQuery = gl.createQuery();
+            gl.beginQuery(ext.TIME_ELAPSED_EXT, timerQuery);
+        }
+        const xrEnabled = renderer.xr.enabled;
+        renderer.xr.enabled = false;
+        this.camera.updateMatrixWorld();
+        this._r.set(this.width, this.height);
+        let trueRadius = this.configuration.aoRadius;
+        if (this.configuration.halfRes && this.configuration.screenSpaceRadius) trueRadius *= 0.5;
+        if (this.configuration.halfRes) {
+            renderer.setRenderTarget(this.depthDownsampleTarget);
+            this.depthDownsampleQuad.material.uniforms.sceneDepth.value = this.beautyRenderTarget.depthTexture;
+            this.depthDownsampleQuad.material.uniforms.resolution.value = this._r;
+            this.depthDownsampleQuad.material.uniforms["near"].value = this.camera.near;
+            this.depthDownsampleQuad.material.uniforms["far"].value = this.camera.far;
+            this.depthDownsampleQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
+            this.depthDownsampleQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
+            this.depthDownsampleQuad.material.uniforms["logDepth"].value = this.configuration.logarithmicDepthBuffer;
+            this.depthDownsampleQuad.render(renderer);
+        }
+        this.effectShaderQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
+        this.effectShaderQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.beautyRenderTarget.depthTexture;
+        this.effectShaderQuad.material.uniforms["sceneNormal"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[1] : null;
+        this.effectShaderQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
+        this.effectShaderQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
+        this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
+        this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
+        this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
+        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
+        this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
+        this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
+        this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
+        this.effectShaderQuad.material.uniforms["samplesR"].value = this.samplesR;
+        this.effectShaderQuad.material.uniforms["bluenoise"].value = this.bluenoise;
+        this.effectShaderQuad.material.uniforms["radius"].value = trueRadius;
+        this.effectShaderQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
+        this.effectShaderQuad.material.uniforms["near"].value = this.camera.near;
+        this.effectShaderQuad.material.uniforms["far"].value = this.camera.far;
+        this.effectShaderQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
+        this.effectShaderQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
+        this.effectShaderQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
+        // Start the AO
+        renderer.setRenderTarget(this.writeTargetInternal);
+        this.effectShaderQuad.render(renderer);
+        // End the AO
+        // Start the blur
+        for(let i = 0; i < this.configuration.denoiseIterations; i++){
+            [this.writeTargetInternal, this.readTargetInternal] = [
+                this.readTargetInternal,
+                this.writeTargetInternal
+            ];
+            this.poissonBlurQuad.material.uniforms["tDiffuse"].value = this.readTargetInternal.texture;
+            this.poissonBlurQuad.material.uniforms["sceneDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.beautyRenderTarget.depthTexture;
+            this.poissonBlurQuad.material.uniforms["projMat"].value = this.camera.projectionMatrix;
+            this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
+            this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
+            this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
+            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
+            this.poissonBlurQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
+            this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
+            this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
+            this.poissonBlurQuad.material.uniforms["radius"].value = this.configuration.denoiseRadius * (this.configuration.halfRes ? 0.5 : 1);
+            this.poissonBlurQuad.material.uniforms["worldRadius"].value = trueRadius;
+            this.poissonBlurQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
+            this.poissonBlurQuad.material.uniforms["index"].value = i;
+            this.poissonBlurQuad.material.uniforms["poissonDisk"].value = this.samplesDenoise;
+            this.poissonBlurQuad.material.uniforms["near"].value = this.camera.near;
+            this.poissonBlurQuad.material.uniforms["far"].value = this.camera.far;
+            this.poissonBlurQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
+            this.poissonBlurQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
+            renderer.setRenderTarget(this.writeTargetInternal);
+            this.poissonBlurQuad.render(renderer);
+        }
+        // Now, we have the blurred AO in writeTargetInternal
+        // End the blur
+        // Start the composition
+        this.effectCompositerQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
+        this.effectCompositerQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
+        this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
+        this.effectCompositerQuad.material.uniforms["far"].value = this.camera.far;
+        this.effectCompositerQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
+        this.effectCompositerQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
+        this.effectCompositerQuad.material.uniforms["logDepth"].value = renderer.capabilities.logarithmicDepthBuffer;
+        this.effectCompositerQuad.material.uniforms["ortho"].value = this.camera.isOrthographicCamera;
+        this.effectCompositerQuad.material.uniforms["downsampledDepth"].value = this.configuration.halfRes ? this.depthDownsampleTarget.texture[0] : this.beautyRenderTarget.depthTexture;
+        this.effectCompositerQuad.material.uniforms["resolution"].value = this._r;
+        this.effectCompositerQuad.material.uniforms["blueNoise"].value = this.bluenoise;
+        this.effectCompositerQuad.material.uniforms["intensity"].value = this.configuration.intensity;
+        this.effectCompositerQuad.material.uniforms["renderMode"].value = this.configuration.renderMode;
+        this.effectCompositerQuad.material.uniforms["screenSpaceRadius"].value = this.configuration.screenSpaceRadius;
+        this.effectCompositerQuad.material.uniforms["radius"].value = trueRadius;
+        this.effectCompositerQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
+        this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
+        this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
+        this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
+        renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+        this.effectCompositerQuad.render(renderer);
+        if (this.debugMode) {
+            gl.endQuery(ext.TIME_ELAPSED_EXT);
+            $05f6997e4b65da14$var$checkTimerQuery(timerQuery, gl, this);
+        }
+        renderer.xr.enabled = xrEnabled;
+    }
+    /**
+         * Enables the debug mode of the AO, meaning the lastTime value will be updated.
+         */ enableDebugMode() {
+        this.debugMode = true;
+    }
+    /**
+         * Disables the debug mode of the AO, meaning the lastTime value will not be updated.
+         */ disableDebugMode() {
+        this.debugMode = false;
+    }
+    /**
+         * Sets the display mode of the AO
+         * @param {"Combined" | "AO" | "No AO" | "Split" | "Split AO"} mode - The display mode. 
+         */ setDisplayMode(mode) {
+        this.configuration.renderMode = [
+            "Combined",
+            "AO",
+            "No AO",
+            "Split",
+            "Split AO"
+        ].indexOf(mode);
+    }
+    /**
+         * 
+         * @param {"Performance" | "Low" | "Medium" | "High" | "Ultra"} mode 
+         */ setQualityMode(mode) {
+        if (mode === "Performance") {
+            this.configuration.aoSamples = 8;
+            this.configuration.denoiseSamples = 4;
+            this.configuration.denoiseRadius = 12;
+        } else if (mode === "Low") {
+            this.configuration.aoSamples = 16;
+            this.configuration.denoiseSamples = 4;
+            this.configuration.denoiseRadius = 12;
+        } else if (mode === "Medium") {
+            this.configuration.aoSamples = 16;
+            this.configuration.denoiseSamples = 8;
+            this.configuration.denoiseRadius = 12;
+        } else if (mode === "High") {
+            this.configuration.aoSamples = 64;
+            this.configuration.denoiseSamples = 8;
+            this.configuration.denoiseRadius = 6;
+        } else if (mode === "Ultra") {
+            this.configuration.aoSamples = 64;
+            this.configuration.denoiseSamples = 16;
+            this.configuration.denoiseRadius = 6;
+        }
+    }
+}
+
+/**
+ * NVIDIA FXAA by Timothy Lottes
+ * https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
+ * - WebGL port by @supereggbert
+ * http://www.glge.org/demos/fxaa/
+ * Further improved by Daniel Sturk
+ */
+
+const FXAAShader = {
+
+	uniforms: {
+
+		'tDiffuse': { value: null },
+		'resolution': { value: new Vector2$1( 1 / 1024, 1 / 512 ) }
+
+	},
+
+	vertexShader: /* glsl */`
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: `
+	precision highp float;
+
+	uniform sampler2D tDiffuse;
+
+	uniform vec2 resolution;
+
+	varying vec2 vUv;
+
+	// FXAA 3.11 implementation by NVIDIA, ported to WebGL by Agost Biro (biro@archilogic.com)
+
+	//----------------------------------------------------------------------------------
+	// File:        es3-kepler\FXAA\assets\shaders/FXAA_DefaultES.frag
+	// SDK Version: v3.00
+	// Email:       gameworks@nvidia.com
+	// Site:        http://developer.nvidia.com/
+	//
+	// Copyright (c) 2014-2015, NVIDIA CORPORATION. All rights reserved.
+	//
+	// Redistribution and use in source and binary forms, with or without
+	// modification, are permitted provided that the following conditions
+	// are met:
+	//  * Redistributions of source code must retain the above copyright
+	//    notice, this list of conditions and the following disclaimer.
+	//  * Redistributions in binary form must reproduce the above copyright
+	//    notice, this list of conditions and the following disclaimer in the
+	//    documentation and/or other materials provided with the distribution.
+	//  * Neither the name of NVIDIA CORPORATION nor the names of its
+	//    contributors may be used to endorse or promote products derived
+	//    from this software without specific prior written permission.
+	//
+	// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
+	// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+	// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+	// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+	// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+	// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+	// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+	// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+	//
+	//----------------------------------------------------------------------------------
+
+	#ifndef FXAA_DISCARD
+			//
+			// Only valid for PC OpenGL currently.
+			// Probably will not work when FXAA_GREEN_AS_LUMA = 1.
+			//
+			// 1 = Use discard on pixels which don't need AA.
+			//     For APIs which enable concurrent TEX+ROP from same surface.
+			// 0 = Return unchanged color on pixels which don't need AA.
+			//
+			#define FXAA_DISCARD 0
+	#endif
+
+	/*--------------------------------------------------------------------------*/
+	#define FxaaTexTop(t, p) texture2D(t, p, -100.0)
+	#define FxaaTexOff(t, p, o, r) texture2D(t, p + (o * r), -100.0)
+	/*--------------------------------------------------------------------------*/
+
+	#define NUM_SAMPLES 5
+
+	// assumes colors have premultipliedAlpha, so that the calculated color contrast is scaled by alpha
+	float contrast( vec4 a, vec4 b ) {
+			vec4 diff = abs( a - b );
+			return max( max( max( diff.r, diff.g ), diff.b ), diff.a );
+	}
+
+	/*============================================================================
+
+									FXAA3 QUALITY - PC
+
+	============================================================================*/
+
+	/*--------------------------------------------------------------------------*/
+	vec4 FxaaPixelShader(
+			vec2 posM,
+			sampler2D tex,
+			vec2 fxaaQualityRcpFrame,
+			float fxaaQualityEdgeThreshold,
+			float fxaaQualityinvEdgeThreshold
+	) {
+			vec4 rgbaM = FxaaTexTop(tex, posM);
+			vec4 rgbaS = FxaaTexOff(tex, posM, vec2( 0.0, 1.0), fxaaQualityRcpFrame.xy);
+			vec4 rgbaE = FxaaTexOff(tex, posM, vec2( 1.0, 0.0), fxaaQualityRcpFrame.xy);
+			vec4 rgbaN = FxaaTexOff(tex, posM, vec2( 0.0,-1.0), fxaaQualityRcpFrame.xy);
+			vec4 rgbaW = FxaaTexOff(tex, posM, vec2(-1.0, 0.0), fxaaQualityRcpFrame.xy);
+			// . S .
+			// W M E
+			// . N .
+
+			bool earlyExit = max( max( max(
+					contrast( rgbaM, rgbaN ),
+					contrast( rgbaM, rgbaS ) ),
+					contrast( rgbaM, rgbaE ) ),
+					contrast( rgbaM, rgbaW ) )
+					< fxaaQualityEdgeThreshold;
+			// . 0 .
+			// 0 0 0
+			// . 0 .
+
+			#if (FXAA_DISCARD == 1)
+					if(earlyExit) FxaaDiscard;
+			#else
+					if(earlyExit) return rgbaM;
+			#endif
+
+			float contrastN = contrast( rgbaM, rgbaN );
+			float contrastS = contrast( rgbaM, rgbaS );
+			float contrastE = contrast( rgbaM, rgbaE );
+			float contrastW = contrast( rgbaM, rgbaW );
+
+			float relativeVContrast = ( contrastN + contrastS ) - ( contrastE + contrastW );
+			relativeVContrast *= fxaaQualityinvEdgeThreshold;
+
+			bool horzSpan = relativeVContrast > 0.;
+			// . 1 .
+			// 0 0 0
+			// . 1 .
+
+			// 45 deg edge detection and corners of objects, aka V/H contrast is too similar
+			if( abs( relativeVContrast ) < .3 ) {
+					// locate the edge
+					vec2 dirToEdge;
+					dirToEdge.x = contrastE > contrastW ? 1. : -1.;
+					dirToEdge.y = contrastS > contrastN ? 1. : -1.;
+					// . 2 .      . 1 .
+					// 1 0 2  ~=  0 0 1
+					// . 1 .      . 0 .
+
+					// tap 2 pixels and see which ones are "outside" the edge, to
+					// determine if the edge is vertical or horizontal
+
+					vec4 rgbaAlongH = FxaaTexOff(tex, posM, vec2( dirToEdge.x, -dirToEdge.y ), fxaaQualityRcpFrame.xy);
+					float matchAlongH = contrast( rgbaM, rgbaAlongH );
+					// . 1 .
+					// 0 0 1
+					// . 0 H
+
+					vec4 rgbaAlongV = FxaaTexOff(tex, posM, vec2( -dirToEdge.x, dirToEdge.y ), fxaaQualityRcpFrame.xy);
+					float matchAlongV = contrast( rgbaM, rgbaAlongV );
+					// V 1 .
+					// 0 0 1
+					// . 0 .
+
+					relativeVContrast = matchAlongV - matchAlongH;
+					relativeVContrast *= fxaaQualityinvEdgeThreshold;
+
+					if( abs( relativeVContrast ) < .3 ) { // 45 deg edge
+							// 1 1 .
+							// 0 0 1
+							// . 0 1
+
+							// do a simple blur
+							return mix(
+									rgbaM,
+									(rgbaN + rgbaS + rgbaE + rgbaW) * .25,
+									.4
+							);
+					}
+
+					horzSpan = relativeVContrast > 0.;
+			}
+
+			if(!horzSpan) rgbaN = rgbaW;
+			if(!horzSpan) rgbaS = rgbaE;
+			// . 0 .      1
+			// 1 0 1  ->  0
+			// . 0 .      1
+
+			bool pairN = contrast( rgbaM, rgbaN ) > contrast( rgbaM, rgbaS );
+			if(!pairN) rgbaN = rgbaS;
+
+			vec2 offNP;
+			offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;
+			offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;
+
+			bool doneN = false;
+			bool doneP = false;
+
+			float nDist = 0.;
+			float pDist = 0.;
+
+			vec2 posN = posM;
+			vec2 posP = posM;
+
+			int iterationsUsed = 0;
+			int iterationsUsedN = 0;
+			int iterationsUsedP = 0;
+			for( int i = 0; i < NUM_SAMPLES; i++ ) {
+					iterationsUsed = i;
+
+					float increment = float(i + 1);
+
+					if(!doneN) {
+							nDist += increment;
+							posN = posM + offNP * nDist;
+							vec4 rgbaEndN = FxaaTexTop(tex, posN.xy);
+							doneN = contrast( rgbaEndN, rgbaM ) > contrast( rgbaEndN, rgbaN );
+							iterationsUsedN = i;
+					}
+
+					if(!doneP) {
+							pDist += increment;
+							posP = posM - offNP * pDist;
+							vec4 rgbaEndP = FxaaTexTop(tex, posP.xy);
+							doneP = contrast( rgbaEndP, rgbaM ) > contrast( rgbaEndP, rgbaN );
+							iterationsUsedP = i;
+					}
+
+					if(doneN || doneP) break;
+			}
+
+
+			if ( !doneP && !doneN ) return rgbaM; // failed to find end of edge
+
+			float dist = min(
+					doneN ? float( iterationsUsedN ) / float( NUM_SAMPLES - 1 ) : 1.,
+					doneP ? float( iterationsUsedP ) / float( NUM_SAMPLES - 1 ) : 1.
+			);
+
+			// hacky way of reduces blurriness of mostly diagonal edges
+			// but reduces AA quality
+			dist = pow(dist, .5);
+
+			dist = 1. - dist;
+
+			return mix(
+					rgbaM,
+					rgbaN,
+					dist * .5
+			);
+	}
+
+	void main() {
+			const float edgeDetectionQuality = .2;
+			const float invEdgeDetectionQuality = 1. / edgeDetectionQuality;
+
+			gl_FragColor = FxaaPixelShader(
+					vUv,
+					tDiffuse,
+					resolution,
+					edgeDetectionQuality, // [0,1] contrast needed, otherwise early discard
+					invEdgeDetectionQuality
+			);
+
+	}
+	`
+
+};
+
+// Gets the plane information (ax + by + cz = d) of each face, where:
+// - (a, b, c) is the normal vector of the plane
+// - d is the signed distance to the origin
+function getPlaneDistanceMaterial() {
+    return new THREE$1.ShaderMaterial({
+        clipping: true,
+        uniforms: {},
+        vertexShader: `
+    varying vec4 vColor;
+    
+    #include <clipping_planes_pars_vertex>
+  
+    void main() {
+       #include <begin_vertex>
+    
+       vec4 absPosition = vec4(position, 1.0);
+       vec3 trueNormal = normal;
+       
+       #ifdef USE_INSTANCING
+          absPosition = instanceMatrix * absPosition;
+          trueNormal = (instanceMatrix * vec4(normal, 0.)).xyz;
+       #endif
+       
+       absPosition = modelMatrix * absPosition;
+       trueNormal = (normalize(modelMatrix * vec4(trueNormal, 0.))).xyz;
+       
+       vec3 planePosition = absPosition.xyz / 40.;
+       float d = abs(dot(trueNormal, planePosition));
+       vColor = vec4(abs(trueNormal), d);
+       gl_Position = projectionMatrix * viewMatrix * absPosition;
+       
+       #include <project_vertex>
+       #include <clipping_planes_vertex>
+    }
+    `,
+        fragmentShader: `
+    varying vec4 vColor;
+    
+    #include <clipping_planes_pars_fragment>
+  
+    void main() {
+      #include <clipping_planes_fragment>
+      gl_FragColor = vColor;
+    }
+    `,
+    });
+}
+
+// Gets the plane information (ax + by + cz = d) of each face, where:
+// - (a, b, c) is the normal vector of the plane
+// - d is the signed distance to the origin
+function getProjectedNormalMaterial() {
+    return new THREE$1.ShaderMaterial({
+        clipping: true,
+        uniforms: {},
+        vertexShader: `
+    varying vec3 vCameraPosition;
+    varying vec3 vPosition;
+    varying vec3 vNormal;
+    
+    #include <clipping_planes_pars_vertex>
+  
+    void main() {
+       #include <begin_vertex>
+       
+       vec4 absPosition = vec4(position, 1.0);
+       vNormal = normal;
+       
+       #ifdef USE_INSTANCING
+          absPosition = instanceMatrix * absPosition;
+          vNormal = (instanceMatrix * vec4(normal, 0.)).xyz;
+       #endif
+       
+       absPosition = modelMatrix * absPosition;
+       vNormal = (normalize(modelMatrix * vec4(vNormal, 0.))).xyz;
+       
+       gl_Position = projectionMatrix * viewMatrix * absPosition;
+       
+       vCameraPosition = cameraPosition;
+       vPosition = absPosition.xyz;
+       
+       #include <project_vertex>
+       #include <clipping_planes_vertex>
+    }
+    `,
+        fragmentShader: `
+    varying vec3 vCameraPosition;
+    varying vec3 vPosition;
+    varying vec3 vNormal;
+    
+    #include <clipping_planes_pars_fragment>
+  
+    void main() {
+      #include <clipping_planes_fragment>
+      vec3 cameraPixelVec = normalize(vCameraPosition - vPosition);
+      float difference = abs(dot(vNormal, cameraPixelVec));
+      gl_FragColor = vec4(difference, difference, difference, 1.);
+    }
+    `,
+    });
+}
+
+// Follows the structure of
+// 		https://github.com/mrdoob/three.js/blob/master/examples/jsm/postprocessing/OutlinePass.js
+class CustomEffectsPass extends Pass {
+    constructor(resolution, components) {
+        super();
+        this.excludedMeshes = [];
+        this._color = 0x999999;
+        this._opacity = 0.4;
+        this._tolerance = 3;
+        this._correctColor = false;
+        this._glossEnabled = true;
+        this._glossExponent = 0.7;
+        this._minGloss = -0.15;
+        this._maxGloss = 0.15;
+        this.renderScene = components.scene.get();
+        this.renderCamera = components.camera.get();
+        this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
+        this.fsQuad = new FullScreenQuad();
+        this.fsQuad.material = this.createOutlinePostProcessMaterial();
+        this.planeBuffer = this.newRenderTarget();
+        this.glossBuffer = this.newRenderTarget();
+        const normalMaterial = getPlaneDistanceMaterial();
+        normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.normalOverrideMaterial = normalMaterial;
+        const glossMaterial = getProjectedNormalMaterial();
+        glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.glossOverrideMaterial = glossMaterial;
+    }
+    get color() {
+        return this._color;
+    }
+    set color(color) {
+        this._color = color;
+        const material = this.fsQuad.material;
+        material.uniforms.outlineColor.value.set(color);
+    }
+    get tolerance() {
+        return this._tolerance;
+    }
+    set tolerance(value) {
+        this._tolerance = value;
+        const material = this.fsQuad.material;
+        material.uniforms.tolerance.value = value;
+    }
+    get opacity() {
+        return this._opacity;
+    }
+    set opacity(value) {
+        this._opacity = value;
+        const material = this.fsQuad.material;
+        material.uniforms.opacity.value = value;
+    }
+    get correctColor() {
+        return this._correctColor;
+    }
+    set correctColor(active) {
+        this._correctColor = active;
+        const value = active ? 1 : 0;
+        const material = this.fsQuad.material;
+        material.uniforms.correctColor.value = value;
+    }
+    get glossEnabled() {
+        return this._glossEnabled;
+    }
+    set glossEnabled(active) {
+        this._glossEnabled = active;
+        const material = this.fsQuad.material;
+        material.uniforms.glossEnabled.value = active ? 1 : 0;
+    }
+    get glossExponent() {
+        return this._glossExponent;
+    }
+    set glossExponent(value) {
+        this._glossExponent = value;
+        const material = this.fsQuad.material;
+        material.uniforms.glossExponent.value = value;
+    }
+    get minGloss() {
+        return this._minGloss;
+    }
+    set minGloss(value) {
+        this._minGloss = value;
+        const material = this.fsQuad.material;
+        material.uniforms.minGloss.value = value;
+    }
+    get maxGloss() {
+        return this._maxGloss;
+    }
+    set maxGloss(value) {
+        this._maxGloss = value;
+        const material = this.fsQuad.material;
+        material.uniforms.maxGloss.value = value;
+    }
+    dispose() {
+        this.planeBuffer.dispose();
+        this.glossBuffer.dispose();
+        this.normalOverrideMaterial.dispose();
+        this.glossOverrideMaterial.dispose();
+        this.fsQuad.dispose();
+    }
+    setSize(width, height) {
+        this.planeBuffer.setSize(width, height);
+        this.glossBuffer.setSize(width, height);
+        this.resolution.set(width, height);
+        const material = this.fsQuad.material;
+        material.uniforms.screenSize.value.set(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y);
+    }
+    render(renderer, writeBuffer, readBuffer) {
+        // Turn off writing to the depth buffer
+        // because we need to read from it in the subsequent passes.
+        const depthBufferValue = writeBuffer.depthBuffer;
+        writeBuffer.depthBuffer = false;
+        // 1. Re-render the scene to capture all normals in a texture.
+        const previousOverrideMaterial = this.renderScene.overrideMaterial;
+        const previousBackground = this.renderScene.background;
+        this.renderScene.background = null;
+        for (const mesh of this.excludedMeshes) {
+            mesh.visible = false;
+        }
+        // Render normal pass
+        renderer.setRenderTarget(this.planeBuffer);
+        this.renderScene.overrideMaterial = this.normalOverrideMaterial;
+        renderer.render(this.renderScene, this.renderCamera);
+        // Render gloss pass
+        if (this._glossEnabled) {
+            renderer.setRenderTarget(this.glossBuffer);
+            this.renderScene.overrideMaterial = this.glossOverrideMaterial;
+            renderer.render(this.renderScene, this.renderCamera);
+        }
+        for (const mesh of this.excludedMeshes) {
+            mesh.visible = true;
+        }
+        this.renderScene.overrideMaterial = previousOverrideMaterial;
+        this.renderScene.background = previousBackground;
+        const material = this.fsQuad.material;
+        material.uniforms.planeBuffer.value = this.planeBuffer.texture;
+        material.uniforms.glossBuffer.value = this.glossBuffer.texture;
+        material.uniforms.sceneColorBuffer.value = readBuffer.texture;
+        // 2. Draw the outlines using the normal texture
+        // and combine it with the scene color
+        if (this.renderToScreen) {
+            // If this is the last effect, then renderToScreen is true.
+            // So we should render to the screen by setting target null
+            // Otherwise, just render into the writeBuffer that the next effect will use as its read buffer.
+            renderer.setRenderTarget(null);
+            this.fsQuad.render(renderer);
+        }
+        else {
+            renderer.setRenderTarget(writeBuffer);
+            this.fsQuad.render(renderer);
+        }
+        // Reset the depthBuffer value so we continue writing to it in the next render.
+        writeBuffer.depthBuffer = depthBufferValue;
+    }
+    get vertexShader() {
+        return `
+			varying vec2 vUv;
+			void main() {
+				vUv = uv;
+				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+			}
+			`;
+    }
+    get fragmentShader() {
+        return `
+	  uniform sampler2D sceneColorBuffer;
+	  uniform sampler2D planeBuffer;
+	  uniform sampler2D glossBuffer;
+	  uniform vec4 screenSize;
+	  uniform vec3 outlineColor;
+      uniform int width;
+	  uniform float opacity;
+      uniform float tolerance;
+      uniform float correctColor;
+      uniform float glossExponent;
+      uniform float minGloss;
+      uniform float maxGloss;
+      uniform float glossEnabled;
+
+			varying vec2 vUv;
+
+			vec4 getValue(sampler2D buffer, int x, int y) {
+				return texture2D(buffer, vUv + screenSize.zw * vec2(x, y));
+			}
+
+      float normalDiff(vec3 normal1, vec3 normal2) {
+        return ((dot(normal1, normal2) - 1.) * -1.) / 2.;
+      }
+
+      // Returns 0 if it's background, 1 if it's not
+      float getIsBackground(vec3 normal) {
+        float background = 1.0;
+        background *= step(normal.x, 0.);
+        background *= step(normal.y, 0.);
+        background *= step(normal.z, 0.);
+        background = (background - 1.) * -1.;
+        return background;
+      }
+
+			void main() {
+				vec3 sceneColor = getValue(sceneColorBuffer, 0, 0).rgb;
+				vec3 normSceneColor = normalize(sceneColor);
+        vec4 color = vec4(outlineColor,1.);
+
+        vec4 plane = getValue(planeBuffer, 0, 0);
+				vec3 normal = plane.xyz;
+        float distance = plane.w;
+
+        vec3 normalTop = getValue(planeBuffer, 0, width).rgb;
+        vec3 normalBottom = getValue(planeBuffer, 0, -width).rgb;
+        vec3 normalRight = getValue(planeBuffer, width, 0).rgb;
+        vec3 normalLeft = getValue(planeBuffer, -width, 0).rgb;
+        vec3 normalTopRight = getValue(planeBuffer, width, width).rgb;
+        vec3 normalTopLeft = getValue(planeBuffer, -width, width).rgb;
+        vec3 normalBottomRight = getValue(planeBuffer, width, -width).rgb;
+        vec3 normalBottomLeft = getValue(planeBuffer, -width, -width).rgb;
+
+        float distanceTop = getValue(planeBuffer, 0, width).a;
+        float distanceBottom = getValue(planeBuffer, 0, -width).a;
+        float distanceRight = getValue(planeBuffer, width, 0).a;
+        float distanceLeft = getValue(planeBuffer, -width, 0).a;
+        float distanceTopRight = getValue(planeBuffer, width, width).a;
+        float distanceTopLeft = getValue(planeBuffer, -width, width).a;
+        float distanceBottomRight = getValue(planeBuffer, width, -width).a;
+        float distanceBottomLeft = getValue(planeBuffer, -width, -width).a;
+        
+        vec3 sceneColorTop = normalize(getValue(sceneColorBuffer, 1, 0).rgb);
+        vec3 sceneColorBottom = normalize(getValue(sceneColorBuffer, -1, 0).rgb);
+        vec3 sceneColorLeft = normalize(getValue(sceneColorBuffer, 0, -1).rgb);
+        vec3 sceneColorRight = normalize(getValue(sceneColorBuffer, 0, 1).rgb);
+        vec3 sceneColorTopRight = normalize(getValue(sceneColorBuffer, 1, 1).rgb);
+        vec3 sceneColorBottomRight = normalize(getValue(sceneColorBuffer, -1, 1).rgb);
+        vec3 sceneColorTopLeft = normalize(getValue(sceneColorBuffer, 1, 1).rgb);
+        vec3 sceneColorBottomLeft = normalize(getValue(sceneColorBuffer, -1, 1).rgb);
+
+        // Checks if the planes of this texel and the neighbour texels are different
+
+        float planeDiff = 0.0;
+
+        planeDiff += step(0.001, normalDiff(normal, normalTop));
+        planeDiff += step(0.001, normalDiff(normal, normalBottom));
+        planeDiff += step(0.001, normalDiff(normal, normalLeft));
+        planeDiff += step(0.001, normalDiff(normal, normalRight));
+        planeDiff += step(0.001, normalDiff(normal, normalTopRight));
+        planeDiff += step(0.001, normalDiff(normal, normalTopLeft));
+        planeDiff += step(0.001, normalDiff(normal, normalBottomRight));
+        planeDiff += step(0.001, normalDiff(normal, normalBottomLeft));
+        
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTop));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottom));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorLeft));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorRight));
+       	planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTopRight));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorTopLeft));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottomRight));
+        planeDiff += step(0.001, normalDiff(normSceneColor, sceneColorBottomLeft));
+
+        planeDiff += step(0.001, abs(distance - distanceTop));
+        planeDiff += step(0.001, abs(distance - distanceBottom));
+        planeDiff += step(0.001, abs(distance - distanceLeft));
+        planeDiff += step(0.001, abs(distance - distanceRight));
+        planeDiff += step(0.001, abs(distance - distanceTopRight));
+        planeDiff += step(0.001, abs(distance - distanceTopLeft));
+        planeDiff += step(0.001, abs(distance - distanceBottomRight));
+        planeDiff += step(0.001, abs(distance - distanceBottomLeft));
+
+        // Add extra background outline
+
+        int width2 = width + 1;
+        vec3 normalTop2 = getValue(planeBuffer, 0, width2).rgb;
+        vec3 normalBottom2 = getValue(planeBuffer, 0, -width2).rgb;
+        vec3 normalRight2 = getValue(planeBuffer, width2, 0).rgb;
+        vec3 normalLeft2 = getValue(planeBuffer, -width2, 0).rgb;
+        vec3 normalTopRight2 = getValue(planeBuffer, width2, width2).rgb;
+        vec3 normalTopLeft2 = getValue(planeBuffer, -width2, width2).rgb;
+        vec3 normalBottomRight2 = getValue(planeBuffer, width2, -width2).rgb;
+        vec3 normalBottomLeft2 = getValue(planeBuffer, -width2, -width2).rgb;
+
+        planeDiff += -(getIsBackground(normalTop2) - 1.);
+        planeDiff += -(getIsBackground(normalBottom2) - 1.);
+        planeDiff += -(getIsBackground(normalRight2) - 1.);
+        planeDiff += -(getIsBackground(normalLeft2) - 1.);
+        planeDiff += -(getIsBackground(normalTopRight2) - 1.);
+        planeDiff += -(getIsBackground(normalBottomRight2) - 1.);
+        planeDiff += -(getIsBackground(normalBottomRight2) - 1.);
+        planeDiff += -(getIsBackground(normalBottomLeft2) - 1.);
+
+        // Tolerance sets the minimum amount of differences to consider
+        // this texel an edge
+
+        float outline = step(tolerance, planeDiff);
+
+        // Exclude background and apply opacity
+
+        float background = getIsBackground(normal);
+        outline *= background;
+        outline *= opacity;
+        
+        // Correct color to make it look similar to sao postprocessing colors
+        
+        float factor = clamp(correctColor * 1.5, 1., 4.);
+        float sum = 0.05 * step(1.5, factor);
+        float r = pow(sceneColor.r + sum, 1. / factor);
+        float g = pow(sceneColor.g + sum, 1. / factor);
+        float b = pow(sceneColor.b + sum, 1. / factor);
+        vec4 corrected = vec4(r, g, b, 1.);
+        
+        // Add gloss
+        
+        vec3 gloss = getValue(glossBuffer, 0, 0).xyz;
+        float diffGloss = abs(maxGloss - minGloss);
+        vec3 glossExpVector = vec3(glossExponent,glossExponent,glossExponent);
+        gloss = min(pow(gloss, glossExpVector), vec3(1.,1.,1.));
+        gloss *= diffGloss;
+        gloss += minGloss;
+        vec4 glossedColor = corrected + vec4(gloss, 1.) * glossEnabled;
+        
+        corrected = mix(corrected, glossedColor, background);
+        
+        gl_FragColor = mix(corrected, color, outline);
+	}
+			`;
+    }
+    createOutlinePostProcessMaterial() {
+        return new THREE$1.ShaderMaterial({
+            uniforms: {
+                opacity: { value: this._opacity },
+                correctColor: { value: 1 },
+                debugVisualize: { value: 0 },
+                sceneColorBuffer: { value: null },
+                tolerance: { value: this._tolerance },
+                planeBuffer: { value: null },
+                glossBuffer: { value: null },
+                glossEnabled: { value: 1 },
+                minGloss: { value: -0.4 },
+                maxGloss: { value: 0 },
+                glossExponent: { value: this._glossExponent },
+                width: { value: 1 },
+                outlineColor: { value: new THREE$1.Color(this._color) },
+                screenSize: {
+                    value: new THREE$1.Vector4(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y),
+                },
+            },
+            vertexShader: this.vertexShader,
+            fragmentShader: this.fragmentShader,
+        });
+    }
+    newRenderTarget() {
+        const planeBuffer = new THREE$1.WebGLRenderTarget(this.resolution.x, this.resolution.y);
+        planeBuffer.texture.colorSpace = "srgb-linear";
+        planeBuffer.texture.format = THREE$1.RGBAFormat;
+        planeBuffer.texture.type = THREE$1.HalfFloatType;
+        planeBuffer.texture.minFilter = THREE$1.NearestFilter;
+        planeBuffer.texture.magFilter = THREE$1.NearestFilter;
+        planeBuffer.texture.generateMipmaps = false;
+        planeBuffer.stencilBuffer = false;
+        return planeBuffer;
+    }
+}
+
+// TODO: Clean up and document this
+// source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
+class Postproduction {
+    constructor(components, renderer) {
+        this.components = components;
+        this.renderer = renderer;
+        this.excludedItems = new Set();
+        this._enabled = false;
+        this._initialized = false;
+        this._saoEnabled = false;
+        this._customEffectsEnabled = true;
+        this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+        this._renderTarget.texture.colorSpace = "srgb-linear";
+        this.composer = new EffectComposer(this.renderer, this._renderTarget);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(active) {
+        if (!this._initialized) {
+            this.initialize();
+        }
+        this._enabled = active;
+    }
+    get saoEnabled() {
+        return this._saoEnabled;
+    }
+    set saoEnabled(active) {
+        if (this._saoEnabled === active)
+            return;
+        this._saoEnabled = active;
+        if (!this.n8ao)
+            return;
+        if (active) {
+            this.composer.addPass(this.n8ao);
+            if (this.customEffects && this._customEffectsEnabled) {
+                this.composer.removePass(this.customEffects);
+                this.composer.addPass(this.customEffects);
+                this.customEffects.correctColor = false;
+            }
+        }
+        else {
+            this.composer.removePass(this.n8ao);
+            if (this.customEffects) {
+                this.customEffects.correctColor = true;
+            }
+        }
+    }
+    get customEffectsEnabled() {
+        return this._customEffectsEnabled;
+    }
+    set customEffectsEnabled(active) {
+        if (this._customEffectsEnabled === active)
+            return;
+        this._customEffectsEnabled = active;
+        if (!this.customEffects)
+            return;
+        if (active) {
+            this.composer.addPass(this.customEffects);
+        }
+        else {
+            this.composer.removePass(this.customEffects);
+        }
+    }
+    dispose() {
+        var _a, _b, _c, _d;
+        this._renderTarget.dispose();
+        (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
+        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.dispose();
+        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.dispose();
+        (_d = this.n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
+        this.excludedItems.clear();
+    }
+    setSize(width, height) {
+        var _a, _b, _c;
+        this.composer.setSize(width, height);
+        (_a = this.n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
+        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
+        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
+    }
+    update() {
+        if (!this._enabled)
+            return;
+        this.composer.render();
+    }
+    updateCamera() {
+        const camera = this.components.camera.get();
+        if (this.n8ao) {
+            this.n8ao.camera = camera;
+        }
+        if (this.customEffects) {
+            this.customEffects.renderCamera = camera;
+        }
+        if (this._basePass) {
+            this._basePass.camera = camera;
+        }
+    }
+    initialize() {
+        const scene = this.components.scene.get();
+        const camera = this.components.camera.get();
+        if (!scene || !camera)
+            return;
+        if (this.components.camera instanceof OrthoPerspectiveCamera) {
+            this.components.camera.projectionChanged.on(() => {
+                this.updateCamera();
+            });
+        }
+        const renderer = this.components.renderer;
+        this.renderer.clippingPlanes = renderer.clippingPlanes;
+        this.addBasePass(scene, camera);
+        this.addSaoPass(scene, camera);
+        this.addOutlinePass();
+        // this.addFXAAPass();
+        this._initialized = true;
+    }
+    updateProjection(camera) {
+        this.composer.passes.forEach((pass) => {
+            // @ts-ignore
+            pass.camera = camera;
+        });
+        this.update();
+    }
+    addOutlinePass() {
+        const customOutline = new CustomEffectsPass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
+        this.customEffects = customOutline;
+        this.composer.addPass(customOutline);
+    }
+    // TODO: Work in progress, this needs adjustment
+    // private addGlossPass() {
+    //   const customGloss = new CustomGlossPass(
+    //     new THREE.Vector2(window.innerWidth, window.innerHeight),
+    //     this.components
+    //   );
+    //
+    //   this.gloss = customGloss;
+    //   this.composer.addPass(customGloss);
+    // }
+    addSaoPass(scene, camera) {
+        const { width, height } = this.components.renderer.getSize();
+        this.n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
+        // this.composer.addPass(this.n8ao);
+        const { configuration } = this.n8ao;
+        configuration.aoSamples = 16;
+        configuration.denoiseSamples = 1;
+        configuration.denoiseRadius = 13;
+        configuration.aoRadius = 1;
+        configuration.distanceFalloff = 4;
+        configuration.aoRadius = 1;
+        configuration.intensity = 4;
+        configuration.halfRes = true;
+        configuration.color = new THREE$1.Color().setHex(0xcccccc, "srgb-linear");
+    }
+    addFXAAPass() {
+        const effectFXAA = new ShaderPass(FXAAShader);
+        effectFXAA.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
+        this._fxaaPass = effectFXAA;
+        this.composer.addPass(effectFXAA);
+    }
+    addBasePass(scene, camera) {
+        this._basePass = new RenderPass(scene, camera);
+        this.composer.addPass(this._basePass);
+    }
+}
+
+/**
+ * Renderer that uses efficient postproduction effects (e.g. Ambient Occlusion).
+ */
+class PostproductionRenderer extends SimpleRenderer {
+    constructor(components, container) {
+        super(components, container);
+        this.postproduction = new Postproduction(components, this._renderer);
+        this.setPostproductionSize();
+    }
+    /** {@link Updateable.update} */
+    update(_delta) {
+        var _a, _b;
+        this.beforeUpdate.trigger(this);
+        const scene = (_a = this.components.scene) === null || _a === void 0 ? void 0 : _a.get();
+        const camera = (_b = this.components.camera) === null || _b === void 0 ? void 0 : _b.get();
+        if (!scene || !camera)
+            return;
+        if (this.postproduction.enabled) {
+            this.postproduction.composer.render();
+        }
+        else {
+            this._renderer.render(scene, camera);
+        }
+        this._renderer2D.render(scene, camera);
+        this.afterUpdate.trigger(this);
+    }
+    /** {@link Disposable.dispose}. */
+    dispose() {
+        super.dispose();
+        this.postproduction.dispose();
+    }
+    /** {@link Resizeable.resize}. */
+    resize() {
+        super.resize();
+        if (this.postproduction) {
+            this.setPostproductionSize();
+        }
+    }
+    setPostproductionSize() {
+        const { clientWidth, clientHeight } = this.container;
+        this.postproduction.setSize(clientWidth, clientHeight);
+    }
+}
+
+/**
  * Two pass Gaussian blur filter (horizontal and vertical blur shaders)
  * - see http://www.cake23.de/traveling-wavefronts-lit-up.html
  *
@@ -99139,6 +98225,366 @@ class ShadowDropper extends Component {
     }
 }
 
+/** The name of the CSS class that styles the dimension label. */
+const DimensionLabelClassName = "text-white text-sm bg-ifcjs-100 rounded-md px-3 py-1";
+/** The name of the CSS class that styles the dimension label. */
+const DimensionPreviewClassName = "bg-ifcjs-100 rounded-full w-[8px] h-[8px]";
+
+// TODO: Document + clean up this: way less parameters, clearer logic
+class SimpleDimensionLine {
+    constructor(components, data) {
+        this.boundingBox = new THREE$1.Mesh();
+        this._disposer = new Disposer();
+        this._root = new THREE$1.Group();
+        this._endpoints = [];
+        this._components = components;
+        this.start = data.start;
+        this.end = data.end;
+        this._length = this.getLength();
+        this._line = this.createLine(data);
+        this.newEndpointElement(data.endpointElement);
+        // @ts-ignore
+        this.newEndpointElement(data.endpointElement.cloneNode(true));
+        this.label = this.newText();
+        this._root.renderOrder = 2;
+        this._components.scene.get().add(this._root);
+    }
+    set visible(value) {
+        this.label.visible = value;
+        this._endpoints[0].visible = value;
+        this._endpoints[1].visible = value;
+        if (value) {
+            this._components.scene.get().add(this._root);
+        }
+        else {
+            this._root.removeFromParent();
+        }
+    }
+    set endPoint(point) {
+        this.end = point;
+        const position = this._line.geometry.attributes
+            .position;
+        position.setXYZ(1, point.x, point.y, point.z);
+        position.needsUpdate = true;
+        this._endpoints[1].get().position.copy(point);
+        this.updateLabel();
+    }
+    set startPoint(point) {
+        this.start = point;
+        const position = this._line.geometry.attributes
+            .position;
+        position.setXYZ(0, point.x, point.y, point.z);
+        position.needsUpdate = true;
+        this._endpoints[0].get().position.copy(point);
+        this.updateLabel();
+    }
+    get _center() {
+        let dir = this.end.clone().sub(this.start);
+        const len = dir.length() * 0.5;
+        dir = dir.normalize().multiplyScalar(len);
+        return this.start.clone().add(dir);
+    }
+    dispose() {
+        this.visible = false;
+        this._disposer.dispose(this._root);
+        this._disposer.dispose(this._line);
+        for (const marker of this._endpoints)
+            marker.dispose();
+        this._endpoints.length = 0;
+        this.label.dispose();
+        if (this.boundingBox) {
+            this._disposer.dispose(this.boundingBox);
+        }
+    }
+    createBoundingBox() {
+        this.boundingBox.geometry = new THREE$1.BoxGeometry(1, 1, this._length);
+        this.boundingBox.position.copy(this._center);
+        this.boundingBox.lookAt(this.end);
+        this.boundingBox.visible = false;
+        this._root.add(this.boundingBox);
+    }
+    toggleLabel() {
+        this.label.toggleVisibility();
+    }
+    newEndpointElement(element) {
+        const isFirst = this._endpoints.length === 0;
+        const position = isFirst ? this.start : this.end;
+        const marker = new Simple2DMarker(this._components, element);
+        marker.get().position.copy(position);
+        this._endpoints.push(marker);
+        this._root.add(marker.get());
+    }
+    updateLabel() {
+        this._length = this.getLength();
+        this.label.get().element.textContent = this.getTextContent();
+        this.label.get().position.copy(this._center);
+        this._line.computeLineDistances();
+    }
+    createLine(data) {
+        const axisGeom = new THREE$1.BufferGeometry();
+        axisGeom.setFromPoints([data.start, data.end]);
+        const line = new THREE$1.Line(axisGeom, data.lineMaterial);
+        this._root.add(line);
+        return line;
+    }
+    newText() {
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        htmlText.textContent = this.getTextContent();
+        const label = new Simple2DMarker(this._components, htmlText);
+        label.get().position.copy(this._center);
+        this._root.add(label.get());
+        return label;
+    }
+    getTextContent() {
+        return `${this._length / SimpleDimensionLine.scale} ${SimpleDimensionLine.units}`;
+    }
+    getLength() {
+        return parseFloat(this.start.distanceTo(this.end).toFixed(2));
+    }
+}
+SimpleDimensionLine.scale = 1;
+SimpleDimensionLine.units = "m";
+
+/**
+ * A basic dimension tool to measure distances between 2 points in 3D and
+ * display a 3D symbol displaying the numeric value.
+ */
+class LengthMeasurement extends Component {
+    constructor(_components) {
+        super();
+        this._components = _components;
+        /** {@link Component.name} */
+        this.name = "LengthMeasurement";
+        /** {@link Updateable.beforeUpdate} */
+        this.beforeUpdate = new Event();
+        /** {@link Updateable.afterUpdate} */
+        this.afterUpdate = new Event();
+        /** {@link Createable.afterCreate} */
+        this.afterCreate = new Event();
+        /** {@link Createable.beforeCreate} */
+        this.beforeCreate = new Event();
+        /** {@link Createable.afterDelete} */
+        this.afterDelete = new Event();
+        /** {@link Createable.beforeDelete} */
+        this.beforeDelete = new Event();
+        /** {@link Createable.beforeCancel} */
+        this.beforeCancel = new Event();
+        /** {@link Createable.afterCancel} */
+        this.afterCancel = new Event();
+        /** The minimum distance to force the dimension cursor to a vertex. */
+        this.snapDistance = 0.25;
+        this._lineMaterial = new THREE$1.LineBasicMaterial({
+            color: "#DC2626",
+            linewidth: 2,
+            depthTest: false,
+        });
+        this._measurements = [];
+        this._visible = true;
+        this._enabled = false;
+        /** Temporary variables for internal operations */
+        this._temp = {
+            isDragging: false,
+            start: new THREE$1.Vector3(),
+            end: new THREE$1.Vector3(),
+            dimension: undefined,
+        };
+        this._raycaster = new SimpleRaycaster(this._components);
+        this._vertexPicker = new VertexPicker(_components, {
+            previewElement: this.newEndpoint(),
+            snapDistance: this.snapDistance,
+        });
+        this.uiElement = new Button(this._components, {
+            materialIconName: "straighten",
+        });
+        this.setUI();
+        this.enabled = false;
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(value) {
+        if (!value)
+            this.cancelCreation();
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(value) {
+        this._visible = value;
+        if (!this._visible) {
+            this.enabled = false;
+        }
+        for (const dimension of this._measurements) {
+            dimension.visible = this._visible;
+        }
+    }
+    /**
+     * The [Color](https://threejs.org/docs/#api/en/math/Color)
+     * of the geometry of the dimensions.
+     */
+    set color(color) {
+        this._lineMaterial.color = color;
+    }
+    setUI() {
+        const viewerContainer = this._components.renderer.get().domElement
+            .parentElement;
+        const createDimension = () => this.create();
+        const keydown = (e) => {
+            if (!this.enabled)
+                return;
+            if (e.key === "Escape") {
+                if (this._temp.isDragging) {
+                    this.cancelCreation();
+                }
+                else {
+                    this.enabled = false;
+                }
+            }
+        };
+        this.uiElement.onclick = () => {
+            if (!this.enabled) {
+                viewerContainer.addEventListener("click", createDimension);
+                window.addEventListener("keydown", keydown);
+                this.uiElement.active = true;
+                this.enabled = true;
+            }
+            else {
+                this.enabled = false;
+                this.uiElement.active = false;
+                viewerContainer.removeEventListener("click", createDimension);
+                window.removeEventListener("keydown", keydown);
+            }
+        };
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._measurements;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        this.enabled = false;
+        this._measurements.forEach((dim) => dim.dispose());
+        this._measurements = [];
+        this._vertexPicker.dispose();
+    }
+    /** {@link Updateable.update} */
+    update(_delta) {
+        if (this._enabled) {
+            this.beforeUpdate.trigger(this);
+            if (this._temp.isDragging) {
+                this.drawInProcess();
+            }
+            this.afterUpdate.trigger(this);
+        }
+    }
+    /**
+     * Starts or finishes drawing a new dimension line.
+     *
+     * @param plane - forces the dimension to be drawn on a plane. Use this if you are drawing
+     * dimensions in floor plan navigation.
+     */
+    create(plane) {
+        if (!this._enabled)
+            return;
+        this.beforeCreate.trigger(this);
+        if (!this._temp.isDragging) {
+            this.drawStart(plane);
+            return;
+        }
+        this.endCreation();
+    }
+    /** Deletes the dimension that the user is hovering over with the mouse or touch event. */
+    delete() {
+        if (!this._enabled || this._measurements.length === 0)
+            return;
+        const boundingBoxes = this.getBoundingBoxes();
+        const intersect = this._raycaster.castRay(boundingBoxes);
+        if (!intersect)
+            return;
+        const dimension = this._measurements.find((dim) => dim.boundingBox === intersect.object);
+        if (dimension) {
+            const index = this._measurements.indexOf(dimension);
+            this._measurements.splice(index, 1);
+            dimension.dispose();
+            this.afterDelete.trigger(this);
+        }
+    }
+    /** Deletes all the dimensions that have been previously created. */
+    deleteAll() {
+        this._measurements.forEach((dim) => {
+            dim.dispose();
+            this.afterDelete.trigger(this);
+        });
+        this._measurements = [];
+    }
+    /** Cancels the drawing of the current dimension. */
+    cancelCreation() {
+        var _a;
+        if (!this._temp.dimension)
+            return;
+        this._temp.isDragging = false;
+        (_a = this._temp.dimension) === null || _a === void 0 ? void 0 : _a.dispose();
+        this._temp.dimension = undefined;
+    }
+    drawStart(plane) {
+        const items = plane ? [plane] : undefined;
+        const intersects = this._raycaster.castRay(items);
+        const point = this._vertexPicker.get();
+        if (!(intersects && point))
+            return;
+        this._temp.isDragging = true;
+        this._temp.start = plane ? intersects.point : point;
+    }
+    drawInProcess() {
+        const intersects = this._raycaster.castRay();
+        if (!intersects)
+            return;
+        const found = this._vertexPicker.get();
+        if (!found)
+            return;
+        this._temp.end = found;
+        if (!this._temp.dimension) {
+            this._temp.dimension = this.drawDimension();
+        }
+        this._temp.dimension.endPoint = this._temp.end;
+    }
+    endCreation() {
+        if (!this._temp.dimension)
+            return;
+        this._temp.dimension.createBoundingBox();
+        this._measurements.push(this._temp.dimension);
+        this.afterCreate.trigger(this._temp.dimension);
+        this._temp.dimension = undefined;
+        this._temp.isDragging = false;
+    }
+    drawDimension() {
+        return new SimpleDimensionLine(this._components, {
+            start: this._temp.start,
+            end: this._temp.end,
+            lineMaterial: this._lineMaterial,
+            endpointElement: this.newEndpoint(),
+        });
+    }
+    newEndpoint() {
+        const element = document.createElement("div");
+        element.className = "w-2 h-2 bg-red-600 rounded-full";
+        return element;
+    }
+    getBoundingBoxes() {
+        return this._measurements
+            .map((dim) => dim.boundingBox)
+            .filter((box) => box !== undefined);
+    }
+}
+
 class ViewpointsManager extends Component {
     constructor(components, config) {
         super();
@@ -99192,7 +98638,7 @@ class ViewpointsManager extends Component {
         const guid = generateUUID().toLowerCase();
         // #region Store dimensions
         const dimensions = [];
-        const dimensionsComponent = this._components.tools.get("SimpleDimensions");
+        const dimensionsComponent = this._components.tools.get("LengthMeasurement");
         if (dimensionsComponent) {
             dimensionsComponent.get().forEach((dimension) => {
                 dimensions.push({ start: dimension.start, end: dimension.end });
@@ -99258,7 +98704,7 @@ class ViewpointsManager extends Component {
         }
         // #endregion
         // #region Recover dimensions
-        const dimensionsComponent = this._components.tools.get("SimpleDimensions");
+        const dimensionsComponent = this._components.tools.get("LengthMeasurement");
         if (dimensionsComponent) {
             viewpoint.dimensions.forEach((data) => {
                 const dimension = new SimpleDimensionLine(this._components, {
@@ -99472,20 +98918,20 @@ class CubeMap extends Component {
 
 class SelectionHandler extends Component {
     constructor(components, fragmentHighlighter, config) {
-        var _a, _b;
+        var _a, _b, _c, _d;
         super();
         this.name = "SelectionHandler";
         this.enabled = true;
         this._config = {
-            selectionName: "select",
-            selectionMaterial: (_a = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _a !== void 0 ? _a : new THREE$1.MeshBasicMaterial({
+            selectionName: (_a = config === null || config === void 0 ? void 0 : config.selectionName) !== null && _a !== void 0 ? _a : "select",
+            selectionMaterial: (_b = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _b !== void 0 ? _b : new THREE$1.MeshBasicMaterial({
                 color: "#BCF124",
                 transparent: true,
                 opacity: 0.6,
                 depthTest: true,
             }),
-            highlightName: "highlight",
-            highlightMaterial: (_b = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _b !== void 0 ? _b : new THREE$1.MeshBasicMaterial({
+            highlightName: (_c = config === null || config === void 0 ? void 0 : config.highlightName) !== null && _c !== void 0 ? _c : "highlight",
+            highlightMaterial: (_d = config === null || config === void 0 ? void 0 : config.highlightMaterial) !== null && _d !== void 0 ? _d : new THREE$1.MeshBasicMaterial({
                 color: "#6528D7",
                 transparent: true,
                 opacity: 0.2,
@@ -99515,9 +98961,8 @@ class SelectionHandler extends Component {
             mouseDown = true;
         });
         this._viewerContainer.addEventListener("mouseup", (e) => {
-            if (e.target !== this.components.renderer.get().domElement) {
+            if (e.target !== this.components.renderer.get().domElement)
                 return;
-            }
             mouseDown = false;
             if (mouseMoved || e.button !== 0) {
                 mouseMoved = false;
@@ -99540,53 +98985,6 @@ class SelectionHandler extends Component {
     }
     get() {
         return this._fragmentHighlighter.selection.select;
-    }
-}
-
-class IfcPropertiesUtils {
-    static getUnits(properties) {
-        var _a;
-        const { IFCUNITASSIGNMENT } = WEBIFC;
-        const allUnits = this.findItemOfType(properties, IFCUNITASSIGNMENT);
-        for (const unitRef of allUnits.Units) {
-            if (unitRef.value === undefined || unitRef.value === null)
-                continue;
-            const unit = properties[unitRef.value];
-            if (!unit.UnitType || !unit.UnitType.value)
-                continue;
-            const value = unit.UnitType.value;
-            if (value !== "LENGTHUNIT")
-                continue;
-            let factor = 1;
-            let unitValue = 1;
-            if (unit.Name.value === "METRE")
-                unitValue = 1;
-            if (unit.Name.value === "FOOT")
-                unitValue = 0.3048;
-            if (((_a = unit.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI")
-                factor = 0.001;
-            return unitValue * factor;
-        }
-        return 1;
-    }
-    static findItemOfType(properties, type) {
-        for (const id in properties) {
-            const property = properties[id];
-            if (property.type === type) {
-                return property;
-            }
-        }
-        return null;
-    }
-    static getAllItemsOfType(properties, type) {
-        const found = [];
-        for (const id in properties) {
-            const property = properties[id];
-            if (property.type === type) {
-                found.push(property);
-            }
-        }
-        return found;
     }
 }
 
@@ -100857,4 +100255,598 @@ class MapboxWindow {
     }
 }
 
-export { ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, InfoCard, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertiesProcessor, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleAngle, SimpleArea, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleDimensions, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getPsetProps, getQsetQuantities, getRelationMap, tooeenRandomId };
+class AreaMeasureElement extends Component {
+    constructor(components, points) {
+        super();
+        this.name = "AreaShape";
+        this.enabled = true;
+        this.visible = true;
+        this.points = [];
+        this.workingPlane = null;
+        this._rotationMatrix = null;
+        this._dimensionLines = [];
+        this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
+        this.onAreaComputed = new Event();
+        this.onWorkingPlaneComputed = new Event();
+        this.onPointAdded = new Event();
+        this.onPointRemoved = new Event();
+        this._components = components;
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        this.labelMarker = new Simple2DMarker(components, htmlText);
+        this.labelMarker.visible = false;
+        this.onPointAdded.on((point) => {
+            if (this.points.length === 3 && !this._dimensionLines[2]) {
+                this.addDimensionLine(point, this.points[0]);
+                this.labelMarker.visible = true;
+            }
+        });
+        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
+    }
+    setPoint(point, index) {
+        let _index;
+        if (!index) {
+            _index = this.points.length === 0 ? 0 : this.points.length;
+        }
+        else {
+            _index = index;
+        }
+        if (_index === 0) {
+            this.points[0] = point;
+            return;
+        }
+        if (_index < 0 || _index > this.points.length)
+            return;
+        const existingIndex = this.points.length > _index;
+        this.points[_index] = point;
+        this.onPointAdded.trigger(point);
+        if (!existingIndex) {
+            this.addDimensionLine(this.points[_index - 1], point);
+        }
+        const { previousLine, nextLine } = this.getLinesBetweenIndex(_index);
+        if (previousLine)
+            previousLine.endPoint = point;
+        if (nextLine)
+            nextLine.startPoint = point;
+    }
+    removePoint(index) {
+        if (this.points.length === 3)
+            return;
+        this.points.splice(index, 1);
+        const { previousLine, nextLine } = this.getLinesBetweenIndex(index);
+        if (nextLine)
+            previousLine.endPoint = nextLine.end;
+        nextLine === null || nextLine === void 0 ? void 0 : nextLine.dispose();
+        this._dimensionLines.splice(index, 1);
+        this.onPointRemoved.trigger();
+    }
+    toggleLabel() {
+        this.labelMarker.toggleVisibility();
+    }
+    addDimensionLine(start, end) {
+        const element = document.createElement("div");
+        element.className = "w-2 h-2 bg-red-600 rounded-full";
+        const dimensionLine = new SimpleDimensionLine(this._components, {
+            start,
+            end,
+            lineMaterial: this._defaultLineMaterial,
+            endpointElement: element,
+        });
+        dimensionLine.toggleLabel();
+        if (this._dimensionLines.length > 1) {
+            this._dimensionLines.splice(this._dimensionLines.length - 1, 0, dimensionLine);
+        }
+        else {
+            this._dimensionLines.push(dimensionLine);
+        }
+        return dimensionLine;
+    }
+    getLinesBetweenIndex(index) {
+        const previousLineIndex = index === 0 ? this._dimensionLines.length - 1 : index - 1;
+        const previousLine = this._dimensionLines[previousLineIndex];
+        const nextLine = this._dimensionLines[index];
+        return { previousLine, nextLine };
+    }
+    computeWorkingPlane() {
+        this.workingPlane = new THREE$1.Plane().setFromCoplanarPoints(this.points[0], this.points[1], this.points[2]);
+        const referenceVector = new THREE$1.Vector3(0, 1, 0);
+        const theta = this.workingPlane.normal.angleTo(referenceVector);
+        const rotationAxis = new THREE$1.Vector3()
+            .crossVectors(this.workingPlane.normal, referenceVector)
+            .normalize();
+        this._rotationMatrix = new THREE$1.Matrix4().makeRotationAxis(rotationAxis, theta);
+        this.onWorkingPlaneComputed.trigger(this.workingPlane);
+    }
+    computeArea() {
+        if (!(this._rotationMatrix && this.workingPlane)) {
+            this.onAreaComputed.trigger(0);
+            return 0;
+        }
+        let xSum = 0;
+        let ySum = 0;
+        const rotMatrix = this._rotationMatrix;
+        const vectors2D = this.points.map((point) => {
+            const transformedPoint = point.clone().applyMatrix4(rotMatrix);
+            const vector2D = new THREE$1.Vector2(transformedPoint.x, transformedPoint.z);
+            xSum += vector2D.x;
+            ySum += vector2D.y;
+            return vector2D;
+        });
+        const area = Math.abs(THREE$1.ShapeUtils.area(vectors2D));
+        this.labelMarker.get().element.textContent = `${area.toFixed(2)} m²`;
+        this.labelMarker
+            .get()
+            .position.set(xSum / vectors2D.length, -this.workingPlane.constant, ySum / vectors2D.length)
+            .applyMatrix4(rotMatrix.clone().invert());
+        this.onAreaComputed.trigger(area);
+        return area;
+    }
+    dispose() {
+        for (const line of this._dimensionLines)
+            line.dispose();
+        this.labelMarker.dispose();
+        this._dimensionLines = [];
+        this.points = [];
+        this._rotationMatrix = null;
+        this.workingPlane = null;
+        this._defaultLineMaterial.dispose();
+    }
+    get() {
+        return {
+            points: this.points,
+            workingPlane: this.workingPlane,
+            area: this.computeArea(),
+        };
+    }
+}
+
+class AreaMeasurement extends Component {
+    constructor(components) {
+        super();
+        this.name = "AreaMeasurement";
+        this._enabled = false;
+        this._currentAreaElement = null;
+        this._clickCount = 0;
+        this._measurements = [];
+        this.beforeCreate = new Event();
+        this.afterCreate = new Event();
+        this.beforeCancel = new Event();
+        this.afterCancel = new Event();
+        this.beforeDelete = new Event();
+        this.afterDelete = new Event();
+        this._components = components;
+        this._vertexPicker = new VertexPicker(components);
+        this.uiElement = new Button(components, {
+            materialIconName: "check_box_outline_blank",
+        });
+        this.setUI();
+        this.enabled = false;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+        if (!value)
+            this.cancelCreation();
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set workingPlane(plane) {
+        this._vertexPicker.workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._vertexPicker.workingPlane;
+    }
+    setUI() {
+        const viewerContainer = this._components.ui.viewerContainer;
+        const createMeasurement = () => this.create();
+        const mouseMove = () => {
+            const point = this._vertexPicker.get();
+            if (!(point && this._currentAreaElement))
+                return;
+            this._currentAreaElement.setPoint(point, this._clickCount);
+            this._currentAreaElement.computeArea();
+        };
+        const keydown = (e) => {
+            if (!this.enabled)
+                return;
+            if (e.key === "z" && e.ctrlKey && this._currentAreaElement)
+                this._currentAreaElement.removePoint(this._clickCount - 1);
+            if (e.key === "Enter" && this._currentAreaElement)
+                this.endCreation();
+            if (e.key === "Escape") {
+                if (this._clickCount === 0 && !this._currentAreaElement) {
+                    this.enabled = false;
+                }
+                else {
+                    this.cancelCreation();
+                }
+            }
+        };
+        this.uiElement.onclick = () => {
+            if (!this.enabled) {
+                viewerContainer.addEventListener("click", createMeasurement);
+                viewerContainer.addEventListener("mousemove", mouseMove);
+                window.addEventListener("keydown", keydown);
+                this.uiElement.active = true;
+                this.enabled = true;
+            }
+            else {
+                this.enabled = false;
+                this.uiElement.active = false;
+                viewerContainer.removeEventListener("click", createMeasurement);
+                viewerContainer.removeEventListener("mousemove", mouseMove);
+                window.removeEventListener("keydown", keydown);
+            }
+        };
+    }
+    create() {
+        if (!this.enabled)
+            return;
+        const point = this._vertexPicker.get();
+        if (!point)
+            return;
+        if (!this._currentAreaElement) {
+            const areaShape = new AreaMeasureElement(this._components);
+            areaShape.onPointAdded.on(() => {
+                if (this._clickCount === 3 && !areaShape.workingPlane) {
+                    areaShape.computeWorkingPlane();
+                    this._vertexPicker.workingPlane = areaShape.workingPlane;
+                }
+            });
+            areaShape.onPointRemoved.on(() => this._clickCount--);
+            this._currentAreaElement = areaShape;
+        }
+        this._currentAreaElement.setPoint(point, this._clickCount);
+        this._currentAreaElement.computeArea();
+        this._clickCount++;
+    }
+    delete() { }
+    endCreation() {
+        if (this._currentAreaElement) {
+            this._measurements.push(this._currentAreaElement);
+            this._currentAreaElement.removePoint(this._clickCount);
+            this._currentAreaElement.computeWorkingPlane();
+            this._currentAreaElement.computeArea();
+            this._currentAreaElement = null;
+        }
+        this._vertexPicker.workingPlane = null;
+        this._clickCount = 0;
+    }
+    cancelCreation() {
+        if (this._currentAreaElement) {
+            this._currentAreaElement.dispose();
+            this._currentAreaElement = null;
+        }
+        this._vertexPicker.workingPlane = null;
+        this._clickCount = 0;
+    }
+    get() {
+        return this._measurements;
+    }
+}
+
+class LineGeometry extends LineSegmentsGeometry {
+
+	constructor() {
+
+		super();
+
+		this.isLineGeometry = true;
+
+		this.type = 'LineGeometry';
+
+	}
+
+	setPositions( array ) {
+
+		// converts [ x1, y1, z1,  x2, y2, z2, ... ] to pairs format
+
+		const length = array.length - 3;
+		const points = new Float32Array( 2 * length );
+
+		for ( let i = 0; i < length; i += 3 ) {
+
+			points[ 2 * i ] = array[ i ];
+			points[ 2 * i + 1 ] = array[ i + 1 ];
+			points[ 2 * i + 2 ] = array[ i + 2 ];
+
+			points[ 2 * i + 3 ] = array[ i + 3 ];
+			points[ 2 * i + 4 ] = array[ i + 4 ];
+			points[ 2 * i + 5 ] = array[ i + 5 ];
+
+		}
+
+		super.setPositions( points );
+
+		return this;
+
+	}
+
+	setColors( array ) {
+
+		// converts [ r1, g1, b1,  r2, g2, b2, ... ] to pairs format
+
+		const length = array.length - 3;
+		const colors = new Float32Array( 2 * length );
+
+		for ( let i = 0; i < length; i += 3 ) {
+
+			colors[ 2 * i ] = array[ i ];
+			colors[ 2 * i + 1 ] = array[ i + 1 ];
+			colors[ 2 * i + 2 ] = array[ i + 2 ];
+
+			colors[ 2 * i + 3 ] = array[ i + 3 ];
+			colors[ 2 * i + 4 ] = array[ i + 4 ];
+			colors[ 2 * i + 5 ] = array[ i + 5 ];
+
+		}
+
+		super.setColors( colors );
+
+		return this;
+
+	}
+
+	fromLine( line ) {
+
+		const geometry = line.geometry;
+
+		this.setPositions( geometry.attributes.position.array ); // assumes non-indexed
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+}
+
+class Line2 extends LineSegments2 {
+
+	constructor( geometry = new LineGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
+
+		super( geometry, material );
+
+		this.isLine2 = true;
+
+		this.type = 'Line2';
+
+	}
+
+}
+
+class AngleMeasureElement extends Component {
+    constructor(components, points) {
+        super();
+        this.name = "AngleMeasureElement";
+        this.enabled = true;
+        this.visible = true;
+        this.points = [];
+        this._lineMaterial = new LineMaterial({
+            color: 0x6528d7,
+            linewidth: 2,
+        });
+        this._lineGeometry = new LineGeometry();
+        this._line = new Line2(this._lineGeometry, this._lineMaterial);
+        this.onAngleComputed = new Event();
+        this.onPointAdded = new Event();
+        this._components = components;
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        this._labelMarker = new Simple2DMarker(components, htmlText);
+        this.labelMarker.visible = false;
+        this.onPointAdded.on(() => {
+            if (this.points.length === 1)
+                this.scene.add(this._line);
+            if (this.points.length === 3)
+                this.labelMarker.visible = true;
+        });
+        this.onAngleComputed.on((angle) => {
+            var _a;
+            this.labelMarker.get().element.textContent = `${angle.toFixed(2)}°`;
+            this.labelMarker
+                .get()
+                .position.copy((_a = this.points[1]) !== null && _a !== void 0 ? _a : new THREE$1.Vector3());
+        });
+        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
+    }
+    set lineMaterial(material) {
+        this._lineMaterial.dispose();
+        this._lineMaterial = material;
+        this._line.material = material;
+        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    }
+    get lineMaterial() {
+        return this._lineMaterial;
+    }
+    set labelMarker(marker) {
+        this._labelMarker.dispose();
+        this._labelMarker = marker;
+    }
+    get labelMarker() {
+        return this._labelMarker;
+    }
+    get scene() {
+        return this._components.scene.get();
+    }
+    setPoint(point, index) {
+        let _index;
+        if (!index) {
+            _index = this.points.length === 0 ? 0 : this.points.length;
+        }
+        else {
+            _index = index;
+        }
+        if (![0, 1, 2].includes(_index))
+            return;
+        this.points[_index] = point;
+        this.onPointAdded.trigger(point);
+        const points = this.points.map((point) => {
+            return [point.x, point.y, point.z];
+        });
+        this._lineGeometry.setPositions(points.flat());
+    }
+    toggleLabel() {
+        this.labelMarker.toggleVisibility();
+    }
+    computeAngle() {
+        const v0 = this.points[0];
+        const v1 = this.points[1];
+        const v2 = this.points[2];
+        if (!(v0 && v1 && v2))
+            return 0;
+        const vA = new THREE$1.Vector3().subVectors(v1, v0);
+        const vB = new THREE$1.Vector3().subVectors(v1, v2);
+        const angle = THREE$1.MathUtils.radToDeg(vA.angleTo(vB));
+        this.onAngleComputed.trigger(angle);
+        return angle;
+    }
+    dispose() {
+        this.points = [];
+        this.labelMarker.dispose();
+        this._line.removeFromParent();
+        this._lineMaterial.dispose();
+        this._lineGeometry.dispose();
+    }
+    get() {
+        return {
+            points: this.points,
+            angle: this.computeAngle(),
+        };
+    }
+}
+
+class AngleMeasurement extends Component {
+    constructor(components) {
+        super();
+        this.name = "AngleMeasurement";
+        this._enabled = false;
+        this._currentAngleElement = null;
+        this._clickCount = 0;
+        this._measurements = [];
+        this.beforeCreate = new Event();
+        this.afterCreate = new Event();
+        this.beforeCancel = new Event();
+        this.afterCancel = new Event();
+        this.beforeDelete = new Event();
+        this.afterDelete = new Event();
+        this._components = components;
+        this._lineMaterial = new LineMaterial({
+            color: 0x6528d7,
+            linewidth: 2,
+        });
+        this._vertexPicker = new VertexPicker(components);
+        this.uiElement = new Button(components, {
+            materialIconName: "square_foot",
+        });
+        this.setUI();
+        this.enabled = false;
+    }
+    set lineMaterial(material) {
+        this._lineMaterial.dispose();
+        this._lineMaterial = material;
+        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    }
+    get lineMaterial() {
+        return this._lineMaterial;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+        if (!value)
+            this.cancelCreation();
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set workingPlane(plane) {
+        this._vertexPicker.workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._vertexPicker.workingPlane;
+    }
+    setUI() {
+        const viewerContainer = this._components.ui.viewerContainer;
+        const createMeasurement = () => this.create();
+        const mouseMove = () => {
+            const point = this._vertexPicker.get();
+            if (!(point && this._currentAngleElement))
+                return;
+            this._currentAngleElement.setPoint(point, this._clickCount);
+            this._currentAngleElement.computeAngle();
+        };
+        const keydown = (e) => {
+            if (!this.enabled)
+                return;
+            if (e.key === "z" && e.ctrlKey && this._currentAngleElement) ;
+            if (e.key === "Escape") {
+                if (this._clickCount === 0 && !this._currentAngleElement) {
+                    this.enabled = false;
+                }
+                else {
+                    this.cancelCreation();
+                }
+            }
+        };
+        this.uiElement.onclick = () => {
+            if (!this.enabled) {
+                viewerContainer.addEventListener("click", createMeasurement);
+                viewerContainer.addEventListener("mousemove", mouseMove);
+                window.addEventListener("keydown", keydown);
+                this.uiElement.active = true;
+                this.enabled = true;
+            }
+            else {
+                this.enabled = false;
+                this.uiElement.active = false;
+                viewerContainer.removeEventListener("click", createMeasurement);
+                viewerContainer.removeEventListener("mousemove", mouseMove);
+                window.removeEventListener("keydown", keydown);
+            }
+        };
+    }
+    create() {
+        if (!this.enabled)
+            return;
+        const point = this._vertexPicker.get();
+        if (!point)
+            return;
+        if (!this._currentAngleElement) {
+            const angleElement = new AngleMeasureElement(this._components);
+            angleElement.lineMaterial = this.lineMaterial;
+            // angleElement.onPointRemoved.on(() => this._clickCount--);
+            this._currentAngleElement = angleElement;
+        }
+        this._currentAngleElement.setPoint(point, this._clickCount);
+        this._currentAngleElement.setPoint(point, (this._clickCount + 1));
+        this._currentAngleElement.setPoint(point, (this._clickCount + 2));
+        this._currentAngleElement.computeAngle();
+        this._clickCount++;
+        if (this._clickCount === 3)
+            this.endCreation();
+    }
+    delete() { }
+    endCreation() {
+        if (this._currentAngleElement) {
+            this._measurements.push(this._currentAngleElement);
+            this._currentAngleElement.computeAngle();
+            this._currentAngleElement = null;
+        }
+        this._clickCount = 0;
+    }
+    cancelCreation() {
+        if (this._currentAngleElement) {
+            this._currentAngleElement.dispose();
+            this._currentAngleElement = null;
+        }
+        this._clickCount = 0;
+    }
+    get() {
+        return this._measurements;
+    }
+}
+
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
