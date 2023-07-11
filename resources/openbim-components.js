@@ -598,16 +598,7 @@ function effect$1(_ref2) {
     }
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    if (!isHTMLElement(arrowElement)) {
-      console.error(['Popper: "arrow" element must be an HTMLElement (not an SVGElement).', 'To use an SVG arrow, wrap it in an HTMLElement that will be used as', 'the arrow.'].join(' '));
-    }
-  }
-
   if (!contains(state.elements.popper, arrowElement)) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error(['Popper: "arrow" modifier\'s `element` must be a child of the popper', 'element.'].join(' '));
-    }
 
     return;
   }
@@ -750,16 +741,6 @@ function computeStyles(_ref5) {
       adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
       _options$roundOffsets = options.roundOffsets,
       roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
-
-  if (process.env.NODE_ENV !== "production") {
-    var transitionProperty = getComputedStyle(state.elements.popper).transitionProperty || '';
-
-    if (adaptive && ['transform', 'top', 'right', 'bottom', 'left'].some(function (property) {
-      return transitionProperty.indexOf(property) >= 0;
-    })) {
-      console.warn(['Popper: Detected CSS transitions on at least one of the following', 'CSS properties: "transform", "top", "right", "bottom", "left".', '\n\n', 'Disable the "computeStyles" modifier\'s `adaptive` option to allow', 'for smooth transitions, or remove these properties from the CSS', 'transition declaration on the popper element if only transitioning', 'opacity or background-color for example.', '\n\n', 'We recommend using the popper element as a wrapper around an inner', 'element that can have any CSS property transitioned for animations.'].join(' '));
-    }
-  }
 
   var commonStyles = {
     placement: getBasePlacement(state.placement),
@@ -1201,10 +1182,6 @@ function computeAutoPlacement(state, options) {
 
   if (allowedPlacements.length === 0) {
     allowedPlacements = placements$1;
-
-    if (process.env.NODE_ENV !== "production") {
-      console.error(['Popper: The `allowedAutoPlacements` option did not allow any', 'placements. Ensure the `placement` option matches the variation', 'of the allowed placements.', 'For example, "auto" cannot be used to allow "bottom-start".', 'Use "auto-start" instead.'].join(' '));
-    }
   } // $FlowFixMe[incompatible-type]: Flow seems to have problems with two array unions...
 
 
@@ -1756,108 +1733,6 @@ function debounce(fn) {
   };
 }
 
-function format(str) {
-  for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-    args[_key - 1] = arguments[_key];
-  }
-
-  return [].concat(args).reduce(function (p, c) {
-    return p.replace(/%s/, c);
-  }, str);
-}
-
-var INVALID_MODIFIER_ERROR = 'Popper: modifier "%s" provided an invalid %s property, expected %s but got %s';
-var MISSING_DEPENDENCY_ERROR = 'Popper: modifier "%s" requires "%s", but "%s" modifier is not available';
-var VALID_PROPERTIES = ['name', 'enabled', 'phase', 'fn', 'effect', 'requires', 'options'];
-function validateModifiers(modifiers) {
-  modifiers.forEach(function (modifier) {
-    [].concat(Object.keys(modifier), VALID_PROPERTIES) // IE11-compatible replacement for `new Set(iterable)`
-    .filter(function (value, index, self) {
-      return self.indexOf(value) === index;
-    }).forEach(function (key) {
-      switch (key) {
-        case 'name':
-          if (typeof modifier.name !== 'string') {
-            console.error(format(INVALID_MODIFIER_ERROR, String(modifier.name), '"name"', '"string"', "\"" + String(modifier.name) + "\""));
-          }
-
-          break;
-
-        case 'enabled':
-          if (typeof modifier.enabled !== 'boolean') {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"enabled"', '"boolean"', "\"" + String(modifier.enabled) + "\""));
-          }
-
-          break;
-
-        case 'phase':
-          if (modifierPhases.indexOf(modifier.phase) < 0) {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"phase"', "either " + modifierPhases.join(', '), "\"" + String(modifier.phase) + "\""));
-          }
-
-          break;
-
-        case 'fn':
-          if (typeof modifier.fn !== 'function') {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"fn"', '"function"', "\"" + String(modifier.fn) + "\""));
-          }
-
-          break;
-
-        case 'effect':
-          if (modifier.effect != null && typeof modifier.effect !== 'function') {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"effect"', '"function"', "\"" + String(modifier.fn) + "\""));
-          }
-
-          break;
-
-        case 'requires':
-          if (modifier.requires != null && !Array.isArray(modifier.requires)) {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"requires"', '"array"', "\"" + String(modifier.requires) + "\""));
-          }
-
-          break;
-
-        case 'requiresIfExists':
-          if (!Array.isArray(modifier.requiresIfExists)) {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"requiresIfExists"', '"array"', "\"" + String(modifier.requiresIfExists) + "\""));
-          }
-
-          break;
-
-        case 'options':
-        case 'data':
-          break;
-
-        default:
-          console.error("PopperJS: an invalid property has been provided to the \"" + modifier.name + "\" modifier, valid properties are " + VALID_PROPERTIES.map(function (s) {
-            return "\"" + s + "\"";
-          }).join(', ') + "; but \"" + key + "\" was provided.");
-      }
-
-      modifier.requires && modifier.requires.forEach(function (requirement) {
-        if (modifiers.find(function (mod) {
-          return mod.name === requirement;
-        }) == null) {
-          console.error(format(MISSING_DEPENDENCY_ERROR, String(modifier.name), requirement, requirement));
-        }
-      });
-    });
-  });
-}
-
-function uniqueBy(arr, fn) {
-  var identifiers = new Set();
-  return arr.filter(function (item) {
-    var identifier = fn(item);
-
-    if (!identifiers.has(identifier)) {
-      identifiers.add(identifier);
-      return true;
-    }
-  });
-}
-
 function mergeByName(modifiers) {
   var merged = modifiers.reduce(function (merged, current) {
     var existing = merged[current.name];
@@ -1873,8 +1748,6 @@ function mergeByName(modifiers) {
   });
 }
 
-var INVALID_ELEMENT_ERROR = 'Popper: Invalid reference or popper argument provided. They must be either a DOM element or virtual element.';
-var INFINITE_LOOP_ERROR = 'Popper: An infinite loop in the modifiers cycle has been detected! The cycle has been interrupted to prevent a browser crash.';
 var DEFAULT_OPTIONS = {
   placement: 'bottom',
   modifiers: [],
@@ -1937,40 +1810,6 @@ function popperGenerator(generatorOptions) {
         state.orderedModifiers = orderedModifiers.filter(function (m) {
           return m.enabled;
         }); // Validate the provided modifiers so that the consumer will get warned
-        // if one of the modifiers is invalid for any reason
-
-        if (process.env.NODE_ENV !== "production") {
-          var modifiers = uniqueBy([].concat(orderedModifiers, state.options.modifiers), function (_ref) {
-            var name = _ref.name;
-            return name;
-          });
-          validateModifiers(modifiers);
-
-          if (getBasePlacement(state.options.placement) === auto) {
-            var flipModifier = state.orderedModifiers.find(function (_ref2) {
-              var name = _ref2.name;
-              return name === 'flip';
-            });
-
-            if (!flipModifier) {
-              console.error(['Popper: "auto" placements require the "flip" modifier be', 'present and enabled to work.'].join(' '));
-            }
-          }
-
-          var _getComputedStyle = getComputedStyle(popper),
-              marginTop = _getComputedStyle.marginTop,
-              marginRight = _getComputedStyle.marginRight,
-              marginBottom = _getComputedStyle.marginBottom,
-              marginLeft = _getComputedStyle.marginLeft; // We no longer take into account `margins` on the popper, and it can
-          // cause bugs with positioning, so we'll warn the consumer
-
-
-          if ([marginTop, marginRight, marginBottom, marginLeft].some(function (margin) {
-            return parseFloat(margin);
-          })) {
-            console.warn(['Popper: CSS "margin" styles cannot be used to apply padding', 'between the popper and its reference element or boundary.', 'To replicate margin, use the `offset` modifier, as well as', 'the `padding` option in the `preventOverflow` and `flip`', 'modifiers.'].join(' '));
-          }
-        }
 
         runModifierEffects();
         return instance.update();
@@ -1991,9 +1830,6 @@ function popperGenerator(generatorOptions) {
         // anymore
 
         if (!areValidElements(reference, popper)) {
-          if (process.env.NODE_ENV !== "production") {
-            console.error(INVALID_ELEMENT_ERROR);
-          }
 
           return;
         } // Store the reference and popper rects to be read by modifiers
@@ -2017,17 +1853,8 @@ function popperGenerator(generatorOptions) {
         state.orderedModifiers.forEach(function (modifier) {
           return state.modifiersData[modifier.name] = Object.assign({}, modifier.data);
         });
-        var __debug_loops__ = 0;
 
         for (var index = 0; index < state.orderedModifiers.length; index++) {
-          if (process.env.NODE_ENV !== "production") {
-            __debug_loops__ += 1;
-
-            if (__debug_loops__ > 100) {
-              console.error(INFINITE_LOOP_ERROR);
-              break;
-            }
-          }
 
           if (state.reset === true) {
             state.reset = false;
@@ -2066,9 +1893,6 @@ function popperGenerator(generatorOptions) {
     };
 
     if (!areValidElements(reference, popper)) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error(INVALID_ELEMENT_ERROR);
-      }
 
       return instance;
     }
@@ -9620,7 +9444,7 @@ class UIComponentsStack extends SimpleUIComponent {
 class TreeTitle extends UIComponentsStack {
     constructor(components) {
         super(components, "Horizontal");
-        this.get().classList.add("items-center", "text-base", "justify-between", "hover:bg-ifcjs-120", "rounded-md", "w-full", "min-h-[30px]");
+        this.get().classList.add("items-center", "text-base", "justify-between", "hover:[opacity: 0.5]", "rounded-md", "w-full", "min-h-[30px]");
         this.arrow = new Button(components, { materialIconName: "arrow_right" });
         this.arrow.get().classList.remove("p-2");
         this.arrow.get().classList.add("p-1", "h-full");
@@ -9763,6 +9587,7 @@ class TreeView extends SimpleUIComponent {
     }
 }
 
+// @ts-ignore
 /**
  * A component that handles all UI components.
  */
@@ -9996,18 +9821,32 @@ class SimpleUICard extends SimpleUIComponent {
         var _a;
         const card = document.createElement("div");
         card.className =
-            "bg-ifcjs-100 p-2 text-white flex flex-col rounded-lg border-transparent border border-solid hover:border-ifcjs-200 hover:bg-ifcjs-200 hover:bg-opacity-5";
+            "bg-ifcjs-120 p-2 text-white flex items-center rounded-lg border-transparent border border-solid";
         const id = (_a = info.id) !== null && _a !== void 0 ? _a : generateUUID();
-        const template = `
-            <div id="${id}-before-title"></div>
-            <h3 class="font-bold" id="${id}-title">${info.title}</h3>
+        const descriptionMenu = `
             <div id="${id}-before-description"></div>
             <p id="${id}-description">${info.description}</p>
             <div id="${id}-after-description"></div>
-        `;
-        card.innerHTML = template;
+    `;
+        const description = info.description ? descriptionMenu : "";
         super(components, card, id);
         this.name = "UICard";
+        this.rightContainer = new UIComponentsStack(components, "Horizontal");
+        const template = `
+            <div class="mr-auto">
+              <div id="${id}-before-title"></div>
+              <h3 class="font-bold" id="${id}-title">${info.title}</h3>
+              ${description}
+            </div>
+        `;
+        card.innerHTML = template;
+        card.appendChild(this.rightContainer.get());
+    }
+    addChild(...items) {
+        items.forEach((item) => {
+            this.children.push(item);
+            this.rightContainer.addChild(item);
+        });
     }
 }
 
@@ -10020,7 +9859,7 @@ class FloatingWindow extends SimpleUIComponent {
         this.onResized = new Event();
         const titleElement = document.createElement("h3");
         titleElement.id = `${this.id}-title`;
-        titleElement.textContent = "Tooeen Floating Window";
+        titleElement.textContent = (config === null || config === void 0 ? void 0 : config.title) || "Tooeen Floating Window";
         titleElement.className = "text-lg font-bold";
         const descriptionElement = document.createElement("p");
         descriptionElement.id = `${this.id}-description`;
@@ -17827,14 +17666,17 @@ class ModelDatabase extends Dexie$1 {
     }
 }
 
-// TODO: Clean up UI logic and component type
+// TODO: Implement UI elements (this is probably just for 3d scans)
 class LocalCacher extends Component {
     constructor(components) {
         super();
-        this.components = components;
         this.name = "LocalCacher";
         this.enabled = true;
+        this.fileLoaded = new Event();
+        this.itemSaved = new Event();
+        this._cards = [];
         this._storedModels = "open-bim-components-stored-files";
+        this._components = components;
         this._db = new ModelDatabase();
         this.uiElement = new Toolbar(components, {
             name: "Local cacher toolbar",
@@ -17844,8 +17686,28 @@ class LocalCacher extends Component {
         this.uiElement.addChild(this.saveButton);
         this.loadButton = new Button(components, { materialIconName: "download" });
         this.uiElement.addChild(this.loadButton);
-        this.wipeButton = new Button(components, { materialIconName: "delete" });
-        this.uiElement.addChild(this.wipeButton);
+        const renderer = this._components.renderer.get();
+        const viewerContainer = renderer.domElement.parentElement;
+        this.floatingMenu = new FloatingWindow(components, {
+            id: "file-list-menu",
+            title: "Saved files",
+        });
+        this.floatingMenu.visible = false;
+        const savedFilesMenuHTML = this.floatingMenu.get();
+        savedFilesMenuHTML.style.left = "70px";
+        savedFilesMenuHTML.style.top = "100px";
+        savedFilesMenuHTML.style.width = "340px";
+        savedFilesMenuHTML.style.height = "400px";
+        viewerContainer.appendChild(this.floatingMenu.get());
+        this.saveButton.onclick = () => {
+            if (this.floatingMenu.visible) {
+                this.floatingMenu.visible = false;
+            }
+        };
+    }
+    get ids() {
+        const serialized = localStorage.getItem(this._storedModels) || "[]";
+        return JSON.parse(serialized);
     }
     async get(id) {
         if (this.exists(id)) {
@@ -17888,31 +17750,31 @@ class LocalCacher extends Component {
         this._db = new ModelDatabase();
         this._db.close();
     }
+    dispose() {
+        this._components = null;
+    }
     async getModelFromLocalCache(id) {
         const found = await this._db.models.where("id").equals(id).toArray();
         return found[0].file;
     }
     clearStoredIDs() {
-        const ids = this.getStoredIDs();
+        const ids = this.ids;
         for (const id of ids) {
             this.removeStoredID(id);
         }
     }
     removeStoredID(id) {
         localStorage.removeItem(id);
-        const ids = this.getStoredIDs().filter((savedId) => savedId !== id);
+        const allIDs = this.ids;
+        const ids = allIDs.filter((savedId) => savedId !== id);
         this.setStoredIDs(ids);
     }
     addStoredID(id) {
         const time = performance.now().toString();
         localStorage.setItem(id, time);
-        const ids = this.getStoredIDs();
+        const ids = this.ids;
         ids.push(id);
         this.setStoredIDs(ids);
-    }
-    getStoredIDs() {
-        const serialized = localStorage.getItem(this._storedModels) || "[]";
-        return JSON.parse(serialized);
     }
     setStoredIDs(ids) {
         localStorage.setItem(this._storedModels, JSON.stringify(ids));
@@ -25643,8 +25505,12 @@ let FragmentsGroup$1 = class FragmentsGroup {
         const offset = this.bb.__offset(this.bb_pos, 18);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
+    id(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 20);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
     static startFragmentsGroup(builder) {
-        builder.startObject(8);
+        builder.startObject(9);
     }
     static addItems(builder, itemsOffset) {
         builder.addFieldOffset(0, itemsOffset, 0);
@@ -25740,6 +25606,9 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static addFragmentKeys(builder, fragmentKeysOffset) {
         builder.addFieldOffset(7, fragmentKeysOffset, 0);
     }
+    static addId(builder, idOffset) {
+        builder.addFieldOffset(8, idOffset, 0);
+    }
     static endFragmentsGroup(builder) {
         const offset = builder.endObject();
         return offset;
@@ -25750,7 +25619,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
         builder.finish(offset, undefined, true);
     }
-    static createFragmentsGroup(builder, itemsOffset, matrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset) {
+    static createFragmentsGroup(builder, itemsOffset, matrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset) {
         FragmentsGroup.startFragmentsGroup(builder);
         FragmentsGroup.addItems(builder, itemsOffset);
         FragmentsGroup.addMatrix(builder, matrixOffset);
@@ -25760,6 +25629,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         FragmentsGroup.addItemsRels(builder, itemsRelsOffset);
         FragmentsGroup.addItemsRelsIndices(builder, itemsRelsIndicesOffset);
         FragmentsGroup.addFragmentKeys(builder, fragmentKeysOffset);
+        FragmentsGroup.addId(builder, idOffset);
         return FragmentsGroup.endFragmentsGroup(builder);
     }
 };
@@ -25875,12 +25745,14 @@ class Serializer {
             keysCounter += keys.length;
             relsCounter += rels.length;
         }
+        const groupID = builder.createString(group.uuid);
         const keysIVector = G.createItemsKeysIndicesVector(builder, keyIndices);
         const keysVector = G.createItemsKeysVector(builder, itemsKeys);
         const relsIVector = G.createItemsRelsIndicesVector(builder, relsIndices);
         const relsVector = G.createItemsRelsVector(builder, itemsRels);
         const idsVector = G.createIdsVector(builder, ids);
         G.startFragmentsGroup(builder);
+        G.addId(builder, groupID);
         G.addItems(builder, itemsVector);
         G.addFragmentKeys(builder, fragmentKeysRef);
         G.addIds(builder, idsVector);
@@ -25966,6 +25838,7 @@ class Serializer {
     }
     constructFragmentGroup(group) {
         const fragmentsGroup = new FragmentsGroup();
+        fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
         const matrixArray = group.matrixArray() || new Float32Array();
         const ids = group.idsArray() || new Uint32Array();
         const keysIndices = group.itemsKeysIndicesArray() || new Uint32Array();
@@ -91797,6 +91670,13 @@ class DataConverter {
         this._model.data = itemsData;
         this._model.matrix = this.getCoordinationMatrix(webIfc);
         this._model.properties = await this.getModelProperties(webIfc);
+        this._model.uuid = this.getProjectID(webIfc) || this._model.uuid;
+    }
+    getProjectID(webIfc) {
+        const projectsIDs = webIfc.GetLineIDsWithType(0, IFCPROJECT);
+        const projectID = projectsIDs.get(0);
+        const project = webIfc.GetLine(0, projectID);
+        return project.GlobalId.value;
     }
     getCoordinationMatrix(webIfc) {
         const coordArray = webIfc.GetCoordinationMatrix(0);
@@ -92744,8 +92624,100 @@ class FragmentEdges extends Component {
     }
 }
 
+// TODO: Clean up
 class FragmentCacher extends LocalCacher {
-    async getFragmentGroup(id, fragments) {
+    constructor(components, fragments) {
+        super(components);
+        this._mode = "none";
+        this._fragments = fragments;
+        this.saveButton.onclick = () => {
+            this.floatingMenu.title = "Save items";
+            if (this.floatingMenu.visible && this._mode === "save") {
+                this.floatingMenu.visible = false;
+                return;
+            }
+            this._mode = "save";
+            for (const card of this._cards) {
+                card.dispose();
+            }
+            this._cards = [];
+            const savedIDs = this.fragmentsIDs;
+            const ids = this._fragments.groups.map((group) => group.uuid);
+            for (const id of ids) {
+                if (savedIDs.includes(id))
+                    continue;
+                const card = new SimpleUICard(this._components, {
+                    title: id,
+                    id,
+                });
+                this._cards.push(card);
+                this.floatingMenu.addChild(card);
+                const saveCardButton = new Button(this._components, {
+                    materialIconName: "save",
+                });
+                card.addChild(saveCardButton);
+                saveCardButton.onclick = async () => {
+                    const group = this._fragments.groups.find((group) => group.uuid === id);
+                    if (group) {
+                        await this.saveFragmentGroup(group);
+                        const index = this._cards.indexOf(card);
+                        this._cards.splice(index, 1);
+                        card.dispose();
+                        this.itemSaved.trigger({ id });
+                    }
+                };
+            }
+            this.floatingMenu.visible = true;
+        };
+        this.loadButton.onclick = () => {
+            this.floatingMenu.title = "Load saved items";
+            if (this.floatingMenu.visible && this._mode === "load") {
+                this.floatingMenu.visible = false;
+                return;
+            }
+            this._mode = "load";
+            const allIDs = this.fragmentsIDs;
+            for (const card of this._cards) {
+                card.dispose();
+            }
+            this._cards = [];
+            for (const id of allIDs) {
+                const card = new SimpleUICard(this._components, {
+                    title: id,
+                    id,
+                });
+                this._cards.push(card);
+                const deleteCardButton = new Button(this._components, {
+                    materialIconName: "delete",
+                });
+                card.addChild(deleteCardButton);
+                deleteCardButton.onclick = async () => {
+                    const ids = Object.values(this.getIDs(id));
+                    await this.delete(ids);
+                    const index = this._cards.indexOf(card);
+                    this._cards.splice(index, 1);
+                    card.dispose();
+                };
+                const loadFileButton = new Button(this._components, {
+                    materialIconName: "download",
+                });
+                card.addChild(loadFileButton);
+                loadFileButton.onclick = async () => {
+                    await this.getFragmentGroup(id);
+                };
+                this.floatingMenu.addChild(card);
+            }
+            this.floatingMenu.visible = true;
+        };
+    }
+    get fragmentsIDs() {
+        const allIDs = this.ids;
+        const fragIDs = allIDs.filter((id) => id.includes("-fragments"));
+        if (!fragIDs.length)
+            return fragIDs;
+        return fragIDs.map((id) => id.replace("-fragments", ""));
+    }
+    async getFragmentGroup(id) {
         const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
         if (!fragmentsCacheID || !propertiesCacheID) {
             return null;
@@ -92756,36 +92728,32 @@ class FragmentCacher extends LocalCacher {
         }
         const fragmentsData = await fragmentFile.arrayBuffer();
         const buffer = new Uint8Array(fragmentsData);
-        fragments.load(buffer);
+        const group = this._fragments.load(buffer);
         const propertiesFile = await this.get(propertiesCacheID);
-        if (propertiesFile === null) {
-            throw new Error("Loading error");
+        if (propertiesFile !== null) {
+            const propertiesData = await propertiesFile.text();
+            group.properties = JSON.parse(propertiesData);
         }
-        const propertiesData = await propertiesFile.text();
-        const properties = JSON.parse(propertiesData);
-        const loadedModel = new THREE$1.Mesh();
-        this.components.scene.get().add(loadedModel);
-        for (const id in properties) {
-            loadedModel[id] = properties[id];
-        }
-        loadedModel.fragments = Object.values(fragments.list);
-        for (const id in fragments.list) {
-            const fragment = fragments.list[id];
-            loadedModel.attach(fragment.mesh);
-        }
-        return loadedModel;
+        this._components.scene.get().add(group);
+        return group;
     }
-    async saveFragmentGroup(group, id) {
-        const fragments = new FragmentManager(this.components);
+    async saveFragmentGroup(group, id = group.uuid) {
+        const fragments = new FragmentManager(this._components);
         const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
         const exported = fragments.export(group);
         const fragmentsFile = new File([new Blob([exported])], fragmentsCacheID);
         const fragmentsUrl = URL.createObjectURL(fragmentsFile);
         await this.save(fragmentsCacheID, fragmentsUrl);
-        const json = JSON.stringify(group.properties);
-        const jsonFile = new File([new Blob([json])], propertiesCacheID);
-        const propertiesUrl = URL.createObjectURL(jsonFile);
-        await this.save(propertiesCacheID, propertiesUrl);
+        if (group.properties) {
+            const json = JSON.stringify(group.properties);
+            const jsonFile = new File([new Blob([json])], propertiesCacheID);
+            const propertiesUrl = URL.createObjectURL(jsonFile);
+            await this.save(propertiesCacheID, propertiesUrl);
+        }
+    }
+    dispose() {
+        super.dispose();
+        this._fragments = null;
     }
     getIDs(id) {
         return {
