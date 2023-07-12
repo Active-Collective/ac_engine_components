@@ -91611,8 +91611,6 @@ class SpatialStructure {
 /** Configuration of the IFC-fragment conversion. */
 class IfcFragmentSettings {
     constructor() {
-        /** Categories that always will be instanced. */
-        this.instancedCategories = new Set();
         /** Whether to extract the IFC properties into a JSON. */
         this.includeProperties = true;
         /** Generate the geometry for categories that are not included by default. */
@@ -91628,9 +91626,6 @@ class IfcFragmentSettings {
             USE_FAST_BOOLS: true,
             OPTIMIZE_PROFILES: true,
         };
-        this.instancedCategories.add(IFCFURNISHINGELEMENT);
-        this.instancedCategories.add(IFCWINDOW);
-        this.instancedCategories.add(IFCDOOR);
     }
 }
 
@@ -91978,16 +91973,16 @@ class FragmentIfcLoader extends Component {
 }
 
 class FragmentHighlighter extends Component {
-    constructor(_components, _fragments) {
+    constructor(components, fragments) {
         super();
-        this._components = _components;
-        this._fragments = _fragments;
         this.name = "FragmentHighlighter";
         this.enabled = true;
         this.highlightMats = {};
         this.events = {};
         this.tempMatrix = new THREE$1.Matrix4();
         this.selection = {};
+        this._components = components;
+        this._fragments = fragments;
     }
     get() {
         return this.highlightMats;
@@ -97276,11 +97271,15 @@ class CustomEffectsPass extends Pass {
     constructor(resolution, components) {
         super();
         this.excludedMeshes = [];
-        this._color = 0x999999;
+        this.outlinedMeshes = [];
+        this._lineColor = 0x999999;
+        this._outlineColor = 0xffffff;
         this._opacity = 0.4;
         this._tolerance = 3;
         this._correctColor = false;
         this._glossEnabled = true;
+        this._outlineEnabled = false;
+        this._outlineThickness = 4;
         this._glossExponent = 0.7;
         this._minGloss = -0.15;
         this._maxGloss = 0.15;
@@ -97291,6 +97290,7 @@ class CustomEffectsPass extends Pass {
         this.fsQuad.material = this.createOutlinePostProcessMaterial();
         this.planeBuffer = this.newRenderTarget();
         this.glossBuffer = this.newRenderTarget();
+        this.outlineBuffer = this.newRenderTarget();
         const normalMaterial = getPlaneDistanceMaterial();
         normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
         this.normalOverrideMaterial = normalMaterial;
@@ -97298,13 +97298,29 @@ class CustomEffectsPass extends Pass {
         glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
         this.glossOverrideMaterial = glossMaterial;
     }
-    get color() {
-        return this._color;
+    get lineColor() {
+        return this._lineColor;
     }
-    set color(color) {
-        this._color = color;
+    set lineColor(lineColor) {
+        this._lineColor = lineColor;
+        const material = this.fsQuad.material;
+        material.uniforms.lineColor.value.set(lineColor);
+    }
+    get outlineColor() {
+        return this._outlineColor;
+    }
+    set outlineColor(color) {
+        this._outlineColor = color;
         const material = this.fsQuad.material;
         material.uniforms.outlineColor.value.set(color);
+    }
+    get outlineThickness() {
+        return this._outlineThickness;
+    }
+    set outlineThickness(value) {
+        this._outlineThickness = value;
+        const material = this.fsQuad.material;
+        material.uniforms.outlineThickness.value = value;
     }
     get tolerance() {
         return this._tolerance;
@@ -97363,16 +97379,28 @@ class CustomEffectsPass extends Pass {
         const material = this.fsQuad.material;
         material.uniforms.maxGloss.value = value;
     }
+    get outlineEnabled() {
+        return this._outlineEnabled;
+    }
+    set outlineEnabled(active) {
+        this._outlineEnabled = active;
+        const material = this.fsQuad.material;
+        material.uniforms.outlineEnabled.value = active ? 1 : 0;
+    }
     dispose() {
         this.planeBuffer.dispose();
         this.glossBuffer.dispose();
+        this.outlineBuffer.dispose();
         this.normalOverrideMaterial.dispose();
         this.glossOverrideMaterial.dispose();
         this.fsQuad.dispose();
+        // geometries disposed in fragmentoutliner
+        this.outlinedMeshes = [];
     }
     setSize(width, height) {
         this.planeBuffer.setSize(width, height);
         this.glossBuffer.setSize(width, height);
+        this.outlineBuffer.setSize(width, height);
         this.resolution.set(width, height);
         const material = this.fsQuad.material;
         material.uniforms.screenSize.value.set(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y);
@@ -97399,14 +97427,28 @@ class CustomEffectsPass extends Pass {
             this.renderScene.overrideMaterial = this.glossOverrideMaterial;
             renderer.render(this.renderScene, this.renderCamera);
         }
+        this.renderScene.overrideMaterial = previousOverrideMaterial;
+        // Render outline pass
+        if (this._outlineEnabled) {
+            for (const { outline, fragment } of this.outlinedMeshes) {
+                fragment.visible = false;
+                this.renderScene.add(outline);
+            }
+            renderer.setRenderTarget(this.outlineBuffer);
+            renderer.render(this.renderScene, this.renderCamera);
+            for (const { outline, fragment } of this.outlinedMeshes) {
+                fragment.visible = true;
+                outline.removeFromParent();
+            }
+        }
         for (const mesh of this.excludedMeshes) {
             mesh.visible = true;
         }
-        this.renderScene.overrideMaterial = previousOverrideMaterial;
         this.renderScene.background = previousBackground;
         const material = this.fsQuad.material;
         material.uniforms.planeBuffer.value = this.planeBuffer.texture;
         material.uniforms.glossBuffer.value = this.glossBuffer.texture;
+        material.uniforms.outlineBuffer.value = this.outlineBuffer.texture;
         material.uniforms.sceneColorBuffer.value = readBuffer.texture;
         // 2. Draw the outlines using the normal texture
         // and combine it with the scene color
@@ -97435,13 +97477,17 @@ class CustomEffectsPass extends Pass {
     }
     get fragmentShader() {
         return `
-	  uniform sampler2D sceneColorBuffer;
-	  uniform sampler2D planeBuffer;
-	  uniform sampler2D glossBuffer;
-	  uniform vec4 screenSize;
-	  uniform vec3 outlineColor;
+	    uniform sampler2D sceneColorBuffer;
+	    uniform sampler2D planeBuffer;
+	    uniform sampler2D glossBuffer;
+	    uniform sampler2D outlineBuffer;
+	    uniform vec4 screenSize;
+	    uniform vec3 lineColor;
+	    uniform vec3 outlineColor;
+	    uniform float outlineEnabled;
+	    uniform int outlineThickness;
       uniform int width;
-	  uniform float opacity;
+	    uniform float opacity;
       uniform float tolerance;
       uniform float correctColor;
       uniform float glossExponent;
@@ -97472,7 +97518,6 @@ class CustomEffectsPass extends Pass {
 			void main() {
 				vec3 sceneColor = getValue(sceneColorBuffer, 0, 0).rgb;
 				vec3 normSceneColor = normalize(sceneColor);
-        vec4 color = vec4(outlineColor,1.);
 
         vec4 plane = getValue(planeBuffer, 0, 0);
 				vec3 normal = plane.xyz;
@@ -97560,13 +97605,13 @@ class CustomEffectsPass extends Pass {
         // Tolerance sets the minimum amount of differences to consider
         // this texel an edge
 
-        float outline = step(tolerance, planeDiff);
+        float line = step(tolerance, planeDiff);
 
         // Exclude background and apply opacity
 
         float background = getIsBackground(normal);
-        outline *= background;
-        outline *= opacity;
+        line *= background;
+        line *= opacity;
         
         // Correct color to make it look similar to sao postprocessing colors
         
@@ -97589,7 +97634,28 @@ class CustomEffectsPass extends Pass {
         
         corrected = mix(corrected, glossedColor, background);
         
-        gl_FragColor = mix(corrected, color, outline);
+        // Draw lines
+        
+        corrected = mix(corrected, vec4(lineColor, 1.), line);
+        
+        // Add selection outline
+        
+        float outlineDiff = 0.;
+        
+        outlineDiff += step(0.99, getValue(outlineBuffer, 0, 0).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, 1, 0).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, -1, 0).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, 0, -1).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, 0, 1).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, outlineThickness, 0).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, -outlineThickness, 0).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, 0, -outlineThickness).r);
+        outlineDiff += step(0.99, getValue(outlineBuffer, 0, outlineThickness).r);
+        
+        float outLine = step(4., outlineDiff) * step(outlineDiff, 8.) * outlineEnabled;
+        corrected = mix(corrected, vec4(outlineColor, 1.), outLine);
+        
+        gl_FragColor = corrected;
 	}
 			`;
     }
@@ -97603,12 +97669,16 @@ class CustomEffectsPass extends Pass {
                 tolerance: { value: this._tolerance },
                 planeBuffer: { value: null },
                 glossBuffer: { value: null },
+                outlineBuffer: { value: null },
                 glossEnabled: { value: 1 },
                 minGloss: { value: -0.4 },
                 maxGloss: { value: 0 },
+                outlineEnabled: { value: 0 },
+                outlineColor: { value: new THREE$1.Color(this._outlineColor) },
+                outlineThickness: { value: this._outlineThickness },
                 glossExponent: { value: this._glossExponent },
                 width: { value: 1 },
-                outlineColor: { value: new THREE$1.Color(this._color) },
+                lineColor: { value: new THREE$1.Color(this._lineColor) },
                 screenSize: {
                     value: new THREE$1.Vector4(this.resolution.x, this.resolution.y, 1 / this.resolution.x, 1 / this.resolution.y),
                 },
@@ -97646,6 +97716,18 @@ class Postproduction {
         this.composer = new EffectComposer(this.renderer, this._renderTarget);
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
+    get customEffects() {
+        if (!this._customEffects) {
+            throw new Error("Custom effects not initialized!");
+        }
+        return this._customEffects;
+    }
+    get n8ao() {
+        if (!this._n8ao) {
+            throw new Error("Custom effects not initialized!");
+        }
+        return this._n8ao;
+    }
     get enabled() {
         return this._enabled;
     }
@@ -97662,20 +97744,20 @@ class Postproduction {
         if (this._saoEnabled === active)
             return;
         this._saoEnabled = active;
-        if (!this.n8ao)
+        if (!this._n8ao)
             return;
         if (active) {
-            this.composer.addPass(this.n8ao);
-            if (this.customEffects && this._customEffectsEnabled) {
-                this.composer.removePass(this.customEffects);
-                this.composer.addPass(this.customEffects);
-                this.customEffects.correctColor = false;
+            this.composer.addPass(this._n8ao);
+            if (this._customEffects && this._customEffectsEnabled) {
+                this.composer.removePass(this._customEffects);
+                this.composer.addPass(this._customEffects);
+                this._customEffects.correctColor = false;
             }
         }
         else {
-            this.composer.removePass(this.n8ao);
-            if (this.customEffects) {
-                this.customEffects.correctColor = true;
+            this.composer.removePass(this._n8ao);
+            if (this._customEffects) {
+                this._customEffects.correctColor = true;
             }
         }
     }
@@ -97686,29 +97768,29 @@ class Postproduction {
         if (this._customEffectsEnabled === active)
             return;
         this._customEffectsEnabled = active;
-        if (!this.customEffects)
+        if (!this._customEffects)
             return;
         if (active) {
-            this.composer.addPass(this.customEffects);
+            this.composer.addPass(this._customEffects);
         }
         else {
-            this.composer.removePass(this.customEffects);
+            this.composer.removePass(this._customEffects);
         }
     }
     dispose() {
         var _a, _b, _c, _d;
         this._renderTarget.dispose();
         (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
-        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.dispose();
+        (_b = this._customEffects) === null || _b === void 0 ? void 0 : _b.dispose();
         (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.dispose();
-        (_d = this.n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
+        (_d = this._n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
         this.excludedItems.clear();
     }
     setSize(width, height) {
         var _a, _b, _c;
         this.composer.setSize(width, height);
-        (_a = this.n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
-        (_b = this.customEffects) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
+        (_a = this._n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
+        (_b = this._customEffects) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
         (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
     }
     update() {
@@ -97718,11 +97800,11 @@ class Postproduction {
     }
     updateCamera() {
         const camera = this.components.camera.get();
-        if (this.n8ao) {
-            this.n8ao.camera = camera;
+        if (this._n8ao) {
+            this._n8ao.camera = camera;
         }
-        if (this.customEffects) {
-            this.customEffects.renderCamera = camera;
+        if (this._customEffects) {
+            this._customEffects.renderCamera = camera;
         }
         if (this._basePass) {
             this._basePass.camera = camera;
@@ -97755,7 +97837,7 @@ class Postproduction {
     }
     addOutlinePass() {
         const customOutline = new CustomEffectsPass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
-        this.customEffects = customOutline;
+        this._customEffects = customOutline;
         this.composer.addPass(customOutline);
     }
     // TODO: Work in progress, this needs adjustment
@@ -97770,9 +97852,9 @@ class Postproduction {
     // }
     addSaoPass(scene, camera) {
         const { width, height } = this.components.renderer.getSize();
-        this.n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
+        this._n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
         // this.composer.addPass(this.n8ao);
-        const { configuration } = this.n8ao;
+        const { configuration } = this._n8ao;
         configuration.aoSamples = 16;
         configuration.denoiseSamples = 1;
         configuration.denoiseRadius = 13;
@@ -99128,6 +99210,164 @@ class PlanNavigator extends Component {
             if (this.currentPlan.plane instanceof EdgesPlane) {
                 this.currentPlan.plane.edges.visible = false;
             }
+        }
+    }
+}
+
+// TODO: Clean up and document
+// TODO: Deduplicate logic with highlighter
+class FragmentOutliner extends Component {
+    constructor(components, fragments, renderer) {
+        super();
+        this.name = "FragmentHighlighter";
+        this._enabled = true;
+        this._selection = {};
+        this._outlinedMeshes = {};
+        this._tempMatrix = new THREE$1.Matrix4();
+        this._selectOverrideMaterial = new THREE$1.MeshBasicMaterial({
+            color: "white",
+            depthTest: false,
+            transparent: true,
+        });
+        this._components = components;
+        this._fragments = fragments;
+        this._renderer = renderer;
+        this.enabled = true;
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(state) {
+        this._enabled = state;
+        this._renderer.postproduction.customEffects.outlineEnabled = state;
+    }
+    get() {
+        return this._selection;
+    }
+    dispose() {
+        this._selectOverrideMaterial.dispose();
+        this._selection = {};
+        for (const id in this._outlinedMeshes) {
+            const mesh = this._outlinedMeshes[id];
+            mesh.geometry.dispose();
+        }
+        this._fragments = null;
+        this._components = null;
+        this._renderer = null;
+    }
+    outline(removePrevious = true) {
+        var _a;
+        if (!this.enabled)
+            return null;
+        const fragments = [];
+        const meshes = this._fragments.meshes;
+        const result = this._components.raycaster.castRay(meshes);
+        if (!result) {
+            this.clear();
+            return null;
+        }
+        const mesh = result.object;
+        const geometry = mesh.geometry;
+        const index = (_a = result.face) === null || _a === void 0 ? void 0 : _a.a;
+        const instanceID = result.instanceId;
+        if (!geometry || index === undefined || instanceID === undefined) {
+            this.clear();
+            return null;
+        }
+        if (removePrevious) {
+            this._selection = {};
+            this.clear();
+        }
+        if (!this._selection[mesh.uuid]) {
+            this._selection[mesh.uuid] = new Set();
+        }
+        fragments.push(mesh.fragment);
+        const blockID = mesh.fragment.getVertexBlockID(geometry, index);
+        const itemID = mesh.fragment.getItemID(instanceID, blockID);
+        this._selection[mesh.uuid].add(itemID);
+        this.updateFragmentHighlight(mesh.uuid);
+        const group = mesh.fragment.group;
+        if (group) {
+            const idNum = parseInt(itemID, 10);
+            const keys = group.data[idNum][0];
+            for (let i = 0; i < keys.length; i++) {
+                const fragKey = keys[i];
+                const fragID = group.keyFragments[fragKey];
+                fragments.push(this._fragments.list[fragID]);
+                if (!this._selection[fragID]) {
+                    this._selection[fragID] = new Set();
+                }
+                this._selection[fragID].add(itemID);
+                this.updateFragmentHighlight(fragID);
+            }
+        }
+        return { id: itemID, fragments };
+    }
+    // highlightByID(
+    //   name: string,
+    //   ids: { [fragmentID: string]: Set<string> | string[] },
+    //   removePrevious = true
+    // ) {
+    //   if (!this.enabled) return;
+    //   if (removePrevious) {
+    //     this.clear(name);
+    //   }
+    //   const styles = this.selection[name];
+    //   for (const fragID in ids) {
+    //     if (!styles[fragID]) {
+    //       styles[fragID] = new Set<string>();
+    //     }
+    //     for (const id of ids[fragID]) {
+    //       styles[fragID].add(id);
+    //     }
+    //     this.updateFragmentHighlight(name, fragID);
+    //   }
+    // }
+    clear() {
+        this._selection = {};
+        this._renderer.postproduction.customEffects.outlinedMeshes = [];
+    }
+    updateFragmentHighlight(fragmentID) {
+        const ids = this._selection[fragmentID];
+        const fragment = this._fragments.list[fragmentID];
+        if (!fragment)
+            return;
+        const geometry = fragment.mesh.geometry;
+        // Create a copy of the original fragment mesh for outline
+        if (!this._outlinedMeshes[fragmentID]) {
+            const newMesh = new THREE$1.InstancedMesh(geometry.clone(), [this._selectOverrideMaterial], fragment.capacity);
+            newMesh.frustumCulled = false;
+            newMesh.renderOrder = 999;
+            this._outlinedMeshes[fragmentID] = newMesh;
+        }
+        const outline = this._outlinedMeshes[fragmentID];
+        const customEffects = this._renderer.postproduction.customEffects;
+        customEffects.outlinedMeshes.push({ outline, fragment: fragment.mesh });
+        const isBlockFragment = fragment.blocks.count > 1;
+        if (isBlockFragment) {
+            const groups = [];
+            for (const id of ids) {
+                const { blockID } = fragment.getInstanceAndBlockID(id);
+                // @ts-ignore
+                const value = fragment.blocks.blocksMap.indices.map.get(blockID);
+                if (value) {
+                    const [start, blockEnd] = value[0];
+                    const end = blockEnd + 1;
+                    const count = end - start;
+                    groups.push({ start, count, materialIndex: 0 });
+                }
+            }
+            outline.geometry.groups = groups;
+        }
+        else {
+            let counter = 0;
+            for (const id of ids) {
+                const { instanceID } = fragment.getInstanceAndBlockID(id);
+                fragment.mesh.getMatrixAt(instanceID, this._tempMatrix);
+                outline.setMatrixAt(counter++, this._tempMatrix);
+            }
+            outline.count = counter;
+            outline.instanceMatrix.needsUpdate = true;
         }
     }
 }
@@ -100818,4 +101058,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
