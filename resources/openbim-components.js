@@ -91551,13 +91551,16 @@ class Units {
     setUp(webIfc) {
         var _a;
         this.factor = 1;
-        const lengthUnits = this.getLengthUnits(webIfc);
-        if (lengthUnits === null || lengthUnits.Name === null)
+        const length = this.getLengthUnits(webIfc);
+        const isLengthNull = length === undefined || length === null;
+        const isValueNull = length.Name === undefined || length.Name === null;
+        if (isLengthNull || isValueNull) {
             return;
-        if (lengthUnits.Name.value === "FOOT") {
+        }
+        if (length.Name.value === "FOOT") {
             this.factor = 0.3048;
         }
-        else if (((_a = lengthUnits.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI") {
+        else if (((_a = length.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI") {
             this.complement = 0.001;
         }
     }
@@ -91734,6 +91737,9 @@ class DataConverter {
         if (!descriptionData)
             return description;
         for (const arg of descriptionData.arguments) {
+            if (arg === null || arg === undefined) {
+                continue;
+            }
             if (Array.isArray(arg)) {
                 for (const subArg of arg) {
                     description += `${subArg.value}|`;
