@@ -11551,12 +11551,13 @@ class UIManager extends Component {
         this.viewerContainer.append(this.containers.top, this.containers.right, this.containers.bottom, this.containers.left, contextParent);
     }
     add(...uiComponents) {
-        uiComponents.forEach((component) => {
-            if (!this.viewerContainer) {
-                return;
-            }
+        // TODO: Is this necessary?
+        if (!this.viewerContainer) {
+            return;
+        }
+        for (const component of uiComponents) {
             this.viewerContainer.append(component.domElement);
-        });
+        }
     }
     closeMenus() {
         this.toolbars.forEach((toolbar) => toolbar.closeMenus());
@@ -11694,7 +11695,7 @@ class SimpleUICard extends SimpleUIComponent {
     `;
         const description = info.description ? descriptionMenu : "";
         super(components, card, id);
-        this.name = "UICard";
+        this.name = "SimpleUICard";
         this.rightContainer = new UIComponentsStack(components, "Horizontal");
         const template = `
             <div class="mr-auto">
@@ -12092,6 +12093,29 @@ class RangeInput extends BaseInput {
         input.oninput = () => {
             this.onChange.trigger(this.inputValue);
         };
+    }
+}
+
+class Canvas extends SimpleUIComponent {
+    constructor(components) {
+        const id = generateUUID();
+        const canvas = document.createElement("canvas");
+        canvas.className =
+            "absolute w-80 h-40 right-3 bottom-3 bg-ifcjs-120 border-transparent border border-solid";
+        super(components, canvas, id);
+        this.name = "SimpleUICard";
+        this._size = new THREE$1.Vector2(320, 160);
+        this._canvas = canvas;
+    }
+    getSize() {
+        return this._size;
+    }
+    resize(size) {
+        if (size) {
+            this._size = size;
+            this._canvas.style.width = `${size.x}px`;
+            this._canvas.style.height = `${size.y}px`;
+        }
     }
 }
 
@@ -101226,6 +101250,90 @@ class SelectionHandler extends Component {
     }
 }
 
+class MiniMap extends Component {
+    constructor(components) {
+        super();
+        this.name = "MiniMap";
+        this.enabled = true;
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this.overrideMaterial = new THREE$1.MeshDepthMaterial();
+        this._lockRotation = true;
+        this._size = new THREE$1.Vector2(320, 160);
+        this._tempPosition = new THREE$1.Vector3();
+        this._tempTarget = new THREE$1.Vector3();
+        this.down = new THREE$1.Vector3(0, -1, 0);
+        this.uiElement = new Canvas(components);
+        const range = new RangeInput(components);
+        this.uiElement.addChild(range);
+        this._components = components;
+        const canvas = this.uiElement.get();
+        this._renderer = new THREE$1.WebGLRenderer({ canvas });
+        this._renderer.setSize(this._size.x, this._size.y);
+        const frustumSize = 1;
+        const aspect = this._size.x / this._size.y;
+        this._camera = new THREE$1.OrthographicCamera((frustumSize * aspect) / -2, (frustumSize * aspect) / 2, frustumSize / 2, frustumSize / -2);
+        this._camera.position.set(0, 200, 0);
+        this._camera.zoom = 0.1;
+        this._camera.rotation.x = -Math.PI / 2;
+        this._plane = new THREE$1.Plane(this.down, 200);
+        this._renderer.clippingPlanes = [this._plane];
+    }
+    get lockRotation() {
+        return this._lockRotation;
+    }
+    set lockRotation(active) {
+        this._lockRotation = active;
+        if (active) {
+            this._camera.rotation.z = 0;
+        }
+    }
+    get zoom() {
+        return this._camera.zoom;
+    }
+    set zoom(value) {
+        this._camera.zoom = value;
+        this._camera.updateProjectionMatrix();
+    }
+    get() {
+        return this._camera;
+    }
+    update() {
+        this.beforeUpdate.trigger();
+        const scene = this._components.scene.get();
+        const cameraComponent = this._components.camera;
+        const controls = cameraComponent.controls;
+        controls.getPosition(this._tempPosition);
+        this._camera.position.x = this._tempPosition.x;
+        this._camera.position.z = this._tempPosition.z;
+        if (!this._lockRotation) {
+            controls.getTarget(this._tempTarget);
+            const angle = Math.atan2(this._tempTarget.x - this._tempPosition.x, this._tempTarget.z - this._tempPosition.z);
+            this._camera.rotation.z = angle + Math.PI;
+        }
+        this._plane.set(this.down, this._tempPosition.y);
+        this._renderer.render(scene, this._camera);
+        this.afterUpdate.trigger();
+    }
+    getSize() {
+        return this.uiElement.getSize();
+    }
+    resize(size) {
+        if (size) {
+            this._size.copy(size);
+            this.uiElement.resize(size);
+            this._renderer.setSize(size.x, size.y);
+            const aspect = size.x / size.y;
+            const frustumSize = 1;
+            this._camera.left = (frustumSize * aspect) / -2;
+            this._camera.right = (frustumSize * aspect) / 2;
+            this._camera.top = frustumSize / 2;
+            this._camera.bottom = -frustumSize / 2;
+            this._camera.updateProjectionMatrix();
+        }
+    }
+}
+
 /**
  * Helper to control the camera and easily define and navigate 2D floor plans.
  */
@@ -103245,4 +103353,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
