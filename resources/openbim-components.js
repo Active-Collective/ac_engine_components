@@ -148,43 +148,43 @@ class Mouse {
     }
 }
 
-var top$1 = 'top';
-var bottom$1 = 'bottom';
-var right$1 = 'right';
-var left$1 = 'left';
-var auto$1 = 'auto';
-var basePlacements$1 = [top$1, bottom$1, right$1, left$1];
-var start$1 = 'start';
-var end$1 = 'end';
-var clippingParents$1 = 'clippingParents';
-var viewport$1 = 'viewport';
-var popper$1 = 'popper';
-var reference$1 = 'reference';
-var variationPlacements$1 = /*#__PURE__*/basePlacements$1.reduce(function (acc, placement) {
-  return acc.concat([placement + "-" + start$1, placement + "-" + end$1]);
+var top = 'top';
+var bottom = 'bottom';
+var right = 'right';
+var left = 'left';
+var auto = 'auto';
+var basePlacements = [top, bottom, right, left];
+var start = 'start';
+var end = 'end';
+var clippingParents = 'clippingParents';
+var viewport = 'viewport';
+var popper = 'popper';
+var reference = 'reference';
+var variationPlacements = /*#__PURE__*/basePlacements.reduce(function (acc, placement) {
+  return acc.concat([placement + "-" + start, placement + "-" + end]);
 }, []);
-var placements$1 = /*#__PURE__*/[].concat(basePlacements$1, [auto$1]).reduce(function (acc, placement) {
-  return acc.concat([placement, placement + "-" + start$1, placement + "-" + end$1]);
+var placements = /*#__PURE__*/[].concat(basePlacements, [auto]).reduce(function (acc, placement) {
+  return acc.concat([placement, placement + "-" + start, placement + "-" + end]);
 }, []); // modifiers that need to read the DOM
 
-var beforeRead$1 = 'beforeRead';
-var read$1 = 'read';
-var afterRead$1 = 'afterRead'; // pure-logic modifiers
+var beforeRead = 'beforeRead';
+var read = 'read';
+var afterRead = 'afterRead'; // pure-logic modifiers
 
-var beforeMain$1 = 'beforeMain';
-var main$1 = 'main';
-var afterMain$1 = 'afterMain'; // modifier with the purpose to write to the DOM (or write into a framework state)
+var beforeMain = 'beforeMain';
+var main = 'main';
+var afterMain = 'afterMain'; // modifier with the purpose to write to the DOM (or write into a framework state)
 
-var beforeWrite$1 = 'beforeWrite';
-var write$1 = 'write';
-var afterWrite$1 = 'afterWrite';
-var modifierPhases$1 = [beforeRead$1, read$1, afterRead$1, beforeMain$1, main$1, afterMain$1, beforeWrite$1, write$1, afterWrite$1];
+var beforeWrite = 'beforeWrite';
+var write = 'write';
+var afterWrite = 'afterWrite';
+var modifierPhases = [beforeRead, read, afterRead, beforeMain, main, afterMain, beforeWrite, write, afterWrite];
 
-function getNodeName$1(element) {
+function getNodeName(element) {
   return element ? (element.nodeName || '').toLowerCase() : null;
 }
 
-function getWindow$1(node) {
+function getWindow(node) {
   if (node == null) {
     return window;
   }
@@ -197,36 +197,36 @@ function getWindow$1(node) {
   return node;
 }
 
-function isElement$1(node) {
-  var OwnElement = getWindow$1(node).Element;
+function isElement(node) {
+  var OwnElement = getWindow(node).Element;
   return node instanceof OwnElement || node instanceof Element;
 }
 
-function isHTMLElement$1(node) {
-  var OwnElement = getWindow$1(node).HTMLElement;
+function isHTMLElement(node) {
+  var OwnElement = getWindow(node).HTMLElement;
   return node instanceof OwnElement || node instanceof HTMLElement;
 }
 
-function isShadowRoot$1(node) {
+function isShadowRoot(node) {
   // IE 11 has no ShadowRoot
   if (typeof ShadowRoot === 'undefined') {
     return false;
   }
 
-  var OwnElement = getWindow$1(node).ShadowRoot;
+  var OwnElement = getWindow(node).ShadowRoot;
   return node instanceof OwnElement || node instanceof ShadowRoot;
 }
 
 // and applies them to the HTMLElements such as popper and arrow
 
-function applyStyles$2(_ref) {
+function applyStyles(_ref) {
   var state = _ref.state;
   Object.keys(state.elements).forEach(function (name) {
     var style = state.styles[name] || {};
     var attributes = state.attributes[name] || {};
     var element = state.elements[name]; // arrow is optional + virtual elements
 
-    if (!isHTMLElement$1(element) || !getNodeName$1(element)) {
+    if (!isHTMLElement(element) || !getNodeName(element)) {
       return;
     } // Flow doesn't support to extend this property, but it's the most
     // effective way to apply styles to an HTMLElement
@@ -246,7 +246,7 @@ function applyStyles$2(_ref) {
   });
 }
 
-function effect$5(_ref2) {
+function effect$2(_ref2) {
   var state = _ref2.state;
   var initialStyles = {
     popper: {
@@ -278,7 +278,7 @@ function effect$5(_ref2) {
         return style;
       }, {}); // arrow is optional + virtual elements
 
-      if (!isHTMLElement$1(element) || !getNodeName$1(element)) {
+      if (!isHTMLElement(element) || !getNodeName(element)) {
         return;
       }
 
@@ -291,24 +291,24 @@ function effect$5(_ref2) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var applyStyles$3 = {
+var applyStyles$1 = {
   name: 'applyStyles',
   enabled: true,
   phase: 'write',
-  fn: applyStyles$2,
-  effect: effect$5,
+  fn: applyStyles,
+  effect: effect$2,
   requires: ['computeStyles']
 };
 
-function getBasePlacement$1(placement) {
+function getBasePlacement(placement) {
   return placement.split('-')[0];
 }
 
-var max$1 = Math.max;
-var min$1 = Math.min;
-var round$1 = Math.round;
+var max = Math.max;
+var min = Math.min;
+var round = Math.round;
 
-function getUAString$1() {
+function getUAString() {
   var uaData = navigator.userAgentData;
 
   if (uaData != null && uaData.brands && Array.isArray(uaData.brands)) {
@@ -320,11 +320,11 @@ function getUAString$1() {
   return navigator.userAgent;
 }
 
-function isLayoutViewport$1() {
-  return !/^((?!chrome|android).)*safari/i.test(getUAString$1());
+function isLayoutViewport() {
+  return !/^((?!chrome|android).)*safari/i.test(getUAString());
 }
 
-function getBoundingClientRect$1(element, includeScale, isFixedStrategy) {
+function getBoundingClientRect(element, includeScale, isFixedStrategy) {
   if (includeScale === void 0) {
     includeScale = false;
   }
@@ -337,15 +337,15 @@ function getBoundingClientRect$1(element, includeScale, isFixedStrategy) {
   var scaleX = 1;
   var scaleY = 1;
 
-  if (includeScale && isHTMLElement$1(element)) {
-    scaleX = element.offsetWidth > 0 ? round$1(clientRect.width) / element.offsetWidth || 1 : 1;
-    scaleY = element.offsetHeight > 0 ? round$1(clientRect.height) / element.offsetHeight || 1 : 1;
+  if (includeScale && isHTMLElement(element)) {
+    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
   }
 
-  var _ref = isElement$1(element) ? getWindow$1(element) : window,
+  var _ref = isElement(element) ? getWindow(element) : window,
       visualViewport = _ref.visualViewport;
 
-  var addVisualOffsets = !isLayoutViewport$1() && isFixedStrategy;
+  var addVisualOffsets = !isLayoutViewport() && isFixedStrategy;
   var x = (clientRect.left + (addVisualOffsets && visualViewport ? visualViewport.offsetLeft : 0)) / scaleX;
   var y = (clientRect.top + (addVisualOffsets && visualViewport ? visualViewport.offsetTop : 0)) / scaleY;
   var width = clientRect.width / scaleX;
@@ -364,8 +364,8 @@ function getBoundingClientRect$1(element, includeScale, isFixedStrategy) {
 
 // means it doesn't take into account transforms.
 
-function getLayoutRect$1(element) {
-  var clientRect = getBoundingClientRect$1(element); // Use the clientRect sizes if it's not been transformed.
+function getLayoutRect(element) {
+  var clientRect = getBoundingClientRect(element); // Use the clientRect sizes if it's not been transformed.
   // Fixes https://github.com/popperjs/popper-core/issues/1223
 
   var width = element.offsetWidth;
@@ -387,13 +387,13 @@ function getLayoutRect$1(element) {
   };
 }
 
-function contains$1(parent, child) {
+function contains(parent, child) {
   var rootNode = child.getRootNode && child.getRootNode(); // First, attempt with faster native method
 
   if (parent.contains(child)) {
     return true;
   } // then fallback to custom implementation with Shadow DOM support
-  else if (rootNode && isShadowRoot$1(rootNode)) {
+  else if (rootNode && isShadowRoot(rootNode)) {
       var next = child;
 
       do {
@@ -410,22 +410,22 @@ function contains$1(parent, child) {
   return false;
 }
 
-function getComputedStyle$1(element) {
-  return getWindow$1(element).getComputedStyle(element);
+function getComputedStyle(element) {
+  return getWindow(element).getComputedStyle(element);
 }
 
-function isTableElement$1(element) {
-  return ['table', 'td', 'th'].indexOf(getNodeName$1(element)) >= 0;
+function isTableElement(element) {
+  return ['table', 'td', 'th'].indexOf(getNodeName(element)) >= 0;
 }
 
-function getDocumentElement$1(element) {
+function getDocumentElement(element) {
   // $FlowFixMe[incompatible-return]: assume body is always available
-  return ((isElement$1(element) ? element.ownerDocument : // $FlowFixMe[prop-missing]
+  return ((isElement(element) ? element.ownerDocument : // $FlowFixMe[prop-missing]
   element.document) || window.document).documentElement;
 }
 
-function getParentNode$1(element) {
-  if (getNodeName$1(element) === 'html') {
+function getParentNode(element) {
+  if (getNodeName(element) === 'html') {
     return element;
   }
 
@@ -434,16 +434,16 @@ function getParentNode$1(element) {
     // $FlowFixMe[prop-missing]
     element.assignedSlot || // step into the shadow DOM of the parent of a slotted node
     element.parentNode || ( // DOM Element detected
-    isShadowRoot$1(element) ? element.host : null) || // ShadowRoot detected
+    isShadowRoot(element) ? element.host : null) || // ShadowRoot detected
     // $FlowFixMe[incompatible-call]: HTMLElement is a Node
-    getDocumentElement$1(element) // fallback
+    getDocumentElement(element) // fallback
 
   );
 }
 
-function getTrueOffsetParent$1(element) {
-  if (!isHTMLElement$1(element) || // https://github.com/popperjs/popper-core/issues/837
-  getComputedStyle$1(element).position === 'fixed') {
+function getTrueOffsetParent(element) {
+  if (!isHTMLElement(element) || // https://github.com/popperjs/popper-core/issues/837
+  getComputedStyle(element).position === 'fixed') {
     return null;
   }
 
@@ -452,27 +452,27 @@ function getTrueOffsetParent$1(element) {
 // return the containing block
 
 
-function getContainingBlock$1(element) {
-  var isFirefox = /firefox/i.test(getUAString$1());
-  var isIE = /Trident/i.test(getUAString$1());
+function getContainingBlock(element) {
+  var isFirefox = /firefox/i.test(getUAString());
+  var isIE = /Trident/i.test(getUAString());
 
-  if (isIE && isHTMLElement$1(element)) {
+  if (isIE && isHTMLElement(element)) {
     // In IE 9, 10 and 11 fixed elements containing block is always established by the viewport
-    var elementCss = getComputedStyle$1(element);
+    var elementCss = getComputedStyle(element);
 
     if (elementCss.position === 'fixed') {
       return null;
     }
   }
 
-  var currentNode = getParentNode$1(element);
+  var currentNode = getParentNode(element);
 
-  if (isShadowRoot$1(currentNode)) {
+  if (isShadowRoot(currentNode)) {
     currentNode = currentNode.host;
   }
 
-  while (isHTMLElement$1(currentNode) && ['html', 'body'].indexOf(getNodeName$1(currentNode)) < 0) {
-    var css = getComputedStyle$1(currentNode); // This is non-exhaustive but covers the most common CSS properties that
+  while (isHTMLElement(currentNode) && ['html', 'body'].indexOf(getNodeName(currentNode)) < 0) {
+    var css = getComputedStyle(currentNode); // This is non-exhaustive but covers the most common CSS properties that
     // create a containing block.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
 
@@ -488,34 +488,34 @@ function getContainingBlock$1(element) {
 // such as table ancestors and cross browser bugs.
 
 
-function getOffsetParent$1(element) {
-  var window = getWindow$1(element);
-  var offsetParent = getTrueOffsetParent$1(element);
+function getOffsetParent(element) {
+  var window = getWindow(element);
+  var offsetParent = getTrueOffsetParent(element);
 
-  while (offsetParent && isTableElement$1(offsetParent) && getComputedStyle$1(offsetParent).position === 'static') {
-    offsetParent = getTrueOffsetParent$1(offsetParent);
+  while (offsetParent && isTableElement(offsetParent) && getComputedStyle(offsetParent).position === 'static') {
+    offsetParent = getTrueOffsetParent(offsetParent);
   }
 
-  if (offsetParent && (getNodeName$1(offsetParent) === 'html' || getNodeName$1(offsetParent) === 'body' && getComputedStyle$1(offsetParent).position === 'static')) {
+  if (offsetParent && (getNodeName(offsetParent) === 'html' || getNodeName(offsetParent) === 'body' && getComputedStyle(offsetParent).position === 'static')) {
     return window;
   }
 
-  return offsetParent || getContainingBlock$1(element) || window;
+  return offsetParent || getContainingBlock(element) || window;
 }
 
-function getMainAxisFromPlacement$1(placement) {
+function getMainAxisFromPlacement(placement) {
   return ['top', 'bottom'].indexOf(placement) >= 0 ? 'x' : 'y';
 }
 
-function within$1(min, value, max) {
-  return max$1(min, min$1(value, max));
+function within(min$1, value, max$1) {
+  return max(min$1, min(value, max$1));
 }
-function withinMaxClamp$1(min, value, max) {
-  var v = within$1(min, value, max);
+function withinMaxClamp(min, value, max) {
+  var v = within(min, value, max);
   return v > max ? max : v;
 }
 
-function getFreshSideObject$1() {
+function getFreshSideObject() {
   return {
     top: 0,
     right: 0,
@@ -524,25 +524,25 @@ function getFreshSideObject$1() {
   };
 }
 
-function mergePaddingObject$1(paddingObject) {
-  return Object.assign({}, getFreshSideObject$1(), paddingObject);
+function mergePaddingObject(paddingObject) {
+  return Object.assign({}, getFreshSideObject(), paddingObject);
 }
 
-function expandToHashMap$1(value, keys) {
+function expandToHashMap(value, keys) {
   return keys.reduce(function (hashMap, key) {
     hashMap[key] = value;
     return hashMap;
   }, {});
 }
 
-var toPaddingObject$1 = function toPaddingObject(padding, state) {
+var toPaddingObject = function toPaddingObject(padding, state) {
   padding = typeof padding === 'function' ? padding(Object.assign({}, state.rects, {
     placement: state.placement
   })) : padding;
-  return mergePaddingObject$1(typeof padding !== 'number' ? padding : expandToHashMap$1(padding, basePlacements$1));
+  return mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
 };
 
-function arrow$2(_ref) {
+function arrow(_ref) {
   var _state$modifiersData$;
 
   var state = _ref.state,
@@ -550,22 +550,22 @@ function arrow$2(_ref) {
       options = _ref.options;
   var arrowElement = state.elements.arrow;
   var popperOffsets = state.modifiersData.popperOffsets;
-  var basePlacement = getBasePlacement$1(state.placement);
-  var axis = getMainAxisFromPlacement$1(basePlacement);
-  var isVertical = [left$1, right$1].indexOf(basePlacement) >= 0;
+  var basePlacement = getBasePlacement(state.placement);
+  var axis = getMainAxisFromPlacement(basePlacement);
+  var isVertical = [left, right].indexOf(basePlacement) >= 0;
   var len = isVertical ? 'height' : 'width';
 
   if (!arrowElement || !popperOffsets) {
     return;
   }
 
-  var paddingObject = toPaddingObject$1(options.padding, state);
-  var arrowRect = getLayoutRect$1(arrowElement);
-  var minProp = axis === 'y' ? top$1 : left$1;
-  var maxProp = axis === 'y' ? bottom$1 : right$1;
+  var paddingObject = toPaddingObject(options.padding, state);
+  var arrowRect = getLayoutRect(arrowElement);
+  var minProp = axis === 'y' ? top : left;
+  var maxProp = axis === 'y' ? bottom : right;
   var endDiff = state.rects.reference[len] + state.rects.reference[axis] - popperOffsets[axis] - state.rects.popper[len];
   var startDiff = popperOffsets[axis] - state.rects.reference[axis];
-  var arrowOffsetParent = getOffsetParent$1(arrowElement);
+  var arrowOffsetParent = getOffsetParent(arrowElement);
   var clientSize = arrowOffsetParent ? axis === 'y' ? arrowOffsetParent.clientHeight || 0 : arrowOffsetParent.clientWidth || 0 : 0;
   var centerToReference = endDiff / 2 - startDiff / 2; // Make sure the arrow doesn't overflow the popper if the center point is
   // outside of the popper bounds
@@ -573,13 +573,13 @@ function arrow$2(_ref) {
   var min = paddingObject[minProp];
   var max = clientSize - arrowRect[len] - paddingObject[maxProp];
   var center = clientSize / 2 - arrowRect[len] / 2 + centerToReference;
-  var offset = within$1(min, center, max); // Prevents breaking syntax highlighting...
+  var offset = within(min, center, max); // Prevents breaking syntax highlighting...
 
   var axisProp = axis;
   state.modifiersData[name] = (_state$modifiersData$ = {}, _state$modifiersData$[axisProp] = offset, _state$modifiersData$.centerOffset = offset - center, _state$modifiersData$);
 }
 
-function effect$4(_ref2) {
+function effect$1(_ref2) {
   var state = _ref2.state,
       options = _ref2.options;
   var _options$element = options.element,
@@ -598,7 +598,8 @@ function effect$4(_ref2) {
     }
   }
 
-  if (!contains$1(state.elements.popper, arrowElement)) {
+  if (!contains(state.elements.popper, arrowElement)) {
+
     return;
   }
 
@@ -606,21 +607,21 @@ function effect$4(_ref2) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var arrow$3 = {
+var arrow$1 = {
   name: 'arrow',
   enabled: true,
   phase: 'main',
-  fn: arrow$2,
-  effect: effect$4,
+  fn: arrow,
+  effect: effect$1,
   requires: ['popperOffsets'],
   requiresIfExists: ['preventOverflow']
 };
 
-function getVariation$1(placement) {
+function getVariation(placement) {
   return placement.split('-')[1];
 }
 
-var unsetSides$1 = {
+var unsetSides = {
   top: 'auto',
   right: 'auto',
   bottom: 'auto',
@@ -629,17 +630,17 @@ var unsetSides$1 = {
 // Zooming can change the DPR, but it seems to report a value that will
 // cleanly divide the values into the appropriate subpixels.
 
-function roundOffsetsByDPR$1(_ref, win) {
+function roundOffsetsByDPR(_ref, win) {
   var x = _ref.x,
       y = _ref.y;
   var dpr = win.devicePixelRatio || 1;
   return {
-    x: round$1(x * dpr) / dpr || 0,
-    y: round$1(y * dpr) / dpr || 0
+    x: round(x * dpr) / dpr || 0,
+    y: round(y * dpr) / dpr || 0
   };
 }
 
-function mapToStyles$1(_ref2) {
+function mapToStyles(_ref2) {
   var _Object$assign2;
 
   var popper = _ref2.popper,
@@ -669,19 +670,19 @@ function mapToStyles$1(_ref2) {
   y = _ref3.y;
   var hasX = offsets.hasOwnProperty('x');
   var hasY = offsets.hasOwnProperty('y');
-  var sideX = left$1;
-  var sideY = top$1;
+  var sideX = left;
+  var sideY = top;
   var win = window;
 
   if (adaptive) {
-    var offsetParent = getOffsetParent$1(popper);
+    var offsetParent = getOffsetParent(popper);
     var heightProp = 'clientHeight';
     var widthProp = 'clientWidth';
 
-    if (offsetParent === getWindow$1(popper)) {
-      offsetParent = getDocumentElement$1(popper);
+    if (offsetParent === getWindow(popper)) {
+      offsetParent = getDocumentElement(popper);
 
-      if (getComputedStyle$1(offsetParent).position !== 'static' && position === 'absolute') {
+      if (getComputedStyle(offsetParent).position !== 'static' && position === 'absolute') {
         heightProp = 'scrollHeight';
         widthProp = 'scrollWidth';
       }
@@ -690,16 +691,16 @@ function mapToStyles$1(_ref2) {
 
     offsetParent = offsetParent;
 
-    if (placement === top$1 || (placement === left$1 || placement === right$1) && variation === end$1) {
-      sideY = bottom$1;
+    if (placement === top || (placement === left || placement === right) && variation === end) {
+      sideY = bottom;
       var offsetY = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.height : // $FlowFixMe[prop-missing]
       offsetParent[heightProp];
       y -= offsetY - popperRect.height;
       y *= gpuAcceleration ? 1 : -1;
     }
 
-    if (placement === left$1 || (placement === top$1 || placement === bottom$1) && variation === end$1) {
-      sideX = right$1;
+    if (placement === left || (placement === top || placement === bottom) && variation === end) {
+      sideX = right;
       var offsetX = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.width : // $FlowFixMe[prop-missing]
       offsetParent[widthProp];
       x -= offsetX - popperRect.width;
@@ -709,12 +710,12 @@ function mapToStyles$1(_ref2) {
 
   var commonStyles = Object.assign({
     position: position
-  }, adaptive && unsetSides$1);
+  }, adaptive && unsetSides);
 
-  var _ref4 = roundOffsets === true ? roundOffsetsByDPR$1({
+  var _ref4 = roundOffsets === true ? roundOffsetsByDPR({
     x: x,
     y: y
-  }, getWindow$1(popper)) : {
+  }, getWindow(popper)) : {
     x: x,
     y: y
   };
@@ -731,7 +732,7 @@ function mapToStyles$1(_ref2) {
   return Object.assign({}, commonStyles, (_Object$assign2 = {}, _Object$assign2[sideY] = hasY ? y + "px" : '', _Object$assign2[sideX] = hasX ? x + "px" : '', _Object$assign2.transform = '', _Object$assign2));
 }
 
-function computeStyles$2(_ref5) {
+function computeStyles(_ref5) {
   var state = _ref5.state,
       options = _ref5.options;
   var _options$gpuAccelerat = options.gpuAcceleration,
@@ -740,9 +741,10 @@ function computeStyles$2(_ref5) {
       adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
       _options$roundOffsets = options.roundOffsets,
       roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
+
   var commonStyles = {
-    placement: getBasePlacement$1(state.placement),
-    variation: getVariation$1(state.placement),
+    placement: getBasePlacement(state.placement),
+    variation: getVariation(state.placement),
     popper: state.elements.popper,
     popperRect: state.rects.popper,
     gpuAcceleration: gpuAcceleration,
@@ -750,7 +752,7 @@ function computeStyles$2(_ref5) {
   };
 
   if (state.modifiersData.popperOffsets != null) {
-    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles$1(Object.assign({}, commonStyles, {
+    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles(Object.assign({}, commonStyles, {
       offsets: state.modifiersData.popperOffsets,
       position: state.options.strategy,
       adaptive: adaptive,
@@ -759,7 +761,7 @@ function computeStyles$2(_ref5) {
   }
 
   if (state.modifiersData.arrow != null) {
-    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles$1(Object.assign({}, commonStyles, {
+    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles(Object.assign({}, commonStyles, {
       offsets: state.modifiersData.arrow,
       position: 'absolute',
       adaptive: false,
@@ -773,19 +775,19 @@ function computeStyles$2(_ref5) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var computeStyles$3 = {
+var computeStyles$1 = {
   name: 'computeStyles',
   enabled: true,
   phase: 'beforeWrite',
-  fn: computeStyles$2,
+  fn: computeStyles,
   data: {}
 };
 
-var passive$1 = {
+var passive = {
   passive: true
 };
 
-function effect$3(_ref) {
+function effect(_ref) {
   var state = _ref.state,
       instance = _ref.instance,
       options = _ref.options;
@@ -793,66 +795,66 @@ function effect$3(_ref) {
       scroll = _options$scroll === void 0 ? true : _options$scroll,
       _options$resize = options.resize,
       resize = _options$resize === void 0 ? true : _options$resize;
-  var window = getWindow$1(state.elements.popper);
+  var window = getWindow(state.elements.popper);
   var scrollParents = [].concat(state.scrollParents.reference, state.scrollParents.popper);
 
   if (scroll) {
     scrollParents.forEach(function (scrollParent) {
-      scrollParent.addEventListener('scroll', instance.update, passive$1);
+      scrollParent.addEventListener('scroll', instance.update, passive);
     });
   }
 
   if (resize) {
-    window.addEventListener('resize', instance.update, passive$1);
+    window.addEventListener('resize', instance.update, passive);
   }
 
   return function () {
     if (scroll) {
       scrollParents.forEach(function (scrollParent) {
-        scrollParent.removeEventListener('scroll', instance.update, passive$1);
+        scrollParent.removeEventListener('scroll', instance.update, passive);
       });
     }
 
     if (resize) {
-      window.removeEventListener('resize', instance.update, passive$1);
+      window.removeEventListener('resize', instance.update, passive);
     }
   };
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var eventListeners$1 = {
+var eventListeners = {
   name: 'eventListeners',
   enabled: true,
   phase: 'write',
   fn: function fn() {},
-  effect: effect$3,
+  effect: effect,
   data: {}
 };
 
-var hash$3 = {
+var hash$1 = {
   left: 'right',
   right: 'left',
   bottom: 'top',
   top: 'bottom'
 };
-function getOppositePlacement$1(placement) {
+function getOppositePlacement(placement) {
   return placement.replace(/left|right|bottom|top/g, function (matched) {
-    return hash$3[matched];
+    return hash$1[matched];
   });
 }
 
-var hash$2 = {
+var hash = {
   start: 'end',
   end: 'start'
 };
-function getOppositeVariationPlacement$1(placement) {
+function getOppositeVariationPlacement(placement) {
   return placement.replace(/start|end/g, function (matched) {
-    return hash$2[matched];
+    return hash[matched];
   });
 }
 
-function getWindowScroll$1(node) {
-  var win = getWindow$1(node);
+function getWindowScroll(node) {
+  var win = getWindow(node);
   var scrollLeft = win.pageXOffset;
   var scrollTop = win.pageYOffset;
   return {
@@ -861,7 +863,7 @@ function getWindowScroll$1(node) {
   };
 }
 
-function getWindowScrollBarX$1(element) {
+function getWindowScrollBarX(element) {
   // If <html> has a CSS width greater than the viewport, then this will be
   // incorrect for RTL.
   // Popper 1 is broken in this case and never had a bug report so let's assume
@@ -869,12 +871,12 @@ function getWindowScrollBarX$1(element) {
   // anyway.
   // Browsers where the left scrollbar doesn't cause an issue report `0` for
   // this (e.g. Edge 2019, IE11, Safari)
-  return getBoundingClientRect$1(getDocumentElement$1(element)).left + getWindowScroll$1(element).scrollLeft;
+  return getBoundingClientRect(getDocumentElement(element)).left + getWindowScroll(element).scrollLeft;
 }
 
-function getViewportRect$1(element, strategy) {
-  var win = getWindow$1(element);
-  var html = getDocumentElement$1(element);
+function getViewportRect(element, strategy) {
+  var win = getWindow(element);
+  var html = getDocumentElement(element);
   var visualViewport = win.visualViewport;
   var width = html.clientWidth;
   var height = html.clientHeight;
@@ -884,7 +886,7 @@ function getViewportRect$1(element, strategy) {
   if (visualViewport) {
     width = visualViewport.width;
     height = visualViewport.height;
-    var layoutViewport = isLayoutViewport$1();
+    var layoutViewport = isLayoutViewport();
 
     if (layoutViewport || !layoutViewport && strategy === 'fixed') {
       x = visualViewport.offsetLeft;
@@ -895,26 +897,26 @@ function getViewportRect$1(element, strategy) {
   return {
     width: width,
     height: height,
-    x: x + getWindowScrollBarX$1(element),
+    x: x + getWindowScrollBarX(element),
     y: y
   };
 }
 
 // of the `<html>` and `<body>` rect bounds if horizontally scrollable
 
-function getDocumentRect$1(element) {
+function getDocumentRect(element) {
   var _element$ownerDocumen;
 
-  var html = getDocumentElement$1(element);
-  var winScroll = getWindowScroll$1(element);
+  var html = getDocumentElement(element);
+  var winScroll = getWindowScroll(element);
   var body = (_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body;
-  var width = max$1(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
-  var height = max$1(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
-  var x = -winScroll.scrollLeft + getWindowScrollBarX$1(element);
+  var width = max(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
+  var height = max(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
+  var x = -winScroll.scrollLeft + getWindowScrollBarX(element);
   var y = -winScroll.scrollTop;
 
-  if (getComputedStyle$1(body || html).direction === 'rtl') {
-    x += max$1(html.clientWidth, body ? body.clientWidth : 0) - width;
+  if (getComputedStyle(body || html).direction === 'rtl') {
+    x += max(html.clientWidth, body ? body.clientWidth : 0) - width;
   }
 
   return {
@@ -925,9 +927,9 @@ function getDocumentRect$1(element) {
   };
 }
 
-function isScrollParent$1(element) {
+function isScrollParent(element) {
   // Firefox wants us to check `-x` and `-y` variations as well
-  var _getComputedStyle = getComputedStyle$1(element),
+  var _getComputedStyle = getComputedStyle(element),
       overflow = _getComputedStyle.overflow,
       overflowX = _getComputedStyle.overflowX,
       overflowY = _getComputedStyle.overflowY;
@@ -935,17 +937,17 @@ function isScrollParent$1(element) {
   return /auto|scroll|overlay|hidden/.test(overflow + overflowY + overflowX);
 }
 
-function getScrollParent$1(node) {
-  if (['html', 'body', '#document'].indexOf(getNodeName$1(node)) >= 0) {
+function getScrollParent(node) {
+  if (['html', 'body', '#document'].indexOf(getNodeName(node)) >= 0) {
     // $FlowFixMe[incompatible-return]: assume body is always available
     return node.ownerDocument.body;
   }
 
-  if (isHTMLElement$1(node) && isScrollParent$1(node)) {
+  if (isHTMLElement(node) && isScrollParent(node)) {
     return node;
   }
 
-  return getScrollParent$1(getParentNode$1(node));
+  return getScrollParent(getParentNode(node));
 }
 
 /*
@@ -955,23 +957,23 @@ to, because if any of these parent elements scroll, we'll need to re-calculate t
 reference element's position.
 */
 
-function listScrollParents$1(element, list) {
+function listScrollParents(element, list) {
   var _element$ownerDocumen;
 
   if (list === void 0) {
     list = [];
   }
 
-  var scrollParent = getScrollParent$1(element);
+  var scrollParent = getScrollParent(element);
   var isBody = scrollParent === ((_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body);
-  var win = getWindow$1(scrollParent);
-  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent$1(scrollParent) ? scrollParent : []) : scrollParent;
+  var win = getWindow(scrollParent);
+  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent(scrollParent) ? scrollParent : []) : scrollParent;
   var updatedList = list.concat(target);
   return isBody ? updatedList : // $FlowFixMe[incompatible-call]: isBody tells us target will be an HTMLElement here
-  updatedList.concat(listScrollParents$1(getParentNode$1(target)));
+  updatedList.concat(listScrollParents(getParentNode(target)));
 }
 
-function rectToClientRect$1(rect) {
+function rectToClientRect(rect) {
   return Object.assign({}, rect, {
     left: rect.x,
     top: rect.y,
@@ -980,8 +982,8 @@ function rectToClientRect$1(rect) {
   });
 }
 
-function getInnerBoundingClientRect$1(element, strategy) {
-  var rect = getBoundingClientRect$1(element, false, strategy === 'fixed');
+function getInnerBoundingClientRect(element, strategy) {
+  var rect = getBoundingClientRect(element, false, strategy === 'fixed');
   rect.top = rect.top + element.clientTop;
   rect.left = rect.left + element.clientLeft;
   rect.bottom = rect.top + element.clientHeight;
@@ -993,42 +995,42 @@ function getInnerBoundingClientRect$1(element, strategy) {
   return rect;
 }
 
-function getClientRectFromMixedType$1(element, clippingParent, strategy) {
-  return clippingParent === viewport$1 ? rectToClientRect$1(getViewportRect$1(element, strategy)) : isElement$1(clippingParent) ? getInnerBoundingClientRect$1(clippingParent, strategy) : rectToClientRect$1(getDocumentRect$1(getDocumentElement$1(element)));
+function getClientRectFromMixedType(element, clippingParent, strategy) {
+  return clippingParent === viewport ? rectToClientRect(getViewportRect(element, strategy)) : isElement(clippingParent) ? getInnerBoundingClientRect(clippingParent, strategy) : rectToClientRect(getDocumentRect(getDocumentElement(element)));
 } // A "clipping parent" is an overflowable container with the characteristic of
 // clipping (or hiding) overflowing elements with a position different from
 // `initial`
 
 
-function getClippingParents$1(element) {
-  var clippingParents = listScrollParents$1(getParentNode$1(element));
-  var canEscapeClipping = ['absolute', 'fixed'].indexOf(getComputedStyle$1(element).position) >= 0;
-  var clipperElement = canEscapeClipping && isHTMLElement$1(element) ? getOffsetParent$1(element) : element;
+function getClippingParents(element) {
+  var clippingParents = listScrollParents(getParentNode(element));
+  var canEscapeClipping = ['absolute', 'fixed'].indexOf(getComputedStyle(element).position) >= 0;
+  var clipperElement = canEscapeClipping && isHTMLElement(element) ? getOffsetParent(element) : element;
 
-  if (!isElement$1(clipperElement)) {
+  if (!isElement(clipperElement)) {
     return [];
   } // $FlowFixMe[incompatible-return]: https://github.com/facebook/flow/issues/1414
 
 
   return clippingParents.filter(function (clippingParent) {
-    return isElement$1(clippingParent) && contains$1(clippingParent, clipperElement) && getNodeName$1(clippingParent) !== 'body';
+    return isElement(clippingParent) && contains(clippingParent, clipperElement) && getNodeName(clippingParent) !== 'body';
   });
 } // Gets the maximum area that the element is visible in due to any number of
 // clipping parents
 
 
-function getClippingRect$1(element, boundary, rootBoundary, strategy) {
-  var mainClippingParents = boundary === 'clippingParents' ? getClippingParents$1(element) : [].concat(boundary);
+function getClippingRect(element, boundary, rootBoundary, strategy) {
+  var mainClippingParents = boundary === 'clippingParents' ? getClippingParents(element) : [].concat(boundary);
   var clippingParents = [].concat(mainClippingParents, [rootBoundary]);
   var firstClippingParent = clippingParents[0];
   var clippingRect = clippingParents.reduce(function (accRect, clippingParent) {
-    var rect = getClientRectFromMixedType$1(element, clippingParent, strategy);
-    accRect.top = max$1(rect.top, accRect.top);
-    accRect.right = min$1(rect.right, accRect.right);
-    accRect.bottom = min$1(rect.bottom, accRect.bottom);
-    accRect.left = max$1(rect.left, accRect.left);
+    var rect = getClientRectFromMixedType(element, clippingParent, strategy);
+    accRect.top = max(rect.top, accRect.top);
+    accRect.right = min(rect.right, accRect.right);
+    accRect.bottom = min(rect.bottom, accRect.bottom);
+    accRect.left = max(rect.left, accRect.left);
     return accRect;
-  }, getClientRectFromMixedType$1(element, firstClippingParent, strategy));
+  }, getClientRectFromMixedType(element, firstClippingParent, strategy));
   clippingRect.width = clippingRect.right - clippingRect.left;
   clippingRect.height = clippingRect.bottom - clippingRect.top;
   clippingRect.x = clippingRect.left;
@@ -1036,39 +1038,39 @@ function getClippingRect$1(element, boundary, rootBoundary, strategy) {
   return clippingRect;
 }
 
-function computeOffsets$1(_ref) {
+function computeOffsets(_ref) {
   var reference = _ref.reference,
       element = _ref.element,
       placement = _ref.placement;
-  var basePlacement = placement ? getBasePlacement$1(placement) : null;
-  var variation = placement ? getVariation$1(placement) : null;
+  var basePlacement = placement ? getBasePlacement(placement) : null;
+  var variation = placement ? getVariation(placement) : null;
   var commonX = reference.x + reference.width / 2 - element.width / 2;
   var commonY = reference.y + reference.height / 2 - element.height / 2;
   var offsets;
 
   switch (basePlacement) {
-    case top$1:
+    case top:
       offsets = {
         x: commonX,
         y: reference.y - element.height
       };
       break;
 
-    case bottom$1:
+    case bottom:
       offsets = {
         x: commonX,
         y: reference.y + reference.height
       };
       break;
 
-    case right$1:
+    case right:
       offsets = {
         x: reference.x + reference.width,
         y: commonY
       };
       break;
 
-    case left$1:
+    case left:
       offsets = {
         x: reference.x - element.width,
         y: commonY
@@ -1082,17 +1084,17 @@ function computeOffsets$1(_ref) {
       };
   }
 
-  var mainAxis = basePlacement ? getMainAxisFromPlacement$1(basePlacement) : null;
+  var mainAxis = basePlacement ? getMainAxisFromPlacement(basePlacement) : null;
 
   if (mainAxis != null) {
     var len = mainAxis === 'y' ? 'height' : 'width';
 
     switch (variation) {
-      case start$1:
+      case start:
         offsets[mainAxis] = offsets[mainAxis] - (reference[len] / 2 - element[len] / 2);
         break;
 
-      case end$1:
+      case end:
         offsets[mainAxis] = offsets[mainAxis] + (reference[len] / 2 - element[len] / 2);
         break;
     }
@@ -1101,7 +1103,7 @@ function computeOffsets$1(_ref) {
   return offsets;
 }
 
-function detectOverflow$1(state, options) {
+function detectOverflow(state, options) {
   if (options === void 0) {
     options = {};
   }
@@ -1112,29 +1114,29 @@ function detectOverflow$1(state, options) {
       _options$strategy = _options.strategy,
       strategy = _options$strategy === void 0 ? state.strategy : _options$strategy,
       _options$boundary = _options.boundary,
-      boundary = _options$boundary === void 0 ? clippingParents$1 : _options$boundary,
+      boundary = _options$boundary === void 0 ? clippingParents : _options$boundary,
       _options$rootBoundary = _options.rootBoundary,
-      rootBoundary = _options$rootBoundary === void 0 ? viewport$1 : _options$rootBoundary,
+      rootBoundary = _options$rootBoundary === void 0 ? viewport : _options$rootBoundary,
       _options$elementConte = _options.elementContext,
-      elementContext = _options$elementConte === void 0 ? popper$1 : _options$elementConte,
+      elementContext = _options$elementConte === void 0 ? popper : _options$elementConte,
       _options$altBoundary = _options.altBoundary,
       altBoundary = _options$altBoundary === void 0 ? false : _options$altBoundary,
       _options$padding = _options.padding,
       padding = _options$padding === void 0 ? 0 : _options$padding;
-  var paddingObject = mergePaddingObject$1(typeof padding !== 'number' ? padding : expandToHashMap$1(padding, basePlacements$1));
-  var altContext = elementContext === popper$1 ? reference$1 : popper$1;
+  var paddingObject = mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
+  var altContext = elementContext === popper ? reference : popper;
   var popperRect = state.rects.popper;
   var element = state.elements[altBoundary ? altContext : elementContext];
-  var clippingClientRect = getClippingRect$1(isElement$1(element) ? element : element.contextElement || getDocumentElement$1(state.elements.popper), boundary, rootBoundary, strategy);
-  var referenceClientRect = getBoundingClientRect$1(state.elements.reference);
-  var popperOffsets = computeOffsets$1({
+  var clippingClientRect = getClippingRect(isElement(element) ? element : element.contextElement || getDocumentElement(state.elements.popper), boundary, rootBoundary, strategy);
+  var referenceClientRect = getBoundingClientRect(state.elements.reference);
+  var popperOffsets = computeOffsets({
     reference: referenceClientRect,
     element: popperRect,
     strategy: 'absolute',
     placement: placement
   });
-  var popperClientRect = rectToClientRect$1(Object.assign({}, popperRect, popperOffsets));
-  var elementClientRect = elementContext === popper$1 ? popperClientRect : referenceClientRect; // positive = overflowing the clipping rect
+  var popperClientRect = rectToClientRect(Object.assign({}, popperRect, popperOffsets));
+  var elementClientRect = elementContext === popper ? popperClientRect : referenceClientRect; // positive = overflowing the clipping rect
   // 0 or negative = within the clipping rect
 
   var overflowOffsets = {
@@ -1145,11 +1147,11 @@ function detectOverflow$1(state, options) {
   };
   var offsetData = state.modifiersData.offset; // Offsets can be applied only to the popper element
 
-  if (elementContext === popper$1 && offsetData) {
+  if (elementContext === popper && offsetData) {
     var offset = offsetData[placement];
     Object.keys(overflowOffsets).forEach(function (key) {
-      var multiply = [right$1, bottom$1].indexOf(key) >= 0 ? 1 : -1;
-      var axis = [top$1, bottom$1].indexOf(key) >= 0 ? 'y' : 'x';
+      var multiply = [right, bottom].indexOf(key) >= 0 ? 1 : -1;
+      var axis = [top, bottom].indexOf(key) >= 0 ? 'y' : 'x';
       overflowOffsets[key] += offset[axis] * multiply;
     });
   }
@@ -1157,7 +1159,7 @@ function detectOverflow$1(state, options) {
   return overflowOffsets;
 }
 
-function computeAutoPlacement$1(state, options) {
+function computeAutoPlacement(state, options) {
   if (options === void 0) {
     options = {};
   }
@@ -1169,27 +1171,27 @@ function computeAutoPlacement$1(state, options) {
       padding = _options.padding,
       flipVariations = _options.flipVariations,
       _options$allowedAutoP = _options.allowedAutoPlacements,
-      allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements$1 : _options$allowedAutoP;
-  var variation = getVariation$1(placement);
-  var placements = variation ? flipVariations ? variationPlacements$1 : variationPlacements$1.filter(function (placement) {
-    return getVariation$1(placement) === variation;
-  }) : basePlacements$1;
-  var allowedPlacements = placements.filter(function (placement) {
+      allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements : _options$allowedAutoP;
+  var variation = getVariation(placement);
+  var placements$1 = variation ? flipVariations ? variationPlacements : variationPlacements.filter(function (placement) {
+    return getVariation(placement) === variation;
+  }) : basePlacements;
+  var allowedPlacements = placements$1.filter(function (placement) {
     return allowedAutoPlacements.indexOf(placement) >= 0;
   });
 
   if (allowedPlacements.length === 0) {
-    allowedPlacements = placements;
+    allowedPlacements = placements$1;
   } // $FlowFixMe[incompatible-type]: Flow seems to have problems with two array unions...
 
 
   var overflows = allowedPlacements.reduce(function (acc, placement) {
-    acc[placement] = detectOverflow$1(state, {
+    acc[placement] = detectOverflow(state, {
       placement: placement,
       boundary: boundary,
       rootBoundary: rootBoundary,
       padding: padding
-    })[getBasePlacement$1(placement)];
+    })[getBasePlacement(placement)];
     return acc;
   }, {});
   return Object.keys(overflows).sort(function (a, b) {
@@ -1197,16 +1199,16 @@ function computeAutoPlacement$1(state, options) {
   });
 }
 
-function getExpandedFallbackPlacements$1(placement) {
-  if (getBasePlacement$1(placement) === auto$1) {
+function getExpandedFallbackPlacements(placement) {
+  if (getBasePlacement(placement) === auto) {
     return [];
   }
 
-  var oppositePlacement = getOppositePlacement$1(placement);
-  return [getOppositeVariationPlacement$1(placement), oppositePlacement, getOppositeVariationPlacement$1(oppositePlacement)];
+  var oppositePlacement = getOppositePlacement(placement);
+  return [getOppositeVariationPlacement(placement), oppositePlacement, getOppositeVariationPlacement(oppositePlacement)];
 }
 
-function flip$2(_ref) {
+function flip(_ref) {
   var state = _ref.state,
       options = _ref.options,
       name = _ref.name;
@@ -1228,11 +1230,11 @@ function flip$2(_ref) {
       flipVariations = _options$flipVariatio === void 0 ? true : _options$flipVariatio,
       allowedAutoPlacements = options.allowedAutoPlacements;
   var preferredPlacement = state.options.placement;
-  var basePlacement = getBasePlacement$1(preferredPlacement);
+  var basePlacement = getBasePlacement(preferredPlacement);
   var isBasePlacement = basePlacement === preferredPlacement;
-  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement$1(preferredPlacement)] : getExpandedFallbackPlacements$1(preferredPlacement));
+  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement(preferredPlacement)] : getExpandedFallbackPlacements(preferredPlacement));
   var placements = [preferredPlacement].concat(fallbackPlacements).reduce(function (acc, placement) {
-    return acc.concat(getBasePlacement$1(placement) === auto$1 ? computeAutoPlacement$1(state, {
+    return acc.concat(getBasePlacement(placement) === auto ? computeAutoPlacement(state, {
       placement: placement,
       boundary: boundary,
       rootBoundary: rootBoundary,
@@ -1250,25 +1252,25 @@ function flip$2(_ref) {
   for (var i = 0; i < placements.length; i++) {
     var placement = placements[i];
 
-    var _basePlacement = getBasePlacement$1(placement);
+    var _basePlacement = getBasePlacement(placement);
 
-    var isStartVariation = getVariation$1(placement) === start$1;
-    var isVertical = [top$1, bottom$1].indexOf(_basePlacement) >= 0;
+    var isStartVariation = getVariation(placement) === start;
+    var isVertical = [top, bottom].indexOf(_basePlacement) >= 0;
     var len = isVertical ? 'width' : 'height';
-    var overflow = detectOverflow$1(state, {
+    var overflow = detectOverflow(state, {
       placement: placement,
       boundary: boundary,
       rootBoundary: rootBoundary,
       altBoundary: altBoundary,
       padding: padding
     });
-    var mainVariationSide = isVertical ? isStartVariation ? right$1 : left$1 : isStartVariation ? bottom$1 : top$1;
+    var mainVariationSide = isVertical ? isStartVariation ? right : left : isStartVariation ? bottom : top;
 
     if (referenceRect[len] > popperRect[len]) {
-      mainVariationSide = getOppositePlacement$1(mainVariationSide);
+      mainVariationSide = getOppositePlacement(mainVariationSide);
     }
 
-    var altVariationSide = getOppositePlacement$1(mainVariationSide);
+    var altVariationSide = getOppositePlacement(mainVariationSide);
     var checks = [];
 
     if (checkMainAxis) {
@@ -1326,18 +1328,18 @@ function flip$2(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var flip$3 = {
+var flip$1 = {
   name: 'flip',
   enabled: true,
   phase: 'main',
-  fn: flip$2,
+  fn: flip,
   requiresIfExists: ['offset'],
   data: {
     _skip: false
   }
 };
 
-function getSideOffsets$1(overflow, rect, preventedOffsets) {
+function getSideOffsets(overflow, rect, preventedOffsets) {
   if (preventedOffsets === void 0) {
     preventedOffsets = {
       x: 0,
@@ -1353,28 +1355,28 @@ function getSideOffsets$1(overflow, rect, preventedOffsets) {
   };
 }
 
-function isAnySideFullyClipped$1(overflow) {
-  return [top$1, right$1, bottom$1, left$1].some(function (side) {
+function isAnySideFullyClipped(overflow) {
+  return [top, right, bottom, left].some(function (side) {
     return overflow[side] >= 0;
   });
 }
 
-function hide$2(_ref) {
+function hide(_ref) {
   var state = _ref.state,
       name = _ref.name;
   var referenceRect = state.rects.reference;
   var popperRect = state.rects.popper;
   var preventedOffsets = state.modifiersData.preventOverflow;
-  var referenceOverflow = detectOverflow$1(state, {
+  var referenceOverflow = detectOverflow(state, {
     elementContext: 'reference'
   });
-  var popperAltOverflow = detectOverflow$1(state, {
+  var popperAltOverflow = detectOverflow(state, {
     altBoundary: true
   });
-  var referenceClippingOffsets = getSideOffsets$1(referenceOverflow, referenceRect);
-  var popperEscapeOffsets = getSideOffsets$1(popperAltOverflow, popperRect, preventedOffsets);
-  var isReferenceHidden = isAnySideFullyClipped$1(referenceClippingOffsets);
-  var hasPopperEscaped = isAnySideFullyClipped$1(popperEscapeOffsets);
+  var referenceClippingOffsets = getSideOffsets(referenceOverflow, referenceRect);
+  var popperEscapeOffsets = getSideOffsets(popperAltOverflow, popperRect, preventedOffsets);
+  var isReferenceHidden = isAnySideFullyClipped(referenceClippingOffsets);
+  var hasPopperEscaped = isAnySideFullyClipped(popperEscapeOffsets);
   state.modifiersData[name] = {
     referenceClippingOffsets: referenceClippingOffsets,
     popperEscapeOffsets: popperEscapeOffsets,
@@ -1388,17 +1390,17 @@ function hide$2(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var hide$3 = {
+var hide$1 = {
   name: 'hide',
   enabled: true,
   phase: 'main',
   requiresIfExists: ['preventOverflow'],
-  fn: hide$2
+  fn: hide
 };
 
-function distanceAndSkiddingToXY$1(placement, rects, offset) {
-  var basePlacement = getBasePlacement$1(placement);
-  var invertDistance = [left$1, top$1].indexOf(basePlacement) >= 0 ? -1 : 1;
+function distanceAndSkiddingToXY(placement, rects, offset) {
+  var basePlacement = getBasePlacement(placement);
+  var invertDistance = [left, top].indexOf(basePlacement) >= 0 ? -1 : 1;
 
   var _ref = typeof offset === 'function' ? offset(Object.assign({}, rects, {
     placement: placement
@@ -1408,7 +1410,7 @@ function distanceAndSkiddingToXY$1(placement, rects, offset) {
 
   skidding = skidding || 0;
   distance = (distance || 0) * invertDistance;
-  return [left$1, right$1].indexOf(basePlacement) >= 0 ? {
+  return [left, right].indexOf(basePlacement) >= 0 ? {
     x: distance,
     y: skidding
   } : {
@@ -1417,14 +1419,14 @@ function distanceAndSkiddingToXY$1(placement, rects, offset) {
   };
 }
 
-function offset$2(_ref2) {
+function offset(_ref2) {
   var state = _ref2.state,
       options = _ref2.options,
       name = _ref2.name;
   var _options$offset = options.offset,
       offset = _options$offset === void 0 ? [0, 0] : _options$offset;
-  var data = placements$1.reduce(function (acc, placement) {
-    acc[placement] = distanceAndSkiddingToXY$1(placement, state.rects, offset);
+  var data = placements.reduce(function (acc, placement) {
+    acc[placement] = distanceAndSkiddingToXY(placement, state.rects, offset);
     return acc;
   }, {});
   var _data$state$placement = data[state.placement],
@@ -1440,22 +1442,22 @@ function offset$2(_ref2) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var offset$3 = {
+var offset$1 = {
   name: 'offset',
   enabled: true,
   phase: 'main',
   requires: ['popperOffsets'],
-  fn: offset$2
+  fn: offset
 };
 
-function popperOffsets$2(_ref) {
+function popperOffsets(_ref) {
   var state = _ref.state,
       name = _ref.name;
   // Offsets are the actual position the popper needs to have to be
   // properly positioned near its reference element
   // This is the most basic placement, and will be adjusted by
   // the modifiers in the next step
-  state.modifiersData[name] = computeOffsets$1({
+  state.modifiersData[name] = computeOffsets({
     reference: state.rects.reference,
     element: state.rects.popper,
     strategy: 'absolute',
@@ -1464,19 +1466,19 @@ function popperOffsets$2(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var popperOffsets$3 = {
+var popperOffsets$1 = {
   name: 'popperOffsets',
   enabled: true,
   phase: 'read',
-  fn: popperOffsets$2,
+  fn: popperOffsets,
   data: {}
 };
 
-function getAltAxis$1(axis) {
+function getAltAxis(axis) {
   return axis === 'x' ? 'y' : 'x';
 }
 
-function preventOverflow$2(_ref) {
+function preventOverflow(_ref) {
   var state = _ref.state,
       options = _ref.options,
       name = _ref.name;
@@ -1492,17 +1494,17 @@ function preventOverflow$2(_ref) {
       tether = _options$tether === void 0 ? true : _options$tether,
       _options$tetherOffset = options.tetherOffset,
       tetherOffset = _options$tetherOffset === void 0 ? 0 : _options$tetherOffset;
-  var overflow = detectOverflow$1(state, {
+  var overflow = detectOverflow(state, {
     boundary: boundary,
     rootBoundary: rootBoundary,
     padding: padding,
     altBoundary: altBoundary
   });
-  var basePlacement = getBasePlacement$1(state.placement);
-  var variation = getVariation$1(state.placement);
+  var basePlacement = getBasePlacement(state.placement);
+  var variation = getVariation(state.placement);
   var isBasePlacement = !variation;
-  var mainAxis = getMainAxisFromPlacement$1(basePlacement);
-  var altAxis = getAltAxis$1(mainAxis);
+  var mainAxis = getMainAxisFromPlacement(basePlacement);
+  var altAxis = getAltAxis(mainAxis);
   var popperOffsets = state.modifiersData.popperOffsets;
   var referenceRect = state.rects.reference;
   var popperRect = state.rects.popper;
@@ -1529,23 +1531,23 @@ function preventOverflow$2(_ref) {
   if (checkMainAxis) {
     var _offsetModifierState$;
 
-    var mainSide = mainAxis === 'y' ? top$1 : left$1;
-    var altSide = mainAxis === 'y' ? bottom$1 : right$1;
+    var mainSide = mainAxis === 'y' ? top : left;
+    var altSide = mainAxis === 'y' ? bottom : right;
     var len = mainAxis === 'y' ? 'height' : 'width';
     var offset = popperOffsets[mainAxis];
-    var min = offset + overflow[mainSide];
-    var max = offset - overflow[altSide];
+    var min$1 = offset + overflow[mainSide];
+    var max$1 = offset - overflow[altSide];
     var additive = tether ? -popperRect[len] / 2 : 0;
-    var minLen = variation === start$1 ? referenceRect[len] : popperRect[len];
-    var maxLen = variation === start$1 ? -popperRect[len] : -referenceRect[len]; // We need to include the arrow in the calculation so the arrow doesn't go
+    var minLen = variation === start ? referenceRect[len] : popperRect[len];
+    var maxLen = variation === start ? -popperRect[len] : -referenceRect[len]; // We need to include the arrow in the calculation so the arrow doesn't go
     // outside the reference bounds
 
     var arrowElement = state.elements.arrow;
-    var arrowRect = tether && arrowElement ? getLayoutRect$1(arrowElement) : {
+    var arrowRect = tether && arrowElement ? getLayoutRect(arrowElement) : {
       width: 0,
       height: 0
     };
-    var arrowPaddingObject = state.modifiersData['arrow#persistent'] ? state.modifiersData['arrow#persistent'].padding : getFreshSideObject$1();
+    var arrowPaddingObject = state.modifiersData['arrow#persistent'] ? state.modifiersData['arrow#persistent'].padding : getFreshSideObject();
     var arrowPaddingMin = arrowPaddingObject[mainSide];
     var arrowPaddingMax = arrowPaddingObject[altSide]; // If the reference length is smaller than the arrow length, we don't want
     // to include its full size in the calculation. If the reference is small
@@ -1553,15 +1555,15 @@ function preventOverflow$2(_ref) {
     // reference is not overflowing as well (e.g. virtual elements with no
     // width or height)
 
-    var arrowLen = within$1(0, referenceRect[len], arrowRect[len]);
+    var arrowLen = within(0, referenceRect[len], arrowRect[len]);
     var minOffset = isBasePlacement ? referenceRect[len] / 2 - additive - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis : minLen - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis;
     var maxOffset = isBasePlacement ? -referenceRect[len] / 2 + additive + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis : maxLen + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis;
-    var arrowOffsetParent = state.elements.arrow && getOffsetParent$1(state.elements.arrow);
+    var arrowOffsetParent = state.elements.arrow && getOffsetParent(state.elements.arrow);
     var clientOffset = arrowOffsetParent ? mainAxis === 'y' ? arrowOffsetParent.clientTop || 0 : arrowOffsetParent.clientLeft || 0 : 0;
     var offsetModifierValue = (_offsetModifierState$ = offsetModifierState == null ? void 0 : offsetModifierState[mainAxis]) != null ? _offsetModifierState$ : 0;
     var tetherMin = offset + minOffset - offsetModifierValue - clientOffset;
     var tetherMax = offset + maxOffset - offsetModifierValue;
-    var preventedOffset = within$1(tether ? min$1(min, tetherMin) : min, offset, tether ? max$1(max, tetherMax) : max);
+    var preventedOffset = within(tether ? min(min$1, tetherMin) : min$1, offset, tether ? max(max$1, tetherMax) : max$1);
     popperOffsets[mainAxis] = preventedOffset;
     data[mainAxis] = preventedOffset - offset;
   }
@@ -1569,9 +1571,9 @@ function preventOverflow$2(_ref) {
   if (checkAltAxis) {
     var _offsetModifierState$2;
 
-    var _mainSide = mainAxis === 'x' ? top$1 : left$1;
+    var _mainSide = mainAxis === 'x' ? top : left;
 
-    var _altSide = mainAxis === 'x' ? bottom$1 : right$1;
+    var _altSide = mainAxis === 'x' ? bottom : right;
 
     var _offset = popperOffsets[altAxis];
 
@@ -1581,7 +1583,7 @@ function preventOverflow$2(_ref) {
 
     var _max = _offset - overflow[_altSide];
 
-    var isOriginSide = [top$1, left$1].indexOf(basePlacement) !== -1;
+    var isOriginSide = [top, left].indexOf(basePlacement) !== -1;
 
     var _offsetModifierValue = (_offsetModifierState$2 = offsetModifierState == null ? void 0 : offsetModifierState[altAxis]) != null ? _offsetModifierState$2 : 0;
 
@@ -1589,7 +1591,7 @@ function preventOverflow$2(_ref) {
 
     var _tetherMax = isOriginSide ? _offset + referenceRect[_len] + popperRect[_len] - _offsetModifierValue - normalizedTetherOffsetValue.altAxis : _max;
 
-    var _preventedOffset = tether && isOriginSide ? withinMaxClamp$1(_tetherMin, _offset, _tetherMax) : within$1(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
+    var _preventedOffset = tether && isOriginSide ? withinMaxClamp(_tetherMin, _offset, _tetherMax) : within(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
 
     popperOffsets[altAxis] = _preventedOffset;
     data[altAxis] = _preventedOffset - _offset;
@@ -1599,47 +1601,47 @@ function preventOverflow$2(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var preventOverflow$3 = {
+var preventOverflow$1 = {
   name: 'preventOverflow',
   enabled: true,
   phase: 'main',
-  fn: preventOverflow$2,
+  fn: preventOverflow,
   requiresIfExists: ['offset']
 };
 
-function getHTMLElementScroll$1(element) {
+function getHTMLElementScroll(element) {
   return {
     scrollLeft: element.scrollLeft,
     scrollTop: element.scrollTop
   };
 }
 
-function getNodeScroll$1(node) {
-  if (node === getWindow$1(node) || !isHTMLElement$1(node)) {
-    return getWindowScroll$1(node);
+function getNodeScroll(node) {
+  if (node === getWindow(node) || !isHTMLElement(node)) {
+    return getWindowScroll(node);
   } else {
-    return getHTMLElementScroll$1(node);
+    return getHTMLElementScroll(node);
   }
 }
 
-function isElementScaled$1(element) {
+function isElementScaled(element) {
   var rect = element.getBoundingClientRect();
-  var scaleX = round$1(rect.width) / element.offsetWidth || 1;
-  var scaleY = round$1(rect.height) / element.offsetHeight || 1;
+  var scaleX = round(rect.width) / element.offsetWidth || 1;
+  var scaleY = round(rect.height) / element.offsetHeight || 1;
   return scaleX !== 1 || scaleY !== 1;
 } // Returns the composite rect of an element relative to its offsetParent.
 // Composite means it takes into account transforms as well as layout.
 
 
-function getCompositeRect$1(elementOrVirtualElement, offsetParent, isFixed) {
+function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
   if (isFixed === void 0) {
     isFixed = false;
   }
 
-  var isOffsetParentAnElement = isHTMLElement$1(offsetParent);
-  var offsetParentIsScaled = isHTMLElement$1(offsetParent) && isElementScaled$1(offsetParent);
-  var documentElement = getDocumentElement$1(offsetParent);
-  var rect = getBoundingClientRect$1(elementOrVirtualElement, offsetParentIsScaled, isFixed);
+  var isOffsetParentAnElement = isHTMLElement(offsetParent);
+  var offsetParentIsScaled = isHTMLElement(offsetParent) && isElementScaled(offsetParent);
+  var documentElement = getDocumentElement(offsetParent);
+  var rect = getBoundingClientRect(elementOrVirtualElement, offsetParentIsScaled, isFixed);
   var scroll = {
     scrollLeft: 0,
     scrollTop: 0
@@ -1650,17 +1652,17 @@ function getCompositeRect$1(elementOrVirtualElement, offsetParent, isFixed) {
   };
 
   if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
-    if (getNodeName$1(offsetParent) !== 'body' || // https://github.com/popperjs/popper-core/issues/1078
-    isScrollParent$1(documentElement)) {
-      scroll = getNodeScroll$1(offsetParent);
+    if (getNodeName(offsetParent) !== 'body' || // https://github.com/popperjs/popper-core/issues/1078
+    isScrollParent(documentElement)) {
+      scroll = getNodeScroll(offsetParent);
     }
 
-    if (isHTMLElement$1(offsetParent)) {
-      offsets = getBoundingClientRect$1(offsetParent, true);
+    if (isHTMLElement(offsetParent)) {
+      offsets = getBoundingClientRect(offsetParent, true);
       offsets.x += offsetParent.clientLeft;
       offsets.y += offsetParent.clientTop;
     } else if (documentElement) {
-      offsets.x = getWindowScrollBarX$1(documentElement);
+      offsets.x = getWindowScrollBarX(documentElement);
     }
   }
 
@@ -1672,7 +1674,7 @@ function getCompositeRect$1(elementOrVirtualElement, offsetParent, isFixed) {
   };
 }
 
-function order$1(modifiers) {
+function order(modifiers) {
   var map = new Map();
   var visited = new Set();
   var result = [];
@@ -1704,18 +1706,18 @@ function order$1(modifiers) {
   return result;
 }
 
-function orderModifiers$1(modifiers) {
+function orderModifiers(modifiers) {
   // order based on dependencies
-  var orderedModifiers = order$1(modifiers); // order based on phase
+  var orderedModifiers = order(modifiers); // order based on phase
 
-  return modifierPhases$1.reduce(function (acc, phase) {
+  return modifierPhases.reduce(function (acc, phase) {
     return acc.concat(orderedModifiers.filter(function (modifier) {
       return modifier.phase === phase;
     }));
   }, []);
 }
 
-function debounce$1(fn) {
+function debounce(fn) {
   var pending;
   return function () {
     if (!pending) {
@@ -1731,7 +1733,7 @@ function debounce$1(fn) {
   };
 }
 
-function mergeByName$1(modifiers) {
+function mergeByName(modifiers) {
   var merged = modifiers.reduce(function (merged, current) {
     var existing = merged[current.name];
     merged[current.name] = existing ? Object.assign({}, existing, current, {
@@ -1746,13 +1748,13 @@ function mergeByName$1(modifiers) {
   });
 }
 
-var DEFAULT_OPTIONS$1 = {
+var DEFAULT_OPTIONS = {
   placement: 'bottom',
   modifiers: [],
   strategy: 'absolute'
 };
 
-function areValidElements$1() {
+function areValidElements() {
   for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
     args[_key] = arguments[_key];
   }
@@ -1762,7 +1764,7 @@ function areValidElements$1() {
   });
 }
 
-function popperGenerator$1(generatorOptions) {
+function popperGenerator(generatorOptions) {
   if (generatorOptions === void 0) {
     generatorOptions = {};
   }
@@ -1771,7 +1773,7 @@ function popperGenerator$1(generatorOptions) {
       _generatorOptions$def = _generatorOptions.defaultModifiers,
       defaultModifiers = _generatorOptions$def === void 0 ? [] : _generatorOptions$def,
       _generatorOptions$def2 = _generatorOptions.defaultOptions,
-      defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS$1 : _generatorOptions$def2;
+      defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS : _generatorOptions$def2;
   return function createPopper(reference, popper, options) {
     if (options === void 0) {
       options = defaultOptions;
@@ -1780,7 +1782,7 @@ function popperGenerator$1(generatorOptions) {
     var state = {
       placement: 'bottom',
       orderedModifiers: [],
-      options: Object.assign({}, DEFAULT_OPTIONS$1, defaultOptions),
+      options: Object.assign({}, DEFAULT_OPTIONS, defaultOptions),
       modifiersData: {},
       elements: {
         reference: reference,
@@ -1798,16 +1800,17 @@ function popperGenerator$1(generatorOptions) {
         cleanupModifierEffects();
         state.options = Object.assign({}, defaultOptions, state.options, options);
         state.scrollParents = {
-          reference: isElement$1(reference) ? listScrollParents$1(reference) : reference.contextElement ? listScrollParents$1(reference.contextElement) : [],
-          popper: listScrollParents$1(popper)
+          reference: isElement(reference) ? listScrollParents(reference) : reference.contextElement ? listScrollParents(reference.contextElement) : [],
+          popper: listScrollParents(popper)
         }; // Orders the modifiers based on their dependencies and `phase`
         // properties
 
-        var orderedModifiers = orderModifiers$1(mergeByName$1([].concat(defaultModifiers, state.options.modifiers))); // Strip out disabled modifiers
+        var orderedModifiers = orderModifiers(mergeByName([].concat(defaultModifiers, state.options.modifiers))); // Strip out disabled modifiers
 
         state.orderedModifiers = orderedModifiers.filter(function (m) {
           return m.enabled;
-        });
+        }); // Validate the provided modifiers so that the consumer will get warned
+
         runModifierEffects();
         return instance.update();
       },
@@ -1826,14 +1829,15 @@ function popperGenerator$1(generatorOptions) {
             popper = _state$elements.popper; // Don't proceed if `reference` or `popper` are not valid elements
         // anymore
 
-        if (!areValidElements$1(reference, popper)) {
+        if (!areValidElements(reference, popper)) {
+
           return;
         } // Store the reference and popper rects to be read by modifiers
 
 
         state.rects = {
-          reference: getCompositeRect$1(reference, getOffsetParent$1(popper), state.options.strategy === 'fixed'),
-          popper: getLayoutRect$1(popper)
+          reference: getCompositeRect(reference, getOffsetParent(popper), state.options.strategy === 'fixed'),
+          popper: getLayoutRect(popper)
         }; // Modifiers have the ability to reset the current update cycle. The
         // most common use case for this is the `flip` modifier changing the
         // placement, which then needs to re-run all the modifiers, because the
@@ -1851,6 +1855,7 @@ function popperGenerator$1(generatorOptions) {
         });
 
         for (var index = 0; index < state.orderedModifiers.length; index++) {
+
           if (state.reset === true) {
             state.reset = false;
             index = -1;
@@ -1875,7 +1880,7 @@ function popperGenerator$1(generatorOptions) {
       },
       // Async and optimistically optimized update – it will not be executed if
       // not necessary (debounced to run at most once-per-tick)
-      update: debounce$1(function () {
+      update: debounce(function () {
         return new Promise(function (resolve) {
           instance.forceUpdate();
           resolve(state);
@@ -1887,7 +1892,8 @@ function popperGenerator$1(generatorOptions) {
       }
     };
 
-    if (!areValidElements$1(reference, popper)) {
+    if (!areValidElements(reference, popper)) {
+
       return instance;
     }
 
@@ -1902,11 +1908,11 @@ function popperGenerator$1(generatorOptions) {
     // one.
 
     function runModifierEffects() {
-      state.orderedModifiers.forEach(function (_ref) {
-        var name = _ref.name,
-            _ref$options = _ref.options,
-            options = _ref$options === void 0 ? {} : _ref$options,
-            effect = _ref.effect;
+      state.orderedModifiers.forEach(function (_ref3) {
+        var name = _ref3.name,
+            _ref3$options = _ref3.options,
+            options = _ref3$options === void 0 ? {} : _ref3$options,
+            effect = _ref3.effect;
 
         if (typeof effect === 'function') {
           var cleanupFn = effect({
@@ -1934,9 +1940,9 @@ function popperGenerator$1(generatorOptions) {
   };
 }
 
-var defaultModifiers$1 = [eventListeners$1, popperOffsets$3, computeStyles$3, applyStyles$3, offset$3, flip$3, preventOverflow$3, arrow$3, hide$3];
-var createPopper$1 = /*#__PURE__*/popperGenerator$1({
-  defaultModifiers: defaultModifiers$1
+var defaultModifiers = [eventListeners, popperOffsets$1, computeStyles$1, applyStyles$1, offset$1, flip$1, preventOverflow$1, arrow$1, hide$1];
+var createPopper = /*#__PURE__*/popperGenerator({
+  defaultModifiers: defaultModifiers
 }); // eslint-disable-next-line import/no-unused-modules
 
 // Temporal id generator until the IFC id algorithm is implemented.
@@ -2123,6 +2129,23 @@ function bufferGeometryToIndexed(geometry) {
 }
 
 class SimpleUIComponent extends Component {
+    constructor(components, domElement, id) {
+        super();
+        this.name = "SimpleUIComponent";
+        this.children = [];
+        this.data = {};
+        this.onVisible = new Event();
+        this.onHidden = new Event();
+        this.onEnabled = new Event();
+        this.onDisabled = new Event();
+        this._enabled = true;
+        this._visible = true;
+        this._active = false;
+        this._components = components;
+        this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
+        domElement.id = this.id;
+        this.domElement = domElement;
+    }
     get active() {
         return this._active;
     }
@@ -2161,23 +2184,6 @@ class SimpleUIComponent extends Component {
     get hasElements() {
         return this.children.length > 0;
     }
-    constructor(components, domElement, id) {
-        super();
-        this.name = "SimpleUIComponent";
-        this.children = [];
-        this.data = {};
-        this.onVisible = new Event();
-        this.onHidden = new Event();
-        this.onEnabled = new Event();
-        this.onDisabled = new Event();
-        this._enabled = true;
-        this._visible = true;
-        this._active = false;
-        this._components = components;
-        this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
-        domElement.id = this.id;
-        this.domElement = domElement;
-    }
     cleanData() {
         this.data = {};
     }
@@ -2207,6 +2213,20 @@ class SimpleUIComponent extends Component {
 }
 
 class Toolbar extends SimpleUIComponent {
+    constructor(components, options) {
+        var _a, _b;
+        const _options = {
+            position: "bottom",
+            ...options,
+        };
+        const toolbar = document.createElement("div");
+        toolbar.className = Toolbar.Class.Base;
+        super(components, toolbar, options === null || options === void 0 ? void 0 : options.id);
+        this.children = [];
+        this.name = (_a = _options.name) !== null && _a !== void 0 ? _a : "Toolbar";
+        this.position = (_b = _options.position) !== null && _b !== void 0 ? _b : "bottom";
+        this.visible = true;
+    }
     set visible(visible) {
         this._visible = visible && this.hasElements;
         if (visible && this.hasElements) {
@@ -2235,20 +2255,6 @@ class Toolbar extends SimpleUIComponent {
     }
     get position() {
         return this._position;
-    }
-    constructor(components, options) {
-        var _a, _b;
-        const _options = {
-            position: "bottom",
-            ...options,
-        };
-        const toolbar = document.createElement("div");
-        toolbar.className = Toolbar.Class.Base;
-        super(components, toolbar, options === null || options === void 0 ? void 0 : options.id);
-        this.children = [];
-        this.name = (_a = _options.name) !== null && _a !== void 0 ? _a : "Toolbar";
-        this.position = (_b = _options.position) !== null && _b !== void 0 ? _b : "bottom";
-        this.visible = true;
     }
     dispose(onlyChildren = false) {
         this.children.forEach((button) => button.dispose());
@@ -2287,37 +2293,6 @@ Toolbar.Class = {
 };
 
 class Button extends SimpleUIComponent {
-    set label(value) {
-        this._label = null;
-        this._labelElement.textContent = value;
-        if (value) {
-            this._labelElement.classList.remove("hidden");
-        }
-        else {
-            this._labelElement.classList.add("hidden");
-        }
-    }
-    get label() {
-        return this._label;
-    }
-    set onclick(listener) {
-        this.domElement.onclick = (e) => {
-            e.stopImmediatePropagation();
-            listener(e);
-            if (this._closeOnClick) {
-                this._components.ui.closeMenus();
-                this._components.ui.contextMenu.visible = false;
-            }
-        };
-    }
-    set parent(toolbar) {
-        this._parent = toolbar;
-        this.menu.position = toolbar.position;
-        this.updateMenuPlacement();
-    }
-    get parent() {
-        return this._parent;
-    }
     constructor(components, options) {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -2356,7 +2331,7 @@ class Button extends SimpleUIComponent {
         this.menu.parent = this;
         this.menu.setDirection("vertical");
         this.domElement.append(this.menu.domElement);
-        this._popper = createPopper$1(this.domElement, this.menu.domElement, {
+        this._popper = createPopper(this.domElement, this.menu.domElement, {
             modifiers: [
                 {
                     name: "offset",
@@ -2371,6 +2346,37 @@ class Button extends SimpleUIComponent {
         // #endregion
         this.onEnabled.on(() => (this.domElement.disabled = false));
         this.onDisabled.on(() => (this.domElement.disabled = true));
+    }
+    set label(value) {
+        this._label = null;
+        this._labelElement.textContent = value;
+        if (value) {
+            this._labelElement.classList.remove("hidden");
+        }
+        else {
+            this._labelElement.classList.add("hidden");
+        }
+    }
+    get label() {
+        return this._label;
+    }
+    set onclick(listener) {
+        this.domElement.onclick = (e) => {
+            e.stopImmediatePropagation();
+            listener(e);
+            if (this._closeOnClick) {
+                this._components.ui.closeMenus();
+                this._components.ui.contextMenu.visible = false;
+            }
+        };
+    }
+    set parent(toolbar) {
+        this._parent = toolbar;
+        this.menu.position = toolbar.position;
+        this.updateMenuPlacement();
+    }
+    get parent() {
+        return this._parent;
     }
     dispose(onlyChildren = false) {
         this.menu.dispose();
@@ -2999,10 +3005,8 @@ const ACTION = Object.freeze({
     TOUCH_ZOOM: 512,
     TOUCH_DOLLY_TRUCK: 1024,
     TOUCH_DOLLY_OFFSET: 2048,
-    TOUCH_DOLLY_ROTATE: 4096,
-    TOUCH_ZOOM_TRUCK: 8192,
-    TOUCH_ZOOM_OFFSET: 16384,
-    TOUCH_ZOOM_ROTATE: 32768,
+    TOUCH_ZOOM_TRUCK: 4096,
+    TOUCH_ZOOM_OFFSET: 8192,
 });
 function isPerspectiveCamera(camera) {
     return camera.isPerspectiveCamera;
@@ -3088,16 +3092,10 @@ class EventDispatcher {
         if (listeners[type].indexOf(listener) === -1)
             listeners[type].push(listener);
     }
-    /**
-     * Presence of the specified event listener.
-     * @param type event name
-     * @param listener handler function
-     * @category Methods
-     */
-    hasEventListener(type, listener) {
-        const listeners = this._listeners;
-        return listeners[type] !== undefined && listeners[type].indexOf(listener) !== -1;
-    }
+    // hasEventListener( type: string, listener: Listener ): boolean {
+    // 	const listeners = this._listeners;
+    // 	return listeners[ type ] !== undefined && listeners[ type ].indexOf( listener ) !== - 1;
+    // }
     /**
      * Removes the specified event listener
      * @param type event name
@@ -3144,11 +3142,10 @@ class EventDispatcher {
     }
 }
 
-const VERSION = '1.38.1'; // will be replaced with `version` in package.json during the build process.
-const TOUCH_DOLLY_FACTOR = 1 / 8;
 const isBrowser = typeof window !== 'undefined';
 const isMac = isBrowser && /Mac/.test(navigator.platform);
 const isPointerEventsNotSupported = !(isBrowser && 'PointerEvent' in window); // Safari 12 does not support PointerEvents API
+const TOUCH_DOLLY_FACTOR = 1 / 8;
 let THREE;
 let _ORIGIN;
 let _AXIS_Y;
@@ -3172,81 +3169,6 @@ let _quaternionB;
 let _rotationMatrix;
 let _raycaster$1;
 class CameraControls extends EventDispatcher {
-    /**
-     * Injects THREE as the dependency. You can then proceed to use CameraControls.
-     *
-     * e.g
-     * ```javascript
-     * CameraControls.install( { THREE: THREE } );
-     * ```
-     *
-     * Note: If you do not wish to use enter three.js to reduce file size(tree-shaking for example), make a subset to install.
-     *
-     * ```js
-     * import {
-     * 	Vector2,
-     * 	Vector3,
-     * 	Vector4,
-     * 	Quaternion,
-     * 	Matrix4,
-     * 	Spherical,
-     * 	Box3,
-     * 	Sphere,
-     * 	Raycaster,
-     * 	MathUtils,
-     * } from 'three';
-     *
-     * const subsetOfTHREE = {
-     * 	Vector2   : Vector2,
-     * 	Vector3   : Vector3,
-     * 	Vector4   : Vector4,
-     * 	Quaternion: Quaternion,
-     * 	Matrix4   : Matrix4,
-     * 	Spherical : Spherical,
-     * 	Box3      : Box3,
-     * 	Sphere    : Sphere,
-     * 	Raycaster : Raycaster,
-     * 	MathUtils : {
-     * 		DEG2RAD: MathUtils.DEG2RAD,
-     * 		clamp: MathUtils.clamp,
-     * 	},
-     * };
-
-     * CameraControls.install( { THREE: subsetOfTHREE } );
-     * ```
-     * @category Statics
-     */
-    static install(libs) {
-        THREE = libs.THREE;
-        _ORIGIN = Object.freeze(new THREE.Vector3(0, 0, 0));
-        _AXIS_Y = Object.freeze(new THREE.Vector3(0, 1, 0));
-        _AXIS_Z = Object.freeze(new THREE.Vector3(0, 0, 1));
-        _v2$1 = new THREE.Vector2();
-        _v3A = new THREE.Vector3();
-        _v3B = new THREE.Vector3();
-        _v3C = new THREE.Vector3();
-        _xColumn = new THREE.Vector3();
-        _yColumn = new THREE.Vector3();
-        _zColumn = new THREE.Vector3();
-        _deltaTarget = new THREE.Vector3();
-        _deltaOffset = new THREE.Vector3();
-        _sphericalA = new THREE.Spherical();
-        _sphericalB = new THREE.Spherical();
-        _box3A = new THREE.Box3();
-        _box3B = new THREE.Box3();
-        _sphere$1 = new THREE.Sphere();
-        _quaternionA = new THREE.Quaternion();
-        _quaternionB = new THREE.Quaternion();
-        _rotationMatrix = new THREE.Matrix4();
-        _raycaster$1 = new THREE.Raycaster();
-    }
-    /**
-     * list all ACTIONs
-     * @category Statics
-     */
-    static get ACTION() {
-        return ACTION;
-    }
     /**
      * Creates a `CameraControls` instance.
      *
@@ -3416,7 +3338,6 @@ class CameraControls extends EventDispatcher {
         this._enabled = true;
         this._state = ACTION.NONE;
         this._viewport = null;
-        this._affectOffset = false;
         this._dollyControlAmount = 0;
         this._hasRested = true;
         this._boundaryEnclosesCamera = false;
@@ -3481,11 +3402,10 @@ class CameraControls extends EventDispatcher {
         };
         this._zoomInternal = (delta, x, y) => {
             const zoomScale = Math.pow(0.95, delta * this.dollySpeed);
-            const prevZoom = this._zoomEnd;
             // for both PerspectiveCamera and OrthographicCamera
             this.zoomTo(this._zoom * zoomScale);
             if (this.dollyToCursor) {
-                this._dollyControlAmount += this._zoomEnd - prevZoom;
+                this._dollyControlAmount = this._zoomEnd;
                 this._dollyControlCoord.set(x, y);
             }
             return;
@@ -3498,6 +3418,10 @@ class CameraControls extends EventDispatcher {
         this._yAxisUpSpace = new THREE.Quaternion().setFromUnitVectors(this._camera.up, _AXIS_Y);
         this._yAxisUpSpaceInverse = quatInvertCompat(this._yAxisUpSpace.clone());
         this._state = ACTION.NONE;
+        this._domElement = domElement;
+        this._domElement.style.touchAction = 'none';
+        this._domElement.style.userSelect = 'none';
+        this._domElement.style.webkitUserSelect = 'none';
         // the location
         this._target = new THREE.Vector3();
         this._targetEnd = this._target.clone();
@@ -3541,95 +3465,117 @@ class CameraControls extends EventDispatcher {
                     ACTION.NONE,
             three: ACTION.TOUCH_TRUCK,
         };
-        const dragStartPosition = new THREE.Vector2();
-        const lastDragPosition = new THREE.Vector2();
-        const dollyStart = new THREE.Vector2();
-        const onPointerDown = (event) => {
-            if (!this._enabled || !this._domElement)
-                return;
-            // Don't call `event.preventDefault()` on the pointerdown event
-            // to keep receiving pointermove evens outside dragging iframe
-            // https://taye.me/blog/tips/2015/11/16/mouse-drag-outside-iframe/
-            const pointer = {
-                pointerId: event.pointerId,
-                clientX: event.clientX,
-                clientY: event.clientY,
-                deltaX: 0,
-                deltaY: 0,
-            };
-            this._activePointers.push(pointer);
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-            this._domElement.ownerDocument.addEventListener('pointermove', onPointerMove, { passive: false });
-            this._domElement.ownerDocument.addEventListener('pointerup', onPointerUp);
-            startDragging(event);
-        };
-        const onMouseDown = (event) => {
-            if (!this._enabled || !this._domElement)
-                return;
-            const pointer = {
-                pointerId: 0,
-                clientX: event.clientX,
-                clientY: event.clientY,
-                deltaX: 0,
-                deltaY: 0,
-            };
-            this._activePointers.push(pointer);
-            // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
-            this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
-            this._domElement.ownerDocument.addEventListener('mousemove', onMouseMove);
-            this._domElement.ownerDocument.addEventListener('mouseup', onMouseUp);
-            startDragging(event);
-        };
-        const onTouchStart = (event) => {
-            if (!this._enabled || !this._domElement)
-                return;
-            event.preventDefault();
-            Array.prototype.forEach.call(event.changedTouches, (touch) => {
+        if (this._domElement) {
+            const dragStartPosition = new THREE.Vector2();
+            const lastDragPosition = new THREE.Vector2();
+            const dollyStart = new THREE.Vector2();
+            const onPointerDown = (event) => {
+                if (!this._enabled)
+                    return;
+                // Don't call `event.preventDefault()` on the pointerdown event
+                // to keep receiving pointermove evens outside dragging iframe
+                // https://taye.me/blog/tips/2015/11/16/mouse-drag-outside-iframe/
                 const pointer = {
-                    pointerId: touch.identifier,
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
+                    pointerId: event.pointerId,
+                    clientX: event.clientX,
+                    clientY: event.clientY,
                     deltaX: 0,
                     deltaY: 0,
                 };
                 this._activePointers.push(pointer);
-            });
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-            this._domElement.ownerDocument.addEventListener('touchmove', onTouchMove, { passive: false });
-            this._domElement.ownerDocument.addEventListener('touchend', onTouchEnd);
-            startDragging(event);
-        };
-        const onPointerMove = (event) => {
-            if (event.cancelable)
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+                this._domElement.ownerDocument.addEventListener('pointermove', onPointerMove, { passive: false });
+                this._domElement.ownerDocument.addEventListener('pointerup', onPointerUp);
+                startDragging(event);
+            };
+            const onMouseDown = (event) => {
+                if (!this._enabled)
+                    return;
+                const pointer = {
+                    pointerId: 0,
+                    clientX: event.clientX,
+                    clientY: event.clientY,
+                    deltaX: 0,
+                    deltaY: 0,
+                };
+                this._activePointers.push(pointer);
+                // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
+                this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
+                this._domElement.ownerDocument.addEventListener('mousemove', onMouseMove);
+                this._domElement.ownerDocument.addEventListener('mouseup', onMouseUp);
+                startDragging(event);
+            };
+            const onTouchStart = (event) => {
+                if (!this._enabled)
+                    return;
                 event.preventDefault();
-            const pointerId = event.pointerId;
-            const pointer = this._findPointerById(pointerId);
-            if (!pointer)
-                return;
-            pointer.clientX = event.clientX;
-            pointer.clientY = event.clientY;
-            pointer.deltaX = event.movementX;
-            pointer.deltaY = event.movementY;
-            if (event.pointerType === 'touch') {
-                switch (this._activePointers.length) {
-                    case 1:
-                        this._state = this.touches.one;
-                        break;
-                    case 2:
-                        this._state = this.touches.two;
-                        break;
-                    case 3:
-                        this._state = this.touches.three;
-                        break;
+                Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                    const pointer = {
+                        pointerId: touch.identifier,
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        deltaX: 0,
+                        deltaY: 0,
+                    };
+                    this._activePointers.push(pointer);
+                });
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+                this._domElement.ownerDocument.addEventListener('touchmove', onTouchMove, { passive: false });
+                this._domElement.ownerDocument.addEventListener('touchend', onTouchEnd);
+                startDragging(event);
+            };
+            const onPointerMove = (event) => {
+                if (event.cancelable)
+                    event.preventDefault();
+                const pointerId = event.pointerId;
+                const pointer = this._findPointerById(pointerId);
+                if (!pointer)
+                    return;
+                pointer.clientX = event.clientX;
+                pointer.clientY = event.clientY;
+                pointer.deltaX = event.movementX;
+                pointer.deltaY = event.movementY;
+                if (event.pointerType === 'touch') {
+                    switch (this._activePointers.length) {
+                        case 1:
+                            this._state = this.touches.one;
+                            break;
+                        case 2:
+                            this._state = this.touches.two;
+                            break;
+                        case 3:
+                            this._state = this.touches.three;
+                            break;
+                    }
                 }
-            }
-            else {
+                else {
+                    this._state = 0;
+                    if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
+                        this._state = this._state | this.mouseButtons.left;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
+                        this._state = this._state | this.mouseButtons.middle;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
+                        this._state = this._state | this.mouseButtons.right;
+                    }
+                }
+                dragging();
+            };
+            const onMouseMove = (event) => {
+                const pointer = this._findPointerById(0);
+                if (!pointer)
+                    return;
+                pointer.clientX = event.clientX;
+                pointer.clientY = event.clientY;
+                pointer.deltaX = event.movementX;
+                pointer.deltaY = event.movementY;
                 this._state = 0;
                 if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
                     this._state = this._state | this.mouseButtons.left;
@@ -3640,48 +3586,59 @@ class CameraControls extends EventDispatcher {
                 if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
                     this._state = this._state | this.mouseButtons.right;
                 }
-            }
-            dragging();
-        };
-        const onMouseMove = (event) => {
-            const pointer = this._findPointerById(0);
-            if (!pointer)
-                return;
-            pointer.clientX = event.clientX;
-            pointer.clientY = event.clientY;
-            pointer.deltaX = event.movementX;
-            pointer.deltaY = event.movementY;
-            this._state = 0;
-            if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
-                this._state = this._state | this.mouseButtons.left;
-            }
-            if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
-                this._state = this._state | this.mouseButtons.middle;
-            }
-            if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
-                this._state = this._state | this.mouseButtons.right;
-            }
-            dragging();
-        };
-        const onTouchMove = (event) => {
-            if (event.cancelable)
-                event.preventDefault();
-            Array.prototype.forEach.call(event.changedTouches, (touch) => {
-                const pointerId = touch.identifier;
+                dragging();
+            };
+            const onTouchMove = (event) => {
+                if (event.cancelable)
+                    event.preventDefault();
+                Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                    const pointerId = touch.identifier;
+                    const pointer = this._findPointerById(pointerId);
+                    if (!pointer)
+                        return;
+                    pointer.clientX = touch.clientX;
+                    pointer.clientY = touch.clientY;
+                    // touch event does not have movementX and movementY.
+                });
+                dragging();
+            };
+            const onPointerUp = (event) => {
+                const pointerId = event.pointerId;
                 const pointer = this._findPointerById(pointerId);
-                if (!pointer)
-                    return;
-                pointer.clientX = touch.clientX;
-                pointer.clientY = touch.clientY;
-                // touch event does not have movementX and movementY.
-            });
-            dragging();
-        };
-        const onPointerUp = (event) => {
-            const pointerId = event.pointerId;
-            const pointer = this._findPointerById(pointerId);
-            pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-            if (event.pointerType === 'touch') {
+                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+                if (event.pointerType === 'touch') {
+                    switch (this._activePointers.length) {
+                        case 0:
+                            this._state = ACTION.NONE;
+                            break;
+                        case 1:
+                            this._state = this.touches.one;
+                            break;
+                        case 2:
+                            this._state = this.touches.two;
+                            break;
+                        case 3:
+                            this._state = this.touches.three;
+                            break;
+                    }
+                }
+                else {
+                    this._state = ACTION.NONE;
+                }
+                endDragging();
+            };
+            const onMouseUp = () => {
+                const pointer = this._findPointerById(0);
+                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+                this._state = ACTION.NONE;
+                endDragging();
+            };
+            const onTouchEnd = (event) => {
+                Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                    const pointerId = touch.identifier;
+                    const pointer = this._findPointerById(pointerId);
+                    pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+                });
                 switch (this._activePointers.length) {
                     case 0:
                         this._state = ACTION.NONE;
@@ -3696,252 +3653,281 @@ class CameraControls extends EventDispatcher {
                         this._state = this.touches.three;
                         break;
                 }
-            }
-            else {
-                this._state = ACTION.NONE;
-            }
-            endDragging();
-        };
-        const onMouseUp = () => {
-            const pointer = this._findPointerById(0);
-            pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-            this._state = ACTION.NONE;
-            endDragging();
-        };
-        const onTouchEnd = (event) => {
-            Array.prototype.forEach.call(event.changedTouches, (touch) => {
-                const pointerId = touch.identifier;
-                const pointer = this._findPointerById(pointerId);
-                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-            });
-            switch (this._activePointers.length) {
-                case 0:
-                    this._state = ACTION.NONE;
-                    break;
-                case 1:
-                    this._state = this.touches.one;
-                    break;
-                case 2:
-                    this._state = this.touches.two;
-                    break;
-                case 3:
-                    this._state = this.touches.three;
-                    break;
-            }
-            endDragging();
-        };
-        let lastScrollTimeStamp = -1;
-        const onMouseWheel = (event) => {
-            if (!this._enabled || this.mouseButtons.wheel === ACTION.NONE)
-                return;
-            event.preventDefault();
-            if (this.dollyToCursor ||
-                this.mouseButtons.wheel === ACTION.ROTATE ||
-                this.mouseButtons.wheel === ACTION.TRUCK) {
-                const now = performance.now();
-                // only need to fire this at scroll start.
-                if (lastScrollTimeStamp - now < 1000)
-                    this._getClientRect(this._elementRect);
-                lastScrollTimeStamp = now;
-            }
-            // Ref: https://github.com/cedricpinson/osgjs/blob/00e5a7e9d9206c06fdde0436e1d62ab7cb5ce853/sources/osgViewer/input/source/InputSourceMouse.js#L89-L103
-            const deltaYFactor = isMac ? -1 : -3;
-            const delta = (event.deltaMode === 1) ? event.deltaY / deltaYFactor : event.deltaY / (deltaYFactor * 10);
-            const x = this.dollyToCursor ? (event.clientX - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-            const y = this.dollyToCursor ? (event.clientY - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-            switch (this.mouseButtons.wheel) {
-                case ACTION.ROTATE: {
-                    this._rotateInternal(event.deltaX, event.deltaY);
-                    break;
+                endDragging();
+            };
+            let lastScrollTimeStamp = -1;
+            const onMouseWheel = (event) => {
+                if (!this._enabled || this.mouseButtons.wheel === ACTION.NONE)
+                    return;
+                event.preventDefault();
+                if (this.dollyToCursor ||
+                    this.mouseButtons.wheel === ACTION.ROTATE ||
+                    this.mouseButtons.wheel === ACTION.TRUCK) {
+                    const now = performance.now();
+                    // only need to fire this at scroll start.
+                    if (lastScrollTimeStamp - now < 1000)
+                        this._getClientRect(this._elementRect);
+                    lastScrollTimeStamp = now;
                 }
-                case ACTION.TRUCK: {
-                    this._truckInternal(event.deltaX, event.deltaY, false);
-                    break;
-                }
-                case ACTION.OFFSET: {
-                    this._truckInternal(event.deltaX, event.deltaY, true);
-                    break;
-                }
-                case ACTION.DOLLY: {
-                    this._dollyInternal(-delta, x, y);
-                    break;
-                }
-                case ACTION.ZOOM: {
-                    this._zoomInternal(-delta, x, y);
-                    break;
-                }
-            }
-            this.dispatchEvent({ type: 'control' });
-        };
-        const onContextMenu = (event) => {
-            if (!this._enabled)
-                return;
-            event.preventDefault();
-        };
-        const startDragging = (event) => {
-            if (!this._enabled)
-                return;
-            extractClientCoordFromEvent(this._activePointers, _v2$1);
-            this._getClientRect(this._elementRect);
-            dragStartPosition.copy(_v2$1);
-            lastDragPosition.copy(_v2$1);
-            const isMultiTouch = this._activePointers.length >= 2;
-            if (isMultiTouch) {
-                // 2 finger pinch
-                const dx = _v2$1.x - this._activePointers[1].clientX;
-                const dy = _v2$1.y - this._activePointers[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                dollyStart.set(0, distance);
-                // center coords of 2 finger truck
-                const x = (this._activePointers[0].clientX + this._activePointers[1].clientX) * 0.5;
-                const y = (this._activePointers[0].clientY + this._activePointers[1].clientY) * 0.5;
-                lastDragPosition.set(x, y);
-            }
-            if ('touches' in event ||
-                'pointerType' in event && event.pointerType === 'touch') {
-                switch (this._activePointers.length) {
-                    case 1:
-                        this._state = this.touches.one;
+                // Ref: https://github.com/cedricpinson/osgjs/blob/00e5a7e9d9206c06fdde0436e1d62ab7cb5ce853/sources/osgViewer/input/source/InputSourceMouse.js#L89-L103
+                const deltaYFactor = isMac ? -1 : -3;
+                const delta = (event.deltaMode === 1) ? event.deltaY / deltaYFactor : event.deltaY / (deltaYFactor * 10);
+                const x = this.dollyToCursor ? (event.clientX - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                const y = this.dollyToCursor ? (event.clientY - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                switch (this.mouseButtons.wheel) {
+                    case ACTION.ROTATE: {
+                        this._rotateInternal(event.deltaX, event.deltaY);
                         break;
-                    case 2:
-                        this._state = this.touches.two;
+                    }
+                    case ACTION.TRUCK: {
+                        this._truckInternal(event.deltaX, event.deltaY, false);
                         break;
-                    case 3:
-                        this._state = this.touches.three;
+                    }
+                    case ACTION.OFFSET: {
+                        this._truckInternal(event.deltaX, event.deltaY, true);
                         break;
+                    }
+                    case ACTION.DOLLY: {
+                        this._dollyInternal(-delta, x, y);
+                        break;
+                    }
+                    case ACTION.ZOOM: {
+                        this._zoomInternal(-delta, x, y);
+                        break;
+                    }
                 }
-            }
-            else {
-                this._state = 0;
-                if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
-                    this._state = this._state | this.mouseButtons.left;
+                this.dispatchEvent({ type: 'control' });
+            };
+            const onContextMenu = (event) => {
+                if (!this._enabled)
+                    return;
+                event.preventDefault();
+            };
+            const startDragging = (event) => {
+                if (!this._enabled)
+                    return;
+                extractClientCoordFromEvent(this._activePointers, _v2$1);
+                this._getClientRect(this._elementRect);
+                dragStartPosition.copy(_v2$1);
+                lastDragPosition.copy(_v2$1);
+                const isMultiTouch = this._activePointers.length >= 2;
+                if (isMultiTouch) {
+                    // 2 finger pinch
+                    const dx = _v2$1.x - this._activePointers[1].clientX;
+                    const dy = _v2$1.y - this._activePointers[1].clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    dollyStart.set(0, distance);
+                    // center coords of 2 finger truck
+                    const x = (this._activePointers[0].clientX + this._activePointers[1].clientX) * 0.5;
+                    const y = (this._activePointers[0].clientY + this._activePointers[1].clientY) * 0.5;
+                    lastDragPosition.set(x, y);
                 }
-                if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
-                    this._state = this._state | this.mouseButtons.middle;
+                if ('touches' in event ||
+                    'pointerType' in event && event.pointerType === 'touch') {
+                    switch (this._activePointers.length) {
+                        case 1:
+                            this._state = this.touches.one;
+                            break;
+                        case 2:
+                            this._state = this.touches.two;
+                            break;
+                        case 3:
+                            this._state = this.touches.three;
+                            break;
+                    }
                 }
-                if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
-                    this._state = this._state | this.mouseButtons.right;
+                else {
+                    this._state = 0;
+                    if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
+                        this._state = this._state | this.mouseButtons.left;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
+                        this._state = this._state | this.mouseButtons.middle;
+                    }
+                    if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
+                        this._state = this._state | this.mouseButtons.right;
+                    }
                 }
-            }
-            this.dispatchEvent({ type: 'controlstart' });
-        };
-        const dragging = () => {
-            if (!this._enabled)
-                return;
-            extractClientCoordFromEvent(this._activePointers, _v2$1);
-            // When pointer lock is enabled clientX, clientY, screenX, and screenY remain 0.
-            // If pointer lock is enabled, use the Delta directory, and assume active-pointer is not multiple.
-            const isPointerLockActive = this._domElement && document.pointerLockElement === this._domElement;
-            const deltaX = isPointerLockActive ? -this._activePointers[0].deltaX : lastDragPosition.x - _v2$1.x;
-            const deltaY = isPointerLockActive ? -this._activePointers[0].deltaY : lastDragPosition.y - _v2$1.y;
-            lastDragPosition.copy(_v2$1);
-            if ((this._state & ACTION.ROTATE) === ACTION.ROTATE ||
-                (this._state & ACTION.TOUCH_ROTATE) === ACTION.TOUCH_ROTATE ||
-                (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
-                (this._state & ACTION.TOUCH_ZOOM_ROTATE) === ACTION.TOUCH_ZOOM_ROTATE) {
-                this._rotateInternal(deltaX, deltaY);
-            }
-            if ((this._state & ACTION.DOLLY) === ACTION.DOLLY ||
-                (this._state & ACTION.ZOOM) === ACTION.ZOOM) {
-                const dollyX = this.dollyToCursor ? (dragStartPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-                const dollyY = this.dollyToCursor ? (dragStartPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-                (this._state & ACTION.DOLLY) === ACTION.DOLLY ?
-                    this._dollyInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
-                    this._zoomInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
-            }
-            if ((this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
-                (this._state & ACTION.TOUCH_ZOOM) === ACTION.TOUCH_ZOOM ||
-                (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK ||
-                (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
-                (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET ||
-                (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
-                (this._state & ACTION.TOUCH_ZOOM_ROTATE) === ACTION.TOUCH_ZOOM_ROTATE) {
-                const dx = _v2$1.x - this._activePointers[1].clientX;
-                const dy = _v2$1.y - this._activePointers[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const dollyDelta = dollyStart.y - distance;
-                dollyStart.set(0, distance);
-                const dollyX = this.dollyToCursor ? (lastDragPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-                const dollyY = this.dollyToCursor ? (lastDragPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-                (this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
-                    (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
+                this.dispatchEvent({ type: 'controlstart' });
+            };
+            const dragging = () => {
+                if (!this._enabled)
+                    return;
+                extractClientCoordFromEvent(this._activePointers, _v2$1);
+                // When pointer lock is enabled clientX, clientY, screenX, and screenY remain 0.
+                // If pointer lock is enabled, use the Delta directory, and assume active-pointer is not multiple.
+                const isPointerLockActive = this._domElement && document.pointerLockElement === this._domElement;
+                const deltaX = isPointerLockActive ? -this._activePointers[0].deltaX : lastDragPosition.x - _v2$1.x;
+                const deltaY = isPointerLockActive ? -this._activePointers[0].deltaY : lastDragPosition.y - _v2$1.y;
+                lastDragPosition.copy(_v2$1);
+                if ((this._state & ACTION.ROTATE) === ACTION.ROTATE ||
+                    (this._state & ACTION.TOUCH_ROTATE) === ACTION.TOUCH_ROTATE) {
+                    this._rotateInternal(deltaX, deltaY);
+                }
+                if ((this._state & ACTION.DOLLY) === ACTION.DOLLY ||
+                    (this._state & ACTION.ZOOM) === ACTION.ZOOM) {
+                    const dollyX = this.dollyToCursor ? (dragStartPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                    const dollyY = this.dollyToCursor ? (dragStartPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                    this._state === ACTION.DOLLY ?
+                        this._dollyInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
+                        this._zoomInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
+                }
+                if ((this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
+                    (this._state & ACTION.TOUCH_ZOOM) === ACTION.TOUCH_ZOOM ||
                     (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ?
-                    this._dollyInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
-                    this._zoomInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
-            }
-            if ((this._state & ACTION.TRUCK) === ACTION.TRUCK ||
-                (this._state & ACTION.TOUCH_TRUCK) === ACTION.TOUCH_TRUCK ||
-                (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK) {
-                this._truckInternal(deltaX, deltaY, false);
-            }
-            if ((this._state & ACTION.OFFSET) === ACTION.OFFSET ||
-                (this._state & ACTION.TOUCH_OFFSET) === ACTION.TOUCH_OFFSET ||
-                (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
-                (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
-                this._truckInternal(deltaX, deltaY, true);
-            }
-            this.dispatchEvent({ type: 'control' });
-        };
-        const endDragging = () => {
-            extractClientCoordFromEvent(this._activePointers, _v2$1);
-            lastDragPosition.copy(_v2$1);
-            if (this._activePointers.length === 0 && this._domElement) {
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-                this.dispatchEvent({ type: 'controlend' });
-            }
-        };
-        this._addAllEventListeners = (domElement) => {
-            this._domElement = domElement;
-            this._domElement.style.touchAction = 'none';
-            this._domElement.style.userSelect = 'none';
-            this._domElement.style.webkitUserSelect = 'none';
+                    (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK ||
+                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
+                    (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
+                    const dx = _v2$1.x - this._activePointers[1].clientX;
+                    const dy = _v2$1.y - this._activePointers[1].clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const dollyDelta = dollyStart.y - distance;
+                    dollyStart.set(0, distance);
+                    const dollyX = this.dollyToCursor ? (lastDragPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                    const dollyY = this.dollyToCursor ? (lastDragPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                    this._state === ACTION.TOUCH_DOLLY ||
+                        this._state === ACTION.TOUCH_DOLLY_TRUCK ||
+                        this._state === ACTION.TOUCH_DOLLY_OFFSET ?
+                        this._dollyInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
+                        this._zoomInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
+                }
+                if ((this._state & ACTION.TRUCK) === ACTION.TRUCK ||
+                    (this._state & ACTION.TOUCH_TRUCK) === ACTION.TOUCH_TRUCK ||
+                    (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
+                    (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK) {
+                    this._truckInternal(deltaX, deltaY, false);
+                }
+                if ((this._state & ACTION.OFFSET) === ACTION.OFFSET ||
+                    (this._state & ACTION.TOUCH_OFFSET) === ACTION.TOUCH_OFFSET ||
+                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
+                    (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
+                    this._truckInternal(deltaX, deltaY, true);
+                }
+                this.dispatchEvent({ type: 'control' });
+            };
+            const endDragging = () => {
+                extractClientCoordFromEvent(this._activePointers, _v2$1);
+                lastDragPosition.copy(_v2$1);
+                if (this._activePointers.length === 0) {
+                    // eslint-disable-next-line no-undef
+                    this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+                    this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+                    // eslint-disable-next-line no-undef
+                    this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+                    this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+                    this.dispatchEvent({ type: 'controlend' });
+                }
+            };
             this._domElement.addEventListener('pointerdown', onPointerDown);
             isPointerEventsNotSupported && this._domElement.addEventListener('mousedown', onMouseDown);
             isPointerEventsNotSupported && this._domElement.addEventListener('touchstart', onTouchStart);
             this._domElement.addEventListener('pointercancel', onPointerUp);
             this._domElement.addEventListener('wheel', onMouseWheel, { passive: false });
             this._domElement.addEventListener('contextmenu', onContextMenu);
-        };
-        this._removeAllEventListeners = () => {
-            if (!this._domElement)
-                return;
-            this._domElement.removeEventListener('pointerdown', onPointerDown);
-            this._domElement.removeEventListener('mousedown', onMouseDown);
-            this._domElement.removeEventListener('touchstart', onTouchStart);
-            this._domElement.removeEventListener('pointercancel', onPointerUp);
-            // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener#matching_event_listeners_for_removal
-            // > it's probably wise to use the same values used for the call to `addEventListener()` when calling `removeEventListener()`
-            // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
-            // eslint-disable-next-line no-undef
-            this._domElement.removeEventListener('wheel', onMouseWheel, { passive: false });
-            this._domElement.removeEventListener('contextmenu', onContextMenu);
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
-            // eslint-disable-next-line no-undef
-            this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-            this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-            this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
-            this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-        };
-        this.cancel = () => {
-            if (this._state === ACTION.NONE)
-                return;
-            this._state = ACTION.NONE;
-            this._activePointers.length = 0;
-            endDragging();
-        };
-        if (domElement)
-            this.connect(domElement);
+            this._removeAllEventListeners = () => {
+                this._domElement.removeEventListener('pointerdown', onPointerDown);
+                this._domElement.removeEventListener('mousedown', onMouseDown);
+                this._domElement.removeEventListener('touchstart', onTouchStart);
+                this._domElement.removeEventListener('pointercancel', onPointerUp);
+                // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener#matching_event_listeners_for_removal
+                // > it's probably wise to use the same values used for the call to `addEventListener()` when calling `removeEventListener()`
+                // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
+                // eslint-disable-next-line no-undef
+                this._domElement.removeEventListener('wheel', onMouseWheel, { passive: false });
+                this._domElement.removeEventListener('contextmenu', onContextMenu);
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+                this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
+                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+            };
+            this.cancel = () => {
+                if (this._state === ACTION.NONE)
+                    return;
+                this._state = ACTION.NONE;
+                this._activePointers.length = 0;
+                endDragging();
+            };
+        }
         this.update(0);
+    }
+    /**
+     * Injects THREE as the dependency. You can then proceed to use CameraControls.
+     *
+     * e.g
+     * ```javascript
+     * CameraControls.install( { THREE: THREE } );
+     * ```
+     *
+     * Note: If you do not wish to use enter three.js to reduce file size(tree-shaking for example), make a subset to install.
+     *
+     * ```js
+     * import {
+     * 	Vector2,
+     * 	Vector3,
+     * 	Vector4,
+     * 	Quaternion,
+     * 	Matrix4,
+     * 	Spherical,
+     * 	Box3,
+     * 	Sphere,
+     * 	Raycaster,
+     * 	MathUtils,
+     * } from 'three';
+     *
+     * const subsetOfTHREE = {
+     * 	Vector2   : Vector2,
+     * 	Vector3   : Vector3,
+     * 	Vector4   : Vector4,
+     * 	Quaternion: Quaternion,
+     * 	Matrix4   : Matrix4,
+     * 	Spherical : Spherical,
+     * 	Box3      : Box3,
+     * 	Sphere    : Sphere,
+     * 	Raycaster : Raycaster,
+     * 	MathUtils : {
+     * 		DEG2RAD: MathUtils.DEG2RAD,
+     * 		clamp: MathUtils.clamp,
+     * 	},
+     * };
+
+     * CameraControls.install( { THREE: subsetOfTHREE } );
+     * ```
+     * @category Statics
+     */
+    static install(libs) {
+        THREE = libs.THREE;
+        _ORIGIN = Object.freeze(new THREE.Vector3(0, 0, 0));
+        _AXIS_Y = Object.freeze(new THREE.Vector3(0, 1, 0));
+        _AXIS_Z = Object.freeze(new THREE.Vector3(0, 0, 1));
+        _v2$1 = new THREE.Vector2();
+        _v3A = new THREE.Vector3();
+        _v3B = new THREE.Vector3();
+        _v3C = new THREE.Vector3();
+        _xColumn = new THREE.Vector3();
+        _yColumn = new THREE.Vector3();
+        _zColumn = new THREE.Vector3();
+        _deltaTarget = new THREE.Vector3();
+        _deltaOffset = new THREE.Vector3();
+        _sphericalA = new THREE.Spherical();
+        _sphericalB = new THREE.Spherical();
+        _box3A = new THREE.Box3();
+        _box3B = new THREE.Box3();
+        _sphere$1 = new THREE.Sphere();
+        _quaternionA = new THREE.Quaternion();
+        _quaternionB = new THREE.Quaternion();
+        _rotationMatrix = new THREE.Matrix4();
+        _raycaster$1 = new THREE.Raycaster();
+    }
+    /**
+     * list all ACTIONs
+     * @category Statics
+     */
+    static get ACTION() {
+        return ACTION;
     }
     /**
      * The camera to be controlled
@@ -3966,8 +3952,6 @@ class CameraControls extends EventDispatcher {
         return this._enabled;
     }
     set enabled(enabled) {
-        if (!this._domElement)
-            return;
         this._enabled = enabled;
         if (enabled) {
             this._domElement.style.touchAction = 'none';
@@ -4339,12 +4323,11 @@ class CameraControls extends EventDispatcher {
         const phi = roundToStep(this._sphericalEnd.phi, PI_HALF);
         promises.push(this.rotateTo(theta, phi, enableTransition));
         const normal = _v3A.setFromSpherical(this._sphericalEnd).normalize();
-        const rotation = _quaternionA.setFromUnitVectors(normal, _AXIS_Z);
+        const rotation = _quaternionA.setFromUnitVectors(normal, _AXIS_Z).multiply(this._yAxisUpSpaceInverse);
         const viewFromPolar = approxEquals(Math.abs(normal.y), 1);
         if (viewFromPolar) {
             rotation.multiply(_quaternionB.setFromAxisAngle(_AXIS_Y, theta));
         }
-        rotation.multiply(this._yAxisUpSpaceInverse);
         // make oriented bounding box
         const bb = _box3B.makeEmpty();
         // left bottom back corner
@@ -4376,11 +4359,7 @@ class CameraControls extends EventDispatcher {
         bb.min.y -= paddingBottom;
         bb.max.x += paddingRight;
         bb.max.y += paddingTop;
-        rotation.setFromUnitVectors(_AXIS_Z, normal);
-        if (viewFromPolar) {
-            rotation.premultiply(_quaternionB.invert());
-        }
-        rotation.premultiply(this._yAxisUpSpace);
+        rotation.setFromUnitVectors(_AXIS_Z, normal).multiply(this._yAxisUpSpace);
         const bbSize = bb.getSize(_v3A);
         const center = bb.getCenter(_v3B).applyQuaternion(rotation);
         if (isPerspectiveCamera(this._camera)) {
@@ -4524,10 +4503,7 @@ class CameraControls extends EventDispatcher {
      */
     setTarget(targetX, targetY, targetZ, enableTransition = false) {
         const pos = this.getPosition(_v3A);
-        const promise = this.setLookAt(pos.x, pos.y, pos.z, targetX, targetY, targetZ, enableTransition);
-        // see https://github.com/yomotsu/camera-controls/issues/335
-        this._sphericalEnd.phi = THREE.MathUtils.clamp(this.polarAngle, this.minPolarAngle, this.maxPolarAngle);
-        return promise;
+        return this.setLookAt(pos.x, pos.y, pos.z, targetX, targetY, targetZ, enableTransition);
     }
     /**
      * Set focal offset using the screen parallel coordinates. z doesn't affect in Orthographic as with Dolly.
@@ -4543,10 +4519,6 @@ class CameraControls extends EventDispatcher {
         if (!enableTransition) {
             this._focalOffset.copy(this._focalOffsetEnd);
         }
-        this._affectOffset =
-            !approxZero(x) ||
-                !approxZero(y) ||
-                !approxZero(z);
         const resolveImmediately = !enableTransition ||
             approxEquals(this._focalOffset.x, this._focalOffsetEnd.x, this.restThreshold) &&
                 approxEquals(this._focalOffset.y, this._focalOffsetEnd.y, this.restThreshold) &&
@@ -4555,14 +4527,12 @@ class CameraControls extends EventDispatcher {
     }
     /**
      * Set orbit point without moving the camera.
-     * SHOULD NOT RUN DURING ANIMATIONS. `setOrbitPoint()` will immediately fix the positions.
      * @param targetX
      * @param targetY
      * @param targetZ
      * @category Methods
      */
     setOrbitPoint(targetX, targetY, targetZ) {
-        this._camera.updateMatrixWorld();
         _xColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 0);
         _yColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 1);
         _zColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 2);
@@ -4703,10 +4673,9 @@ class CameraControls extends EventDispatcher {
      * @category Methods
      */
     saveState() {
-        this.getTarget(this._target0);
-        this.getPosition(this._position0);
+        this._target0.copy(this._target);
+        this._position0.copy(this._camera.position);
         this._zoom0 = this._zoom;
-        this._focalOffset0.copy(this._focalOffset);
     }
     /**
      * Sync camera-up direction.
@@ -4758,11 +4727,11 @@ class CameraControls extends EventDispatcher {
         if (this._dollyControlAmount !== 0) {
             if (isPerspectiveCamera(this._camera)) {
                 const camera = this._camera;
-                const cameraDirection = _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
-                const planeX = _v3B.copy(cameraDirection).cross(camera.up).normalize();
+                const direction = _v3A.setFromSpherical(this._sphericalEnd).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
+                const planeX = _v3B.copy(direction).cross(camera.up).normalize();
                 if (planeX.lengthSq() === 0)
                     planeX.x = 1.0;
-                const planeY = _v3C.crossVectors(planeX, cameraDirection);
+                const planeY = _v3C.crossVectors(planeX, direction);
                 const worldToScreen = this._sphericalEnd.radius * Math.tan(camera.getEffectiveFOV() * THREE.MathUtils.DEG2RAD * 0.5);
                 const prevRadius = this._sphericalEnd.radius - this._dollyControlAmount;
                 const lerpRatio = (prevRadius - this._sphericalEnd.radius) / this._sphericalEnd.radius;
@@ -4770,42 +4739,20 @@ class CameraControls extends EventDispatcher {
                     .add(planeX.multiplyScalar(this._dollyControlCoord.x * worldToScreen * camera.aspect))
                     .add(planeY.multiplyScalar(this._dollyControlCoord.y * worldToScreen));
                 this._targetEnd.lerp(cursor, lerpRatio);
+                this._target.copy(this._targetEnd);
             }
             else if (isOrthographicCamera(this._camera)) {
                 const camera = this._camera;
-                const worldCursorPosition = _v3A.set(this._dollyControlCoord.x, this._dollyControlCoord.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera); //.sub( _v3B.set( this._focalOffset.x, this._focalOffset.y, 0 ) );
+                const worldPosition = _v3A.set(this._dollyControlCoord.x, this._dollyControlCoord.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera);
                 const quaternion = _v3B.set(0, 0, -1).applyQuaternion(camera.quaternion);
-                const cursor = _v3C.copy(worldCursorPosition).add(quaternion.multiplyScalar(-worldCursorPosition.dot(camera.up)));
-                const prevZoom = this._zoom - this._dollyControlAmount;
-                const lerpRatio = -(prevZoom - this._zoomEnd) / this._zoom;
-                // find the "distance" (aka plane constant in three.js) of Plane
-                // from a given position (this._targetEnd) and normal vector (cameraDirection)
-                // https://www.maplesoft.com/support/help/maple/view.aspx?path=MathApps%2FEquationOfAPlaneNormal#bkmrk0
-                const cameraDirection = _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
-                const prevPlaneConstant = this._targetEnd.dot(cameraDirection);
-                this._targetEnd.lerp(cursor, lerpRatio);
-                const newPlaneConstant = this._targetEnd.dot(cameraDirection);
-                // Pull back the camera depth that has moved, to be the camera stationary as zoom
-                const pullBack = cameraDirection.multiplyScalar(newPlaneConstant - prevPlaneConstant);
-                this._targetEnd.sub(pullBack);
+                const divisor = quaternion.dot(camera.up);
+                const distance = approxZero(divisor) ? -worldPosition.dot(camera.up) : -worldPosition.dot(camera.up) / divisor;
+                const cursor = _v3C.copy(worldPosition).add(quaternion.multiplyScalar(distance));
+                this._targetEnd.lerp(cursor, 1 - camera.zoom / this._dollyControlAmount);
+                this._target.copy(this._targetEnd);
             }
-            this._target.copy(this._targetEnd);
-            // target position may be moved beyond boundary.
-            this._boundary.clampPoint(this._targetEnd, this._targetEnd);
             this._dollyControlAmount = 0;
         }
-        // zoom
-        const deltaZoom = this._zoomEnd - this._zoom;
-        this._zoom += deltaZoom * lerpRatio;
-        if (this._camera.zoom !== this._zoom) {
-            if (approxZero(deltaZoom))
-                this._zoom = this._zoomEnd;
-            this._camera.zoom = this._zoom;
-            this._camera.updateProjectionMatrix();
-            this._updateNearPlaneCorners();
-            this._needsUpdate = true;
-        }
-        // collision detection
         const maxDistance = this._collisionTest();
         this._spherical.radius = Math.min(this._spherical.radius, maxDistance);
         // decompose spherical to the camera position
@@ -4813,8 +4760,11 @@ class CameraControls extends EventDispatcher {
         this._camera.position.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).add(this._target);
         this._camera.lookAt(this._target);
         // set offset after the orbit movement
-        if (this._affectOffset) {
-            this._camera.updateMatrixWorld();
+        const affectOffset = !approxZero(this._focalOffset.x) ||
+            !approxZero(this._focalOffset.y) ||
+            !approxZero(this._focalOffset.z);
+        if (affectOffset) {
+            this._camera.updateMatrix();
             _xColumn.setFromMatrixColumn(this._camera.matrix, 0);
             _yColumn.setFromMatrixColumn(this._camera.matrix, 1);
             _zColumn.setFromMatrixColumn(this._camera.matrix, 2);
@@ -4826,6 +4776,17 @@ class CameraControls extends EventDispatcher {
         }
         if (this._boundaryEnclosesCamera) {
             this._encloseToBoundary(this._camera.position.copy(this._target), _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse), 1.0);
+        }
+        // zoom
+        const deltaZoom = this._zoomEnd - this._zoom;
+        this._zoom += deltaZoom * lerpRatio;
+        if (this._camera.zoom !== this._zoom) {
+            if (approxZero(deltaZoom))
+                this._zoom = this._zoomEnd;
+            this._camera.zoom = this._zoom;
+            this._camera.updateProjectionMatrix();
+            this._updateNearPlaneCorners();
+            this._needsUpdate = true;
         }
         const updated = this._needsUpdate;
         if (updated && !this._updatedLastTime) {
@@ -4924,32 +4885,11 @@ class CameraControls extends EventDispatcher {
         this._needsUpdate = true;
     }
     /**
-     * Attach all internal event handlers to enable drag control.
-     * @category Methods
-     */
-    connect(domElement) {
-        if (this._domElement) {
-            console.warn('camera-controls is already connected.');
-            return;
-        }
-        domElement.setAttribute('data-camera-controls-version', VERSION);
-        this._addAllEventListeners(domElement);
-    }
-    /**
-     * Detach all internal event handlers to disable drag control.
-     */
-    disconnect() {
-        this._removeAllEventListeners();
-        this._domElement = undefined;
-    }
-    /**
      * Dispose the cameraControls instance itself, remove all eventListeners.
      * @category Methods
      */
     dispose() {
-        this.disconnect();
-        if (this._domElement && 'setAttribute' in this._domElement)
-            this._domElement.removeAttribute('data-camera-controls-version');
+        this._removeAllEventListeners();
     }
     _findPointerById(pointerId) {
         // to support IE11 use some instead of Array#find (will be removed when IE11 is deprecated)
@@ -5042,8 +4982,6 @@ class CameraControls extends EventDispatcher {
      * Get its client rect and package into given `DOMRect` .
      */
     _getClientRect(target) {
-        if (!this._domElement)
-            return;
         const rect = this._domElement.getBoundingClientRect();
         target.x = rect.left;
         target.y = rect.top;
@@ -5072,8 +5010,6 @@ class CameraControls extends EventDispatcher {
             this.addEventListener('rest', onResolve);
         });
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _addAllEventListeners(_domElement) { }
     _removeAllEventListeners() { }
 }
 function createBoundingSphere(object3d, out) {
@@ -5125,14 +5061,6 @@ function createBoundingSphere(object3d, out) {
  * what features it offers.
  */
 class SimpleCamera extends Component {
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this.controls.enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(enabled) {
-        this.controls.enabled = enabled;
-    }
     constructor(components) {
         super();
         this.components = components;
@@ -5148,6 +5076,14 @@ class SimpleCamera extends Component {
         const scene = components.scene.get();
         scene.add(this._perspectiveCamera);
         this.setupEvents();
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this.controls.enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(enabled) {
+        this.controls.enabled = enabled;
     }
     /** {@link Component.get} */
     get() {
@@ -5282,39 +5218,6 @@ class SimpleRaycaster extends Component {
  * [dkaraush](https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts).
  */
 class SimpleGrid extends Component {
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._grid.visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(visible) {
-        if (visible) {
-            const scene = this._components.scene.get();
-            scene.add(this._grid);
-        }
-        else {
-            this._grid.removeFromParent();
-        }
-    }
-    /** The material of the grid. */
-    get material() {
-        return this._grid.material;
-    }
-    /**
-     * Whether the grid should fade away with distance. Recommended to be true for
-     * perspective cameras and false for orthographic cameras.
-     */
-    get fade() {
-        return this._fade === 3;
-    }
-    /**
-     * Whether the grid should fade away with distance. Recommended to be true for
-     * perspective cameras and false for orthographic cameras.
-     */
-    set fade(active) {
-        this._fade = active ? 3 : 0;
-        this.material.uniforms.uFade.value = this._fade;
-    }
     constructor(components, color = new THREE$1.Color(0xbbbbbb), size1 = 1, size2 = 10, distance = 500) {
         super();
         /** {@link Component.name} */
@@ -5414,6 +5317,39 @@ class SimpleGrid extends Component {
         this._grid.frustumCulled = false;
         const scene = components.scene.get();
         scene.add(this._grid);
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._grid.visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        if (visible) {
+            const scene = this._components.scene.get();
+            scene.add(this._grid);
+        }
+        else {
+            this._grid.removeFromParent();
+        }
+    }
+    /** The material of the grid. */
+    get material() {
+        return this._grid.material;
+    }
+    /**
+     * Whether the grid should fade away with distance. Recommended to be true for
+     * perspective cameras and false for orthographic cameras.
+     */
+    get fade() {
+        return this._fade === 3;
+    }
+    /**
+     * Whether the grid should fade away with distance. Recommended to be true for
+     * perspective cameras and false for orthographic cameras.
+     */
+    set fade(active) {
+        this._fade = active ? 3 : 0;
+        this.material.uniforms.uFade.value = this._fade;
     }
     /** {@link Component.get} */
     get() {
@@ -6516,6 +6452,43 @@ SeparatingAxisBounds.prototype.setFromBox = ( function () {
 	};
 
 } )();
+
+( (function () {
+
+	const cacheSatBounds = new SeparatingAxisBounds();
+	return function areIntersecting( shape1, shape2 ) {
+
+		const points1 = shape1.points;
+		const satAxes1 = shape1.satAxes;
+		const satBounds1 = shape1.satBounds;
+
+		const points2 = shape2.points;
+		const satAxes2 = shape2.satAxes;
+		const satBounds2 = shape2.satBounds;
+
+		// check axes of the first shape
+		for ( let i = 0; i < 3; i ++ ) {
+
+			const sb = satBounds1[ i ];
+			const sa = satAxes1[ i ];
+			cacheSatBounds.setFromPoints( sa, points2 );
+			if ( sb.isSeparated( cacheSatBounds ) ) return false;
+
+		}
+
+		// check axes of the second shape
+		for ( let i = 0; i < 3; i ++ ) {
+
+			const sb = satBounds2[ i ];
+			const sa = satAxes2[ i ];
+			cacheSatBounds.setFromPoints( sa, points1 );
+			if ( sb.isSeparated( cacheSatBounds ) ) return false;
+
+		}
+
+	};
+
+}) )();
 
 const closestPointLineToLine = ( function () {
 
@@ -9524,6 +9497,25 @@ class UIComponentsStack extends SimpleUIComponent {
 }
 
 class TreeTitle extends UIComponentsStack {
+    constructor(components) {
+        super(components, "Horizontal");
+        this.get().classList.add("items-center", "text-base", "justify-between", "hover:bg-ifcjs-120", "rounded-md", "w-full", "min-h-[30px]", "pr-3");
+        this.arrow = new Button(components, { materialIconName: "arrow_right" });
+        this.arrow.get().classList.remove("p-2");
+        this.arrow.get().classList.add("p-1", "h-full");
+        const leftContainer = new UIComponentsStack(components, "Horizontal");
+        leftContainer.get().classList.add("items-center", "gap-x-2", "mr-4");
+        leftContainer.addChild(this.arrow);
+        const titleContainer = document.createElement("div");
+        titleContainer.className = "flex flex-col items-start py-[5px]";
+        this._titleElement = document.createElement("p");
+        this._titleElement.className = "text-base";
+        this._descriptionElement = document.createElement("p");
+        this._descriptionElement.className = "text-sm text-gray-400 hidden";
+        titleContainer.append(this._titleElement, this._descriptionElement);
+        leftContainer.get().append(titleContainer);
+        this.get().append(leftContainer.get());
+    }
     set description(value) {
         if (value) {
             this._descriptionElement.textContent = value;
@@ -9545,28 +9537,28 @@ class TreeTitle extends UIComponentsStack {
     get title() {
         return this._titleElement.textContent;
     }
-    constructor(components) {
-        super(components, "Horizontal");
-        this.get().classList.add("items-center", "text-base", "justify-between", "hover:bg-ifcjs-120", "rounded-md", "w-full", "min-h-[30px]", "pr-3");
-        this.arrow = new Button(components, { materialIconName: "arrow_right" });
-        this.arrow.get().classList.remove("p-2");
-        this.arrow.get().classList.add("p-1", "h-full");
-        const leftContainer = new UIComponentsStack(components, "Horizontal");
-        leftContainer.get().classList.add("items-center", "gap-x-2", "mr-4");
-        leftContainer.addChild(this.arrow);
-        const titleContainer = document.createElement("div");
-        titleContainer.className = "flex flex-col items-start py-[5px]";
-        this._titleElement = document.createElement("p");
-        this._titleElement.className = "text-base";
-        this._descriptionElement = document.createElement("p");
-        this._descriptionElement.className = "text-sm text-gray-400 hidden";
-        titleContainer.append(this._titleElement, this._descriptionElement);
-        leftContainer.get().append(titleContainer);
-        this.get().append(leftContainer.get());
-    }
 }
 
 class TreeView extends SimpleUIComponent {
+    constructor(components, name) {
+        const div = document.createElement("div");
+        div.className = `
+    flex flex-col items-start w-full box-border cursor-pointer text-base
+    `;
+        super(components, div);
+        this._expanded = true;
+        this.onExpand = new Event();
+        this.onCollapse = new Event();
+        this.titleElement = new TreeTitle(components);
+        this.titleElement.title = name;
+        this.titleElement.arrow.onclick = () => {
+            this.toggle();
+        };
+        this._childrenContainer = new UIComponentsStack(components, "Vertical");
+        this._childrenContainer.get().classList.add("pl-[22px]", "w-full");
+        this.collapse();
+        div.append(this.titleElement.get(), this._childrenContainer.get());
+    }
     get expanded() {
         return this._expanded;
     }
@@ -9593,25 +9585,6 @@ class TreeView extends SimpleUIComponent {
             e.stopImmediatePropagation();
             listener(e);
         };
-    }
-    constructor(components, name) {
-        const div = document.createElement("div");
-        div.className = `
-    flex flex-col items-start w-full box-border cursor-pointer text-base
-    `;
-        super(components, div);
-        this._expanded = true;
-        this.onExpand = new Event();
-        this.onCollapse = new Event();
-        this.titleElement = new TreeTitle(components);
-        this.titleElement.title = name;
-        this.titleElement.arrow.onclick = () => {
-            this.toggle();
-        };
-        this._childrenContainer = new UIComponentsStack(components, "Vertical");
-        this._childrenContainer.get().classList.add("pl-[22px]", "w-full");
-        this.collapse();
-        div.append(this.titleElement.get(), this._childrenContainer.get());
     }
     dispose(onlyChildren = false) {
         this.children.forEach((child) => child.dispose());
@@ -9661,1804 +9634,11 @@ class TreeView extends SimpleUIComponent {
     }
 }
 
-var top = 'top';
-var bottom = 'bottom';
-var right = 'right';
-var left = 'left';
-var auto = 'auto';
-var basePlacements = [top, bottom, right, left];
-var start = 'start';
-var end = 'end';
-var clippingParents = 'clippingParents';
-var viewport = 'viewport';
-var popper = 'popper';
-var reference = 'reference';
-var variationPlacements = /*#__PURE__*/basePlacements.reduce(function (acc, placement) {
-  return acc.concat([placement + "-" + start, placement + "-" + end]);
-}, []);
-var placements = /*#__PURE__*/[].concat(basePlacements, [auto]).reduce(function (acc, placement) {
-  return acc.concat([placement, placement + "-" + start, placement + "-" + end]);
-}, []); // modifiers that need to read the DOM
-
-var beforeRead = 'beforeRead';
-var read = 'read';
-var afterRead = 'afterRead'; // pure-logic modifiers
-
-var beforeMain = 'beforeMain';
-var main = 'main';
-var afterMain = 'afterMain'; // modifier with the purpose to write to the DOM (or write into a framework state)
-
-var beforeWrite = 'beforeWrite';
-var write = 'write';
-var afterWrite = 'afterWrite';
-var modifierPhases = [beforeRead, read, afterRead, beforeMain, main, afterMain, beforeWrite, write, afterWrite];
-
-function getNodeName(element) {
-  return element ? (element.nodeName || '').toLowerCase() : null;
-}
-
-function getWindow(node) {
-  if (node == null) {
-    return window;
-  }
-
-  if (node.toString() !== '[object Window]') {
-    var ownerDocument = node.ownerDocument;
-    return ownerDocument ? ownerDocument.defaultView || window : window;
-  }
-
-  return node;
-}
-
-function isElement(node) {
-  var OwnElement = getWindow(node).Element;
-  return node instanceof OwnElement || node instanceof Element;
-}
-
-function isHTMLElement(node) {
-  var OwnElement = getWindow(node).HTMLElement;
-  return node instanceof OwnElement || node instanceof HTMLElement;
-}
-
-function isShadowRoot(node) {
-  // IE 11 has no ShadowRoot
-  if (typeof ShadowRoot === 'undefined') {
-    return false;
-  }
-
-  var OwnElement = getWindow(node).ShadowRoot;
-  return node instanceof OwnElement || node instanceof ShadowRoot;
-}
-
-// and applies them to the HTMLElements such as popper and arrow
-
-function applyStyles(_ref) {
-  var state = _ref.state;
-  Object.keys(state.elements).forEach(function (name) {
-    var style = state.styles[name] || {};
-    var attributes = state.attributes[name] || {};
-    var element = state.elements[name]; // arrow is optional + virtual elements
-
-    if (!isHTMLElement(element) || !getNodeName(element)) {
-      return;
-    } // Flow doesn't support to extend this property, but it's the most
-    // effective way to apply styles to an HTMLElement
-    // $FlowFixMe[cannot-write]
-
-
-    Object.assign(element.style, style);
-    Object.keys(attributes).forEach(function (name) {
-      var value = attributes[name];
-
-      if (value === false) {
-        element.removeAttribute(name);
-      } else {
-        element.setAttribute(name, value === true ? '' : value);
-      }
-    });
-  });
-}
-
-function effect$2(_ref2) {
-  var state = _ref2.state;
-  var initialStyles = {
-    popper: {
-      position: state.options.strategy,
-      left: '0',
-      top: '0',
-      margin: '0'
-    },
-    arrow: {
-      position: 'absolute'
-    },
-    reference: {}
-  };
-  Object.assign(state.elements.popper.style, initialStyles.popper);
-  state.styles = initialStyles;
-
-  if (state.elements.arrow) {
-    Object.assign(state.elements.arrow.style, initialStyles.arrow);
-  }
-
-  return function () {
-    Object.keys(state.elements).forEach(function (name) {
-      var element = state.elements[name];
-      var attributes = state.attributes[name] || {};
-      var styleProperties = Object.keys(state.styles.hasOwnProperty(name) ? state.styles[name] : initialStyles[name]); // Set all values to an empty string to unset them
-
-      var style = styleProperties.reduce(function (style, property) {
-        style[property] = '';
-        return style;
-      }, {}); // arrow is optional + virtual elements
-
-      if (!isHTMLElement(element) || !getNodeName(element)) {
-        return;
-      }
-
-      Object.assign(element.style, style);
-      Object.keys(attributes).forEach(function (attribute) {
-        element.removeAttribute(attribute);
-      });
-    });
-  };
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var applyStyles$1 = {
-  name: 'applyStyles',
-  enabled: true,
-  phase: 'write',
-  fn: applyStyles,
-  effect: effect$2,
-  requires: ['computeStyles']
-};
-
-function getBasePlacement(placement) {
-  return placement.split('-')[0];
-}
-
-var max = Math.max;
-var min = Math.min;
-var round = Math.round;
-
-function getUAString() {
-  var uaData = navigator.userAgentData;
-
-  if (uaData != null && uaData.brands && Array.isArray(uaData.brands)) {
-    return uaData.brands.map(function (item) {
-      return item.brand + "/" + item.version;
-    }).join(' ');
-  }
-
-  return navigator.userAgent;
-}
-
-function isLayoutViewport() {
-  return !/^((?!chrome|android).)*safari/i.test(getUAString());
-}
-
-function getBoundingClientRect(element, includeScale, isFixedStrategy) {
-  if (includeScale === void 0) {
-    includeScale = false;
-  }
-
-  if (isFixedStrategy === void 0) {
-    isFixedStrategy = false;
-  }
-
-  var clientRect = element.getBoundingClientRect();
-  var scaleX = 1;
-  var scaleY = 1;
-
-  if (includeScale && isHTMLElement(element)) {
-    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
-    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
-  }
-
-  var _ref = isElement(element) ? getWindow(element) : window,
-      visualViewport = _ref.visualViewport;
-
-  var addVisualOffsets = !isLayoutViewport() && isFixedStrategy;
-  var x = (clientRect.left + (addVisualOffsets && visualViewport ? visualViewport.offsetLeft : 0)) / scaleX;
-  var y = (clientRect.top + (addVisualOffsets && visualViewport ? visualViewport.offsetTop : 0)) / scaleY;
-  var width = clientRect.width / scaleX;
-  var height = clientRect.height / scaleY;
-  return {
-    width: width,
-    height: height,
-    top: y,
-    right: x + width,
-    bottom: y + height,
-    left: x,
-    x: x,
-    y: y
-  };
-}
-
-// means it doesn't take into account transforms.
-
-function getLayoutRect(element) {
-  var clientRect = getBoundingClientRect(element); // Use the clientRect sizes if it's not been transformed.
-  // Fixes https://github.com/popperjs/popper-core/issues/1223
-
-  var width = element.offsetWidth;
-  var height = element.offsetHeight;
-
-  if (Math.abs(clientRect.width - width) <= 1) {
-    width = clientRect.width;
-  }
-
-  if (Math.abs(clientRect.height - height) <= 1) {
-    height = clientRect.height;
-  }
-
-  return {
-    x: element.offsetLeft,
-    y: element.offsetTop,
-    width: width,
-    height: height
-  };
-}
-
-function contains(parent, child) {
-  var rootNode = child.getRootNode && child.getRootNode(); // First, attempt with faster native method
-
-  if (parent.contains(child)) {
-    return true;
-  } // then fallback to custom implementation with Shadow DOM support
-  else if (rootNode && isShadowRoot(rootNode)) {
-      var next = child;
-
-      do {
-        if (next && parent.isSameNode(next)) {
-          return true;
-        } // $FlowFixMe[prop-missing]: need a better way to handle this...
-
-
-        next = next.parentNode || next.host;
-      } while (next);
-    } // Give up, the result is false
-
-
-  return false;
-}
-
-function getComputedStyle(element) {
-  return getWindow(element).getComputedStyle(element);
-}
-
-function isTableElement(element) {
-  return ['table', 'td', 'th'].indexOf(getNodeName(element)) >= 0;
-}
-
-function getDocumentElement(element) {
-  // $FlowFixMe[incompatible-return]: assume body is always available
-  return ((isElement(element) ? element.ownerDocument : // $FlowFixMe[prop-missing]
-  element.document) || window.document).documentElement;
-}
-
-function getParentNode(element) {
-  if (getNodeName(element) === 'html') {
-    return element;
-  }
-
-  return (// this is a quicker (but less type safe) way to save quite some bytes from the bundle
-    // $FlowFixMe[incompatible-return]
-    // $FlowFixMe[prop-missing]
-    element.assignedSlot || // step into the shadow DOM of the parent of a slotted node
-    element.parentNode || ( // DOM Element detected
-    isShadowRoot(element) ? element.host : null) || // ShadowRoot detected
-    // $FlowFixMe[incompatible-call]: HTMLElement is a Node
-    getDocumentElement(element) // fallback
-
-  );
-}
-
-function getTrueOffsetParent(element) {
-  if (!isHTMLElement(element) || // https://github.com/popperjs/popper-core/issues/837
-  getComputedStyle(element).position === 'fixed') {
-    return null;
-  }
-
-  return element.offsetParent;
-} // `.offsetParent` reports `null` for fixed elements, while absolute elements
-// return the containing block
-
-
-function getContainingBlock(element) {
-  var isFirefox = /firefox/i.test(getUAString());
-  var isIE = /Trident/i.test(getUAString());
-
-  if (isIE && isHTMLElement(element)) {
-    // In IE 9, 10 and 11 fixed elements containing block is always established by the viewport
-    var elementCss = getComputedStyle(element);
-
-    if (elementCss.position === 'fixed') {
-      return null;
-    }
-  }
-
-  var currentNode = getParentNode(element);
-
-  if (isShadowRoot(currentNode)) {
-    currentNode = currentNode.host;
-  }
-
-  while (isHTMLElement(currentNode) && ['html', 'body'].indexOf(getNodeName(currentNode)) < 0) {
-    var css = getComputedStyle(currentNode); // This is non-exhaustive but covers the most common CSS properties that
-    // create a containing block.
-    // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
-
-    if (css.transform !== 'none' || css.perspective !== 'none' || css.contain === 'paint' || ['transform', 'perspective'].indexOf(css.willChange) !== -1 || isFirefox && css.willChange === 'filter' || isFirefox && css.filter && css.filter !== 'none') {
-      return currentNode;
-    } else {
-      currentNode = currentNode.parentNode;
-    }
-  }
-
-  return null;
-} // Gets the closest ancestor positioned element. Handles some edge cases,
-// such as table ancestors and cross browser bugs.
-
-
-function getOffsetParent(element) {
-  var window = getWindow(element);
-  var offsetParent = getTrueOffsetParent(element);
-
-  while (offsetParent && isTableElement(offsetParent) && getComputedStyle(offsetParent).position === 'static') {
-    offsetParent = getTrueOffsetParent(offsetParent);
-  }
-
-  if (offsetParent && (getNodeName(offsetParent) === 'html' || getNodeName(offsetParent) === 'body' && getComputedStyle(offsetParent).position === 'static')) {
-    return window;
-  }
-
-  return offsetParent || getContainingBlock(element) || window;
-}
-
-function getMainAxisFromPlacement(placement) {
-  return ['top', 'bottom'].indexOf(placement) >= 0 ? 'x' : 'y';
-}
-
-function within(min$1, value, max$1) {
-  return max(min$1, min(value, max$1));
-}
-function withinMaxClamp(min, value, max) {
-  var v = within(min, value, max);
-  return v > max ? max : v;
-}
-
-function getFreshSideObject() {
-  return {
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0
-  };
-}
-
-function mergePaddingObject(paddingObject) {
-  return Object.assign({}, getFreshSideObject(), paddingObject);
-}
-
-function expandToHashMap(value, keys) {
-  return keys.reduce(function (hashMap, key) {
-    hashMap[key] = value;
-    return hashMap;
-  }, {});
-}
-
-var toPaddingObject = function toPaddingObject(padding, state) {
-  padding = typeof padding === 'function' ? padding(Object.assign({}, state.rects, {
-    placement: state.placement
-  })) : padding;
-  return mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
-};
-
-function arrow(_ref) {
-  var _state$modifiersData$;
-
-  var state = _ref.state,
-      name = _ref.name,
-      options = _ref.options;
-  var arrowElement = state.elements.arrow;
-  var popperOffsets = state.modifiersData.popperOffsets;
-  var basePlacement = getBasePlacement(state.placement);
-  var axis = getMainAxisFromPlacement(basePlacement);
-  var isVertical = [left, right].indexOf(basePlacement) >= 0;
-  var len = isVertical ? 'height' : 'width';
-
-  if (!arrowElement || !popperOffsets) {
-    return;
-  }
-
-  var paddingObject = toPaddingObject(options.padding, state);
-  var arrowRect = getLayoutRect(arrowElement);
-  var minProp = axis === 'y' ? top : left;
-  var maxProp = axis === 'y' ? bottom : right;
-  var endDiff = state.rects.reference[len] + state.rects.reference[axis] - popperOffsets[axis] - state.rects.popper[len];
-  var startDiff = popperOffsets[axis] - state.rects.reference[axis];
-  var arrowOffsetParent = getOffsetParent(arrowElement);
-  var clientSize = arrowOffsetParent ? axis === 'y' ? arrowOffsetParent.clientHeight || 0 : arrowOffsetParent.clientWidth || 0 : 0;
-  var centerToReference = endDiff / 2 - startDiff / 2; // Make sure the arrow doesn't overflow the popper if the center point is
-  // outside of the popper bounds
-
-  var min = paddingObject[minProp];
-  var max = clientSize - arrowRect[len] - paddingObject[maxProp];
-  var center = clientSize / 2 - arrowRect[len] / 2 + centerToReference;
-  var offset = within(min, center, max); // Prevents breaking syntax highlighting...
-
-  var axisProp = axis;
-  state.modifiersData[name] = (_state$modifiersData$ = {}, _state$modifiersData$[axisProp] = offset, _state$modifiersData$.centerOffset = offset - center, _state$modifiersData$);
-}
-
-function effect$1(_ref2) {
-  var state = _ref2.state,
-      options = _ref2.options;
-  var _options$element = options.element,
-      arrowElement = _options$element === void 0 ? '[data-popper-arrow]' : _options$element;
-
-  if (arrowElement == null) {
-    return;
-  } // CSS selector
-
-
-  if (typeof arrowElement === 'string') {
-    arrowElement = state.elements.popper.querySelector(arrowElement);
-
-    if (!arrowElement) {
-      return;
-    }
-  }
-
-  if (!contains(state.elements.popper, arrowElement)) {
-    return;
-  }
-
-  state.elements.arrow = arrowElement;
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var arrow$1 = {
-  name: 'arrow',
-  enabled: true,
-  phase: 'main',
-  fn: arrow,
-  effect: effect$1,
-  requires: ['popperOffsets'],
-  requiresIfExists: ['preventOverflow']
-};
-
-function getVariation(placement) {
-  return placement.split('-')[1];
-}
-
-var unsetSides = {
-  top: 'auto',
-  right: 'auto',
-  bottom: 'auto',
-  left: 'auto'
-}; // Round the offsets to the nearest suitable subpixel based on the DPR.
-// Zooming can change the DPR, but it seems to report a value that will
-// cleanly divide the values into the appropriate subpixels.
-
-function roundOffsetsByDPR(_ref, win) {
-  var x = _ref.x,
-      y = _ref.y;
-  var dpr = win.devicePixelRatio || 1;
-  return {
-    x: round(x * dpr) / dpr || 0,
-    y: round(y * dpr) / dpr || 0
-  };
-}
-
-function mapToStyles(_ref2) {
-  var _Object$assign2;
-
-  var popper = _ref2.popper,
-      popperRect = _ref2.popperRect,
-      placement = _ref2.placement,
-      variation = _ref2.variation,
-      offsets = _ref2.offsets,
-      position = _ref2.position,
-      gpuAcceleration = _ref2.gpuAcceleration,
-      adaptive = _ref2.adaptive,
-      roundOffsets = _ref2.roundOffsets,
-      isFixed = _ref2.isFixed;
-  var _offsets$x = offsets.x,
-      x = _offsets$x === void 0 ? 0 : _offsets$x,
-      _offsets$y = offsets.y,
-      y = _offsets$y === void 0 ? 0 : _offsets$y;
-
-  var _ref3 = typeof roundOffsets === 'function' ? roundOffsets({
-    x: x,
-    y: y
-  }) : {
-    x: x,
-    y: y
-  };
-
-  x = _ref3.x;
-  y = _ref3.y;
-  var hasX = offsets.hasOwnProperty('x');
-  var hasY = offsets.hasOwnProperty('y');
-  var sideX = left;
-  var sideY = top;
-  var win = window;
-
-  if (adaptive) {
-    var offsetParent = getOffsetParent(popper);
-    var heightProp = 'clientHeight';
-    var widthProp = 'clientWidth';
-
-    if (offsetParent === getWindow(popper)) {
-      offsetParent = getDocumentElement(popper);
-
-      if (getComputedStyle(offsetParent).position !== 'static' && position === 'absolute') {
-        heightProp = 'scrollHeight';
-        widthProp = 'scrollWidth';
-      }
-    } // $FlowFixMe[incompatible-cast]: force type refinement, we compare offsetParent with window above, but Flow doesn't detect it
-
-
-    offsetParent = offsetParent;
-
-    if (placement === top || (placement === left || placement === right) && variation === end) {
-      sideY = bottom;
-      var offsetY = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.height : // $FlowFixMe[prop-missing]
-      offsetParent[heightProp];
-      y -= offsetY - popperRect.height;
-      y *= gpuAcceleration ? 1 : -1;
-    }
-
-    if (placement === left || (placement === top || placement === bottom) && variation === end) {
-      sideX = right;
-      var offsetX = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.width : // $FlowFixMe[prop-missing]
-      offsetParent[widthProp];
-      x -= offsetX - popperRect.width;
-      x *= gpuAcceleration ? 1 : -1;
-    }
-  }
-
-  var commonStyles = Object.assign({
-    position: position
-  }, adaptive && unsetSides);
-
-  var _ref4 = roundOffsets === true ? roundOffsetsByDPR({
-    x: x,
-    y: y
-  }, getWindow(popper)) : {
-    x: x,
-    y: y
-  };
-
-  x = _ref4.x;
-  y = _ref4.y;
-
-  if (gpuAcceleration) {
-    var _Object$assign;
-
-    return Object.assign({}, commonStyles, (_Object$assign = {}, _Object$assign[sideY] = hasY ? '0' : '', _Object$assign[sideX] = hasX ? '0' : '', _Object$assign.transform = (win.devicePixelRatio || 1) <= 1 ? "translate(" + x + "px, " + y + "px)" : "translate3d(" + x + "px, " + y + "px, 0)", _Object$assign));
-  }
-
-  return Object.assign({}, commonStyles, (_Object$assign2 = {}, _Object$assign2[sideY] = hasY ? y + "px" : '', _Object$assign2[sideX] = hasX ? x + "px" : '', _Object$assign2.transform = '', _Object$assign2));
-}
-
-function computeStyles(_ref5) {
-  var state = _ref5.state,
-      options = _ref5.options;
-  var _options$gpuAccelerat = options.gpuAcceleration,
-      gpuAcceleration = _options$gpuAccelerat === void 0 ? true : _options$gpuAccelerat,
-      _options$adaptive = options.adaptive,
-      adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
-      _options$roundOffsets = options.roundOffsets,
-      roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
-  var commonStyles = {
-    placement: getBasePlacement(state.placement),
-    variation: getVariation(state.placement),
-    popper: state.elements.popper,
-    popperRect: state.rects.popper,
-    gpuAcceleration: gpuAcceleration,
-    isFixed: state.options.strategy === 'fixed'
-  };
-
-  if (state.modifiersData.popperOffsets != null) {
-    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles(Object.assign({}, commonStyles, {
-      offsets: state.modifiersData.popperOffsets,
-      position: state.options.strategy,
-      adaptive: adaptive,
-      roundOffsets: roundOffsets
-    })));
-  }
-
-  if (state.modifiersData.arrow != null) {
-    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles(Object.assign({}, commonStyles, {
-      offsets: state.modifiersData.arrow,
-      position: 'absolute',
-      adaptive: false,
-      roundOffsets: roundOffsets
-    })));
-  }
-
-  state.attributes.popper = Object.assign({}, state.attributes.popper, {
-    'data-popper-placement': state.placement
-  });
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var computeStyles$1 = {
-  name: 'computeStyles',
-  enabled: true,
-  phase: 'beforeWrite',
-  fn: computeStyles,
-  data: {}
-};
-
-var passive = {
-  passive: true
-};
-
-function effect(_ref) {
-  var state = _ref.state,
-      instance = _ref.instance,
-      options = _ref.options;
-  var _options$scroll = options.scroll,
-      scroll = _options$scroll === void 0 ? true : _options$scroll,
-      _options$resize = options.resize,
-      resize = _options$resize === void 0 ? true : _options$resize;
-  var window = getWindow(state.elements.popper);
-  var scrollParents = [].concat(state.scrollParents.reference, state.scrollParents.popper);
-
-  if (scroll) {
-    scrollParents.forEach(function (scrollParent) {
-      scrollParent.addEventListener('scroll', instance.update, passive);
-    });
-  }
-
-  if (resize) {
-    window.addEventListener('resize', instance.update, passive);
-  }
-
-  return function () {
-    if (scroll) {
-      scrollParents.forEach(function (scrollParent) {
-        scrollParent.removeEventListener('scroll', instance.update, passive);
-      });
-    }
-
-    if (resize) {
-      window.removeEventListener('resize', instance.update, passive);
-    }
-  };
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var eventListeners = {
-  name: 'eventListeners',
-  enabled: true,
-  phase: 'write',
-  fn: function fn() {},
-  effect: effect,
-  data: {}
-};
-
-var hash$1 = {
-  left: 'right',
-  right: 'left',
-  bottom: 'top',
-  top: 'bottom'
-};
-function getOppositePlacement(placement) {
-  return placement.replace(/left|right|bottom|top/g, function (matched) {
-    return hash$1[matched];
-  });
-}
-
-var hash = {
-  start: 'end',
-  end: 'start'
-};
-function getOppositeVariationPlacement(placement) {
-  return placement.replace(/start|end/g, function (matched) {
-    return hash[matched];
-  });
-}
-
-function getWindowScroll(node) {
-  var win = getWindow(node);
-  var scrollLeft = win.pageXOffset;
-  var scrollTop = win.pageYOffset;
-  return {
-    scrollLeft: scrollLeft,
-    scrollTop: scrollTop
-  };
-}
-
-function getWindowScrollBarX(element) {
-  // If <html> has a CSS width greater than the viewport, then this will be
-  // incorrect for RTL.
-  // Popper 1 is broken in this case and never had a bug report so let's assume
-  // it's not an issue. I don't think anyone ever specifies width on <html>
-  // anyway.
-  // Browsers where the left scrollbar doesn't cause an issue report `0` for
-  // this (e.g. Edge 2019, IE11, Safari)
-  return getBoundingClientRect(getDocumentElement(element)).left + getWindowScroll(element).scrollLeft;
-}
-
-function getViewportRect(element, strategy) {
-  var win = getWindow(element);
-  var html = getDocumentElement(element);
-  var visualViewport = win.visualViewport;
-  var width = html.clientWidth;
-  var height = html.clientHeight;
-  var x = 0;
-  var y = 0;
-
-  if (visualViewport) {
-    width = visualViewport.width;
-    height = visualViewport.height;
-    var layoutViewport = isLayoutViewport();
-
-    if (layoutViewport || !layoutViewport && strategy === 'fixed') {
-      x = visualViewport.offsetLeft;
-      y = visualViewport.offsetTop;
-    }
-  }
-
-  return {
-    width: width,
-    height: height,
-    x: x + getWindowScrollBarX(element),
-    y: y
-  };
-}
-
-// of the `<html>` and `<body>` rect bounds if horizontally scrollable
-
-function getDocumentRect(element) {
-  var _element$ownerDocumen;
-
-  var html = getDocumentElement(element);
-  var winScroll = getWindowScroll(element);
-  var body = (_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body;
-  var width = max(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
-  var height = max(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
-  var x = -winScroll.scrollLeft + getWindowScrollBarX(element);
-  var y = -winScroll.scrollTop;
-
-  if (getComputedStyle(body || html).direction === 'rtl') {
-    x += max(html.clientWidth, body ? body.clientWidth : 0) - width;
-  }
-
-  return {
-    width: width,
-    height: height,
-    x: x,
-    y: y
-  };
-}
-
-function isScrollParent(element) {
-  // Firefox wants us to check `-x` and `-y` variations as well
-  var _getComputedStyle = getComputedStyle(element),
-      overflow = _getComputedStyle.overflow,
-      overflowX = _getComputedStyle.overflowX,
-      overflowY = _getComputedStyle.overflowY;
-
-  return /auto|scroll|overlay|hidden/.test(overflow + overflowY + overflowX);
-}
-
-function getScrollParent(node) {
-  if (['html', 'body', '#document'].indexOf(getNodeName(node)) >= 0) {
-    // $FlowFixMe[incompatible-return]: assume body is always available
-    return node.ownerDocument.body;
-  }
-
-  if (isHTMLElement(node) && isScrollParent(node)) {
-    return node;
-  }
-
-  return getScrollParent(getParentNode(node));
-}
-
-/*
-given a DOM element, return the list of all scroll parents, up the list of ancesors
-until we get to the top window object. This list is what we attach scroll listeners
-to, because if any of these parent elements scroll, we'll need to re-calculate the
-reference element's position.
-*/
-
-function listScrollParents(element, list) {
-  var _element$ownerDocumen;
-
-  if (list === void 0) {
-    list = [];
-  }
-
-  var scrollParent = getScrollParent(element);
-  var isBody = scrollParent === ((_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body);
-  var win = getWindow(scrollParent);
-  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent(scrollParent) ? scrollParent : []) : scrollParent;
-  var updatedList = list.concat(target);
-  return isBody ? updatedList : // $FlowFixMe[incompatible-call]: isBody tells us target will be an HTMLElement here
-  updatedList.concat(listScrollParents(getParentNode(target)));
-}
-
-function rectToClientRect(rect) {
-  return Object.assign({}, rect, {
-    left: rect.x,
-    top: rect.y,
-    right: rect.x + rect.width,
-    bottom: rect.y + rect.height
-  });
-}
-
-function getInnerBoundingClientRect(element, strategy) {
-  var rect = getBoundingClientRect(element, false, strategy === 'fixed');
-  rect.top = rect.top + element.clientTop;
-  rect.left = rect.left + element.clientLeft;
-  rect.bottom = rect.top + element.clientHeight;
-  rect.right = rect.left + element.clientWidth;
-  rect.width = element.clientWidth;
-  rect.height = element.clientHeight;
-  rect.x = rect.left;
-  rect.y = rect.top;
-  return rect;
-}
-
-function getClientRectFromMixedType(element, clippingParent, strategy) {
-  return clippingParent === viewport ? rectToClientRect(getViewportRect(element, strategy)) : isElement(clippingParent) ? getInnerBoundingClientRect(clippingParent, strategy) : rectToClientRect(getDocumentRect(getDocumentElement(element)));
-} // A "clipping parent" is an overflowable container with the characteristic of
-// clipping (or hiding) overflowing elements with a position different from
-// `initial`
-
-
-function getClippingParents(element) {
-  var clippingParents = listScrollParents(getParentNode(element));
-  var canEscapeClipping = ['absolute', 'fixed'].indexOf(getComputedStyle(element).position) >= 0;
-  var clipperElement = canEscapeClipping && isHTMLElement(element) ? getOffsetParent(element) : element;
-
-  if (!isElement(clipperElement)) {
-    return [];
-  } // $FlowFixMe[incompatible-return]: https://github.com/facebook/flow/issues/1414
-
-
-  return clippingParents.filter(function (clippingParent) {
-    return isElement(clippingParent) && contains(clippingParent, clipperElement) && getNodeName(clippingParent) !== 'body';
-  });
-} // Gets the maximum area that the element is visible in due to any number of
-// clipping parents
-
-
-function getClippingRect(element, boundary, rootBoundary, strategy) {
-  var mainClippingParents = boundary === 'clippingParents' ? getClippingParents(element) : [].concat(boundary);
-  var clippingParents = [].concat(mainClippingParents, [rootBoundary]);
-  var firstClippingParent = clippingParents[0];
-  var clippingRect = clippingParents.reduce(function (accRect, clippingParent) {
-    var rect = getClientRectFromMixedType(element, clippingParent, strategy);
-    accRect.top = max(rect.top, accRect.top);
-    accRect.right = min(rect.right, accRect.right);
-    accRect.bottom = min(rect.bottom, accRect.bottom);
-    accRect.left = max(rect.left, accRect.left);
-    return accRect;
-  }, getClientRectFromMixedType(element, firstClippingParent, strategy));
-  clippingRect.width = clippingRect.right - clippingRect.left;
-  clippingRect.height = clippingRect.bottom - clippingRect.top;
-  clippingRect.x = clippingRect.left;
-  clippingRect.y = clippingRect.top;
-  return clippingRect;
-}
-
-function computeOffsets(_ref) {
-  var reference = _ref.reference,
-      element = _ref.element,
-      placement = _ref.placement;
-  var basePlacement = placement ? getBasePlacement(placement) : null;
-  var variation = placement ? getVariation(placement) : null;
-  var commonX = reference.x + reference.width / 2 - element.width / 2;
-  var commonY = reference.y + reference.height / 2 - element.height / 2;
-  var offsets;
-
-  switch (basePlacement) {
-    case top:
-      offsets = {
-        x: commonX,
-        y: reference.y - element.height
-      };
-      break;
-
-    case bottom:
-      offsets = {
-        x: commonX,
-        y: reference.y + reference.height
-      };
-      break;
-
-    case right:
-      offsets = {
-        x: reference.x + reference.width,
-        y: commonY
-      };
-      break;
-
-    case left:
-      offsets = {
-        x: reference.x - element.width,
-        y: commonY
-      };
-      break;
-
-    default:
-      offsets = {
-        x: reference.x,
-        y: reference.y
-      };
-  }
-
-  var mainAxis = basePlacement ? getMainAxisFromPlacement(basePlacement) : null;
-
-  if (mainAxis != null) {
-    var len = mainAxis === 'y' ? 'height' : 'width';
-
-    switch (variation) {
-      case start:
-        offsets[mainAxis] = offsets[mainAxis] - (reference[len] / 2 - element[len] / 2);
-        break;
-
-      case end:
-        offsets[mainAxis] = offsets[mainAxis] + (reference[len] / 2 - element[len] / 2);
-        break;
-    }
-  }
-
-  return offsets;
-}
-
-function detectOverflow(state, options) {
-  if (options === void 0) {
-    options = {};
-  }
-
-  var _options = options,
-      _options$placement = _options.placement,
-      placement = _options$placement === void 0 ? state.placement : _options$placement,
-      _options$strategy = _options.strategy,
-      strategy = _options$strategy === void 0 ? state.strategy : _options$strategy,
-      _options$boundary = _options.boundary,
-      boundary = _options$boundary === void 0 ? clippingParents : _options$boundary,
-      _options$rootBoundary = _options.rootBoundary,
-      rootBoundary = _options$rootBoundary === void 0 ? viewport : _options$rootBoundary,
-      _options$elementConte = _options.elementContext,
-      elementContext = _options$elementConte === void 0 ? popper : _options$elementConte,
-      _options$altBoundary = _options.altBoundary,
-      altBoundary = _options$altBoundary === void 0 ? false : _options$altBoundary,
-      _options$padding = _options.padding,
-      padding = _options$padding === void 0 ? 0 : _options$padding;
-  var paddingObject = mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
-  var altContext = elementContext === popper ? reference : popper;
-  var popperRect = state.rects.popper;
-  var element = state.elements[altBoundary ? altContext : elementContext];
-  var clippingClientRect = getClippingRect(isElement(element) ? element : element.contextElement || getDocumentElement(state.elements.popper), boundary, rootBoundary, strategy);
-  var referenceClientRect = getBoundingClientRect(state.elements.reference);
-  var popperOffsets = computeOffsets({
-    reference: referenceClientRect,
-    element: popperRect,
-    strategy: 'absolute',
-    placement: placement
-  });
-  var popperClientRect = rectToClientRect(Object.assign({}, popperRect, popperOffsets));
-  var elementClientRect = elementContext === popper ? popperClientRect : referenceClientRect; // positive = overflowing the clipping rect
-  // 0 or negative = within the clipping rect
-
-  var overflowOffsets = {
-    top: clippingClientRect.top - elementClientRect.top + paddingObject.top,
-    bottom: elementClientRect.bottom - clippingClientRect.bottom + paddingObject.bottom,
-    left: clippingClientRect.left - elementClientRect.left + paddingObject.left,
-    right: elementClientRect.right - clippingClientRect.right + paddingObject.right
-  };
-  var offsetData = state.modifiersData.offset; // Offsets can be applied only to the popper element
-
-  if (elementContext === popper && offsetData) {
-    var offset = offsetData[placement];
-    Object.keys(overflowOffsets).forEach(function (key) {
-      var multiply = [right, bottom].indexOf(key) >= 0 ? 1 : -1;
-      var axis = [top, bottom].indexOf(key) >= 0 ? 'y' : 'x';
-      overflowOffsets[key] += offset[axis] * multiply;
-    });
-  }
-
-  return overflowOffsets;
-}
-
-function computeAutoPlacement(state, options) {
-  if (options === void 0) {
-    options = {};
-  }
-
-  var _options = options,
-      placement = _options.placement,
-      boundary = _options.boundary,
-      rootBoundary = _options.rootBoundary,
-      padding = _options.padding,
-      flipVariations = _options.flipVariations,
-      _options$allowedAutoP = _options.allowedAutoPlacements,
-      allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements : _options$allowedAutoP;
-  var variation = getVariation(placement);
-  var placements$1 = variation ? flipVariations ? variationPlacements : variationPlacements.filter(function (placement) {
-    return getVariation(placement) === variation;
-  }) : basePlacements;
-  var allowedPlacements = placements$1.filter(function (placement) {
-    return allowedAutoPlacements.indexOf(placement) >= 0;
-  });
-
-  if (allowedPlacements.length === 0) {
-    allowedPlacements = placements$1;
-  } // $FlowFixMe[incompatible-type]: Flow seems to have problems with two array unions...
-
-
-  var overflows = allowedPlacements.reduce(function (acc, placement) {
-    acc[placement] = detectOverflow(state, {
-      placement: placement,
-      boundary: boundary,
-      rootBoundary: rootBoundary,
-      padding: padding
-    })[getBasePlacement(placement)];
-    return acc;
-  }, {});
-  return Object.keys(overflows).sort(function (a, b) {
-    return overflows[a] - overflows[b];
-  });
-}
-
-function getExpandedFallbackPlacements(placement) {
-  if (getBasePlacement(placement) === auto) {
-    return [];
-  }
-
-  var oppositePlacement = getOppositePlacement(placement);
-  return [getOppositeVariationPlacement(placement), oppositePlacement, getOppositeVariationPlacement(oppositePlacement)];
-}
-
-function flip(_ref) {
-  var state = _ref.state,
-      options = _ref.options,
-      name = _ref.name;
-
-  if (state.modifiersData[name]._skip) {
-    return;
-  }
-
-  var _options$mainAxis = options.mainAxis,
-      checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
-      _options$altAxis = options.altAxis,
-      checkAltAxis = _options$altAxis === void 0 ? true : _options$altAxis,
-      specifiedFallbackPlacements = options.fallbackPlacements,
-      padding = options.padding,
-      boundary = options.boundary,
-      rootBoundary = options.rootBoundary,
-      altBoundary = options.altBoundary,
-      _options$flipVariatio = options.flipVariations,
-      flipVariations = _options$flipVariatio === void 0 ? true : _options$flipVariatio,
-      allowedAutoPlacements = options.allowedAutoPlacements;
-  var preferredPlacement = state.options.placement;
-  var basePlacement = getBasePlacement(preferredPlacement);
-  var isBasePlacement = basePlacement === preferredPlacement;
-  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement(preferredPlacement)] : getExpandedFallbackPlacements(preferredPlacement));
-  var placements = [preferredPlacement].concat(fallbackPlacements).reduce(function (acc, placement) {
-    return acc.concat(getBasePlacement(placement) === auto ? computeAutoPlacement(state, {
-      placement: placement,
-      boundary: boundary,
-      rootBoundary: rootBoundary,
-      padding: padding,
-      flipVariations: flipVariations,
-      allowedAutoPlacements: allowedAutoPlacements
-    }) : placement);
-  }, []);
-  var referenceRect = state.rects.reference;
-  var popperRect = state.rects.popper;
-  var checksMap = new Map();
-  var makeFallbackChecks = true;
-  var firstFittingPlacement = placements[0];
-
-  for (var i = 0; i < placements.length; i++) {
-    var placement = placements[i];
-
-    var _basePlacement = getBasePlacement(placement);
-
-    var isStartVariation = getVariation(placement) === start;
-    var isVertical = [top, bottom].indexOf(_basePlacement) >= 0;
-    var len = isVertical ? 'width' : 'height';
-    var overflow = detectOverflow(state, {
-      placement: placement,
-      boundary: boundary,
-      rootBoundary: rootBoundary,
-      altBoundary: altBoundary,
-      padding: padding
-    });
-    var mainVariationSide = isVertical ? isStartVariation ? right : left : isStartVariation ? bottom : top;
-
-    if (referenceRect[len] > popperRect[len]) {
-      mainVariationSide = getOppositePlacement(mainVariationSide);
-    }
-
-    var altVariationSide = getOppositePlacement(mainVariationSide);
-    var checks = [];
-
-    if (checkMainAxis) {
-      checks.push(overflow[_basePlacement] <= 0);
-    }
-
-    if (checkAltAxis) {
-      checks.push(overflow[mainVariationSide] <= 0, overflow[altVariationSide] <= 0);
-    }
-
-    if (checks.every(function (check) {
-      return check;
-    })) {
-      firstFittingPlacement = placement;
-      makeFallbackChecks = false;
-      break;
-    }
-
-    checksMap.set(placement, checks);
-  }
-
-  if (makeFallbackChecks) {
-    // `2` may be desired in some cases – research later
-    var numberOfChecks = flipVariations ? 3 : 1;
-
-    var _loop = function _loop(_i) {
-      var fittingPlacement = placements.find(function (placement) {
-        var checks = checksMap.get(placement);
-
-        if (checks) {
-          return checks.slice(0, _i).every(function (check) {
-            return check;
-          });
-        }
-      });
-
-      if (fittingPlacement) {
-        firstFittingPlacement = fittingPlacement;
-        return "break";
-      }
-    };
-
-    for (var _i = numberOfChecks; _i > 0; _i--) {
-      var _ret = _loop(_i);
-
-      if (_ret === "break") break;
-    }
-  }
-
-  if (state.placement !== firstFittingPlacement) {
-    state.modifiersData[name]._skip = true;
-    state.placement = firstFittingPlacement;
-    state.reset = true;
-  }
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var flip$1 = {
-  name: 'flip',
-  enabled: true,
-  phase: 'main',
-  fn: flip,
-  requiresIfExists: ['offset'],
-  data: {
-    _skip: false
-  }
-};
-
-function getSideOffsets(overflow, rect, preventedOffsets) {
-  if (preventedOffsets === void 0) {
-    preventedOffsets = {
-      x: 0,
-      y: 0
-    };
-  }
-
-  return {
-    top: overflow.top - rect.height - preventedOffsets.y,
-    right: overflow.right - rect.width + preventedOffsets.x,
-    bottom: overflow.bottom - rect.height + preventedOffsets.y,
-    left: overflow.left - rect.width - preventedOffsets.x
-  };
-}
-
-function isAnySideFullyClipped(overflow) {
-  return [top, right, bottom, left].some(function (side) {
-    return overflow[side] >= 0;
-  });
-}
-
-function hide(_ref) {
-  var state = _ref.state,
-      name = _ref.name;
-  var referenceRect = state.rects.reference;
-  var popperRect = state.rects.popper;
-  var preventedOffsets = state.modifiersData.preventOverflow;
-  var referenceOverflow = detectOverflow(state, {
-    elementContext: 'reference'
-  });
-  var popperAltOverflow = detectOverflow(state, {
-    altBoundary: true
-  });
-  var referenceClippingOffsets = getSideOffsets(referenceOverflow, referenceRect);
-  var popperEscapeOffsets = getSideOffsets(popperAltOverflow, popperRect, preventedOffsets);
-  var isReferenceHidden = isAnySideFullyClipped(referenceClippingOffsets);
-  var hasPopperEscaped = isAnySideFullyClipped(popperEscapeOffsets);
-  state.modifiersData[name] = {
-    referenceClippingOffsets: referenceClippingOffsets,
-    popperEscapeOffsets: popperEscapeOffsets,
-    isReferenceHidden: isReferenceHidden,
-    hasPopperEscaped: hasPopperEscaped
-  };
-  state.attributes.popper = Object.assign({}, state.attributes.popper, {
-    'data-popper-reference-hidden': isReferenceHidden,
-    'data-popper-escaped': hasPopperEscaped
-  });
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var hide$1 = {
-  name: 'hide',
-  enabled: true,
-  phase: 'main',
-  requiresIfExists: ['preventOverflow'],
-  fn: hide
-};
-
-function distanceAndSkiddingToXY(placement, rects, offset) {
-  var basePlacement = getBasePlacement(placement);
-  var invertDistance = [left, top].indexOf(basePlacement) >= 0 ? -1 : 1;
-
-  var _ref = typeof offset === 'function' ? offset(Object.assign({}, rects, {
-    placement: placement
-  })) : offset,
-      skidding = _ref[0],
-      distance = _ref[1];
-
-  skidding = skidding || 0;
-  distance = (distance || 0) * invertDistance;
-  return [left, right].indexOf(basePlacement) >= 0 ? {
-    x: distance,
-    y: skidding
-  } : {
-    x: skidding,
-    y: distance
-  };
-}
-
-function offset(_ref2) {
-  var state = _ref2.state,
-      options = _ref2.options,
-      name = _ref2.name;
-  var _options$offset = options.offset,
-      offset = _options$offset === void 0 ? [0, 0] : _options$offset;
-  var data = placements.reduce(function (acc, placement) {
-    acc[placement] = distanceAndSkiddingToXY(placement, state.rects, offset);
-    return acc;
-  }, {});
-  var _data$state$placement = data[state.placement],
-      x = _data$state$placement.x,
-      y = _data$state$placement.y;
-
-  if (state.modifiersData.popperOffsets != null) {
-    state.modifiersData.popperOffsets.x += x;
-    state.modifiersData.popperOffsets.y += y;
-  }
-
-  state.modifiersData[name] = data;
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var offset$1 = {
-  name: 'offset',
-  enabled: true,
-  phase: 'main',
-  requires: ['popperOffsets'],
-  fn: offset
-};
-
-function popperOffsets(_ref) {
-  var state = _ref.state,
-      name = _ref.name;
-  // Offsets are the actual position the popper needs to have to be
-  // properly positioned near its reference element
-  // This is the most basic placement, and will be adjusted by
-  // the modifiers in the next step
-  state.modifiersData[name] = computeOffsets({
-    reference: state.rects.reference,
-    element: state.rects.popper,
-    strategy: 'absolute',
-    placement: state.placement
-  });
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var popperOffsets$1 = {
-  name: 'popperOffsets',
-  enabled: true,
-  phase: 'read',
-  fn: popperOffsets,
-  data: {}
-};
-
-function getAltAxis(axis) {
-  return axis === 'x' ? 'y' : 'x';
-}
-
-function preventOverflow(_ref) {
-  var state = _ref.state,
-      options = _ref.options,
-      name = _ref.name;
-  var _options$mainAxis = options.mainAxis,
-      checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
-      _options$altAxis = options.altAxis,
-      checkAltAxis = _options$altAxis === void 0 ? false : _options$altAxis,
-      boundary = options.boundary,
-      rootBoundary = options.rootBoundary,
-      altBoundary = options.altBoundary,
-      padding = options.padding,
-      _options$tether = options.tether,
-      tether = _options$tether === void 0 ? true : _options$tether,
-      _options$tetherOffset = options.tetherOffset,
-      tetherOffset = _options$tetherOffset === void 0 ? 0 : _options$tetherOffset;
-  var overflow = detectOverflow(state, {
-    boundary: boundary,
-    rootBoundary: rootBoundary,
-    padding: padding,
-    altBoundary: altBoundary
-  });
-  var basePlacement = getBasePlacement(state.placement);
-  var variation = getVariation(state.placement);
-  var isBasePlacement = !variation;
-  var mainAxis = getMainAxisFromPlacement(basePlacement);
-  var altAxis = getAltAxis(mainAxis);
-  var popperOffsets = state.modifiersData.popperOffsets;
-  var referenceRect = state.rects.reference;
-  var popperRect = state.rects.popper;
-  var tetherOffsetValue = typeof tetherOffset === 'function' ? tetherOffset(Object.assign({}, state.rects, {
-    placement: state.placement
-  })) : tetherOffset;
-  var normalizedTetherOffsetValue = typeof tetherOffsetValue === 'number' ? {
-    mainAxis: tetherOffsetValue,
-    altAxis: tetherOffsetValue
-  } : Object.assign({
-    mainAxis: 0,
-    altAxis: 0
-  }, tetherOffsetValue);
-  var offsetModifierState = state.modifiersData.offset ? state.modifiersData.offset[state.placement] : null;
-  var data = {
-    x: 0,
-    y: 0
-  };
-
-  if (!popperOffsets) {
-    return;
-  }
-
-  if (checkMainAxis) {
-    var _offsetModifierState$;
-
-    var mainSide = mainAxis === 'y' ? top : left;
-    var altSide = mainAxis === 'y' ? bottom : right;
-    var len = mainAxis === 'y' ? 'height' : 'width';
-    var offset = popperOffsets[mainAxis];
-    var min$1 = offset + overflow[mainSide];
-    var max$1 = offset - overflow[altSide];
-    var additive = tether ? -popperRect[len] / 2 : 0;
-    var minLen = variation === start ? referenceRect[len] : popperRect[len];
-    var maxLen = variation === start ? -popperRect[len] : -referenceRect[len]; // We need to include the arrow in the calculation so the arrow doesn't go
-    // outside the reference bounds
-
-    var arrowElement = state.elements.arrow;
-    var arrowRect = tether && arrowElement ? getLayoutRect(arrowElement) : {
-      width: 0,
-      height: 0
-    };
-    var arrowPaddingObject = state.modifiersData['arrow#persistent'] ? state.modifiersData['arrow#persistent'].padding : getFreshSideObject();
-    var arrowPaddingMin = arrowPaddingObject[mainSide];
-    var arrowPaddingMax = arrowPaddingObject[altSide]; // If the reference length is smaller than the arrow length, we don't want
-    // to include its full size in the calculation. If the reference is small
-    // and near the edge of a boundary, the popper can overflow even if the
-    // reference is not overflowing as well (e.g. virtual elements with no
-    // width or height)
-
-    var arrowLen = within(0, referenceRect[len], arrowRect[len]);
-    var minOffset = isBasePlacement ? referenceRect[len] / 2 - additive - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis : minLen - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis;
-    var maxOffset = isBasePlacement ? -referenceRect[len] / 2 + additive + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis : maxLen + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis;
-    var arrowOffsetParent = state.elements.arrow && getOffsetParent(state.elements.arrow);
-    var clientOffset = arrowOffsetParent ? mainAxis === 'y' ? arrowOffsetParent.clientTop || 0 : arrowOffsetParent.clientLeft || 0 : 0;
-    var offsetModifierValue = (_offsetModifierState$ = offsetModifierState == null ? void 0 : offsetModifierState[mainAxis]) != null ? _offsetModifierState$ : 0;
-    var tetherMin = offset + minOffset - offsetModifierValue - clientOffset;
-    var tetherMax = offset + maxOffset - offsetModifierValue;
-    var preventedOffset = within(tether ? min(min$1, tetherMin) : min$1, offset, tether ? max(max$1, tetherMax) : max$1);
-    popperOffsets[mainAxis] = preventedOffset;
-    data[mainAxis] = preventedOffset - offset;
-  }
-
-  if (checkAltAxis) {
-    var _offsetModifierState$2;
-
-    var _mainSide = mainAxis === 'x' ? top : left;
-
-    var _altSide = mainAxis === 'x' ? bottom : right;
-
-    var _offset = popperOffsets[altAxis];
-
-    var _len = altAxis === 'y' ? 'height' : 'width';
-
-    var _min = _offset + overflow[_mainSide];
-
-    var _max = _offset - overflow[_altSide];
-
-    var isOriginSide = [top, left].indexOf(basePlacement) !== -1;
-
-    var _offsetModifierValue = (_offsetModifierState$2 = offsetModifierState == null ? void 0 : offsetModifierState[altAxis]) != null ? _offsetModifierState$2 : 0;
-
-    var _tetherMin = isOriginSide ? _min : _offset - referenceRect[_len] - popperRect[_len] - _offsetModifierValue + normalizedTetherOffsetValue.altAxis;
-
-    var _tetherMax = isOriginSide ? _offset + referenceRect[_len] + popperRect[_len] - _offsetModifierValue - normalizedTetherOffsetValue.altAxis : _max;
-
-    var _preventedOffset = tether && isOriginSide ? withinMaxClamp(_tetherMin, _offset, _tetherMax) : within(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
-
-    popperOffsets[altAxis] = _preventedOffset;
-    data[altAxis] = _preventedOffset - _offset;
-  }
-
-  state.modifiersData[name] = data;
-} // eslint-disable-next-line import/no-unused-modules
-
-
-var preventOverflow$1 = {
-  name: 'preventOverflow',
-  enabled: true,
-  phase: 'main',
-  fn: preventOverflow,
-  requiresIfExists: ['offset']
-};
-
-function getHTMLElementScroll(element) {
-  return {
-    scrollLeft: element.scrollLeft,
-    scrollTop: element.scrollTop
-  };
-}
-
-function getNodeScroll(node) {
-  if (node === getWindow(node) || !isHTMLElement(node)) {
-    return getWindowScroll(node);
-  } else {
-    return getHTMLElementScroll(node);
-  }
-}
-
-function isElementScaled(element) {
-  var rect = element.getBoundingClientRect();
-  var scaleX = round(rect.width) / element.offsetWidth || 1;
-  var scaleY = round(rect.height) / element.offsetHeight || 1;
-  return scaleX !== 1 || scaleY !== 1;
-} // Returns the composite rect of an element relative to its offsetParent.
-// Composite means it takes into account transforms as well as layout.
-
-
-function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
-  if (isFixed === void 0) {
-    isFixed = false;
-  }
-
-  var isOffsetParentAnElement = isHTMLElement(offsetParent);
-  var offsetParentIsScaled = isHTMLElement(offsetParent) && isElementScaled(offsetParent);
-  var documentElement = getDocumentElement(offsetParent);
-  var rect = getBoundingClientRect(elementOrVirtualElement, offsetParentIsScaled, isFixed);
-  var scroll = {
-    scrollLeft: 0,
-    scrollTop: 0
-  };
-  var offsets = {
-    x: 0,
-    y: 0
-  };
-
-  if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
-    if (getNodeName(offsetParent) !== 'body' || // https://github.com/popperjs/popper-core/issues/1078
-    isScrollParent(documentElement)) {
-      scroll = getNodeScroll(offsetParent);
-    }
-
-    if (isHTMLElement(offsetParent)) {
-      offsets = getBoundingClientRect(offsetParent, true);
-      offsets.x += offsetParent.clientLeft;
-      offsets.y += offsetParent.clientTop;
-    } else if (documentElement) {
-      offsets.x = getWindowScrollBarX(documentElement);
-    }
-  }
-
-  return {
-    x: rect.left + scroll.scrollLeft - offsets.x,
-    y: rect.top + scroll.scrollTop - offsets.y,
-    width: rect.width,
-    height: rect.height
-  };
-}
-
-function order(modifiers) {
-  var map = new Map();
-  var visited = new Set();
-  var result = [];
-  modifiers.forEach(function (modifier) {
-    map.set(modifier.name, modifier);
-  }); // On visiting object, check for its dependencies and visit them recursively
-
-  function sort(modifier) {
-    visited.add(modifier.name);
-    var requires = [].concat(modifier.requires || [], modifier.requiresIfExists || []);
-    requires.forEach(function (dep) {
-      if (!visited.has(dep)) {
-        var depModifier = map.get(dep);
-
-        if (depModifier) {
-          sort(depModifier);
-        }
-      }
-    });
-    result.push(modifier);
-  }
-
-  modifiers.forEach(function (modifier) {
-    if (!visited.has(modifier.name)) {
-      // check for visited object
-      sort(modifier);
-    }
-  });
-  return result;
-}
-
-function orderModifiers(modifiers) {
-  // order based on dependencies
-  var orderedModifiers = order(modifiers); // order based on phase
-
-  return modifierPhases.reduce(function (acc, phase) {
-    return acc.concat(orderedModifiers.filter(function (modifier) {
-      return modifier.phase === phase;
-    }));
-  }, []);
-}
-
-function debounce(fn) {
-  var pending;
-  return function () {
-    if (!pending) {
-      pending = new Promise(function (resolve) {
-        Promise.resolve().then(function () {
-          pending = undefined;
-          resolve(fn());
-        });
-      });
-    }
-
-    return pending;
-  };
-}
-
-function mergeByName(modifiers) {
-  var merged = modifiers.reduce(function (merged, current) {
-    var existing = merged[current.name];
-    merged[current.name] = existing ? Object.assign({}, existing, current, {
-      options: Object.assign({}, existing.options, current.options),
-      data: Object.assign({}, existing.data, current.data)
-    }) : current;
-    return merged;
-  }, {}); // IE11 does not support Object.values
-
-  return Object.keys(merged).map(function (key) {
-    return merged[key];
-  });
-}
-
-var DEFAULT_OPTIONS = {
-  placement: 'bottom',
-  modifiers: [],
-  strategy: 'absolute'
-};
-
-function areValidElements() {
-  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-    args[_key] = arguments[_key];
-  }
-
-  return !args.some(function (element) {
-    return !(element && typeof element.getBoundingClientRect === 'function');
-  });
-}
-
-function popperGenerator(generatorOptions) {
-  if (generatorOptions === void 0) {
-    generatorOptions = {};
-  }
-
-  var _generatorOptions = generatorOptions,
-      _generatorOptions$def = _generatorOptions.defaultModifiers,
-      defaultModifiers = _generatorOptions$def === void 0 ? [] : _generatorOptions$def,
-      _generatorOptions$def2 = _generatorOptions.defaultOptions,
-      defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS : _generatorOptions$def2;
-  return function createPopper(reference, popper, options) {
-    if (options === void 0) {
-      options = defaultOptions;
-    }
-
-    var state = {
-      placement: 'bottom',
-      orderedModifiers: [],
-      options: Object.assign({}, DEFAULT_OPTIONS, defaultOptions),
-      modifiersData: {},
-      elements: {
-        reference: reference,
-        popper: popper
-      },
-      attributes: {},
-      styles: {}
-    };
-    var effectCleanupFns = [];
-    var isDestroyed = false;
-    var instance = {
-      state: state,
-      setOptions: function setOptions(setOptionsAction) {
-        var options = typeof setOptionsAction === 'function' ? setOptionsAction(state.options) : setOptionsAction;
-        cleanupModifierEffects();
-        state.options = Object.assign({}, defaultOptions, state.options, options);
-        state.scrollParents = {
-          reference: isElement(reference) ? listScrollParents(reference) : reference.contextElement ? listScrollParents(reference.contextElement) : [],
-          popper: listScrollParents(popper)
-        }; // Orders the modifiers based on their dependencies and `phase`
-        // properties
-
-        var orderedModifiers = orderModifiers(mergeByName([].concat(defaultModifiers, state.options.modifiers))); // Strip out disabled modifiers
-
-        state.orderedModifiers = orderedModifiers.filter(function (m) {
-          return m.enabled;
-        });
-        runModifierEffects();
-        return instance.update();
-      },
-      // Sync update – it will always be executed, even if not necessary. This
-      // is useful for low frequency updates where sync behavior simplifies the
-      // logic.
-      // For high frequency updates (e.g. `resize` and `scroll` events), always
-      // prefer the async Popper#update method
-      forceUpdate: function forceUpdate() {
-        if (isDestroyed) {
-          return;
-        }
-
-        var _state$elements = state.elements,
-            reference = _state$elements.reference,
-            popper = _state$elements.popper; // Don't proceed if `reference` or `popper` are not valid elements
-        // anymore
-
-        if (!areValidElements(reference, popper)) {
-          return;
-        } // Store the reference and popper rects to be read by modifiers
-
-
-        state.rects = {
-          reference: getCompositeRect(reference, getOffsetParent(popper), state.options.strategy === 'fixed'),
-          popper: getLayoutRect(popper)
-        }; // Modifiers have the ability to reset the current update cycle. The
-        // most common use case for this is the `flip` modifier changing the
-        // placement, which then needs to re-run all the modifiers, because the
-        // logic was previously ran for the previous placement and is therefore
-        // stale/incorrect
-
-        state.reset = false;
-        state.placement = state.options.placement; // On each update cycle, the `modifiersData` property for each modifier
-        // is filled with the initial data specified by the modifier. This means
-        // it doesn't persist and is fresh on each update.
-        // To ensure persistent data, use `${name}#persistent`
-
-        state.orderedModifiers.forEach(function (modifier) {
-          return state.modifiersData[modifier.name] = Object.assign({}, modifier.data);
-        });
-
-        for (var index = 0; index < state.orderedModifiers.length; index++) {
-          if (state.reset === true) {
-            state.reset = false;
-            index = -1;
-            continue;
-          }
-
-          var _state$orderedModifie = state.orderedModifiers[index],
-              fn = _state$orderedModifie.fn,
-              _state$orderedModifie2 = _state$orderedModifie.options,
-              _options = _state$orderedModifie2 === void 0 ? {} : _state$orderedModifie2,
-              name = _state$orderedModifie.name;
-
-          if (typeof fn === 'function') {
-            state = fn({
-              state: state,
-              options: _options,
-              name: name,
-              instance: instance
-            }) || state;
-          }
-        }
-      },
-      // Async and optimistically optimized update – it will not be executed if
-      // not necessary (debounced to run at most once-per-tick)
-      update: debounce(function () {
-        return new Promise(function (resolve) {
-          instance.forceUpdate();
-          resolve(state);
-        });
-      }),
-      destroy: function destroy() {
-        cleanupModifierEffects();
-        isDestroyed = true;
-      }
-    };
-
-    if (!areValidElements(reference, popper)) {
-      return instance;
-    }
-
-    instance.setOptions(options).then(function (state) {
-      if (!isDestroyed && options.onFirstUpdate) {
-        options.onFirstUpdate(state);
-      }
-    }); // Modifiers have the ability to execute arbitrary code before the first
-    // update cycle runs. They will be executed in the same order as the update
-    // cycle. This is useful when a modifier adds some persistent data that
-    // other modifiers need to use, but the modifier is run after the dependent
-    // one.
-
-    function runModifierEffects() {
-      state.orderedModifiers.forEach(function (_ref) {
-        var name = _ref.name,
-            _ref$options = _ref.options,
-            options = _ref$options === void 0 ? {} : _ref$options,
-            effect = _ref.effect;
-
-        if (typeof effect === 'function') {
-          var cleanupFn = effect({
-            state: state,
-            name: name,
-            instance: instance,
-            options: options
-          });
-
-          var noopFn = function noopFn() {};
-
-          effectCleanupFns.push(cleanupFn || noopFn);
-        }
-      });
-    }
-
-    function cleanupModifierEffects() {
-      effectCleanupFns.forEach(function (fn) {
-        return fn();
-      });
-      effectCleanupFns = [];
-    }
-
-    return instance;
-  };
-}
-
-var defaultModifiers = [eventListeners, popperOffsets$1, computeStyles$1, applyStyles$1, offset$1, flip$1, preventOverflow$1, arrow$1, hide$1];
-var createPopper = /*#__PURE__*/popperGenerator({
-  defaultModifiers: defaultModifiers
-}); // eslint-disable-next-line import/no-unused-modules
-
+// @ts-ignore
 /**
  * A component that handles all UI components.
  */
 class UIManager extends Component {
-    get() {
-        return this.toolbars;
-    }
     constructor(components) {
         super();
         this.name = "UIManager";
@@ -11494,6 +9674,9 @@ class UIManager extends Component {
         this.containers.right.classList.add(...vContainerClass);
         this.containers.bottom.classList.add(...hContainerClass);
         this.containers.left.classList.add(...vContainerClass);
+    }
+    get() {
+        return this.toolbars;
     }
     setup() {
         this.viewerContainer = this.components.renderer.get().domElement
@@ -11716,43 +9899,6 @@ class SimpleUICard extends SimpleUIComponent {
 }
 
 class FloatingWindow extends SimpleUIComponent {
-    set description(value) {
-        const descriptionElement = document.getElementById(`${this.id}-description`);
-        if (descriptionElement && value) {
-            descriptionElement.textContent = value;
-            descriptionElement.classList.remove("hidden");
-        }
-        else {
-            descriptionElement === null || descriptionElement === void 0 ? void 0 : descriptionElement.classList.add("hidden");
-        }
-    }
-    get description() {
-        const descriptionElement = document.getElementById(`${this.id}-description`);
-        return descriptionElement.textContent;
-    }
-    set title(value) {
-        const titleElement = document.getElementById(`${this.id}-title`);
-        if (titleElement && value) {
-            titleElement.textContent = value;
-            titleElement.classList.remove("hidden");
-        }
-    }
-    get title() {
-        const titleElement = document.getElementById(`${this.id}-title`);
-        return titleElement.textContent;
-    }
-    set resizeable(value) {
-        this._resizeable = value;
-        if (value) {
-            this.get().classList.add("resize");
-        }
-        else {
-            this.get().classList.remove("resize");
-        }
-    }
-    get resizeable() {
-        return this._resizeable;
-    }
     constructor(components, config) {
         const window = document.createElement("div");
         window.className = FloatingWindow.Class.Base;
@@ -11824,6 +9970,43 @@ class FloatingWindow extends SimpleUIComponent {
             bottom: new Vector2$1(),
             bottomRight: new Vector2$1(),
         };
+    }
+    set description(value) {
+        const descriptionElement = document.getElementById(`${this.id}-description`);
+        if (descriptionElement && value) {
+            descriptionElement.textContent = value;
+            descriptionElement.classList.remove("hidden");
+        }
+        else {
+            descriptionElement === null || descriptionElement === void 0 ? void 0 : descriptionElement.classList.add("hidden");
+        }
+    }
+    get description() {
+        const descriptionElement = document.getElementById(`${this.id}-description`);
+        return descriptionElement.textContent;
+    }
+    set title(value) {
+        const titleElement = document.getElementById(`${this.id}-title`);
+        if (titleElement && value) {
+            titleElement.textContent = value;
+            titleElement.classList.remove("hidden");
+        }
+    }
+    get title() {
+        const titleElement = document.getElementById(`${this.id}-title`);
+        return titleElement.textContent;
+    }
+    set resizeable(value) {
+        this._resizeable = value;
+        if (value) {
+            this.get().classList.add("resize");
+        }
+        else {
+            this.get().classList.remove("resize");
+        }
+    }
+    get resizeable() {
+        return this._resizeable;
     }
     addChild(...items) {
         const contentDiv = document.getElementById(`${this.id}-content`);
@@ -12119,6 +10302,50 @@ class Canvas extends SimpleUIComponent {
     }
 }
 
+class DragAndDropInput extends SimpleUIComponent {
+    constructor(components, config) {
+        const subtitle = config ? config.subTitle : "";
+        const template = `
+      <div class="flex items-center justify-center w-full h-full">
+          <label for="dropzone-file" class="h-full flex flex-col items-center justify-center w-full border-2 border-gray-300 border-dashed rounded-lg cursor-pointer backdrop-blur-md bg-ifcjs-100 dark:hover:bg-bray-800 dark:bg-gray-700 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600 transition ease-in-out hover:backdrop-blur-xl duration-300">
+              <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                      <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                  </svg>
+                  <p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">${subtitle}</p>
+              </div>
+              <input id="dropzone-file" type="file" class="hidden" />
+          </label>
+      </div> 
+    `;
+        const container = document.createElement("div");
+        container.innerHTML = template;
+        container.className = "absolute top-8 bottom-8 left-8 right-8";
+        super(components, container);
+        this.name = "DragAndDropInput";
+        this.onFilesLoaded = new Event();
+        const input = container.querySelector("input");
+        if (!input)
+            throw new Error("Input not found!");
+        const onFilesLoaded = () => {
+            if (input.files === null)
+                return;
+            this.onFilesLoaded.trigger(input.files);
+            this.visible = false;
+        };
+        input.onchange = () => onFilesLoaded();
+        const allowDragDrop = (event) => event.preventDefault();
+        container.ondragover = allowDragDrop;
+        container.ondragenter = allowDragDrop;
+        container.ondrop = (event) => {
+            event.preventDefault();
+            input.files = event.dataTransfer.files;
+            onFilesLoaded();
+        };
+    }
+}
+
 /**
  * The entry point of Open BIM Components.
  * It contains the basic items to create a BIM 3D scene based on Three.js, as
@@ -12127,6 +10354,31 @@ class Canvas extends SimpleUIComponent {
  *
  */
 class Components {
+    constructor() {
+        /**
+         * All the loaded [meshes](https://threejs.org/docs/#api/en/objects/Mesh).
+         * This includes IFC models, fragments, 3D scans, etc.
+         */
+        this.meshes = [];
+        this.onInitialized = new Event();
+        this._enabled = false;
+        this.update = () => {
+            if (!this._enabled)
+                return;
+            const delta = this._clock.getDelta();
+            Components.update(this.scene, delta);
+            Components.update(this.renderer, delta);
+            Components.update(this.camera, delta);
+            this.tools.update(delta);
+            const renderer = this.renderer.get();
+            // Works the same as requestAnimationFrame, but let us use WebXR.
+            renderer.setAnimationLoop(this.update);
+        };
+        this._clock = new THREE$1.Clock();
+        this.tools = new ToolComponent();
+        this.ui = new UIManager(this);
+        Components.setupBVH();
+    }
     /**
      * The [Three.js renderer](https://threejs.org/docs/#api/en/renderers/WebGLRenderer)
      * used to render the scene. This library provides multiple renderer
@@ -12192,31 +10444,6 @@ class Components {
      */
     set raycaster(raycaster) {
         this._raycaster = raycaster;
-    }
-    constructor() {
-        /**
-         * All the loaded [meshes](https://threejs.org/docs/#api/en/objects/Mesh).
-         * This includes IFC models, fragments, 3D scans, etc.
-         */
-        this.meshes = [];
-        this.onInitialized = new Event();
-        this._enabled = false;
-        this.update = () => {
-            if (!this._enabled)
-                return;
-            const delta = this._clock.getDelta();
-            Components.update(this.scene, delta);
-            Components.update(this.renderer, delta);
-            Components.update(this.camera, delta);
-            this.tools.update(delta);
-            const renderer = this.renderer.get();
-            // Works the same as requestAnimationFrame, but let us use WebXR.
-            renderer.setAnimationLoop(this.update);
-        };
-        this._clock = new THREE$1.Clock();
-        this.tools = new ToolComponent();
-        this.ui = new UIManager(this);
-        Components.setupBVH();
     }
     /**
      * Initializes the library. It should be called at the start of the app after
@@ -13806,46 +12033,6 @@ class TransformControlsPlane extends Mesh {
  * Each of the planes created by {@link SimpleClipper}.
  */
 class SimplePlane extends Component {
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        this._enabled = state;
-        this._components.renderer.togglePlane(state, this._plane);
-    }
-    /** {@link Hideable.visible } */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible } */
-    set visible(state) {
-        this._visible = state;
-        this._controls.visible = state;
-        this._helper.visible = state;
-        this.toggleControls(state);
-    }
-    /** The meshes used for raycasting */
-    get meshes() {
-        return [this._planeMesh, this._arrowBoundBox];
-    }
-    /** The material of the clipping plane representation. */
-    get planeMaterial() {
-        return this._planeMesh.material;
-    }
-    /** The material of the clipping plane representation. */
-    set planeMaterial(material) {
-        this._planeMesh.material = material;
-    }
-    /** The size of the clipping plane representation. */
-    get size() {
-        return this._planeMesh.scale.x;
-    }
-    /** Sets the size of the clipping plane representation. */
-    set size(size) {
-        this._planeMesh.scale.set(size, size, size);
-    }
     constructor(components, origin, normal, material, size = 5, activateControls = true) {
         super();
         /** {@link Component.name} */
@@ -13886,6 +12073,46 @@ class SimplePlane extends Component {
         if (activateControls) {
             this.toggleControls(true);
         }
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this._components.renderer.togglePlane(state, this._plane);
+    }
+    /** {@link Hideable.visible } */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible } */
+    set visible(state) {
+        this._visible = state;
+        this._controls.visible = state;
+        this._helper.visible = state;
+        this.toggleControls(state);
+    }
+    /** The meshes used for raycasting */
+    get meshes() {
+        return [this._planeMesh, this._arrowBoundBox];
+    }
+    /** The material of the clipping plane representation. */
+    get planeMaterial() {
+        return this._planeMesh.material;
+    }
+    /** The material of the clipping plane representation. */
+    set planeMaterial(material) {
+        this._planeMesh.material = material;
+    }
+    /** The size of the clipping plane representation. */
+    get size() {
+        return this._planeMesh.scale.x;
+    }
+    /** Sets the size of the clipping plane representation. */
+    set size(size) {
+        this._planeMesh.scale.set(size, size, size);
     }
     /** {@link Component.get} */
     get() {
@@ -13978,52 +12205,6 @@ class SimplePlane extends Component {
  * E.g. {@link SimplePlane}.
  */
 class SimpleClipper extends Component {
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        this._enabled = state;
-        this.uiElement.active = state;
-        for (const plane of this._planes) {
-            plane.enabled = state;
-        }
-        this.updateMaterials();
-    }
-    /** {@link Hideable.visible } */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible } */
-    set visible(state) {
-        this._visible = state;
-        for (const plane of this._planes) {
-            plane.visible = state;
-        }
-    }
-    /** The material of the clipping plane representation. */
-    get material() {
-        return this._material;
-    }
-    /** The material of the clipping plane representation. */
-    set material(material) {
-        this._material = material;
-        for (const plane of this._planes) {
-            plane.planeMaterial = material;
-        }
-    }
-    /** The size of the geometric representation of the clippings planes. */
-    get size() {
-        return this._size;
-    }
-    /** The size of the geometric representation of the clippings planes. */
-    set size(size) {
-        this._size = size;
-        for (const plane of this._planes) {
-            plane.size = size;
-        }
-    }
     constructor(components, PlaneType) {
         super();
         this.components = components;
@@ -14080,6 +12261,52 @@ class SimpleClipper extends Component {
             this.visible = !this.visible;
         };
         this.uiElement.active = this.enabled;
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this.uiElement.active = state;
+        for (const plane of this._planes) {
+            plane.enabled = state;
+        }
+        this.updateMaterials();
+    }
+    /** {@link Hideable.visible } */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible } */
+    set visible(state) {
+        this._visible = state;
+        for (const plane of this._planes) {
+            plane.visible = state;
+        }
+    }
+    /** The material of the clipping plane representation. */
+    get material() {
+        return this._material;
+    }
+    /** The material of the clipping plane representation. */
+    set material(material) {
+        this._material = material;
+        for (const plane of this._planes) {
+            plane.planeMaterial = material;
+        }
+    }
+    /** The size of the geometric representation of the clippings planes. */
+    get size() {
+        return this._size;
+    }
+    /** The size of the geometric representation of the clippings planes. */
+    set size(size) {
+        this._size = size;
+        for (const plane of this._planes) {
+            plane.size = size;
+        }
     }
     endCreation() { }
     cancelCreation() { }
@@ -14473,7 +12700,7 @@ class ScreenCuller extends Component {
  *
  * By David Fahlander, david.fahlander@gmail.com
  *
- * Version 3.2.4, Tue May 30 2023
+ * Version 3.2.3, Mon Jan 23 2023
  *
  * https://dexie.org
  *
@@ -15711,7 +13938,7 @@ function tempTransaction(db, mode, storeNames, fn) {
     }
 }
 
-const DEXIE_VERSION = '3.2.4';
+const DEXIE_VERSION = '3.2.3';
 const maxString = String.fromCharCode(65535);
 const minKey = -Infinity;
 const INVALID_KEY_ARGUMENT = "Invalid key provided. Keys must be of type string, number, Date or Array<string | number | Date>.";
@@ -19280,9 +17507,7 @@ function extendObservabilitySet(target, newSet) {
 }
 
 function liveQuery(querier) {
-    let hasValue = false;
-    let currentValue = undefined;
-    const observable = new Observable((observer) => {
+    return new Observable((observer) => {
         const scopeFuncIsAsync = isAsyncFunction(querier);
         function execute(subscr) {
             if (scopeFuncIsAsync) {
@@ -19333,8 +17558,6 @@ function liveQuery(querier) {
             }
             querying = true;
             Promise.resolve(ret).then((result) => {
-                hasValue = true;
-                currentValue = result;
                 querying = false;
                 if (closed)
                     return;
@@ -19348,7 +17571,6 @@ function liveQuery(querier) {
                 }
             }, (err) => {
                 querying = false;
-                hasValue = false;
                 observer.error && observer.error(err);
                 subscription.unsubscribe();
             });
@@ -19356,9 +17578,6 @@ function liveQuery(querier) {
         doQuery();
         return subscription;
     });
-    observable.hasValue = () => hasValue;
-    observable.getValue = () => currentValue;
-    return observable;
 }
 
 let domDeps;
@@ -19581,10 +17800,6 @@ class ModelDatabase extends Dexie$1 {
 
 // TODO: Implement UI elements (this is probably just for 3d scans)
 class LocalCacher extends Component {
-    get ids() {
-        const serialized = localStorage.getItem(this._storedModels) || "[]";
-        return JSON.parse(serialized);
-    }
     constructor(components) {
         super();
         this.name = "LocalCacher";
@@ -19621,6 +17836,10 @@ class LocalCacher extends Component {
                 this.floatingMenu.visible = false;
             }
         };
+    }
+    get ids() {
+        const serialized = localStorage.getItem(this._storedModels) || "[]";
+        return JSON.parse(serialized);
     }
     async get(id) {
         if (this.exists(id)) {
@@ -19695,23 +17914,6 @@ class LocalCacher extends Component {
 }
 
 class SimpleSVGViewport extends Component {
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        this.resize();
-        this._undoList = [];
-        this.uiElement.toolbar.visible = value;
-        if (value) {
-            this._viewport.classList.remove("pointer-events-none");
-        }
-        else {
-            this.clear();
-            this.uiElement.settingsWindow.visible = false;
-            this._viewport.classList.add("pointer-events-none");
-        }
-    }
     constructor(components, config) {
         super();
         this.name = "SimpleCanvas2D";
@@ -19742,6 +17944,23 @@ class SimpleSVGViewport extends Component {
             .parentElement;
         viewerContainer.append(this._viewport);
         window.addEventListener("resize", () => this.resize());
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        this.resize();
+        this._undoList = [];
+        this.uiElement.toolbar.visible = value;
+        if (value) {
+            this._viewport.classList.remove("pointer-events-none");
+        }
+        else {
+            this.clear();
+            this.uiElement.settingsWindow.visible = false;
+            this._viewport.classList.add("pointer-events-none");
+        }
     }
     set config(value) {
         this._config = { ...this._config, ...value };
@@ -19859,13 +18078,6 @@ class SimpleSVGViewport extends Component {
 }
 
 class Simple2DMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        this._marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
     constructor(components, marker) {
         super();
         this.name = "Simple2DMarker";
@@ -19884,6 +18096,13 @@ class Simple2DMarker extends Component {
         this._marker = new CSS2DObject(_marker);
         this._components.scene.get().add(this._marker);
         this.visible = true;
+    }
+    set visible(value) {
+        this._visible = value;
+        this._marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
     }
     toggleVisibility() {
         this.visible = !this.visible;
@@ -25987,7 +24206,7 @@ BVH.initialized = false;
  *        A  C  E  G  I  K  M  O
  *        B  D  F  H  J  L  N  P
  * */
-let Fragment$1 = class Fragment {
+class Fragment$1 {
     constructor(geometry, material, count) {
         this.fragments = {};
         this.items = [];
@@ -26084,7 +24303,7 @@ let Fragment$1 = class Fragment {
         if (material === this.mesh.material) {
             this.copyGroups(newGeometry);
         }
-        const newFragment = new Fragment(newGeometry, material, this.capacity);
+        const newFragment = new Fragment$1(newGeometry, material, this.capacity);
         newFragment.mesh.applyMatrix4(this.mesh.matrix);
         newFragment.mesh.updateMatrix();
         this.fragments[id] = newFragment;
@@ -26279,7 +24498,7 @@ let Fragment$1 = class Fragment {
             this.blocks.remove(blockIDs);
         }
     }
-};
+}
 
 const SIZEOF_SHORT = 2;
 const SIZEOF_INT = 4;
@@ -26771,7 +24990,7 @@ class Builder {
      */
     nested(obj) {
         if (obj != this.offset()) {
-            throw new TypeError('FlatBuffers: struct must be serialized inline.');
+            throw new Error('FlatBuffers: struct must be serialized inline.');
         }
     }
     /**
@@ -26780,7 +24999,7 @@ class Builder {
      */
     notNested() {
         if (this.isNested) {
-            throw new TypeError('FlatBuffers: object serialization must not be nested.');
+            throw new Error('FlatBuffers: object serialization must not be nested.');
         }
     }
     /**
@@ -26913,7 +25132,7 @@ class Builder {
             this.prep(this.minalign, SIZEOF_INT +
                 FILE_IDENTIFIER_LENGTH + size_prefix);
             if (file_identifier.length != FILE_IDENTIFIER_LENGTH) {
-                throw new TypeError('FlatBuffers: file identifier must be length ' +
+                throw new Error('FlatBuffers: file identifier must be length ' +
                     FILE_IDENTIFIER_LENGTH);
             }
             for (let i = FILE_IDENTIFIER_LENGTH - 1; i >= 0; i--) {
@@ -26944,7 +25163,7 @@ class Builder {
             this.bb.readInt16(vtable_start + field) != 0;
         // If this fails, the caller will show what field needs to be set.
         if (!ok) {
-            throw new TypeError('FlatBuffers: field ' + field + ' must be set');
+            throw new Error('FlatBuffers: field ' + field + ' must be set');
         }
     }
     /**
@@ -27049,7 +25268,7 @@ class Builder {
                 ret.push(this.createObjectOffset(val));
             }
             else {
-                throw new TypeError('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
+                throw new Error('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
             }
         }
         return ret;
@@ -27317,7 +25536,7 @@ class Fragment {
 }
 
 // automatically generated by the FlatBuffers compiler, do not modify
-let FragmentsGroup$1 = class FragmentsGroup {
+class FragmentsGroup$1 {
     constructor() {
         this.bb = null;
         this.bb_pos = 0;
@@ -27328,11 +25547,11 @@ let FragmentsGroup$1 = class FragmentsGroup {
         return this;
     }
     static getRootAsFragmentsGroup(bb, obj) {
-        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+        return (obj || new FragmentsGroup$1()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
     static getSizePrefixedRootAsFragmentsGroup(bb, obj) {
         bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+        return (obj || new FragmentsGroup$1()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
     items(index, obj) {
         const offset = this.bb.__offset(this.bb_pos, 4);
@@ -27561,23 +25780,23 @@ let FragmentsGroup$1 = class FragmentsGroup {
         builder.finish(offset, undefined, true);
     }
     static createFragmentsGroup(builder, itemsOffset, matrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset, ifcNameOffset, ifcDescriptionOffset, ifcSchemaOffset, maxExpressId) {
-        FragmentsGroup.startFragmentsGroup(builder);
-        FragmentsGroup.addItems(builder, itemsOffset);
-        FragmentsGroup.addMatrix(builder, matrixOffset);
-        FragmentsGroup.addIds(builder, idsOffset);
-        FragmentsGroup.addItemsKeys(builder, itemsKeysOffset);
-        FragmentsGroup.addItemsKeysIndices(builder, itemsKeysIndicesOffset);
-        FragmentsGroup.addItemsRels(builder, itemsRelsOffset);
-        FragmentsGroup.addItemsRelsIndices(builder, itemsRelsIndicesOffset);
-        FragmentsGroup.addFragmentKeys(builder, fragmentKeysOffset);
-        FragmentsGroup.addId(builder, idOffset);
-        FragmentsGroup.addIfcName(builder, ifcNameOffset);
-        FragmentsGroup.addIfcDescription(builder, ifcDescriptionOffset);
-        FragmentsGroup.addIfcSchema(builder, ifcSchemaOffset);
-        FragmentsGroup.addMaxExpressId(builder, maxExpressId);
-        return FragmentsGroup.endFragmentsGroup(builder);
+        FragmentsGroup$1.startFragmentsGroup(builder);
+        FragmentsGroup$1.addItems(builder, itemsOffset);
+        FragmentsGroup$1.addMatrix(builder, matrixOffset);
+        FragmentsGroup$1.addIds(builder, idsOffset);
+        FragmentsGroup$1.addItemsKeys(builder, itemsKeysOffset);
+        FragmentsGroup$1.addItemsKeysIndices(builder, itemsKeysIndicesOffset);
+        FragmentsGroup$1.addItemsRels(builder, itemsRelsOffset);
+        FragmentsGroup$1.addItemsRelsIndices(builder, itemsRelsIndicesOffset);
+        FragmentsGroup$1.addFragmentKeys(builder, fragmentKeysOffset);
+        FragmentsGroup$1.addId(builder, idOffset);
+        FragmentsGroup$1.addIfcName(builder, ifcNameOffset);
+        FragmentsGroup$1.addIfcDescription(builder, ifcDescriptionOffset);
+        FragmentsGroup$1.addIfcSchema(builder, ifcSchemaOffset);
+        FragmentsGroup$1.addMaxExpressId(builder, maxExpressId);
+        return FragmentsGroup$1.endFragmentsGroup(builder);
     }
-};
+}
 
 // TODO: Document this
 class FragmentsGroup extends THREE$1.Group {
@@ -27875,14 +26094,6 @@ class Serializer {
  * [fragment geometry](https://github.com/ifcjs/fragment).
  */
 class FragmentManager extends Component {
-    /** The list of meshes of the created fragments. */
-    get meshes() {
-        const allMeshes = [];
-        for (const fragID in this.list) {
-            allMeshes.push(this.list[fragID].mesh);
-        }
-        return allMeshes;
-    }
     constructor(components) {
         super();
         /** {@link Component.name} */
@@ -27895,6 +26106,14 @@ class FragmentManager extends Component {
         this.onFragmentsLoaded = new Event();
         this._loader = new Serializer();
         this._components = components;
+    }
+    /** The list of meshes of the created fragments. */
+    get meshes() {
+        const allMeshes = [];
+        for (const fragID in this.list) {
+            allMeshes.push(this.list[fragID].mesh);
+        }
+        return allMeshes;
     }
     /** {@link Component.get} */
     get() {
@@ -92318,15 +90537,6 @@ class IfcJsonExporter {
 }
 
 class LineIntersectionPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
     constructor(components, config) {
         super();
         this.name = "LineIntersectionPicker";
@@ -92350,6 +90560,15 @@ class LineIntersectionPicker extends Component {
         this._marker.visible = false;
         this._components.scene.get().add(this._marker);
         this.enabled = false;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
     }
     set config(value) {
         this._config = { ...this._config, ...value };
@@ -92443,16 +90662,6 @@ class LineIntersectionPicker extends Component {
 }
 
 class VertexPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
     constructor(components, config) {
         var _a;
         super();
@@ -92472,6 +90681,16 @@ class VertexPicker extends Component {
         this._marker.visible = false;
         (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
         this.enabled = false;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
     }
     set workingPlane(plane) {
         this._workingPlane = plane;
@@ -92564,14 +90783,6 @@ class VertexPicker extends Component {
 }
 
 class GeometryVerticesMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        for (const marker of this._markers)
-            marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
     constructor(components, geometry) {
         super();
         this.name = "GeometryVerticesMarker";
@@ -92586,6 +90797,14 @@ class GeometryVerticesMarker extends Component {
                 .position.set(position.getX(index), position.getY(index), position.getZ(index));
             this._markers.push(marker);
         }
+    }
+    set visible(value) {
+        this._visible = value;
+        for (const marker of this._markers)
+            marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
     }
     dispose() {
         for (const marker of this._markers)
@@ -92807,11 +91026,11 @@ class IfcPropertiesManager extends Component {
                 return;
             const { properties } = this.getIFCInfo(model);
             const entity = properties[expressID];
-            // const currentName = entity.Name?.value;
             const currentValue = (_a = entity[valueKey]) === null || _a === void 0 ? void 0 : _a.value;
             const name = prompt("Enter a new Name", (_b = entity.Name) === null || _b === void 0 ? void 0 : _b.value);
             const value = prompt(`Enter a new ${valueKey}`, (_c = entity[valueKey]) === null || _c === void 0 ? void 0 : _c.value);
-            entity.Name.value = name;
+            if (entity.Name)
+                entity.Name.value = name;
             if (currentValue)
                 entity[valueKey].value = value;
             this.setData(model, entity);
@@ -92886,7 +91105,7 @@ class IfcPropertiesManager extends Component {
     removePset(model, psetID) {
         const { properties } = this.getIFCInfo(model);
         const pset = properties[psetID];
-        if (pset.type !== IFCPROPERTYSET)
+        if ((pset === null || pset === void 0 ? void 0 : pset.type) !== IFCPROPERTYSET)
             return;
         const relID = IfcPropertiesUtils.getPsetRel(properties, psetID);
         if (relID) {
@@ -93220,21 +91439,6 @@ class NewPset extends SimpleUIComponent {
 }
 
 class PropertyTag extends SimpleUIComponent {
-    get label() {
-        return this._label;
-    }
-    set label(value) {
-        this._label = value;
-        this._labelElement.textContent = value;
-    }
-    get value() {
-        return this._value;
-    }
-    set value(value) {
-        var _a;
-        this._value = value;
-        this._valueElement.textContent = (_a = value === null || value === void 0 ? void 0 : value.toString()) !== null && _a !== void 0 ? _a : null;
-    }
     constructor(components) {
         const wrapper = document.createElement("div");
         wrapper.className =
@@ -93252,23 +91456,24 @@ class PropertyTag extends SimpleUIComponent {
         tagInfo.append(this._labelElement, this._valueElement);
         wrapper.append(tagInfo);
     }
+    get label() {
+        return this._label;
+    }
+    set label(value) {
+        this._label = value;
+        this._labelElement.textContent = value;
+    }
+    get value() {
+        return this._value;
+    }
+    set value(value) {
+        var _a;
+        this._value = value;
+        this._valueElement.textContent = (_a = value === null || value === void 0 ? void 0 : value.toString()) !== null && _a !== void 0 ? _a : null;
+    }
 }
 
 class IfcPropertiesProcessor extends Component {
-    set propertiesManager(manager) {
-        if (!this._propertiesManager && manager) {
-            manager.onElementToPset.on(({ model, psetID, elementID }) => {
-                const modelIndexMap = this._indexMap[model.uuid];
-                if (!modelIndexMap)
-                    return;
-                this.setEntityIndex(model, elementID).add(psetID);
-            });
-            this._propertiesManager = manager;
-        }
-    }
-    get propertiesManager() {
-        return this._propertiesManager;
-    }
     constructor(components) {
         super();
         this.name = "PropertiesParser";
@@ -93313,6 +91518,20 @@ class IfcPropertiesProcessor extends Component {
             [IFCELEMENTQUANTITY]: (model, expressID) => this.newQsetUI(model, expressID),
         };
     }
+    set propertiesManager(manager) {
+        if (!this._propertiesManager && manager) {
+            manager.onElementToPset.on(({ model, psetID, elementID }) => {
+                const modelIndexMap = this._indexMap[model.uuid];
+                if (!modelIndexMap)
+                    return;
+                this.setEntityIndex(model, elementID).add(psetID);
+            });
+            this._propertiesManager = manager;
+        }
+    }
+    get propertiesManager() {
+        return this._propertiesManager;
+    }
     setUI() {
         const container = new FloatingWindow(this._components);
         this._components.ui.add(container);
@@ -93325,7 +91544,7 @@ class IfcPropertiesProcessor extends Component {
         showButton.onclick = () => {
             container.visible = !container.visible;
         };
-        this._editContainerPopper = createPopper$1(container.get(), this._editContainer.get(), {
+        this._editContainerPopper = createPopper(container.get(), this._editContainer.get(), {
             modifiers: [
                 {
                     name: "offset",
@@ -93545,10 +91764,9 @@ class IfcPropertiesProcessor extends Component {
         };
     }
     addEntityActions(model, expressID, uiGroup) {
-        var _a;
         if (!this.propertiesManager)
             return;
-        const { entityActions } = (_a = this.propertiesManager) === null || _a === void 0 ? void 0 : _a.uiElement;
+        const { entityActions } = this.propertiesManager.uiElement;
         uiGroup.titleElement.get().onmouseenter = () => {
             entityActions.data = { model, elementID: expressID };
             uiGroup.titleElement.addChild(entityActions);
@@ -94303,13 +92521,6 @@ class FragmentHighlighter extends Component {
 }
 
 class FragmentTreeItem extends Component {
-    get children() {
-        return this._children;
-    }
-    set children(children) {
-        this._children = children;
-        children.forEach((child) => this.uiElement.addChild(child.uiElement));
-    }
     constructor(components, classifier, content) {
         super();
         this.name = "FragmentTreeItem";
@@ -94329,6 +92540,13 @@ class FragmentTreeItem extends Component {
             this.hovered.trigger(found);
         };
     }
+    get children() {
+        return this._children;
+    }
+    set children(children) {
+        this._children = children;
+        children.forEach((child) => this.uiElement.addChild(child.uiElement));
+    }
     dispose() {
         this.uiElement.dispose();
         this.selected.reset();
@@ -94343,9 +92561,6 @@ class FragmentTreeItem extends Component {
 }
 
 class FragmentTree extends Component {
-    get uiElement() {
-        return this._tree.uiElement;
-    }
     constructor(components, classifier) {
         super();
         this.name = "FragmentTree";
@@ -94356,6 +92571,9 @@ class FragmentTree extends Component {
         this._components = components;
         this._classifier = classifier;
         this._tree = new FragmentTreeItem(this._components, classifier, this.title);
+    }
+    get uiElement() {
+        return this._tree.uiElement;
     }
     get() {
         return this._tree;
@@ -94618,22 +92836,6 @@ class FragmentHider extends Component {
 // TODO: Clean up and document
 // TODO: Decouple from fragments?
 class FragmentEdges extends Component {
-    get visible() {
-        return this._visible;
-    }
-    set visible(active) {
-        this._visible = active;
-        const scene = this._components.scene.get();
-        for (const id in this._list) {
-            const edge = this._list[id];
-            if (active) {
-                scene.add(edge);
-            }
-            else {
-                edge.removeFromParent();
-            }
-        }
-    }
     constructor(components, culler) {
         super();
         this.edgesToUpdate = new Set();
@@ -94687,6 +92889,22 @@ class FragmentEdges extends Component {
                     }
                 }
             });
+        }
+    }
+    get visible() {
+        return this._visible;
+    }
+    set visible(active) {
+        this._visible = active;
+        const scene = this._components.scene.get();
+        for (const id in this._list) {
+            const edge = this._list[id];
+            if (active) {
+                scene.add(edge);
+            }
+            else {
+                edge.removeFromParent();
+            }
         }
     }
     get() {
@@ -94761,13 +92979,6 @@ class FragmentEdges extends Component {
 
 // TODO: Clean up
 class FragmentCacher extends LocalCacher {
-    get fragmentsIDs() {
-        const allIDs = this.ids;
-        const fragIDs = allIDs.filter((id) => id.includes("-fragments"));
-        if (!fragIDs.length)
-            return fragIDs;
-        return fragIDs.map((id) => id.replace("-fragments", ""));
-    }
     constructor(components, fragments) {
         super(components);
         this._mode = "none";
@@ -94852,6 +93063,13 @@ class FragmentCacher extends LocalCacher {
             }
             this.floatingMenu.visible = true;
         };
+    }
+    get fragmentsIDs() {
+        const allIDs = this.ids;
+        const fragIDs = allIDs.filter((id) => id.includes("-fragments"));
+        if (!fragIDs.length)
+            return fragIDs;
+        return fragIDs.map((id) => id.replace("-fragments", ""));
     }
     async getFragmentGroup(id) {
         const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
@@ -94943,9 +93161,6 @@ class FragmentCoordinator extends Component {
 
 // TODO: Clean up and document
 class FragmentExploder extends Component {
-    get() {
-        return this._explodedFragments;
-    }
     constructor(fragments, groups) {
         super();
         this.fragments = fragments;
@@ -94955,6 +93170,9 @@ class FragmentExploder extends Component {
         this.groupName = "storeys";
         this.enabled = false;
         this._explodedFragments = new Set();
+    }
+    get() {
+        return this._explodedFragments;
     }
     dispose() {
         this._explodedFragments.clear();
@@ -95039,9 +93257,6 @@ class FragmentExploder extends Component {
  * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
  */
 class ProjectionManager {
-    get projection() {
-        return this._currentProjection;
-    }
     constructor(components, camera) {
         this.components = components;
         this._previousDistance = -1;
@@ -95049,6 +93264,9 @@ class ProjectionManager {
         const perspective = "Perspective";
         this._currentCamera = camera.get(perspective);
         this._currentProjection = perspective;
+    }
+    get projection() {
+        return this._currentProjection;
     }
     /**
      * Sets the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
@@ -95486,7 +93704,6 @@ class OrthoPerspectiveCamera extends SimpleCamera {
  *  resolution: <Vector2>, // to be set by renderer
  * }
  */
-
 
 
 UniformsLib.line = {
@@ -96791,21 +95008,6 @@ class LineSegments2 extends Mesh {
  * The edges that are drawn when the {@link EdgesPlane} sections a mesh.
  */
 class ClippingEdges extends Component {
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(visible) {
-        this._visible = visible;
-        const names = Object.keys(this._edges);
-        for (const edgeName of names) {
-            this.updateEdgesVisibility(edgeName, visible);
-        }
-        if (visible) {
-            this.update();
-        }
-    }
     constructor(components, plane, styles) {
         super();
         /** {@link Component.name} */
@@ -96826,6 +95028,21 @@ class ClippingEdges extends Component {
         this._components = components;
         this._plane = plane;
         this._styles = styles;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        this._visible = visible;
+        const names = Object.keys(this._edges);
+        for (const edgeName of names) {
+            this.updateEdgesVisibility(edgeName, visible);
+        }
+        if (visible) {
+            this.update();
+        }
     }
     /** {@link Updateable.update} */
     update() {
@@ -97657,12 +95874,11 @@ class RenderPass extends Pass {
 }
 
 /**
- * postprocessing v6.32.2 build Sat Jul 01 2023
+ * postprocessing v6.31.0 build Sun May 07 2023
  * https://github.com/pmndrs/postprocessing
  * Copyright 2015-2023 Raoul van Rüschen
  * @license Zlib
  */
-
 
 // src/utils/BackCompat.js
 Number(REVISION.replace(/\D+/g, ""));
@@ -97797,7 +96013,7 @@ void main() {
     #define SAMPLES 16
     #define FSAMPLES 16.0
 uniform sampler2D sceneDiffuse;
-uniform highp sampler2D sceneNormal;
+uniform sampler2D sceneNormal;
 uniform highp sampler2D sceneDepth;
 uniform mat4 projectionMatrixInv;
 uniform mat4 viewMatrixInv;
@@ -97847,7 +96063,7 @@ uniform sampler2D bluenoise;
       float b = farZ * nearZ / (nearZ - farZ);
       float linDepth = a + b / depth;
       vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-      vec4 wpos = projectionMatrixInv * clipVec;
+      vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
       return wpos.xyz / wpos.w;
     }
     vec3 getWorldPos(float depth, vec2 coord) {
@@ -97858,7 +96074,7 @@ uniform sampler2D bluenoise;
       vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
       vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
       // Perspective division
-     vec4 worldSpacePosition = viewSpacePosition;
+     vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
      worldSpacePosition.xyz /= worldSpacePosition.w;
       return worldSpacePosition.xyz;
   }
@@ -97937,7 +96153,7 @@ void main() {
         ;
         float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
-        vec4 offset = projMat * vec4(samplePos, 1.0);
+        vec4 offset = projViewMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
         float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
@@ -98042,24 +96258,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         },
         "distanceFalloff": {
             value: 1.0
-        },
-        "fog": {
-            value: false
-        },
-        "fogExp": {
-            value: false
-        },
-        "fogDensity": {
-            value: 0.0
-        },
-        "fogNear": {
-            value: Infinity
-        },
-        "fogFar": {
-            value: Infinity
-        },
-        "colorMultiply": {
-            value: true
         }
     },
     vertexShader: /* glsl */ `
@@ -98070,8 +96268,8 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 		}`,
     fragmentShader: /* glsl */ `
 		uniform sampler2D sceneDiffuse;
-    uniform highp sampler2D sceneDepth;
-    uniform highp sampler2D downsampledDepth;
+    uniform sampler2D sceneDepth;
+    uniform sampler2D downsampledDepth;
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
@@ -98086,15 +96284,8 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform bool logDepth;
     uniform bool ortho;
     uniform bool screenSpaceRadius;
-    uniform bool fog;
-    uniform bool fogExp;
-    uniform bool colorMultiply;
-    uniform float fogDensity;
-    uniform float fogNear;
-    uniform float fogFar;
     uniform float radius;
     uniform float distanceFalloff;
-    uniform vec3 cameraPos;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -98124,7 +96315,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         float b = farZ * nearZ / (nearZ - farZ);
         float linDepth = a + b / depth;
         vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-        vec4 wpos = projectionMatrixInv * clipVec;
+        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
@@ -98137,7 +96328,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         // Perspective division
-       vec4 worldSpacePosition = viewSpacePosition;
+       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
        worldSpacePosition.xyz /= worldSpacePosition.w;
         return worldSpacePosition.xyz;
     }
@@ -98174,11 +96365,12 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
+
+        #ifdef HALFRES 
         float depth = texture2D(
             sceneDepth,
             vUv
         ).x;
-        #ifdef HALFRES 
         vec4 texel;
         if (depth == 1.0) {
             texel = vec4(0.0, 0.0, 0.0, 1.0);
@@ -98226,24 +96418,10 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 
      
         float finalAo = pow(texel.a, intensity);
-        float fogFactor;
-        float fogDepth = distance(
-            cameraPos,
-            getWorldPos(depth, vUv)
-        );
-        if (fog) {
-            if (fogExp) {
-                fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );
-            } else {
-                fogFactor = smoothstep( fogNear, fogFar, fogDepth );
-            }
-        }
-        finalAo = mix(finalAo, 1.0, fogFactor);
-        vec3 aoApplied = color * mix(vec3(1.0), sceneTexel.rgb, float(colorMultiply));
         if (renderMode == 0.0) {
-            gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 2.0) {
             gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
         } else if (renderMode == 3.0) {
@@ -98252,7 +96430,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
             }
         } else if (renderMode == 4.0) {
             if (vUv.x < 0.5) {
@@ -98260,7 +96438,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
             }
         }
         #include <dithering_fragment>
@@ -98389,7 +96567,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
      float b = farZ * nearZ / (nearZ - farZ);
      float linDepth = a + b / depth;
      vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-     vec4 wpos = projectionMatrixInv * clipVec;
+     vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
      return wpos.xyz / wpos.w;
    }
     vec3 getWorldPos(float depth, vec2 coord) {
@@ -98401,7 +96579,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         // Perspective division
-       vec4 worldSpacePosition = viewSpacePosition;
+       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
        worldSpacePosition.xyz /= worldSpacePosition.w;
         return worldSpacePosition.xyz;
     }
@@ -98418,10 +96596,6 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         vec3 normal = data.rgb * 2.0 - 1.0;
         float count = 1.0;
         float d = texture2D(sceneDepth, vUv).x;
-        if (d == 1.0) {
-          gl_FragColor = data;
-          return;
-        }
         vec3 worldPos = getWorldPos(d, vUv);
         float size = radius;
         float angle;
@@ -98454,19 +96628,11 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
             float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
-            float rangeCheck = dSample == 1.0 ? 0.0 :exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
+            float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
         }
-        if (count > 0.0) {
-          occlusion /= count;
-        }
-        #ifdef LOGDEPTH
-          occlusion = clamp(occlusion, 0.0, 1.0);
-          if (occlusion == 0.0) {
-            occlusion = 1.0;
-          }
-        #endif
+        occlusion /= count;
         gl_FragColor = vec4(0.5 + 0.5 * normal, occlusion);
     }
     `
@@ -98505,7 +96671,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         gl_Position = vec4(position, 1);
     }`,
     fragmentShader: /* glsl */ `
-    uniform highp sampler2D sceneDepth;
+    uniform sampler2D sceneDepth;
     uniform vec2 resolution;
     uniform float near;
     uniform float far;
@@ -98524,7 +96690,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         float b = farZ * nearZ / (nearZ - farZ);
         float linDepth = a + b / depth;
         vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-        vec4 wpos = projectionMatrixInv * clipVec;
+        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
@@ -98535,7 +96701,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         // Perspective division
-       vec4 worldSpacePosition = viewSpacePosition;
+       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
        worldSpacePosition.xyz /= worldSpacePosition.w;
         return worldSpacePosition.xyz;
     }
@@ -98704,13 +96870,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
-         * gammaCorrection: boolean,
-         * logarithmicDepthBuffer: boolean
-         * screenSpaceRadius: boolean,
-         * halfRes: boolean,
-         * depthAwareUpsampling: boolean,
-         * autoRenderBeauty: boolean
-         * colorMultiply: boolean
+         * gammaCorrection: Boolean,
+         * logarithmicDepthBuffer: Boolean
          * }
          */ this.configuration = new Proxy({
             aoSamples: 16,
@@ -98726,9 +96887,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             logarithmicDepthBuffer: false,
             screenSpaceRadius: false,
             halfRes: false,
-            depthAwareUpsampling: true,
-            autoRenderBeauty: true,
-            colorMultiply: true
+            depthAwareUpsampling: true
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -98751,6 +96910,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
+        //  this.effectCompisterQuad = new FullScreenTriangle(new THREE.ShaderMaterial(EffectCompositer));
         this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
             minFilter: LinearFilter,
             magFilter: NearestFilter
@@ -98922,10 +97082,8 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
                 this.debugMode = false;
             }
         }
-        if (this.configuration.autoRenderBeauty) {
-            renderer.setRenderTarget(this.beautyRenderTarget);
-            renderer.render(this.scene, this.camera);
-        }
+        renderer.setRenderTarget(this.beautyRenderTarget);
+        renderer.render(this.scene, this.camera);
         if (this.debugMode) {
             timerQuery = gl.createQuery();
             gl.beginQuery(ext.TIME_ELAPSED_EXT, timerQuery);
@@ -98955,7 +97113,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
         this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new Vector3$1());
+        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
         this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
@@ -98984,7 +97142,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
             this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new Vector3$1());
+            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
             this.poissonBlurQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
             this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
             this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
@@ -99022,19 +97180,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
-        this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
-        this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new Vector3$1());
-        this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
-        if (this.scene.fog) {
-            if (this.scene.fog.isFog) {
-                this.effectCompositerQuad.material.uniforms["fogExp"].value = false;
-                this.effectCompositerQuad.material.uniforms["fogNear"].value = this.scene.fog.near;
-                this.effectCompositerQuad.material.uniforms["fogFar"].value = this.scene.fog.far;
-            } else if (this.scene.fog.isFogExp2) {
-                this.effectCompositerQuad.material.uniforms["fogExp"].value = true;
-                this.effectCompositerQuad.material.uniforms["fogDensity"].value = this.scene.fog.density;
-            } else console.error(`Unsupported fog type ${this.scene.fog.constructor.name} in SSAOPass.`);
-        }
         renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
         this.effectCompositerQuad.render(renderer);
         if (this.debugMode) {
@@ -99479,6 +97624,36 @@ function getProjectedNormalMaterial() {
 // Follows the structure of
 // 		https://github.com/mrdoob/three.js/blob/master/examples/jsm/postprocessing/OutlinePass.js
 class CustomEffectsPass extends Pass {
+    constructor(resolution, components) {
+        super();
+        this.excludedMeshes = [];
+        this.outlinedMeshes = [];
+        this._lineColor = 0x999999;
+        this._outlineColor = 0xffffff;
+        this._opacity = 0.4;
+        this._tolerance = 3;
+        this._correctColor = false;
+        this._glossEnabled = true;
+        this._outlineEnabled = false;
+        this._outlineThickness = 4;
+        this._glossExponent = 0.7;
+        this._minGloss = -0.15;
+        this._maxGloss = 0.15;
+        this.renderScene = components.scene.get();
+        this.renderCamera = components.camera.get();
+        this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
+        this.fsQuad = new FullScreenQuad();
+        this.fsQuad.material = this.createOutlinePostProcessMaterial();
+        this.planeBuffer = this.newRenderTarget();
+        this.glossBuffer = this.newRenderTarget();
+        this.outlineBuffer = this.newRenderTarget();
+        const normalMaterial = getPlaneDistanceMaterial();
+        normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.normalOverrideMaterial = normalMaterial;
+        const glossMaterial = getProjectedNormalMaterial();
+        glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.glossOverrideMaterial = glossMaterial;
+    }
     get lineColor() {
         return this._lineColor;
     }
@@ -99567,36 +97742,6 @@ class CustomEffectsPass extends Pass {
         this._outlineEnabled = active;
         const material = this.fsQuad.material;
         material.uniforms.outlineEnabled.value = active ? 1 : 0;
-    }
-    constructor(resolution, components) {
-        super();
-        this.excludedMeshes = [];
-        this.outlinedMeshes = [];
-        this._lineColor = 0x999999;
-        this._outlineColor = 0xffffff;
-        this._opacity = 0.4;
-        this._tolerance = 3;
-        this._correctColor = false;
-        this._glossEnabled = true;
-        this._outlineEnabled = false;
-        this._outlineThickness = 4;
-        this._glossExponent = 0.7;
-        this._minGloss = -0.15;
-        this._maxGloss = 0.15;
-        this.renderScene = components.scene.get();
-        this.renderCamera = components.camera.get();
-        this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
-        this.fsQuad = new FullScreenQuad();
-        this.fsQuad.material = this.createOutlinePostProcessMaterial();
-        this.planeBuffer = this.newRenderTarget();
-        this.glossBuffer = this.newRenderTarget();
-        this.outlineBuffer = this.newRenderTarget();
-        const normalMaterial = getPlaneDistanceMaterial();
-        normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
-        this.normalOverrideMaterial = normalMaterial;
-        const glossMaterial = getProjectedNormalMaterial();
-        glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
-        this.glossOverrideMaterial = glossMaterial;
     }
     dispose() {
         this.planeBuffer.dispose();
@@ -99914,6 +98059,19 @@ class CustomEffectsPass extends Pass {
 // TODO: Clean up and document this
 // source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
 class Postproduction {
+    constructor(components, renderer) {
+        this.components = components;
+        this.renderer = renderer;
+        this.excludedItems = new Set();
+        this._enabled = false;
+        this._initialized = false;
+        this._saoEnabled = false;
+        this._customEffectsEnabled = true;
+        this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+        this._renderTarget.texture.colorSpace = "srgb-linear";
+        this.composer = new EffectComposer(this.renderer, this._renderTarget);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
     get customEffects() {
         if (!this._customEffects) {
             throw new Error("Custom effects not initialized!");
@@ -99974,19 +98132,6 @@ class Postproduction {
         else {
             this.composer.removePass(this._customEffects);
         }
-    }
-    constructor(components, renderer) {
-        this.components = components;
-        this.renderer = renderer;
-        this.excludedItems = new Set();
-        this._enabled = false;
-        this._initialized = false;
-        this._saoEnabled = false;
-        this._customEffectsEnabled = true;
-        this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
-        this._renderTarget.texture.colorSpace = "srgb-linear";
-        this.composer = new EffectComposer(this.renderer, this._renderTarget);
-        this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     dispose() {
         var _a, _b, _c, _d;
@@ -100494,6 +98639,23 @@ const DimensionPreviewClassName = "bg-ifcjs-100 rounded-full w-[8px] h-[8px]";
 
 // TODO: Document + clean up this: way less parameters, clearer logic
 class SimpleDimensionLine {
+    constructor(components, data) {
+        this.boundingBox = new THREE$1.Mesh();
+        this._disposer = new Disposer();
+        this._root = new THREE$1.Group();
+        this._endpoints = [];
+        this._components = components;
+        this.start = data.start;
+        this.end = data.end;
+        this._length = this.getLength();
+        this._line = this.createLine(data);
+        this.newEndpointElement(data.endpointElement);
+        // @ts-ignore
+        this.newEndpointElement(data.endpointElement.cloneNode(true));
+        this.label = this.newText();
+        this._root.renderOrder = 2;
+        this._components.scene.get().add(this._root);
+    }
     set visible(value) {
         this.label.visible = value;
         this._endpoints[0].visible = value;
@@ -100528,23 +98690,6 @@ class SimpleDimensionLine {
         const len = dir.length() * 0.5;
         dir = dir.normalize().multiplyScalar(len);
         return this.start.clone().add(dir);
-    }
-    constructor(components, data) {
-        this.boundingBox = new THREE$1.Mesh();
-        this._disposer = new Disposer();
-        this._root = new THREE$1.Group();
-        this._endpoints = [];
-        this._components = components;
-        this.start = data.start;
-        this.end = data.end;
-        this._length = this.getLength();
-        this._line = this.createLine(data);
-        this.newEndpointElement(data.endpointElement);
-        // @ts-ignore
-        this.newEndpointElement(data.endpointElement.cloneNode(true));
-        this.label = this.newText();
-        this._root.renderOrder = 2;
-        this._components.scene.get().add(this._root);
     }
     dispose() {
         this.visible = false;
@@ -100613,39 +98758,6 @@ SimpleDimensionLine.units = "m";
  * display a 3D symbol displaying the numeric value.
  */
 class LengthMeasurement extends Component {
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(value) {
-        if (!value)
-            this.cancelCreation();
-        this._enabled = value;
-        this._vertexPicker.enabled = value;
-        this.uiElement.active = value;
-    }
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(value) {
-        this._visible = value;
-        if (!this._visible) {
-            this.enabled = false;
-        }
-        for (const dimension of this._measurements) {
-            dimension.visible = this._visible;
-        }
-    }
-    /**
-     * The [Color](https://threejs.org/docs/#api/en/math/Color)
-     * of the geometry of the dimensions.
-     */
-    set color(color) {
-        this._lineMaterial.color = color;
-    }
     constructor(_components) {
         super();
         this._components = _components;
@@ -100694,6 +98806,39 @@ class LengthMeasurement extends Component {
         });
         this.setUI();
         this.enabled = false;
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(value) {
+        if (!value)
+            this.cancelCreation();
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(value) {
+        this._visible = value;
+        if (!this._visible) {
+            this.enabled = false;
+        }
+        for (const dimension of this._measurements) {
+            dimension.visible = this._visible;
+        }
+    }
+    /**
+     * The [Color](https://threejs.org/docs/#api/en/math/Color)
+     * of the geometry of the dimensions.
+     */
+    set color(color) {
+        this._lineMaterial.color = color;
     }
     setUI() {
         const viewerContainer = this._components.renderer.get().domElement
@@ -101013,15 +99158,6 @@ class ViewpointsManager extends Component {
 }
 
 class CubeMap extends Component {
-    set visible(value) {
-        this._visible = value;
-        if (this._visible) {
-            this._cubeWrapper.classList.remove("hidden");
-        }
-        else {
-            this._cubeWrapper.classList.add("hidden");
-        }
-    }
     constructor(components) {
         var _a;
         super();
@@ -101093,6 +99229,15 @@ class CubeMap extends Component {
         this._cube.append(frontFace, topFace, bottomFace, rightFace, leftFace, backFace);
         (_a = this._viewerContainer) === null || _a === void 0 ? void 0 : _a.append(this._cubeWrapper);
         this.visible = true;
+    }
+    set visible(value) {
+        this._visible = value;
+        if (this._visible) {
+            this._cubeWrapper.classList.remove("hidden");
+        }
+        else {
+            this._cubeWrapper.classList.add("hidden");
+        }
     }
     setSize(value = "350") {
         this._cubeWrapper.style.perspective = `${value}px`;
@@ -101338,10 +99483,6 @@ class MiniMap extends Component {
  * Helper to control the camera and easily define and navigate 2D floor plans.
  */
 class PlanNavigator extends Component {
-    /** {@link Component.get} */
-    get() {
-        return this.plans;
-    }
     constructor(clipper, camera) {
         super();
         this.clipper = clipper;
@@ -101362,6 +99503,10 @@ class PlanNavigator extends Component {
         this.previousCamera = new THREE$1.Vector3();
         this.previousTarget = new THREE$1.Vector3();
         this.previousProjection = "Perspective";
+    }
+    /** {@link Component.get} */
+    get() {
+        return this.plans;
     }
     /** {@link Disposable.dispose} */
     dispose() {
@@ -101512,13 +99657,6 @@ class PlanNavigator extends Component {
 // TODO: Clean up and document
 // TODO: Deduplicate logic with highlighter
 class FragmentOutliner extends Component {
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(state) {
-        this._enabled = state;
-        this._renderer.postproduction.customEffects.outlineEnabled = state;
-    }
     constructor(components, fragments, renderer) {
         super();
         this.name = "FragmentHighlighter";
@@ -101535,6 +99673,13 @@ class FragmentOutliner extends Component {
         this._fragments = fragments;
         this._renderer = renderer;
         this.enabled = true;
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(state) {
+        this._enabled = state;
+        this._renderer.postproduction.customEffects.outlineEnabled = state;
     }
     get() {
         return this._selection;
@@ -102285,6 +100430,17 @@ class RectangleAnnotation extends BaseSVGAnnotation {
 }
 
 class DrawManager extends Component {
+    constructor(components) {
+        super();
+        this.name = "DrawManager";
+        this.drawingTools = {};
+        this.drawings = {};
+        this._enabled = false;
+        this._isDrawing = false;
+        this._components = components;
+        this.viewport = new SimpleSVGViewport(components);
+        this.setUI();
+    }
     get isDrawing() {
         return this._isDrawing;
     }
@@ -102299,17 +100455,6 @@ class DrawManager extends Component {
         this.uiElement.activationButton.active = value;
         this.uiElement.drawingTools.visible = value;
         this.viewport.enabled = value;
-    }
-    constructor(components) {
-        super();
-        this.name = "DrawManager";
-        this.drawingTools = {};
-        this.drawings = {};
-        this._enabled = false;
-        this._isDrawing = false;
-        this._components = components;
-        this.viewport = new SimpleSVGViewport(components);
-        this.setUI();
     }
     saveDrawing(name) {
         const currentDrawing = this.drawings[name];
@@ -102357,6 +100502,7 @@ var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof win
 var mapboxGl = {exports: {}};
 
 /* Mapbox GL JS is Copyright © 2020 Mapbox and subject to the Mapbox Terms of Service ((https://www.mapbox.com/legal/tos/). */
+mapboxGl.exports;
 
 (function (module, exports) {
 	(function (global, factory) {
@@ -102404,7 +100550,7 @@ var mapboxGl = {exports: {}};
 
 	}));
 	
-} (mapboxGl));
+} (mapboxGl, mapboxGl.exports));
 
 var mapboxGlExports = mapboxGl.exports;
 
@@ -102760,6 +100906,33 @@ class MapboxWindow {
 }
 
 class AreaMeasureElement extends Component {
+    constructor(components, points) {
+        super();
+        this.name = "AreaShape";
+        this.enabled = true;
+        this.visible = true;
+        this.points = [];
+        this.workingPlane = null;
+        this._rotationMatrix = null;
+        this._dimensionLines = [];
+        this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
+        this.onAreaComputed = new Event();
+        this.onWorkingPlaneComputed = new Event();
+        this.onPointAdded = new Event();
+        this.onPointRemoved = new Event();
+        this._components = components;
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        this.labelMarker = new Simple2DMarker(components, htmlText);
+        this.labelMarker.visible = false;
+        this.onPointAdded.on((point) => {
+            if (this.points.length === 3 && !this._dimensionLines[2]) {
+                this.addDimensionLine(point, this.points[0]);
+                this.labelMarker.visible = true;
+            }
+        });
+        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
+    }
     setPoint(point, index) {
         let _index;
         if (!index) {
@@ -102796,33 +100969,6 @@ class AreaMeasureElement extends Component {
         nextLine === null || nextLine === void 0 ? void 0 : nextLine.dispose();
         this._dimensionLines.splice(index, 1);
         this.onPointRemoved.trigger();
-    }
-    constructor(components, points) {
-        super();
-        this.name = "AreaShape";
-        this.enabled = true;
-        this.visible = true;
-        this.points = [];
-        this.workingPlane = null;
-        this._rotationMatrix = null;
-        this._dimensionLines = [];
-        this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
-        this.onAreaComputed = new Event();
-        this.onWorkingPlaneComputed = new Event();
-        this.onPointAdded = new Event();
-        this.onPointRemoved = new Event();
-        this._components = components;
-        const htmlText = document.createElement("div");
-        htmlText.className = DimensionLabelClassName;
-        this.labelMarker = new Simple2DMarker(components, htmlText);
-        this.labelMarker.visible = false;
-        this.onPointAdded.on((point) => {
-            if (this.points.length === 3 && !this._dimensionLines[2]) {
-                this.addDimensionLine(point, this.points[0]);
-                this.labelMarker.visible = true;
-            }
-        });
-        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
     }
     toggleLabel() {
         this.labelMarker.toggleVisibility();
@@ -102905,22 +101051,6 @@ class AreaMeasureElement extends Component {
 }
 
 class AreaMeasurement extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        this._vertexPicker.enabled = value;
-        this.uiElement.active = value;
-        if (!value)
-            this.cancelCreation();
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set workingPlane(plane) {
-        this._vertexPicker.workingPlane = plane;
-    }
-    get workingPlane() {
-        return this._vertexPicker.workingPlane;
-    }
     constructor(components) {
         super();
         this.name = "AreaMeasurement";
@@ -102941,6 +101071,22 @@ class AreaMeasurement extends Component {
         });
         this.setUI();
         this.enabled = false;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+        if (!value)
+            this.cancelCreation();
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set workingPlane(plane) {
+        this._vertexPicker.workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._vertexPicker.workingPlane;
     }
     setUI() {
         const viewerContainer = this._components.ui.viewerContainer;
@@ -103122,25 +101268,6 @@ class Line2 extends LineSegments2 {
 }
 
 class AngleMeasureElement extends Component {
-    set lineMaterial(material) {
-        this._lineMaterial.dispose();
-        this._lineMaterial = material;
-        this._line.material = material;
-        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
-    }
-    get lineMaterial() {
-        return this._lineMaterial;
-    }
-    set labelMarker(marker) {
-        this._labelMarker.dispose();
-        this._labelMarker = marker;
-    }
-    get labelMarker() {
-        return this._labelMarker;
-    }
-    get scene() {
-        return this._components.scene.get();
-    }
     constructor(components, points) {
         super();
         this.name = "AngleMeasureElement";
@@ -103174,6 +101301,25 @@ class AngleMeasureElement extends Component {
                 .position.copy((_a = this.points[1]) !== null && _a !== void 0 ? _a : new THREE$1.Vector3());
         });
         points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
+    }
+    set lineMaterial(material) {
+        this._lineMaterial.dispose();
+        this._lineMaterial = material;
+        this._line.material = material;
+        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    }
+    get lineMaterial() {
+        return this._lineMaterial;
+    }
+    set labelMarker(marker) {
+        this._labelMarker.dispose();
+        this._labelMarker = marker;
+    }
+    get labelMarker() {
+        return this._labelMarker;
+    }
+    get scene() {
+        return this._components.scene.get();
     }
     setPoint(point, index) {
         let _index;
@@ -103223,30 +101369,6 @@ class AngleMeasureElement extends Component {
 }
 
 class AngleMeasurement extends Component {
-    set lineMaterial(material) {
-        this._lineMaterial.dispose();
-        this._lineMaterial = material;
-        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
-    }
-    get lineMaterial() {
-        return this._lineMaterial;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        this._vertexPicker.enabled = value;
-        this.uiElement.active = value;
-        if (!value)
-            this.cancelCreation();
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set workingPlane(plane) {
-        this._vertexPicker.workingPlane = plane;
-    }
-    get workingPlane() {
-        return this._vertexPicker.workingPlane;
-    }
     constructor(components) {
         super();
         this.name = "AngleMeasurement";
@@ -103271,6 +101393,30 @@ class AngleMeasurement extends Component {
         });
         this.setUI();
         this.enabled = false;
+    }
+    set lineMaterial(material) {
+        this._lineMaterial.dispose();
+        this._lineMaterial = material;
+        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    }
+    get lineMaterial() {
+        return this._lineMaterial;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+        if (!value)
+            this.cancelCreation();
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set workingPlane(plane) {
+        this._vertexPicker.workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._vertexPicker.workingPlane;
     }
     setUI() {
         const viewerContainer = this._components.ui.viewerContainer;
@@ -103353,4 +101499,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, TextAnnotation, TextInput, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
