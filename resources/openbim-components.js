@@ -10235,11 +10235,9 @@ class CheckboxInput extends BaseInput {
         this.wrapperElement.classList.remove("flex-col", "w-full");
         this.wrapperElement.classList.add("items-center", "flex-row-reverse", "justify-end", "gap-x-1");
     }
-    // @ts-ignore
     set inputValue(value) {
         this.inputElement.checked = value;
     }
-    // @ts-ignore
     get inputValue() {
         return this.inputElement.checked;
     }
