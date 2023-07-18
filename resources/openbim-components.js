@@ -99875,6 +99875,111 @@ class FragmentOutliner extends Component {
 }
 
 /**
+ * A simple implementation of bounding box that works for fragments. The resulting bbox is not 100% precise, but
+ * it's fast, and should suffice for general use cases such as camera zooming.
+ */
+class FragmentBoundingBox extends Component {
+    constructor() {
+        super();
+        this.name = "FragmentBoundingBox";
+        this.enabled = true;
+        this._mesh = new THREE$1.Mesh(new THREE$1.BoxGeometry(), new THREE$1.MeshBasicMaterial({
+            color: "red",
+            depthTest: false,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.3,
+        }));
+        this._mesh.renderOrder = 1;
+        this._absoluteMin = FragmentBoundingBox.newBound(true);
+        this._absoluteMax = FragmentBoundingBox.newBound(false);
+    }
+    get() {
+        return this._mesh;
+    }
+    dispose() {
+        this._mesh.removeFromParent();
+        this._mesh.geometry.dispose();
+        this._mesh.material.dispose();
+        this._mesh.geometry = null;
+        this._mesh.material = null;
+    }
+    update() {
+        const width = this._absoluteMax.x - this._absoluteMin.x;
+        const height = this._absoluteMax.y - this._absoluteMin.y;
+        const depth = this._absoluteMax.z - this._absoluteMin.z;
+        if (this._mesh.geometry) {
+            this._mesh.geometry.dispose();
+            this._mesh.geometry = new THREE$1.BoxGeometry(width, height, depth);
+        }
+        this._mesh.position.set(this._absoluteMax.x - width / 2, this._absoluteMax.y - height / 2, this._absoluteMax.z - depth / 2);
+    }
+    reset() {
+        this._mesh.geometry.dispose();
+        this._absoluteMin = FragmentBoundingBox.newBound(false);
+        this._absoluteMax = FragmentBoundingBox.newBound(true);
+    }
+    addGroup(group) {
+        for (const frag of group.items) {
+            this.add(frag);
+        }
+    }
+    add(fragment) {
+        const bbox = FragmentBoundingBox.getBounds(fragment);
+        const instanceTransform = new THREE$1.Matrix4();
+        for (let i = 0; i < fragment.mesh.count; i++) {
+            fragment.getInstance(i, instanceTransform);
+            const min = bbox.min.clone();
+            const max = bbox.max.clone();
+            min.applyMatrix4(instanceTransform);
+            max.applyMatrix4(instanceTransform);
+            if (min.x < this._absoluteMin.x)
+                this._absoluteMin.x = min.x;
+            if (min.y < this._absoluteMin.y)
+                this._absoluteMin.y = min.y;
+            if (min.z < this._absoluteMin.z)
+                this._absoluteMin.z = min.z;
+            if (max.x > this._absoluteMax.x)
+                this._absoluteMax.x = max.x;
+            if (max.y > this._absoluteMax.y)
+                this._absoluteMax.y = max.y;
+            if (max.z > this._absoluteMax.z)
+                this._absoluteMax.z = max.z;
+        }
+    }
+    static getBounds(fragment) {
+        const position = fragment.mesh.geometry.attributes.position;
+        const maxNum = Number.MAX_VALUE;
+        const minNum = -maxNum;
+        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
+        const max = new THREE$1.Vector3(minNum, minNum, minNum);
+        const indices = Array.from(fragment.mesh.geometry.index.array);
+        for (const index of indices) {
+            const x = position.getX(index);
+            const y = position.getY(index);
+            const z = position.getZ(index);
+            if (x < min.x)
+                min.x = x;
+            if (y < min.y)
+                min.y = y;
+            if (z < min.z)
+                min.z = z;
+            if (x > max.x)
+                max.x = x;
+            if (y > max.y)
+                max.y = y;
+            if (z > max.z)
+                max.z = z;
+        }
+        return new THREE$1.Box3(min, max);
+    }
+    static newBound(positive) {
+        const factor = positive ? 1 : -1;
+        return new THREE$1.Vector3(factor * Number.MAX_VALUE, factor * Number.MAX_VALUE, factor * Number.MAX_VALUE);
+    }
+}
+
+/**
  * An object to easily use the services of That Open Platform.
  */
 class CloudProcessor extends Component {
@@ -101561,4 +101666,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
