@@ -10367,25 +10367,39 @@ class Spinner extends SimpleUIComponent {
 class ToastNotification extends SimpleUIComponent {
     constructor(components, config) {
         // TODO: Extract icon ui component and reuse it
+        const container = document.createElement("div");
+        container.className = "absolute bottom-8 left-8 transition-transform";
+        super(components, container);
+        this.name = "ToastNotification";
+        this.duration = 3000;
         const icon = `
         <span class="material-icons md-18">
             ${config.materialIconName || "done"}
         </span>
     `;
+        this._message = config.message;
+        const messageID = this.getMessageID();
         const template = `
         <div id="toast-default" class="flex items-center w-full max-w-xs p-4 text-gray-500 bg-ifcjs-200 rounded-lg shadow dark:text-gray-400 dark:bg-gray-800" role="alert">
             <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-ifcjs-200 bg-ifcjs-300 rounded-full dark:bg-blue-800 dark:text-blue-200">
                 ${icon}
             </div>
-            <div class="ml-3 text-sm font-normal">${config.message}</div>
+            <div id="${messageID}" class="ml-3 text-sm font-normal">${this._message}</div>
         </div>
     `;
-        const container = document.createElement("div");
         container.innerHTML = template;
-        container.className = "absolute bottom-8 left-8 transition-transform";
-        super(components, container);
-        this.name = "ToastNotification";
-        this.duration = 3000;
+    }
+    get message() {
+        return this._message;
+    }
+    set message(value) {
+        this._message = value;
+        const messageID = this.getMessageID();
+        const message = this.domElement.querySelector(`#${messageID}`);
+        if (!message) {
+            throw new Error("Toast notification message not found!");
+        }
+        message.textContent = value;
     }
     set visible(active) {
         const delay = 200;
@@ -10400,6 +10414,9 @@ class ToastNotification extends SimpleUIComponent {
             this.domElement.style.transform = "translateY(10rem)";
             setTimeout(() => (super.visible = active), delay);
         }
+    }
+    getMessageID() {
+        return `${this.id}-message`;
     }
     hideAutomatically() {
         setTimeout(() => {
@@ -91927,18 +91944,49 @@ class Units {
 
 class SpatialStructure {
     constructor() {
-        this.floorProperties = [];
         this.itemsByFloor = {};
         this._units = new Units();
     }
     async setUp(webIfc) {
         this._units.setUp(webIfc);
-        this.reset();
+        this.cleanUp();
         try {
-            const floors = await this.getFloors(webIfc);
-            for (const floor of floors) {
-                await this.getFloorProperties(webIfc, floor);
-                this.saveFloorRelations(floor);
+            const spatialRels = webIfc.GetLineIDsWithType(0, IFCRELCONTAINEDINSPATIALSTRUCTURE);
+            const spatialRelsSize = spatialRels.size();
+            for (let i = 0; i < spatialRelsSize; i++) {
+                const id = spatialRels.get(i);
+                const properties = webIfc.GetLine(0, id);
+                if (!properties ||
+                    !properties.RelatingStructure ||
+                    !properties.RelatedElements) {
+                    continue;
+                }
+                const floor = properties.RelatingStructure.value;
+                const relatedItems = properties.RelatedElements;
+                for (const related of relatedItems) {
+                    const id = related.value;
+                    this.itemsByFloor[id] = floor;
+                }
+            }
+            const aggregates = webIfc.GetLineIDsWithType(0, IFCRELAGGREGATES);
+            const aggregatesSize = aggregates.size();
+            for (let i = 0; i < aggregatesSize; i++) {
+                const id = aggregates.get(i);
+                const properties = webIfc.GetLine(0, id);
+                if (!properties ||
+                    !properties.RelatingObject ||
+                    !properties.RelatedObjects) {
+                    continue;
+                }
+                const container = properties.RelatingObject.value;
+                const relatedItems = properties.RelatedObjects;
+                for (const related of relatedItems) {
+                    const containerFloor = this.itemsByFloor[container];
+                    if (containerFloor === undefined)
+                        continue;
+                    const id = related.value;
+                    this.itemsByFloor[id] = containerFloor;
+                }
             }
         }
         catch (e) {
@@ -91946,56 +91994,7 @@ class SpatialStructure {
         }
     }
     cleanUp() {
-        this.floorProperties = [];
         this.itemsByFloor = {};
-    }
-    reset() {
-        this.floorProperties = [];
-        this.itemsByFloor = {};
-    }
-    async getFloorProperties(webIfc, floor) {
-        const id = floor.expressID;
-        const properties = webIfc.properties;
-        const props = await properties.getItemProperties(0, id, false);
-        props.SceneHeight = await this.getHeight(props, webIfc, properties);
-        this.floorProperties.push(props);
-    }
-    async getHeight(props, webIfc, properties) {
-        const placementID = props.ObjectPlacement.value;
-        const coordArray = webIfc.GetCoordinationMatrix(0);
-        const coordHeight = coordArray[13] * this._units.factor;
-        const placement = await properties.getItemProperties(0, placementID, true);
-        return this.getPlacementHeight(placement, this._units) + coordHeight;
-    }
-    getPlacementHeight(placement, units) {
-        var _a, _b;
-        let value = 0;
-        const heightCoords = (_b = (_a = placement.RelativePlacement) === null || _a === void 0 ? void 0 : _a.Location) === null || _b === void 0 ? void 0 : _b.Coordinates;
-        if (heightCoords) {
-            value += heightCoords[2].value * units.complement * units.factor;
-        }
-        if (placement.PlacementRelTo) {
-            value += this.getPlacementHeight(placement.PlacementRelTo, units);
-        }
-        return value;
-    }
-    saveFloorRelations(floor) {
-        for (const item of floor.children) {
-            this.itemsByFloor[item.expressID] = floor.expressID;
-            if (item.children.length) {
-                for (const child of item.children) {
-                    this.itemsByFloor[child.expressID] = floor.expressID;
-                }
-            }
-        }
-    }
-    async getFloors(webIfc) {
-        const project = await webIfc.properties.getSpatialStructure(0);
-        // TODO: This is fixed from web-ifc 0.0.37
-        // TODO: This fails with IFCs with uncommon spatial structure
-        // @ts-ignore
-        const floors = project.children[0].children[0].children;
-        return floors;
     }
 }
 
@@ -92202,8 +92201,14 @@ class DataConverter {
             const keys = [];
             const rels = [];
             const idNum = parseInt(id, 10);
-            const level = this._spatialTree.itemsByFloor[idNum] || -1;
-            const category = this._categories[idNum] || -1;
+            const level = this._spatialTree.itemsByFloor[idNum] || 0;
+            if (level === -1) {
+                console.log(`level - ${id}`);
+            }
+            const category = this._categories[idNum] || 0;
+            if (category === -1) {
+                console.log(`category - ${id}`);
+            }
             rels.push(level, category);
             for (const key of this._itemKeyMap[id]) {
                 keys.push(key);
@@ -92309,6 +92314,11 @@ class FragmentIfcLoader extends Component {
         this._components = components;
         this._fragments = fragments;
         this.uiElement = this.setupOpenButton();
+        this._toast = new ToastNotification(components, {
+            message: "IFC model successfully loaded!",
+        });
+        components.ui.add(this._toast);
+        this._toast.visible = false;
     }
     get() {
         return this._webIfc;
@@ -92359,6 +92369,7 @@ class FragmentIfcLoader extends Component {
             const result = await this.load(data);
             const scene = this._components.scene.get();
             scene.add(result);
+            this._toast.visible = true;
             button.onClicked.trigger(result);
         };
         button.onclick = () => {
@@ -92824,10 +92835,11 @@ class FragmentClassifier extends Component {
         for (const expressID in group.data) {
             const rels = group.data[expressID][1];
             const storeyID = rels[0];
-            if (storeyID === -1)
+            const storey = group.properties[storeyID];
+            if (storey === undefined)
                 continue;
-            const storey = group.properties[storeyID].Name.value;
-            this.saveItem(group, "storeys", storey, expressID);
+            const storeyName = group.properties[storeyID].Name.value;
+            this.saveItem(group, "storeys", storeyName, expressID);
         }
     }
     saveItem(group, systemName, className, expressID) {
