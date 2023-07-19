@@ -94513,9 +94513,13 @@ class EdgesStyles extends Component {
         this.name = "EdgesStyles";
         this.enabled = true;
         this._styles = {};
-        this._defaultMaterial = new LineMaterial({
+        this._defaultLineMaterial = new LineMaterial({
             color: 0x000000,
             linewidth: 0.001,
+        });
+        this._defaultFillMaterial = new THREE$1.MeshBasicMaterial({
+            color: "black",
+            side: 2,
         });
         this.afterUpdate = new Event();
         this.beforeUpdate = new Event();
@@ -94528,24 +94532,25 @@ class EdgesStyles extends Component {
         this.afterUpdate.trigger(this._styles);
     }
     // Creates a new style that applies to all clipping edges for generic models
-    async create(name, meshes, material = this._defaultMaterial) {
+    async create(name, meshes, lineMaterial = this._defaultLineMaterial, fillMaterial = this._defaultFillMaterial) {
         for (const mesh of meshes) {
             if (!mesh.geometry.boundsTree)
                 mesh.geometry.computeBoundsTree();
         }
         const renderer = this.components.renderer;
-        material.clippingPlanes = renderer.clippingPlanes;
+        lineMaterial.clippingPlanes = renderer.clippingPlanes;
         this._styles[name] = {
             name,
-            material,
+            lineMaterial,
             meshes,
+            fillMaterial,
         };
     }
     dispose() {
         const styles = Object.values(this._styles);
         for (const style of styles) {
             style.meshes.length = 0;
-            style.material.dispose();
+            style.lineMaterial.dispose();
         }
         this._styles = {};
     }
@@ -95243,49 +95248,39 @@ var earcutExports = earcut$2.exports;
 var earcut$1 = /*@__PURE__*/getDefaultExportFromCjs(earcutExports);
 
 class ClippingFills {
-    constructor(components) {
+    constructor(plane, geometry, material) {
         // readonly worker: Worker;
-        this.mesh = new Mesh(new THREE$1.BufferGeometry(), new THREE$1.MeshBasicMaterial({
-            color: "white",
-            side: 2,
-        }));
-        this._components = components;
-        this._components.scene.get().add(this.mesh);
-        this.mesh.position.y -= 0.01;
-        // const code = `
-        //   addEventListener("message", (event) => {
-        //     const { buffer } = event.data;
-        //     const vertices = new Map();
-        //     for (let i = 0; i < buffer.length; i += 3) {
-        //         const x = buffer[i];
-        //         const y = buffer[i + 1];
-        //         const code = \`\${x}-\${y}\`;
-        //         if()
-        //         const code = "" + r + "-" + g + "-" + b;
-        //         colors.add(code);
-        //     }
-        //     postMessage({ colors });
-        //   });
-        // `;
-        // const blob = new Blob([code], { type: "application/javascript" });
-        // this.worker = new Worker(URL.createObjectURL(blob));
-        // this.worker.addEventListener("message", this.handleWorkerMessage);
-    }
-    test(geometry, plane) {
-        // temp
+        this.mesh = new Mesh(new THREE$1.BufferGeometry());
+        this.mesh.material = material;
+        this._plane = plane;
+        this._geometry = geometry;
         this.mesh.geometry.attributes.position = geometry.attributes.position;
-        const range = geometry.drawRange.count;
-        const buffer = geometry.attributes.position.array;
+        // To prevent clipping plane overlapping the filling mesh
+        const offset = plane.normal.clone().multiplyScalar(0.01);
+        this.mesh.position.copy(offset);
+    }
+    dispose() {
+        this.mesh.geometry.dispose();
+        this.mesh.removeFromParent();
+        this.mesh.geometry = null;
+        this.mesh = null;
+        this._plane = null;
+        this._geometry = null;
+    }
+    update() {
+        // temp
+        const range = this._geometry.drawRange.count;
+        const buffer = this._geometry.attributes.position.array;
         if (!buffer)
             return;
-        const zAxis = plane.normal;
+        const zAxis = this._plane.normal;
         const localCoordSystem = new THREE$1.Matrix4();
         // First, let's convert the 3d points to 2d to simplify
         // if z is up or down, we can just ignore it
         const isPlaneHorizontal = zAxis.y === 1 || zAxis.y === -1;
         if (isPlaneHorizontal) {
             const pos = new THREE$1.Vector3();
-            plane.coplanarPoint(pos);
+            this._plane.coplanarPoint(pos);
             const xAxis = new THREE$1.Vector3(1, 0, 0);
             const yAxis = new THREE$1.Vector3(0, 1, 0);
             const up = new THREE$1.Vector3(0, 1, 0);
@@ -95446,30 +95441,27 @@ class ClippingFills {
                 shapesEnds.set(start, shapeIndex);
             }
         }
-        if (shapes.size === 0)
-            return;
-        // first shape only
-        const shapeIndices = shapes.get(1);
-        if (!shapeIndices)
-            throw new Error("ShapeIndices not found!");
-        const vertices = [];
-        const indexMap = new Map();
-        let counter = 0;
-        for (const index of shapeIndices) {
-            const vertex = all2DVertices[index];
-            vertices.push(vertex[0], vertex[1]);
-            indexMap.set(counter++, index);
-        }
-        const result = earcut$1(vertices);
-        if (result.length) {
-            const mapped = result.map((index) => {
-                const result = indexMap.get(index);
-                if (result === undefined)
+        const trueIndices = [];
+        for (const entry of shapes) {
+            const shape = entry[1];
+            const vertices = [];
+            const indexMap = new Map();
+            let counter = 0;
+            for (const index of shape) {
+                const vertex = all2DVertices[index];
+                vertices.push(vertex[0], vertex[1]);
+                indexMap.set(counter++, index);
+            }
+            const result = earcut$1(vertices);
+            for (const index of result) {
+                const trueIndex = indexMap.get(index);
+                if (trueIndex === undefined) {
                     throw new Error("Map error!");
-                return result;
-            });
-            this.mesh.geometry.setIndex(mapped);
+                }
+                trueIndices.push(trueIndex);
+            }
         }
+        this.mesh.geometry.setIndex(trueIndices);
     }
 }
 
@@ -95512,7 +95504,6 @@ class ClippingEdges extends Component {
         this._components = components;
         this._plane = plane;
         this._styles = styles;
-        this.fills = new ClippingFills(components);
     }
     /** {@link Updateable.update} */
     update() {
@@ -95529,19 +95520,24 @@ class ClippingEdges extends Component {
     dispose() {
         const edges = Object.values(this._edges);
         for (const edge of edges) {
+            edge.fill.dispose();
             this._disposer.dispose(edge.mesh, false);
         }
     }
-    // Creates the geometry of the clipping edges
-    newThickEdges(styleName) {
+    newEdgesMesh(styleName) {
         const styles = this._styles.get();
-        const material = styles[styleName].material;
+        const material = styles[styleName].lineMaterial;
         const edgesGeometry = new THREE$1.BufferGeometry();
         const buffer = new Float32Array(300000);
         const linePosAttr = new THREE$1.BufferAttribute(buffer, 3, false);
         linePosAttr.setUsage(THREE$1.DynamicDrawUsage);
         edgesGeometry.setAttribute("position", linePosAttr);
         return new THREE$1.LineSegments(edgesGeometry, material);
+    }
+    newFillMesh(name, geometry) {
+        const styles = this._styles.get();
+        const fillMaterial = styles[name].fillMaterial;
+        return new ClippingFills(this._plane, geometry, fillMaterial);
     }
     // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
     drawEdges(styleName) {
@@ -95591,15 +95587,15 @@ class ClippingEdges extends Component {
         if (!Number.isNaN(position.array[0])) {
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
-            console.log(edges.mesh);
-            this.fills.test(edges.mesh.geometry, this._plane);
+            edges.fill.update();
+            scene.add(edges.fill.mesh);
         }
     }
-    initializeStyle(styleName) {
-        this._edges[styleName] = {
-            name: styleName,
-            mesh: this.newThickEdges(styleName),
-        };
+    initializeStyle(name) {
+        const mesh = this.newEdgesMesh(name);
+        const geometry = mesh.geometry;
+        const fill = this.newFillMesh(name, geometry);
+        this._edges[name] = { mesh, name, fill };
     }
     shapecast(mesh, posAttr, index) {
         // @ts-ignore
