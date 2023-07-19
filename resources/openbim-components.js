@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4, OrthographicCamera, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, OrthographicCamera, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -599,7 +599,6 @@ function effect$1(_ref2) {
   }
 
   if (!contains(state.elements.popper, arrowElement)) {
-
     return;
   }
 
@@ -741,7 +740,6 @@ function computeStyles(_ref5) {
       adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
       _options$roundOffsets = options.roundOffsets,
       roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
-
   var commonStyles = {
     placement: getBasePlacement(state.placement),
     variation: getVariation(state.placement),
@@ -1809,8 +1807,7 @@ function popperGenerator(generatorOptions) {
 
         state.orderedModifiers = orderedModifiers.filter(function (m) {
           return m.enabled;
-        }); // Validate the provided modifiers so that the consumer will get warned
-
+        });
         runModifierEffects();
         return instance.update();
       },
@@ -1830,7 +1827,6 @@ function popperGenerator(generatorOptions) {
         // anymore
 
         if (!areValidElements(reference, popper)) {
-
           return;
         } // Store the reference and popper rects to be read by modifiers
 
@@ -1855,7 +1851,6 @@ function popperGenerator(generatorOptions) {
         });
 
         for (var index = 0; index < state.orderedModifiers.length; index++) {
-
           if (state.reset === true) {
             state.reset = false;
             index = -1;
@@ -1893,7 +1888,6 @@ function popperGenerator(generatorOptions) {
     };
 
     if (!areValidElements(reference, popper)) {
-
       return instance;
     }
 
@@ -1908,11 +1902,11 @@ function popperGenerator(generatorOptions) {
     // one.
 
     function runModifierEffects() {
-      state.orderedModifiers.forEach(function (_ref3) {
-        var name = _ref3.name,
-            _ref3$options = _ref3.options,
-            options = _ref3$options === void 0 ? {} : _ref3$options,
-            effect = _ref3.effect;
+      state.orderedModifiers.forEach(function (_ref) {
+        var name = _ref.name,
+            _ref$options = _ref.options,
+            options = _ref$options === void 0 ? {} : _ref$options,
+            effect = _ref.effect;
 
         if (typeof effect === 'function') {
           var cleanupFn = effect({
@@ -2129,23 +2123,6 @@ function bufferGeometryToIndexed(geometry) {
 }
 
 class SimpleUIComponent extends Component {
-    constructor(components, domElement, id) {
-        super();
-        this.name = "SimpleUIComponent";
-        this.children = [];
-        this.data = {};
-        this.onVisible = new Event();
-        this.onHidden = new Event();
-        this.onEnabled = new Event();
-        this.onDisabled = new Event();
-        this._enabled = true;
-        this._visible = true;
-        this._active = false;
-        this._components = components;
-        this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
-        domElement.id = this.id;
-        this.domElement = domElement;
-    }
     get active() {
         return this._active;
     }
@@ -2184,6 +2161,23 @@ class SimpleUIComponent extends Component {
     get hasElements() {
         return this.children.length > 0;
     }
+    constructor(components, domElement, id) {
+        super();
+        this.name = "SimpleUIComponent";
+        this.children = [];
+        this.data = {};
+        this.onVisible = new Event();
+        this.onHidden = new Event();
+        this.onEnabled = new Event();
+        this.onDisabled = new Event();
+        this._enabled = true;
+        this._visible = true;
+        this._active = false;
+        this._components = components;
+        this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
+        domElement.id = this.id;
+        this.domElement = domElement;
+    }
     cleanData() {
         this.data = {};
     }
@@ -2213,20 +2207,6 @@ class SimpleUIComponent extends Component {
 }
 
 class Toolbar extends SimpleUIComponent {
-    constructor(components, options) {
-        var _a, _b;
-        const _options = {
-            position: "bottom",
-            ...options,
-        };
-        const toolbar = document.createElement("div");
-        toolbar.className = Toolbar.Class.Base;
-        super(components, toolbar, options === null || options === void 0 ? void 0 : options.id);
-        this.children = [];
-        this.name = (_a = _options.name) !== null && _a !== void 0 ? _a : "Toolbar";
-        this.position = (_b = _options.position) !== null && _b !== void 0 ? _b : "bottom";
-        this.visible = true;
-    }
     set visible(visible) {
         this._visible = visible && this.hasElements;
         if (visible && this.hasElements) {
@@ -2255,6 +2235,20 @@ class Toolbar extends SimpleUIComponent {
     }
     get position() {
         return this._position;
+    }
+    constructor(components, options) {
+        var _a, _b;
+        const _options = {
+            position: "bottom",
+            ...options,
+        };
+        const toolbar = document.createElement("div");
+        toolbar.className = Toolbar.Class.Base;
+        super(components, toolbar, options === null || options === void 0 ? void 0 : options.id);
+        this.children = [];
+        this.name = (_a = _options.name) !== null && _a !== void 0 ? _a : "Toolbar";
+        this.position = (_b = _options.position) !== null && _b !== void 0 ? _b : "bottom";
+        this.visible = true;
     }
     dispose(onlyChildren = false) {
         this.children.forEach((button) => button.dispose());
@@ -2293,6 +2287,37 @@ Toolbar.Class = {
 };
 
 class Button extends SimpleUIComponent {
+    set label(value) {
+        this._label = null;
+        this._labelElement.textContent = value;
+        if (value) {
+            this._labelElement.classList.remove("hidden");
+        }
+        else {
+            this._labelElement.classList.add("hidden");
+        }
+    }
+    get label() {
+        return this._label;
+    }
+    set onclick(listener) {
+        this.domElement.onclick = (e) => {
+            e.stopImmediatePropagation();
+            listener(e);
+            if (this._closeOnClick) {
+                this._components.ui.closeMenus();
+                this._components.ui.contextMenu.visible = false;
+            }
+        };
+    }
+    set parent(toolbar) {
+        this._parent = toolbar;
+        this.menu.position = toolbar.position;
+        this.updateMenuPlacement();
+    }
+    get parent() {
+        return this._parent;
+    }
     constructor(components, options) {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -2346,37 +2371,6 @@ class Button extends SimpleUIComponent {
         // #endregion
         this.onEnabled.on(() => (this.domElement.disabled = false));
         this.onDisabled.on(() => (this.domElement.disabled = true));
-    }
-    set label(value) {
-        this._label = null;
-        this._labelElement.textContent = value;
-        if (value) {
-            this._labelElement.classList.remove("hidden");
-        }
-        else {
-            this._labelElement.classList.add("hidden");
-        }
-    }
-    get label() {
-        return this._label;
-    }
-    set onclick(listener) {
-        this.domElement.onclick = (e) => {
-            e.stopImmediatePropagation();
-            listener(e);
-            if (this._closeOnClick) {
-                this._components.ui.closeMenus();
-                this._components.ui.contextMenu.visible = false;
-            }
-        };
-    }
-    set parent(toolbar) {
-        this._parent = toolbar;
-        this.menu.position = toolbar.position;
-        this.updateMenuPlacement();
-    }
-    get parent() {
-        return this._parent;
     }
     dispose(onlyChildren = false) {
         this.menu.dispose();
@@ -3005,8 +2999,10 @@ const ACTION = Object.freeze({
     TOUCH_ZOOM: 512,
     TOUCH_DOLLY_TRUCK: 1024,
     TOUCH_DOLLY_OFFSET: 2048,
-    TOUCH_ZOOM_TRUCK: 4096,
-    TOUCH_ZOOM_OFFSET: 8192,
+    TOUCH_DOLLY_ROTATE: 4096,
+    TOUCH_ZOOM_TRUCK: 8192,
+    TOUCH_ZOOM_OFFSET: 16384,
+    TOUCH_ZOOM_ROTATE: 32768,
 });
 function isPerspectiveCamera(camera) {
     return camera.isPerspectiveCamera;
@@ -3092,10 +3088,16 @@ class EventDispatcher {
         if (listeners[type].indexOf(listener) === -1)
             listeners[type].push(listener);
     }
-    // hasEventListener( type: string, listener: Listener ): boolean {
-    // 	const listeners = this._listeners;
-    // 	return listeners[ type ] !== undefined && listeners[ type ].indexOf( listener ) !== - 1;
-    // }
+    /**
+     * Presence of the specified event listener.
+     * @param type event name
+     * @param listener handler function
+     * @category Methods
+     */
+    hasEventListener(type, listener) {
+        const listeners = this._listeners;
+        return listeners[type] !== undefined && listeners[type].indexOf(listener) !== -1;
+    }
     /**
      * Removes the specified event listener
      * @param type event name
@@ -3142,10 +3144,11 @@ class EventDispatcher {
     }
 }
 
+const VERSION = '1.38.1'; // will be replaced with `version` in package.json during the build process.
+const TOUCH_DOLLY_FACTOR = 1 / 8;
 const isBrowser = typeof window !== 'undefined';
 const isMac = isBrowser && /Mac/.test(navigator.platform);
 const isPointerEventsNotSupported = !(isBrowser && 'PointerEvent' in window); // Safari 12 does not support PointerEvents API
-const TOUCH_DOLLY_FACTOR = 1 / 8;
 let THREE;
 let _ORIGIN;
 let _AXIS_Y;
@@ -3169,6 +3172,81 @@ let _quaternionB;
 let _rotationMatrix;
 let _raycaster$1;
 class CameraControls extends EventDispatcher {
+    /**
+     * Injects THREE as the dependency. You can then proceed to use CameraControls.
+     *
+     * e.g
+     * ```javascript
+     * CameraControls.install( { THREE: THREE } );
+     * ```
+     *
+     * Note: If you do not wish to use enter three.js to reduce file size(tree-shaking for example), make a subset to install.
+     *
+     * ```js
+     * import {
+     * 	Vector2,
+     * 	Vector3,
+     * 	Vector4,
+     * 	Quaternion,
+     * 	Matrix4,
+     * 	Spherical,
+     * 	Box3,
+     * 	Sphere,
+     * 	Raycaster,
+     * 	MathUtils,
+     * } from 'three';
+     *
+     * const subsetOfTHREE = {
+     * 	Vector2   : Vector2,
+     * 	Vector3   : Vector3,
+     * 	Vector4   : Vector4,
+     * 	Quaternion: Quaternion,
+     * 	Matrix4   : Matrix4,
+     * 	Spherical : Spherical,
+     * 	Box3      : Box3,
+     * 	Sphere    : Sphere,
+     * 	Raycaster : Raycaster,
+     * 	MathUtils : {
+     * 		DEG2RAD: MathUtils.DEG2RAD,
+     * 		clamp: MathUtils.clamp,
+     * 	},
+     * };
+
+     * CameraControls.install( { THREE: subsetOfTHREE } );
+     * ```
+     * @category Statics
+     */
+    static install(libs) {
+        THREE = libs.THREE;
+        _ORIGIN = Object.freeze(new THREE.Vector3(0, 0, 0));
+        _AXIS_Y = Object.freeze(new THREE.Vector3(0, 1, 0));
+        _AXIS_Z = Object.freeze(new THREE.Vector3(0, 0, 1));
+        _v2$1 = new THREE.Vector2();
+        _v3A = new THREE.Vector3();
+        _v3B = new THREE.Vector3();
+        _v3C = new THREE.Vector3();
+        _xColumn = new THREE.Vector3();
+        _yColumn = new THREE.Vector3();
+        _zColumn = new THREE.Vector3();
+        _deltaTarget = new THREE.Vector3();
+        _deltaOffset = new THREE.Vector3();
+        _sphericalA = new THREE.Spherical();
+        _sphericalB = new THREE.Spherical();
+        _box3A = new THREE.Box3();
+        _box3B = new THREE.Box3();
+        _sphere$1 = new THREE.Sphere();
+        _quaternionA = new THREE.Quaternion();
+        _quaternionB = new THREE.Quaternion();
+        _rotationMatrix = new THREE.Matrix4();
+        _raycaster$1 = new THREE.Raycaster();
+    }
+    /**
+     * list all ACTIONs
+     * @category Statics
+     */
+    static get ACTION() {
+        return ACTION;
+    }
     /**
      * Creates a `CameraControls` instance.
      *
@@ -3338,6 +3416,7 @@ class CameraControls extends EventDispatcher {
         this._enabled = true;
         this._state = ACTION.NONE;
         this._viewport = null;
+        this._affectOffset = false;
         this._dollyControlAmount = 0;
         this._hasRested = true;
         this._boundaryEnclosesCamera = false;
@@ -3402,10 +3481,11 @@ class CameraControls extends EventDispatcher {
         };
         this._zoomInternal = (delta, x, y) => {
             const zoomScale = Math.pow(0.95, delta * this.dollySpeed);
+            const prevZoom = this._zoomEnd;
             // for both PerspectiveCamera and OrthographicCamera
             this.zoomTo(this._zoom * zoomScale);
             if (this.dollyToCursor) {
-                this._dollyControlAmount = this._zoomEnd;
+                this._dollyControlAmount += this._zoomEnd - prevZoom;
                 this._dollyControlCoord.set(x, y);
             }
             return;
@@ -3418,10 +3498,6 @@ class CameraControls extends EventDispatcher {
         this._yAxisUpSpace = new THREE.Quaternion().setFromUnitVectors(this._camera.up, _AXIS_Y);
         this._yAxisUpSpaceInverse = quatInvertCompat(this._yAxisUpSpace.clone());
         this._state = ACTION.NONE;
-        this._domElement = domElement;
-        this._domElement.style.touchAction = 'none';
-        this._domElement.style.userSelect = 'none';
-        this._domElement.style.webkitUserSelect = 'none';
         // the location
         this._target = new THREE.Vector3();
         this._targetEnd = this._target.clone();
@@ -3465,117 +3541,95 @@ class CameraControls extends EventDispatcher {
                     ACTION.NONE,
             three: ACTION.TOUCH_TRUCK,
         };
-        if (this._domElement) {
-            const dragStartPosition = new THREE.Vector2();
-            const lastDragPosition = new THREE.Vector2();
-            const dollyStart = new THREE.Vector2();
-            const onPointerDown = (event) => {
-                if (!this._enabled)
-                    return;
-                // Don't call `event.preventDefault()` on the pointerdown event
-                // to keep receiving pointermove evens outside dragging iframe
-                // https://taye.me/blog/tips/2015/11/16/mouse-drag-outside-iframe/
+        const dragStartPosition = new THREE.Vector2();
+        const lastDragPosition = new THREE.Vector2();
+        const dollyStart = new THREE.Vector2();
+        const onPointerDown = (event) => {
+            if (!this._enabled || !this._domElement)
+                return;
+            // Don't call `event.preventDefault()` on the pointerdown event
+            // to keep receiving pointermove evens outside dragging iframe
+            // https://taye.me/blog/tips/2015/11/16/mouse-drag-outside-iframe/
+            const pointer = {
+                pointerId: event.pointerId,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                deltaX: 0,
+                deltaY: 0,
+            };
+            this._activePointers.push(pointer);
+            // eslint-disable-next-line no-undef
+            this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+            this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+            this._domElement.ownerDocument.addEventListener('pointermove', onPointerMove, { passive: false });
+            this._domElement.ownerDocument.addEventListener('pointerup', onPointerUp);
+            startDragging(event);
+        };
+        const onMouseDown = (event) => {
+            if (!this._enabled || !this._domElement)
+                return;
+            const pointer = {
+                pointerId: 0,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                deltaX: 0,
+                deltaY: 0,
+            };
+            this._activePointers.push(pointer);
+            // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
+            // eslint-disable-next-line no-undef
+            this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
+            this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
+            this._domElement.ownerDocument.addEventListener('mousemove', onMouseMove);
+            this._domElement.ownerDocument.addEventListener('mouseup', onMouseUp);
+            startDragging(event);
+        };
+        const onTouchStart = (event) => {
+            if (!this._enabled || !this._domElement)
+                return;
+            event.preventDefault();
+            Array.prototype.forEach.call(event.changedTouches, (touch) => {
                 const pointer = {
-                    pointerId: event.pointerId,
-                    clientX: event.clientX,
-                    clientY: event.clientY,
+                    pointerId: touch.identifier,
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
                     deltaX: 0,
                     deltaY: 0,
                 };
                 this._activePointers.push(pointer);
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-                this._domElement.ownerDocument.addEventListener('pointermove', onPointerMove, { passive: false });
-                this._domElement.ownerDocument.addEventListener('pointerup', onPointerUp);
-                startDragging(event);
-            };
-            const onMouseDown = (event) => {
-                if (!this._enabled)
-                    return;
-                const pointer = {
-                    pointerId: 0,
-                    clientX: event.clientX,
-                    clientY: event.clientY,
-                    deltaX: 0,
-                    deltaY: 0,
-                };
-                this._activePointers.push(pointer);
-                // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
-                this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
-                this._domElement.ownerDocument.addEventListener('mousemove', onMouseMove);
-                this._domElement.ownerDocument.addEventListener('mouseup', onMouseUp);
-                startDragging(event);
-            };
-            const onTouchStart = (event) => {
-                if (!this._enabled)
-                    return;
+            });
+            // eslint-disable-next-line no-undef
+            this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+            this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+            this._domElement.ownerDocument.addEventListener('touchmove', onTouchMove, { passive: false });
+            this._domElement.ownerDocument.addEventListener('touchend', onTouchEnd);
+            startDragging(event);
+        };
+        const onPointerMove = (event) => {
+            if (event.cancelable)
                 event.preventDefault();
-                Array.prototype.forEach.call(event.changedTouches, (touch) => {
-                    const pointer = {
-                        pointerId: touch.identifier,
-                        clientX: touch.clientX,
-                        clientY: touch.clientY,
-                        deltaX: 0,
-                        deltaY: 0,
-                    };
-                    this._activePointers.push(pointer);
-                });
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-                this._domElement.ownerDocument.addEventListener('touchmove', onTouchMove, { passive: false });
-                this._domElement.ownerDocument.addEventListener('touchend', onTouchEnd);
-                startDragging(event);
-            };
-            const onPointerMove = (event) => {
-                if (event.cancelable)
-                    event.preventDefault();
-                const pointerId = event.pointerId;
-                const pointer = this._findPointerById(pointerId);
-                if (!pointer)
-                    return;
-                pointer.clientX = event.clientX;
-                pointer.clientY = event.clientY;
-                pointer.deltaX = event.movementX;
-                pointer.deltaY = event.movementY;
-                if (event.pointerType === 'touch') {
-                    switch (this._activePointers.length) {
-                        case 1:
-                            this._state = this.touches.one;
-                            break;
-                        case 2:
-                            this._state = this.touches.two;
-                            break;
-                        case 3:
-                            this._state = this.touches.three;
-                            break;
-                    }
+            const pointerId = event.pointerId;
+            const pointer = this._findPointerById(pointerId);
+            if (!pointer)
+                return;
+            pointer.clientX = event.clientX;
+            pointer.clientY = event.clientY;
+            pointer.deltaX = event.movementX;
+            pointer.deltaY = event.movementY;
+            if (event.pointerType === 'touch') {
+                switch (this._activePointers.length) {
+                    case 1:
+                        this._state = this.touches.one;
+                        break;
+                    case 2:
+                        this._state = this.touches.two;
+                        break;
+                    case 3:
+                        this._state = this.touches.three;
+                        break;
                 }
-                else {
-                    this._state = 0;
-                    if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
-                        this._state = this._state | this.mouseButtons.left;
-                    }
-                    if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
-                        this._state = this._state | this.mouseButtons.middle;
-                    }
-                    if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
-                        this._state = this._state | this.mouseButtons.right;
-                    }
-                }
-                dragging();
-            };
-            const onMouseMove = (event) => {
-                const pointer = this._findPointerById(0);
-                if (!pointer)
-                    return;
-                pointer.clientX = event.clientX;
-                pointer.clientY = event.clientY;
-                pointer.deltaX = event.movementX;
-                pointer.deltaY = event.movementY;
+            }
+            else {
                 this._state = 0;
                 if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
                     this._state = this._state | this.mouseButtons.left;
@@ -3586,59 +3640,48 @@ class CameraControls extends EventDispatcher {
                 if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
                     this._state = this._state | this.mouseButtons.right;
                 }
-                dragging();
-            };
-            const onTouchMove = (event) => {
-                if (event.cancelable)
-                    event.preventDefault();
-                Array.prototype.forEach.call(event.changedTouches, (touch) => {
-                    const pointerId = touch.identifier;
-                    const pointer = this._findPointerById(pointerId);
-                    if (!pointer)
-                        return;
-                    pointer.clientX = touch.clientX;
-                    pointer.clientY = touch.clientY;
-                    // touch event does not have movementX and movementY.
-                });
-                dragging();
-            };
-            const onPointerUp = (event) => {
-                const pointerId = event.pointerId;
+            }
+            dragging();
+        };
+        const onMouseMove = (event) => {
+            const pointer = this._findPointerById(0);
+            if (!pointer)
+                return;
+            pointer.clientX = event.clientX;
+            pointer.clientY = event.clientY;
+            pointer.deltaX = event.movementX;
+            pointer.deltaY = event.movementY;
+            this._state = 0;
+            if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
+                this._state = this._state | this.mouseButtons.left;
+            }
+            if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
+                this._state = this._state | this.mouseButtons.middle;
+            }
+            if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
+                this._state = this._state | this.mouseButtons.right;
+            }
+            dragging();
+        };
+        const onTouchMove = (event) => {
+            if (event.cancelable)
+                event.preventDefault();
+            Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                const pointerId = touch.identifier;
                 const pointer = this._findPointerById(pointerId);
-                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-                if (event.pointerType === 'touch') {
-                    switch (this._activePointers.length) {
-                        case 0:
-                            this._state = ACTION.NONE;
-                            break;
-                        case 1:
-                            this._state = this.touches.one;
-                            break;
-                        case 2:
-                            this._state = this.touches.two;
-                            break;
-                        case 3:
-                            this._state = this.touches.three;
-                            break;
-                    }
-                }
-                else {
-                    this._state = ACTION.NONE;
-                }
-                endDragging();
-            };
-            const onMouseUp = () => {
-                const pointer = this._findPointerById(0);
-                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-                this._state = ACTION.NONE;
-                endDragging();
-            };
-            const onTouchEnd = (event) => {
-                Array.prototype.forEach.call(event.changedTouches, (touch) => {
-                    const pointerId = touch.identifier;
-                    const pointer = this._findPointerById(pointerId);
-                    pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
-                });
+                if (!pointer)
+                    return;
+                pointer.clientX = touch.clientX;
+                pointer.clientY = touch.clientY;
+                // touch event does not have movementX and movementY.
+            });
+            dragging();
+        };
+        const onPointerUp = (event) => {
+            const pointerId = event.pointerId;
+            const pointer = this._findPointerById(pointerId);
+            pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+            if (event.pointerType === 'touch') {
                 switch (this._activePointers.length) {
                     case 0:
                         this._state = ACTION.NONE;
@@ -3653,281 +3696,252 @@ class CameraControls extends EventDispatcher {
                         this._state = this.touches.three;
                         break;
                 }
-                endDragging();
-            };
-            let lastScrollTimeStamp = -1;
-            const onMouseWheel = (event) => {
-                if (!this._enabled || this.mouseButtons.wheel === ACTION.NONE)
-                    return;
-                event.preventDefault();
-                if (this.dollyToCursor ||
-                    this.mouseButtons.wheel === ACTION.ROTATE ||
-                    this.mouseButtons.wheel === ACTION.TRUCK) {
-                    const now = performance.now();
-                    // only need to fire this at scroll start.
-                    if (lastScrollTimeStamp - now < 1000)
-                        this._getClientRect(this._elementRect);
-                    lastScrollTimeStamp = now;
+            }
+            else {
+                this._state = ACTION.NONE;
+            }
+            endDragging();
+        };
+        const onMouseUp = () => {
+            const pointer = this._findPointerById(0);
+            pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+            this._state = ACTION.NONE;
+            endDragging();
+        };
+        const onTouchEnd = (event) => {
+            Array.prototype.forEach.call(event.changedTouches, (touch) => {
+                const pointerId = touch.identifier;
+                const pointer = this._findPointerById(pointerId);
+                pointer && this._activePointers.splice(this._activePointers.indexOf(pointer), 1);
+            });
+            switch (this._activePointers.length) {
+                case 0:
+                    this._state = ACTION.NONE;
+                    break;
+                case 1:
+                    this._state = this.touches.one;
+                    break;
+                case 2:
+                    this._state = this.touches.two;
+                    break;
+                case 3:
+                    this._state = this.touches.three;
+                    break;
+            }
+            endDragging();
+        };
+        let lastScrollTimeStamp = -1;
+        const onMouseWheel = (event) => {
+            if (!this._enabled || this.mouseButtons.wheel === ACTION.NONE)
+                return;
+            event.preventDefault();
+            if (this.dollyToCursor ||
+                this.mouseButtons.wheel === ACTION.ROTATE ||
+                this.mouseButtons.wheel === ACTION.TRUCK) {
+                const now = performance.now();
+                // only need to fire this at scroll start.
+                if (lastScrollTimeStamp - now < 1000)
+                    this._getClientRect(this._elementRect);
+                lastScrollTimeStamp = now;
+            }
+            // Ref: https://github.com/cedricpinson/osgjs/blob/00e5a7e9d9206c06fdde0436e1d62ab7cb5ce853/sources/osgViewer/input/source/InputSourceMouse.js#L89-L103
+            const deltaYFactor = isMac ? -1 : -3;
+            const delta = (event.deltaMode === 1) ? event.deltaY / deltaYFactor : event.deltaY / (deltaYFactor * 10);
+            const x = this.dollyToCursor ? (event.clientX - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+            const y = this.dollyToCursor ? (event.clientY - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+            switch (this.mouseButtons.wheel) {
+                case ACTION.ROTATE: {
+                    this._rotateInternal(event.deltaX, event.deltaY);
+                    break;
                 }
-                // Ref: https://github.com/cedricpinson/osgjs/blob/00e5a7e9d9206c06fdde0436e1d62ab7cb5ce853/sources/osgViewer/input/source/InputSourceMouse.js#L89-L103
-                const deltaYFactor = isMac ? -1 : -3;
-                const delta = (event.deltaMode === 1) ? event.deltaY / deltaYFactor : event.deltaY / (deltaYFactor * 10);
-                const x = this.dollyToCursor ? (event.clientX - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-                const y = this.dollyToCursor ? (event.clientY - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-                switch (this.mouseButtons.wheel) {
-                    case ACTION.ROTATE: {
-                        this._rotateInternal(event.deltaX, event.deltaY);
+                case ACTION.TRUCK: {
+                    this._truckInternal(event.deltaX, event.deltaY, false);
+                    break;
+                }
+                case ACTION.OFFSET: {
+                    this._truckInternal(event.deltaX, event.deltaY, true);
+                    break;
+                }
+                case ACTION.DOLLY: {
+                    this._dollyInternal(-delta, x, y);
+                    break;
+                }
+                case ACTION.ZOOM: {
+                    this._zoomInternal(-delta, x, y);
+                    break;
+                }
+            }
+            this.dispatchEvent({ type: 'control' });
+        };
+        const onContextMenu = (event) => {
+            if (!this._enabled)
+                return;
+            event.preventDefault();
+        };
+        const startDragging = (event) => {
+            if (!this._enabled)
+                return;
+            extractClientCoordFromEvent(this._activePointers, _v2$1);
+            this._getClientRect(this._elementRect);
+            dragStartPosition.copy(_v2$1);
+            lastDragPosition.copy(_v2$1);
+            const isMultiTouch = this._activePointers.length >= 2;
+            if (isMultiTouch) {
+                // 2 finger pinch
+                const dx = _v2$1.x - this._activePointers[1].clientX;
+                const dy = _v2$1.y - this._activePointers[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                dollyStart.set(0, distance);
+                // center coords of 2 finger truck
+                const x = (this._activePointers[0].clientX + this._activePointers[1].clientX) * 0.5;
+                const y = (this._activePointers[0].clientY + this._activePointers[1].clientY) * 0.5;
+                lastDragPosition.set(x, y);
+            }
+            if ('touches' in event ||
+                'pointerType' in event && event.pointerType === 'touch') {
+                switch (this._activePointers.length) {
+                    case 1:
+                        this._state = this.touches.one;
                         break;
-                    }
-                    case ACTION.TRUCK: {
-                        this._truckInternal(event.deltaX, event.deltaY, false);
+                    case 2:
+                        this._state = this.touches.two;
                         break;
-                    }
-                    case ACTION.OFFSET: {
-                        this._truckInternal(event.deltaX, event.deltaY, true);
+                    case 3:
+                        this._state = this.touches.three;
                         break;
-                    }
-                    case ACTION.DOLLY: {
-                        this._dollyInternal(-delta, x, y);
-                        break;
-                    }
-                    case ACTION.ZOOM: {
-                        this._zoomInternal(-delta, x, y);
-                        break;
-                    }
                 }
-                this.dispatchEvent({ type: 'control' });
-            };
-            const onContextMenu = (event) => {
-                if (!this._enabled)
-                    return;
-                event.preventDefault();
-            };
-            const startDragging = (event) => {
-                if (!this._enabled)
-                    return;
-                extractClientCoordFromEvent(this._activePointers, _v2$1);
-                this._getClientRect(this._elementRect);
-                dragStartPosition.copy(_v2$1);
-                lastDragPosition.copy(_v2$1);
-                const isMultiTouch = this._activePointers.length >= 2;
-                if (isMultiTouch) {
-                    // 2 finger pinch
-                    const dx = _v2$1.x - this._activePointers[1].clientX;
-                    const dy = _v2$1.y - this._activePointers[1].clientY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    dollyStart.set(0, distance);
-                    // center coords of 2 finger truck
-                    const x = (this._activePointers[0].clientX + this._activePointers[1].clientX) * 0.5;
-                    const y = (this._activePointers[0].clientY + this._activePointers[1].clientY) * 0.5;
-                    lastDragPosition.set(x, y);
+            }
+            else {
+                this._state = 0;
+                if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
+                    this._state = this._state | this.mouseButtons.left;
                 }
-                if ('touches' in event ||
-                    'pointerType' in event && event.pointerType === 'touch') {
-                    switch (this._activePointers.length) {
-                        case 1:
-                            this._state = this.touches.one;
-                            break;
-                        case 2:
-                            this._state = this.touches.two;
-                            break;
-                        case 3:
-                            this._state = this.touches.three;
-                            break;
-                    }
+                if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
+                    this._state = this._state | this.mouseButtons.middle;
                 }
-                else {
-                    this._state = 0;
-                    if ((event.buttons & MOUSE_BUTTON.LEFT) === MOUSE_BUTTON.LEFT) {
-                        this._state = this._state | this.mouseButtons.left;
-                    }
-                    if ((event.buttons & MOUSE_BUTTON.MIDDLE) === MOUSE_BUTTON.MIDDLE) {
-                        this._state = this._state | this.mouseButtons.middle;
-                    }
-                    if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
-                        this._state = this._state | this.mouseButtons.right;
-                    }
+                if ((event.buttons & MOUSE_BUTTON.RIGHT) === MOUSE_BUTTON.RIGHT) {
+                    this._state = this._state | this.mouseButtons.right;
                 }
-                this.dispatchEvent({ type: 'controlstart' });
-            };
-            const dragging = () => {
-                if (!this._enabled)
-                    return;
-                extractClientCoordFromEvent(this._activePointers, _v2$1);
-                // When pointer lock is enabled clientX, clientY, screenX, and screenY remain 0.
-                // If pointer lock is enabled, use the Delta directory, and assume active-pointer is not multiple.
-                const isPointerLockActive = this._domElement && document.pointerLockElement === this._domElement;
-                const deltaX = isPointerLockActive ? -this._activePointers[0].deltaX : lastDragPosition.x - _v2$1.x;
-                const deltaY = isPointerLockActive ? -this._activePointers[0].deltaY : lastDragPosition.y - _v2$1.y;
-                lastDragPosition.copy(_v2$1);
-                if ((this._state & ACTION.ROTATE) === ACTION.ROTATE ||
-                    (this._state & ACTION.TOUCH_ROTATE) === ACTION.TOUCH_ROTATE) {
-                    this._rotateInternal(deltaX, deltaY);
-                }
-                if ((this._state & ACTION.DOLLY) === ACTION.DOLLY ||
-                    (this._state & ACTION.ZOOM) === ACTION.ZOOM) {
-                    const dollyX = this.dollyToCursor ? (dragStartPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-                    const dollyY = this.dollyToCursor ? (dragStartPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-                    this._state === ACTION.DOLLY ?
-                        this._dollyInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
-                        this._zoomInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
-                }
-                if ((this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
-                    (this._state & ACTION.TOUCH_ZOOM) === ACTION.TOUCH_ZOOM ||
+            }
+            this.dispatchEvent({ type: 'controlstart' });
+        };
+        const dragging = () => {
+            if (!this._enabled)
+                return;
+            extractClientCoordFromEvent(this._activePointers, _v2$1);
+            // When pointer lock is enabled clientX, clientY, screenX, and screenY remain 0.
+            // If pointer lock is enabled, use the Delta directory, and assume active-pointer is not multiple.
+            const isPointerLockActive = this._domElement && document.pointerLockElement === this._domElement;
+            const deltaX = isPointerLockActive ? -this._activePointers[0].deltaX : lastDragPosition.x - _v2$1.x;
+            const deltaY = isPointerLockActive ? -this._activePointers[0].deltaY : lastDragPosition.y - _v2$1.y;
+            lastDragPosition.copy(_v2$1);
+            if ((this._state & ACTION.ROTATE) === ACTION.ROTATE ||
+                (this._state & ACTION.TOUCH_ROTATE) === ACTION.TOUCH_ROTATE ||
+                (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
+                (this._state & ACTION.TOUCH_ZOOM_ROTATE) === ACTION.TOUCH_ZOOM_ROTATE) {
+                this._rotateInternal(deltaX, deltaY);
+            }
+            if ((this._state & ACTION.DOLLY) === ACTION.DOLLY ||
+                (this._state & ACTION.ZOOM) === ACTION.ZOOM) {
+                const dollyX = this.dollyToCursor ? (dragStartPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                const dollyY = this.dollyToCursor ? (dragStartPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                (this._state & ACTION.DOLLY) === ACTION.DOLLY ?
+                    this._dollyInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
+                    this._zoomInternal(deltaY * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
+            }
+            if ((this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
+                (this._state & ACTION.TOUCH_ZOOM) === ACTION.TOUCH_ZOOM ||
+                (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
+                (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK ||
+                (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
+                (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET ||
+                (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
+                (this._state & ACTION.TOUCH_ZOOM_ROTATE) === ACTION.TOUCH_ZOOM_ROTATE) {
+                const dx = _v2$1.x - this._activePointers[1].clientX;
+                const dy = _v2$1.y - this._activePointers[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const dollyDelta = dollyStart.y - distance;
+                dollyStart.set(0, distance);
+                const dollyX = this.dollyToCursor ? (lastDragPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
+                const dollyY = this.dollyToCursor ? (lastDragPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
+                (this._state & ACTION.TOUCH_DOLLY) === ACTION.TOUCH_DOLLY ||
+                    (this._state & ACTION.TOUCH_DOLLY_ROTATE) === ACTION.TOUCH_DOLLY_ROTATE ||
                     (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                    (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK ||
-                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
-                    (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
-                    const dx = _v2$1.x - this._activePointers[1].clientX;
-                    const dy = _v2$1.y - this._activePointers[1].clientY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    const dollyDelta = dollyStart.y - distance;
-                    dollyStart.set(0, distance);
-                    const dollyX = this.dollyToCursor ? (lastDragPosition.x - this._elementRect.x) / this._elementRect.width * 2 - 1 : 0;
-                    const dollyY = this.dollyToCursor ? (lastDragPosition.y - this._elementRect.y) / this._elementRect.height * -2 + 1 : 0;
-                    this._state === ACTION.TOUCH_DOLLY ||
-                        this._state === ACTION.TOUCH_DOLLY_TRUCK ||
-                        this._state === ACTION.TOUCH_DOLLY_OFFSET ?
-                        this._dollyInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
-                        this._zoomInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
-                }
-                if ((this._state & ACTION.TRUCK) === ACTION.TRUCK ||
-                    (this._state & ACTION.TOUCH_TRUCK) === ACTION.TOUCH_TRUCK ||
-                    (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
-                    (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK) {
-                    this._truckInternal(deltaX, deltaY, false);
-                }
-                if ((this._state & ACTION.OFFSET) === ACTION.OFFSET ||
-                    (this._state & ACTION.TOUCH_OFFSET) === ACTION.TOUCH_OFFSET ||
-                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
-                    (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
-                    this._truckInternal(deltaX, deltaY, true);
-                }
-                this.dispatchEvent({ type: 'control' });
-            };
-            const endDragging = () => {
-                extractClientCoordFromEvent(this._activePointers, _v2$1);
-                lastDragPosition.copy(_v2$1);
-                if (this._activePointers.length === 0) {
-                    // eslint-disable-next-line no-undef
-                    this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-                    this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-                    // eslint-disable-next-line no-undef
-                    this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-                    this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-                    this.dispatchEvent({ type: 'controlend' });
-                }
-            };
+                    (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ?
+                    this._dollyInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY) :
+                    this._zoomInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY);
+            }
+            if ((this._state & ACTION.TRUCK) === ACTION.TRUCK ||
+                (this._state & ACTION.TOUCH_TRUCK) === ACTION.TOUCH_TRUCK ||
+                (this._state & ACTION.TOUCH_DOLLY_TRUCK) === ACTION.TOUCH_DOLLY_TRUCK ||
+                (this._state & ACTION.TOUCH_ZOOM_TRUCK) === ACTION.TOUCH_ZOOM_TRUCK) {
+                this._truckInternal(deltaX, deltaY, false);
+            }
+            if ((this._state & ACTION.OFFSET) === ACTION.OFFSET ||
+                (this._state & ACTION.TOUCH_OFFSET) === ACTION.TOUCH_OFFSET ||
+                (this._state & ACTION.TOUCH_DOLLY_OFFSET) === ACTION.TOUCH_DOLLY_OFFSET ||
+                (this._state & ACTION.TOUCH_ZOOM_OFFSET) === ACTION.TOUCH_ZOOM_OFFSET) {
+                this._truckInternal(deltaX, deltaY, true);
+            }
+            this.dispatchEvent({ type: 'control' });
+        };
+        const endDragging = () => {
+            extractClientCoordFromEvent(this._activePointers, _v2$1);
+            lastDragPosition.copy(_v2$1);
+            if (this._activePointers.length === 0 && this._domElement) {
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+                // eslint-disable-next-line no-undef
+                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+                this.dispatchEvent({ type: 'controlend' });
+            }
+        };
+        this._addAllEventListeners = (domElement) => {
+            this._domElement = domElement;
+            this._domElement.style.touchAction = 'none';
+            this._domElement.style.userSelect = 'none';
+            this._domElement.style.webkitUserSelect = 'none';
             this._domElement.addEventListener('pointerdown', onPointerDown);
             isPointerEventsNotSupported && this._domElement.addEventListener('mousedown', onMouseDown);
             isPointerEventsNotSupported && this._domElement.addEventListener('touchstart', onTouchStart);
             this._domElement.addEventListener('pointercancel', onPointerUp);
             this._domElement.addEventListener('wheel', onMouseWheel, { passive: false });
             this._domElement.addEventListener('contextmenu', onContextMenu);
-            this._removeAllEventListeners = () => {
-                this._domElement.removeEventListener('pointerdown', onPointerDown);
-                this._domElement.removeEventListener('mousedown', onMouseDown);
-                this._domElement.removeEventListener('touchstart', onTouchStart);
-                this._domElement.removeEventListener('pointercancel', onPointerUp);
-                // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener#matching_event_listeners_for_removal
-                // > it's probably wise to use the same values used for the call to `addEventListener()` when calling `removeEventListener()`
-                // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
-                // eslint-disable-next-line no-undef
-                this._domElement.removeEventListener('wheel', onMouseWheel, { passive: false });
-                this._domElement.removeEventListener('contextmenu', onContextMenu);
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
-                // eslint-disable-next-line no-undef
-                this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
-                this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
-                this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
-                this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
-            };
-            this.cancel = () => {
-                if (this._state === ACTION.NONE)
-                    return;
-                this._state = ACTION.NONE;
-                this._activePointers.length = 0;
-                endDragging();
-            };
-        }
+        };
+        this._removeAllEventListeners = () => {
+            if (!this._domElement)
+                return;
+            this._domElement.removeEventListener('pointerdown', onPointerDown);
+            this._domElement.removeEventListener('mousedown', onMouseDown);
+            this._domElement.removeEventListener('touchstart', onTouchStart);
+            this._domElement.removeEventListener('pointercancel', onPointerUp);
+            // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener#matching_event_listeners_for_removal
+            // > it's probably wise to use the same values used for the call to `addEventListener()` when calling `removeEventListener()`
+            // see https://github.com/microsoft/TypeScript/issues/32912#issuecomment-522142969
+            // eslint-disable-next-line no-undef
+            this._domElement.removeEventListener('wheel', onMouseWheel, { passive: false });
+            this._domElement.removeEventListener('contextmenu', onContextMenu);
+            // eslint-disable-next-line no-undef
+            this._domElement.ownerDocument.removeEventListener('pointermove', onPointerMove, { passive: false });
+            this._domElement.ownerDocument.removeEventListener('mousemove', onMouseMove);
+            // eslint-disable-next-line no-undef
+            this._domElement.ownerDocument.removeEventListener('touchmove', onTouchMove, { passive: false });
+            this._domElement.ownerDocument.removeEventListener('pointerup', onPointerUp);
+            this._domElement.ownerDocument.removeEventListener('mouseup', onMouseUp);
+            this._domElement.ownerDocument.removeEventListener('touchend', onTouchEnd);
+        };
+        this.cancel = () => {
+            if (this._state === ACTION.NONE)
+                return;
+            this._state = ACTION.NONE;
+            this._activePointers.length = 0;
+            endDragging();
+        };
+        if (domElement)
+            this.connect(domElement);
         this.update(0);
-    }
-    /**
-     * Injects THREE as the dependency. You can then proceed to use CameraControls.
-     *
-     * e.g
-     * ```javascript
-     * CameraControls.install( { THREE: THREE } );
-     * ```
-     *
-     * Note: If you do not wish to use enter three.js to reduce file size(tree-shaking for example), make a subset to install.
-     *
-     * ```js
-     * import {
-     * 	Vector2,
-     * 	Vector3,
-     * 	Vector4,
-     * 	Quaternion,
-     * 	Matrix4,
-     * 	Spherical,
-     * 	Box3,
-     * 	Sphere,
-     * 	Raycaster,
-     * 	MathUtils,
-     * } from 'three';
-     *
-     * const subsetOfTHREE = {
-     * 	Vector2   : Vector2,
-     * 	Vector3   : Vector3,
-     * 	Vector4   : Vector4,
-     * 	Quaternion: Quaternion,
-     * 	Matrix4   : Matrix4,
-     * 	Spherical : Spherical,
-     * 	Box3      : Box3,
-     * 	Sphere    : Sphere,
-     * 	Raycaster : Raycaster,
-     * 	MathUtils : {
-     * 		DEG2RAD: MathUtils.DEG2RAD,
-     * 		clamp: MathUtils.clamp,
-     * 	},
-     * };
-
-     * CameraControls.install( { THREE: subsetOfTHREE } );
-     * ```
-     * @category Statics
-     */
-    static install(libs) {
-        THREE = libs.THREE;
-        _ORIGIN = Object.freeze(new THREE.Vector3(0, 0, 0));
-        _AXIS_Y = Object.freeze(new THREE.Vector3(0, 1, 0));
-        _AXIS_Z = Object.freeze(new THREE.Vector3(0, 0, 1));
-        _v2$1 = new THREE.Vector2();
-        _v3A = new THREE.Vector3();
-        _v3B = new THREE.Vector3();
-        _v3C = new THREE.Vector3();
-        _xColumn = new THREE.Vector3();
-        _yColumn = new THREE.Vector3();
-        _zColumn = new THREE.Vector3();
-        _deltaTarget = new THREE.Vector3();
-        _deltaOffset = new THREE.Vector3();
-        _sphericalA = new THREE.Spherical();
-        _sphericalB = new THREE.Spherical();
-        _box3A = new THREE.Box3();
-        _box3B = new THREE.Box3();
-        _sphere$1 = new THREE.Sphere();
-        _quaternionA = new THREE.Quaternion();
-        _quaternionB = new THREE.Quaternion();
-        _rotationMatrix = new THREE.Matrix4();
-        _raycaster$1 = new THREE.Raycaster();
-    }
-    /**
-     * list all ACTIONs
-     * @category Statics
-     */
-    static get ACTION() {
-        return ACTION;
     }
     /**
      * The camera to be controlled
@@ -3952,6 +3966,8 @@ class CameraControls extends EventDispatcher {
         return this._enabled;
     }
     set enabled(enabled) {
+        if (!this._domElement)
+            return;
         this._enabled = enabled;
         if (enabled) {
             this._domElement.style.touchAction = 'none';
@@ -4323,11 +4339,12 @@ class CameraControls extends EventDispatcher {
         const phi = roundToStep(this._sphericalEnd.phi, PI_HALF);
         promises.push(this.rotateTo(theta, phi, enableTransition));
         const normal = _v3A.setFromSpherical(this._sphericalEnd).normalize();
-        const rotation = _quaternionA.setFromUnitVectors(normal, _AXIS_Z).multiply(this._yAxisUpSpaceInverse);
+        const rotation = _quaternionA.setFromUnitVectors(normal, _AXIS_Z);
         const viewFromPolar = approxEquals(Math.abs(normal.y), 1);
         if (viewFromPolar) {
             rotation.multiply(_quaternionB.setFromAxisAngle(_AXIS_Y, theta));
         }
+        rotation.multiply(this._yAxisUpSpaceInverse);
         // make oriented bounding box
         const bb = _box3B.makeEmpty();
         // left bottom back corner
@@ -4359,7 +4376,11 @@ class CameraControls extends EventDispatcher {
         bb.min.y -= paddingBottom;
         bb.max.x += paddingRight;
         bb.max.y += paddingTop;
-        rotation.setFromUnitVectors(_AXIS_Z, normal).multiply(this._yAxisUpSpace);
+        rotation.setFromUnitVectors(_AXIS_Z, normal);
+        if (viewFromPolar) {
+            rotation.premultiply(_quaternionB.invert());
+        }
+        rotation.premultiply(this._yAxisUpSpace);
         const bbSize = bb.getSize(_v3A);
         const center = bb.getCenter(_v3B).applyQuaternion(rotation);
         if (isPerspectiveCamera(this._camera)) {
@@ -4503,7 +4524,10 @@ class CameraControls extends EventDispatcher {
      */
     setTarget(targetX, targetY, targetZ, enableTransition = false) {
         const pos = this.getPosition(_v3A);
-        return this.setLookAt(pos.x, pos.y, pos.z, targetX, targetY, targetZ, enableTransition);
+        const promise = this.setLookAt(pos.x, pos.y, pos.z, targetX, targetY, targetZ, enableTransition);
+        // see https://github.com/yomotsu/camera-controls/issues/335
+        this._sphericalEnd.phi = THREE.MathUtils.clamp(this.polarAngle, this.minPolarAngle, this.maxPolarAngle);
+        return promise;
     }
     /**
      * Set focal offset using the screen parallel coordinates. z doesn't affect in Orthographic as with Dolly.
@@ -4519,6 +4543,10 @@ class CameraControls extends EventDispatcher {
         if (!enableTransition) {
             this._focalOffset.copy(this._focalOffsetEnd);
         }
+        this._affectOffset =
+            !approxZero(x) ||
+                !approxZero(y) ||
+                !approxZero(z);
         const resolveImmediately = !enableTransition ||
             approxEquals(this._focalOffset.x, this._focalOffsetEnd.x, this.restThreshold) &&
                 approxEquals(this._focalOffset.y, this._focalOffsetEnd.y, this.restThreshold) &&
@@ -4527,12 +4555,14 @@ class CameraControls extends EventDispatcher {
     }
     /**
      * Set orbit point without moving the camera.
+     * SHOULD NOT RUN DURING ANIMATIONS. `setOrbitPoint()` will immediately fix the positions.
      * @param targetX
      * @param targetY
      * @param targetZ
      * @category Methods
      */
     setOrbitPoint(targetX, targetY, targetZ) {
+        this._camera.updateMatrixWorld();
         _xColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 0);
         _yColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 1);
         _zColumn.setFromMatrixColumn(this._camera.matrixWorldInverse, 2);
@@ -4673,9 +4703,10 @@ class CameraControls extends EventDispatcher {
      * @category Methods
      */
     saveState() {
-        this._target0.copy(this._target);
-        this._position0.copy(this._camera.position);
+        this.getTarget(this._target0);
+        this.getPosition(this._position0);
         this._zoom0 = this._zoom;
+        this._focalOffset0.copy(this._focalOffset);
     }
     /**
      * Sync camera-up direction.
@@ -4727,11 +4758,11 @@ class CameraControls extends EventDispatcher {
         if (this._dollyControlAmount !== 0) {
             if (isPerspectiveCamera(this._camera)) {
                 const camera = this._camera;
-                const direction = _v3A.setFromSpherical(this._sphericalEnd).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
-                const planeX = _v3B.copy(direction).cross(camera.up).normalize();
+                const cameraDirection = _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
+                const planeX = _v3B.copy(cameraDirection).cross(camera.up).normalize();
                 if (planeX.lengthSq() === 0)
                     planeX.x = 1.0;
-                const planeY = _v3C.crossVectors(planeX, direction);
+                const planeY = _v3C.crossVectors(planeX, cameraDirection);
                 const worldToScreen = this._sphericalEnd.radius * Math.tan(camera.getEffectiveFOV() * THREE.MathUtils.DEG2RAD * 0.5);
                 const prevRadius = this._sphericalEnd.radius - this._dollyControlAmount;
                 const lerpRatio = (prevRadius - this._sphericalEnd.radius) / this._sphericalEnd.radius;
@@ -4739,43 +4770,29 @@ class CameraControls extends EventDispatcher {
                     .add(planeX.multiplyScalar(this._dollyControlCoord.x * worldToScreen * camera.aspect))
                     .add(planeY.multiplyScalar(this._dollyControlCoord.y * worldToScreen));
                 this._targetEnd.lerp(cursor, lerpRatio);
-                this._target.copy(this._targetEnd);
             }
             else if (isOrthographicCamera(this._camera)) {
                 const camera = this._camera;
-                const worldPosition = _v3A.set(this._dollyControlCoord.x, this._dollyControlCoord.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera);
+                const worldCursorPosition = _v3A.set(this._dollyControlCoord.x, this._dollyControlCoord.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera); //.sub( _v3B.set( this._focalOffset.x, this._focalOffset.y, 0 ) );
                 const quaternion = _v3B.set(0, 0, -1).applyQuaternion(camera.quaternion);
-                const divisor = quaternion.dot(camera.up);
-                const distance = approxZero(divisor) ? -worldPosition.dot(camera.up) : -worldPosition.dot(camera.up) / divisor;
-                const cursor = _v3C.copy(worldPosition).add(quaternion.multiplyScalar(distance));
-                this._targetEnd.lerp(cursor, 1 - camera.zoom / this._dollyControlAmount);
-                this._target.copy(this._targetEnd);
+                const cursor = _v3C.copy(worldCursorPosition).add(quaternion.multiplyScalar(-worldCursorPosition.dot(camera.up)));
+                const prevZoom = this._zoom - this._dollyControlAmount;
+                const lerpRatio = -(prevZoom - this._zoomEnd) / this._zoom;
+                // find the "distance" (aka plane constant in three.js) of Plane
+                // from a given position (this._targetEnd) and normal vector (cameraDirection)
+                // https://www.maplesoft.com/support/help/maple/view.aspx?path=MathApps%2FEquationOfAPlaneNormal#bkmrk0
+                const cameraDirection = _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).normalize().negate();
+                const prevPlaneConstant = this._targetEnd.dot(cameraDirection);
+                this._targetEnd.lerp(cursor, lerpRatio);
+                const newPlaneConstant = this._targetEnd.dot(cameraDirection);
+                // Pull back the camera depth that has moved, to be the camera stationary as zoom
+                const pullBack = cameraDirection.multiplyScalar(newPlaneConstant - prevPlaneConstant);
+                this._targetEnd.sub(pullBack);
             }
+            this._target.copy(this._targetEnd);
+            // target position may be moved beyond boundary.
+            this._boundary.clampPoint(this._targetEnd, this._targetEnd);
             this._dollyControlAmount = 0;
-        }
-        const maxDistance = this._collisionTest();
-        this._spherical.radius = Math.min(this._spherical.radius, maxDistance);
-        // decompose spherical to the camera position
-        this._spherical.makeSafe();
-        this._camera.position.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).add(this._target);
-        this._camera.lookAt(this._target);
-        // set offset after the orbit movement
-        const affectOffset = !approxZero(this._focalOffset.x) ||
-            !approxZero(this._focalOffset.y) ||
-            !approxZero(this._focalOffset.z);
-        if (affectOffset) {
-            this._camera.updateMatrix();
-            _xColumn.setFromMatrixColumn(this._camera.matrix, 0);
-            _yColumn.setFromMatrixColumn(this._camera.matrix, 1);
-            _zColumn.setFromMatrixColumn(this._camera.matrix, 2);
-            _xColumn.multiplyScalar(this._focalOffset.x);
-            _yColumn.multiplyScalar(-this._focalOffset.y);
-            _zColumn.multiplyScalar(this._focalOffset.z); // notice: z-offset will not affect in Orthographic.
-            _v3A.copy(_xColumn).add(_yColumn).add(_zColumn);
-            this._camera.position.add(_v3A);
-        }
-        if (this._boundaryEnclosesCamera) {
-            this._encloseToBoundary(this._camera.position.copy(this._target), _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse), 1.0);
         }
         // zoom
         const deltaZoom = this._zoomEnd - this._zoom;
@@ -4787,6 +4804,28 @@ class CameraControls extends EventDispatcher {
             this._camera.updateProjectionMatrix();
             this._updateNearPlaneCorners();
             this._needsUpdate = true;
+        }
+        // collision detection
+        const maxDistance = this._collisionTest();
+        this._spherical.radius = Math.min(this._spherical.radius, maxDistance);
+        // decompose spherical to the camera position
+        this._spherical.makeSafe();
+        this._camera.position.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse).add(this._target);
+        this._camera.lookAt(this._target);
+        // set offset after the orbit movement
+        if (this._affectOffset) {
+            this._camera.updateMatrixWorld();
+            _xColumn.setFromMatrixColumn(this._camera.matrix, 0);
+            _yColumn.setFromMatrixColumn(this._camera.matrix, 1);
+            _zColumn.setFromMatrixColumn(this._camera.matrix, 2);
+            _xColumn.multiplyScalar(this._focalOffset.x);
+            _yColumn.multiplyScalar(-this._focalOffset.y);
+            _zColumn.multiplyScalar(this._focalOffset.z); // notice: z-offset will not affect in Orthographic.
+            _v3A.copy(_xColumn).add(_yColumn).add(_zColumn);
+            this._camera.position.add(_v3A);
+        }
+        if (this._boundaryEnclosesCamera) {
+            this._encloseToBoundary(this._camera.position.copy(this._target), _v3A.setFromSpherical(this._spherical).applyQuaternion(this._yAxisUpSpaceInverse), 1.0);
         }
         const updated = this._needsUpdate;
         if (updated && !this._updatedLastTime) {
@@ -4885,11 +4924,32 @@ class CameraControls extends EventDispatcher {
         this._needsUpdate = true;
     }
     /**
+     * Attach all internal event handlers to enable drag control.
+     * @category Methods
+     */
+    connect(domElement) {
+        if (this._domElement) {
+            console.warn('camera-controls is already connected.');
+            return;
+        }
+        domElement.setAttribute('data-camera-controls-version', VERSION);
+        this._addAllEventListeners(domElement);
+    }
+    /**
+     * Detach all internal event handlers to disable drag control.
+     */
+    disconnect() {
+        this._removeAllEventListeners();
+        this._domElement = undefined;
+    }
+    /**
      * Dispose the cameraControls instance itself, remove all eventListeners.
      * @category Methods
      */
     dispose() {
-        this._removeAllEventListeners();
+        this.disconnect();
+        if (this._domElement && 'setAttribute' in this._domElement)
+            this._domElement.removeAttribute('data-camera-controls-version');
     }
     _findPointerById(pointerId) {
         // to support IE11 use some instead of Array#find (will be removed when IE11 is deprecated)
@@ -4982,6 +5042,8 @@ class CameraControls extends EventDispatcher {
      * Get its client rect and package into given `DOMRect` .
      */
     _getClientRect(target) {
+        if (!this._domElement)
+            return;
         const rect = this._domElement.getBoundingClientRect();
         target.x = rect.left;
         target.y = rect.top;
@@ -5010,6 +5072,8 @@ class CameraControls extends EventDispatcher {
             this.addEventListener('rest', onResolve);
         });
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _addAllEventListeners(_domElement) { }
     _removeAllEventListeners() { }
 }
 function createBoundingSphere(object3d, out) {
@@ -5061,6 +5125,14 @@ function createBoundingSphere(object3d, out) {
  * what features it offers.
  */
 class SimpleCamera extends Component {
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this.controls.enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(enabled) {
+        this.controls.enabled = enabled;
+    }
     constructor(components) {
         super();
         this.components = components;
@@ -5076,14 +5148,6 @@ class SimpleCamera extends Component {
         const scene = components.scene.get();
         scene.add(this._perspectiveCamera);
         this.setupEvents();
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this.controls.enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(enabled) {
-        this.controls.enabled = enabled;
     }
     /** {@link Component.get} */
     get() {
@@ -5218,6 +5282,39 @@ class SimpleRaycaster extends Component {
  * [dkaraush](https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts).
  */
 class SimpleGrid extends Component {
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._grid.visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        if (visible) {
+            const scene = this._components.scene.get();
+            scene.add(this._grid);
+        }
+        else {
+            this._grid.removeFromParent();
+        }
+    }
+    /** The material of the grid. */
+    get material() {
+        return this._grid.material;
+    }
+    /**
+     * Whether the grid should fade away with distance. Recommended to be true for
+     * perspective cameras and false for orthographic cameras.
+     */
+    get fade() {
+        return this._fade === 3;
+    }
+    /**
+     * Whether the grid should fade away with distance. Recommended to be true for
+     * perspective cameras and false for orthographic cameras.
+     */
+    set fade(active) {
+        this._fade = active ? 3 : 0;
+        this.material.uniforms.uFade.value = this._fade;
+    }
     constructor(components, color = new THREE$1.Color(0xbbbbbb), size1 = 1, size2 = 10, distance = 500) {
         super();
         /** {@link Component.name} */
@@ -5317,39 +5414,6 @@ class SimpleGrid extends Component {
         this._grid.frustumCulled = false;
         const scene = components.scene.get();
         scene.add(this._grid);
-    }
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._grid.visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(visible) {
-        if (visible) {
-            const scene = this._components.scene.get();
-            scene.add(this._grid);
-        }
-        else {
-            this._grid.removeFromParent();
-        }
-    }
-    /** The material of the grid. */
-    get material() {
-        return this._grid.material;
-    }
-    /**
-     * Whether the grid should fade away with distance. Recommended to be true for
-     * perspective cameras and false for orthographic cameras.
-     */
-    get fade() {
-        return this._fade === 3;
-    }
-    /**
-     * Whether the grid should fade away with distance. Recommended to be true for
-     * perspective cameras and false for orthographic cameras.
-     */
-    set fade(active) {
-        this._fade = active ? 3 : 0;
-        this.material.uniforms.uFade.value = this._fade;
     }
     /** {@link Component.get} */
     get() {
@@ -6452,43 +6516,6 @@ SeparatingAxisBounds.prototype.setFromBox = ( function () {
 	};
 
 } )();
-
-( (function () {
-
-	const cacheSatBounds = new SeparatingAxisBounds();
-	return function areIntersecting( shape1, shape2 ) {
-
-		const points1 = shape1.points;
-		const satAxes1 = shape1.satAxes;
-		const satBounds1 = shape1.satBounds;
-
-		const points2 = shape2.points;
-		const satAxes2 = shape2.satAxes;
-		const satBounds2 = shape2.satBounds;
-
-		// check axes of the first shape
-		for ( let i = 0; i < 3; i ++ ) {
-
-			const sb = satBounds1[ i ];
-			const sa = satAxes1[ i ];
-			cacheSatBounds.setFromPoints( sa, points2 );
-			if ( sb.isSeparated( cacheSatBounds ) ) return false;
-
-		}
-
-		// check axes of the second shape
-		for ( let i = 0; i < 3; i ++ ) {
-
-			const sb = satBounds2[ i ];
-			const sa = satAxes2[ i ];
-			cacheSatBounds.setFromPoints( sa, points1 );
-			if ( sb.isSeparated( cacheSatBounds ) ) return false;
-
-		}
-
-	};
-
-}) )();
 
 const closestPointLineToLine = ( function () {
 
@@ -9497,25 +9524,6 @@ class UIComponentsStack extends SimpleUIComponent {
 }
 
 class TreeTitle extends UIComponentsStack {
-    constructor(components) {
-        super(components, "Horizontal");
-        this.get().classList.add("items-center", "text-base", "justify-between", "hover:bg-ifcjs-120", "rounded-md", "w-full", "min-h-[30px]", "pr-3");
-        this.arrow = new Button(components, { materialIconName: "arrow_right" });
-        this.arrow.get().classList.remove("p-2");
-        this.arrow.get().classList.add("p-1", "h-full");
-        const leftContainer = new UIComponentsStack(components, "Horizontal");
-        leftContainer.get().classList.add("items-center", "gap-x-2", "mr-4");
-        leftContainer.addChild(this.arrow);
-        const titleContainer = document.createElement("div");
-        titleContainer.className = "flex flex-col items-start py-[5px]";
-        this._titleElement = document.createElement("p");
-        this._titleElement.className = "text-base";
-        this._descriptionElement = document.createElement("p");
-        this._descriptionElement.className = "text-sm text-gray-400 hidden";
-        titleContainer.append(this._titleElement, this._descriptionElement);
-        leftContainer.get().append(titleContainer);
-        this.get().append(leftContainer.get());
-    }
     set description(value) {
         if (value) {
             this._descriptionElement.textContent = value;
@@ -9537,28 +9545,28 @@ class TreeTitle extends UIComponentsStack {
     get title() {
         return this._titleElement.textContent;
     }
+    constructor(components) {
+        super(components, "Horizontal");
+        this.get().classList.add("items-center", "text-base", "justify-between", "hover:bg-ifcjs-120", "rounded-md", "w-full", "min-h-[30px]", "pr-3");
+        this.arrow = new Button(components, { materialIconName: "arrow_right" });
+        this.arrow.get().classList.remove("p-2");
+        this.arrow.get().classList.add("p-1", "h-full");
+        const leftContainer = new UIComponentsStack(components, "Horizontal");
+        leftContainer.get().classList.add("items-center", "gap-x-2", "mr-4");
+        leftContainer.addChild(this.arrow);
+        const titleContainer = document.createElement("div");
+        titleContainer.className = "flex flex-col items-start py-[5px]";
+        this._titleElement = document.createElement("p");
+        this._titleElement.className = "text-base";
+        this._descriptionElement = document.createElement("p");
+        this._descriptionElement.className = "text-sm text-gray-400 hidden";
+        titleContainer.append(this._titleElement, this._descriptionElement);
+        leftContainer.get().append(titleContainer);
+        this.get().append(leftContainer.get());
+    }
 }
 
 class TreeView extends SimpleUIComponent {
-    constructor(components, name) {
-        const div = document.createElement("div");
-        div.className = `
-    flex flex-col items-start w-full box-border cursor-pointer text-base
-    `;
-        super(components, div);
-        this._expanded = true;
-        this.onExpand = new Event();
-        this.onCollapse = new Event();
-        this.titleElement = new TreeTitle(components);
-        this.titleElement.title = name;
-        this.titleElement.arrow.onclick = () => {
-            this.toggle();
-        };
-        this._childrenContainer = new UIComponentsStack(components, "Vertical");
-        this._childrenContainer.get().classList.add("pl-[22px]", "w-full");
-        this.collapse();
-        div.append(this.titleElement.get(), this._childrenContainer.get());
-    }
     get expanded() {
         return this._expanded;
     }
@@ -9585,6 +9593,25 @@ class TreeView extends SimpleUIComponent {
             e.stopImmediatePropagation();
             listener(e);
         };
+    }
+    constructor(components, name) {
+        const div = document.createElement("div");
+        div.className = `
+    flex flex-col items-start w-full box-border cursor-pointer text-base
+    `;
+        super(components, div);
+        this._expanded = true;
+        this.onExpand = new Event();
+        this.onCollapse = new Event();
+        this.titleElement = new TreeTitle(components);
+        this.titleElement.title = name;
+        this.titleElement.arrow.onclick = () => {
+            this.toggle();
+        };
+        this._childrenContainer = new UIComponentsStack(components, "Vertical");
+        this._childrenContainer.get().classList.add("pl-[22px]", "w-full");
+        this.collapse();
+        div.append(this.titleElement.get(), this._childrenContainer.get());
     }
     dispose(onlyChildren = false) {
         this.children.forEach((child) => child.dispose());
@@ -9639,6 +9666,9 @@ class TreeView extends SimpleUIComponent {
  * A component that handles all UI components.
  */
 class UIManager extends Component {
+    get() {
+        return this.toolbars;
+    }
     constructor(components) {
         super();
         this.name = "UIManager";
@@ -9674,9 +9704,6 @@ class UIManager extends Component {
         this.containers.right.classList.add(...vContainerClass);
         this.containers.bottom.classList.add(...hContainerClass);
         this.containers.left.classList.add(...vContainerClass);
-    }
-    get() {
-        return this.toolbars;
     }
     setup() {
         this.viewerContainer = this.components.renderer.get().domElement
@@ -9899,6 +9926,43 @@ class SimpleUICard extends SimpleUIComponent {
 }
 
 class FloatingWindow extends SimpleUIComponent {
+    set description(value) {
+        const descriptionElement = document.getElementById(`${this.id}-description`);
+        if (descriptionElement && value) {
+            descriptionElement.textContent = value;
+            descriptionElement.classList.remove("hidden");
+        }
+        else {
+            descriptionElement === null || descriptionElement === void 0 ? void 0 : descriptionElement.classList.add("hidden");
+        }
+    }
+    get description() {
+        const descriptionElement = document.getElementById(`${this.id}-description`);
+        return descriptionElement.textContent;
+    }
+    set title(value) {
+        const titleElement = document.getElementById(`${this.id}-title`);
+        if (titleElement && value) {
+            titleElement.textContent = value;
+            titleElement.classList.remove("hidden");
+        }
+    }
+    get title() {
+        const titleElement = document.getElementById(`${this.id}-title`);
+        return titleElement.textContent;
+    }
+    set resizeable(value) {
+        this._resizeable = value;
+        if (value) {
+            this.get().classList.add("resize");
+        }
+        else {
+            this.get().classList.remove("resize");
+        }
+    }
+    get resizeable() {
+        return this._resizeable;
+    }
     constructor(components, config) {
         const window = document.createElement("div");
         window.className = FloatingWindow.Class.Base;
@@ -9970,43 +10034,6 @@ class FloatingWindow extends SimpleUIComponent {
             bottom: new Vector2$1(),
             bottomRight: new Vector2$1(),
         };
-    }
-    set description(value) {
-        const descriptionElement = document.getElementById(`${this.id}-description`);
-        if (descriptionElement && value) {
-            descriptionElement.textContent = value;
-            descriptionElement.classList.remove("hidden");
-        }
-        else {
-            descriptionElement === null || descriptionElement === void 0 ? void 0 : descriptionElement.classList.add("hidden");
-        }
-    }
-    get description() {
-        const descriptionElement = document.getElementById(`${this.id}-description`);
-        return descriptionElement.textContent;
-    }
-    set title(value) {
-        const titleElement = document.getElementById(`${this.id}-title`);
-        if (titleElement && value) {
-            titleElement.textContent = value;
-            titleElement.classList.remove("hidden");
-        }
-    }
-    get title() {
-        const titleElement = document.getElementById(`${this.id}-title`);
-        return titleElement.textContent;
-    }
-    set resizeable(value) {
-        this._resizeable = value;
-        if (value) {
-            this.get().classList.add("resize");
-        }
-        else {
-            this.get().classList.remove("resize");
-        }
-    }
-    get resizeable() {
-        return this._resizeable;
     }
     addChild(...items) {
         const contentDiv = document.getElementById(`${this.id}-content`);
@@ -10379,15 +10406,26 @@ class ToastNotification extends SimpleUIComponent {
     `;
         this._message = config.message;
         const messageID = this.getMessageID();
+        const slotID = `${this.id}-slot`;
         const template = `
         <div id="toast-default" class="flex items-center w-full max-w-xs p-4 text-gray-500 bg-ifcjs-200 rounded-lg shadow dark:text-gray-400 dark:bg-gray-800" role="alert">
             <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-ifcjs-200 bg-ifcjs-300 rounded-full dark:bg-blue-800 dark:text-blue-200">
                 ${icon}
             </div>
             <div id="${messageID}" class="ml-3 text-sm font-normal">${this._message}</div>
+            <div id="${slotID}-1"></div>
         </div>
     `;
         container.innerHTML = template;
+    }
+    addChild(...items) {
+        const slot = this.domElement.querySelector(`#${this.id}-slot`);
+        if (!slot)
+            return;
+        for (const item of items) {
+            this.children.push(item);
+            slot.appendChild(item.domElement);
+        }
     }
     get message() {
         return this._message;
@@ -10433,31 +10471,6 @@ class ToastNotification extends SimpleUIComponent {
  *
  */
 class Components {
-    constructor() {
-        /**
-         * All the loaded [meshes](https://threejs.org/docs/#api/en/objects/Mesh).
-         * This includes IFC models, fragments, 3D scans, etc.
-         */
-        this.meshes = [];
-        this.onInitialized = new Event();
-        this._enabled = false;
-        this.update = () => {
-            if (!this._enabled)
-                return;
-            const delta = this._clock.getDelta();
-            Components.update(this.scene, delta);
-            Components.update(this.renderer, delta);
-            Components.update(this.camera, delta);
-            this.tools.update(delta);
-            const renderer = this.renderer.get();
-            // Works the same as requestAnimationFrame, but let us use WebXR.
-            renderer.setAnimationLoop(this.update);
-        };
-        this._clock = new THREE$1.Clock();
-        this.tools = new ToolComponent();
-        this.ui = new UIManager(this);
-        Components.setupBVH();
-    }
     /**
      * The [Three.js renderer](https://threejs.org/docs/#api/en/renderers/WebGLRenderer)
      * used to render the scene. This library provides multiple renderer
@@ -10523,6 +10536,31 @@ class Components {
      */
     set raycaster(raycaster) {
         this._raycaster = raycaster;
+    }
+    constructor() {
+        /**
+         * All the loaded [meshes](https://threejs.org/docs/#api/en/objects/Mesh).
+         * This includes IFC models, fragments, 3D scans, etc.
+         */
+        this.meshes = [];
+        this.onInitialized = new Event();
+        this._enabled = false;
+        this.update = () => {
+            if (!this._enabled)
+                return;
+            const delta = this._clock.getDelta();
+            Components.update(this.scene, delta);
+            Components.update(this.renderer, delta);
+            Components.update(this.camera, delta);
+            this.tools.update(delta);
+            const renderer = this.renderer.get();
+            // Works the same as requestAnimationFrame, but let us use WebXR.
+            renderer.setAnimationLoop(this.update);
+        };
+        this._clock = new THREE$1.Clock();
+        this.tools = new ToolComponent();
+        this.ui = new UIManager(this);
+        Components.setupBVH();
     }
     /**
      * Initializes the library. It should be called at the start of the app after
@@ -12112,6 +12150,46 @@ class TransformControlsPlane extends Mesh {
  * Each of the planes created by {@link SimpleClipper}.
  */
 class SimplePlane extends Component {
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this._components.renderer.togglePlane(state, this._plane);
+    }
+    /** {@link Hideable.visible } */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible } */
+    set visible(state) {
+        this._visible = state;
+        this._controls.visible = state;
+        this._helper.visible = state;
+        this.toggleControls(state);
+    }
+    /** The meshes used for raycasting */
+    get meshes() {
+        return [this._planeMesh, this._arrowBoundBox];
+    }
+    /** The material of the clipping plane representation. */
+    get planeMaterial() {
+        return this._planeMesh.material;
+    }
+    /** The material of the clipping plane representation. */
+    set planeMaterial(material) {
+        this._planeMesh.material = material;
+    }
+    /** The size of the clipping plane representation. */
+    get size() {
+        return this._planeMesh.scale.x;
+    }
+    /** Sets the size of the clipping plane representation. */
+    set size(size) {
+        this._planeMesh.scale.set(size, size, size);
+    }
     constructor(components, origin, normal, material, size = 5, activateControls = true) {
         super();
         /** {@link Component.name} */
@@ -12152,46 +12230,6 @@ class SimplePlane extends Component {
         if (activateControls) {
             this.toggleControls(true);
         }
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        this._enabled = state;
-        this._components.renderer.togglePlane(state, this._plane);
-    }
-    /** {@link Hideable.visible } */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible } */
-    set visible(state) {
-        this._visible = state;
-        this._controls.visible = state;
-        this._helper.visible = state;
-        this.toggleControls(state);
-    }
-    /** The meshes used for raycasting */
-    get meshes() {
-        return [this._planeMesh, this._arrowBoundBox];
-    }
-    /** The material of the clipping plane representation. */
-    get planeMaterial() {
-        return this._planeMesh.material;
-    }
-    /** The material of the clipping plane representation. */
-    set planeMaterial(material) {
-        this._planeMesh.material = material;
-    }
-    /** The size of the clipping plane representation. */
-    get size() {
-        return this._planeMesh.scale.x;
-    }
-    /** Sets the size of the clipping plane representation. */
-    set size(size) {
-        this._planeMesh.scale.set(size, size, size);
     }
     /** {@link Component.get} */
     get() {
@@ -12284,6 +12322,52 @@ class SimplePlane extends Component {
  * E.g. {@link SimplePlane}.
  */
 class SimpleClipper extends Component {
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this.uiElement.active = state;
+        for (const plane of this._planes) {
+            plane.enabled = state;
+        }
+        this.updateMaterials();
+    }
+    /** {@link Hideable.visible } */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible } */
+    set visible(state) {
+        this._visible = state;
+        for (const plane of this._planes) {
+            plane.visible = state;
+        }
+    }
+    /** The material of the clipping plane representation. */
+    get material() {
+        return this._material;
+    }
+    /** The material of the clipping plane representation. */
+    set material(material) {
+        this._material = material;
+        for (const plane of this._planes) {
+            plane.planeMaterial = material;
+        }
+    }
+    /** The size of the geometric representation of the clippings planes. */
+    get size() {
+        return this._size;
+    }
+    /** The size of the geometric representation of the clippings planes. */
+    set size(size) {
+        this._size = size;
+        for (const plane of this._planes) {
+            plane.size = size;
+        }
+    }
     constructor(components, PlaneType) {
         super();
         this.components = components;
@@ -12340,52 +12424,6 @@ class SimpleClipper extends Component {
             this.visible = !this.visible;
         };
         this.uiElement.active = this.enabled;
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        this._enabled = state;
-        this.uiElement.active = state;
-        for (const plane of this._planes) {
-            plane.enabled = state;
-        }
-        this.updateMaterials();
-    }
-    /** {@link Hideable.visible } */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible } */
-    set visible(state) {
-        this._visible = state;
-        for (const plane of this._planes) {
-            plane.visible = state;
-        }
-    }
-    /** The material of the clipping plane representation. */
-    get material() {
-        return this._material;
-    }
-    /** The material of the clipping plane representation. */
-    set material(material) {
-        this._material = material;
-        for (const plane of this._planes) {
-            plane.planeMaterial = material;
-        }
-    }
-    /** The size of the geometric representation of the clippings planes. */
-    get size() {
-        return this._size;
-    }
-    /** The size of the geometric representation of the clippings planes. */
-    set size(size) {
-        this._size = size;
-        for (const plane of this._planes) {
-            plane.size = size;
-        }
     }
     endCreation() { }
     cancelCreation() { }
@@ -12779,7 +12817,7 @@ class ScreenCuller extends Component {
  *
  * By David Fahlander, david.fahlander@gmail.com
  *
- * Version 3.2.3, Mon Jan 23 2023
+ * Version 3.2.4, Tue May 30 2023
  *
  * https://dexie.org
  *
@@ -14017,7 +14055,7 @@ function tempTransaction(db, mode, storeNames, fn) {
     }
 }
 
-const DEXIE_VERSION = '3.2.3';
+const DEXIE_VERSION = '3.2.4';
 const maxString = String.fromCharCode(65535);
 const minKey = -Infinity;
 const INVALID_KEY_ARGUMENT = "Invalid key provided. Keys must be of type string, number, Date or Array<string | number | Date>.";
@@ -17586,7 +17624,9 @@ function extendObservabilitySet(target, newSet) {
 }
 
 function liveQuery(querier) {
-    return new Observable((observer) => {
+    let hasValue = false;
+    let currentValue = undefined;
+    const observable = new Observable((observer) => {
         const scopeFuncIsAsync = isAsyncFunction(querier);
         function execute(subscr) {
             if (scopeFuncIsAsync) {
@@ -17637,6 +17677,8 @@ function liveQuery(querier) {
             }
             querying = true;
             Promise.resolve(ret).then((result) => {
+                hasValue = true;
+                currentValue = result;
                 querying = false;
                 if (closed)
                     return;
@@ -17650,6 +17692,7 @@ function liveQuery(querier) {
                 }
             }, (err) => {
                 querying = false;
+                hasValue = false;
                 observer.error && observer.error(err);
                 subscription.unsubscribe();
             });
@@ -17657,6 +17700,9 @@ function liveQuery(querier) {
         doQuery();
         return subscription;
     });
+    observable.hasValue = () => hasValue;
+    observable.getValue = () => currentValue;
+    return observable;
 }
 
 let domDeps;
@@ -17879,6 +17925,10 @@ class ModelDatabase extends Dexie$1 {
 
 // TODO: Implement UI elements (this is probably just for 3d scans)
 class LocalCacher extends Component {
+    get ids() {
+        const serialized = localStorage.getItem(this._storedModels) || "[]";
+        return JSON.parse(serialized);
+    }
     constructor(components) {
         super();
         this.name = "LocalCacher";
@@ -17915,10 +17965,6 @@ class LocalCacher extends Component {
                 this.floatingMenu.visible = false;
             }
         };
-    }
-    get ids() {
-        const serialized = localStorage.getItem(this._storedModels) || "[]";
-        return JSON.parse(serialized);
     }
     async get(id) {
         if (this.exists(id)) {
@@ -17993,6 +18039,23 @@ class LocalCacher extends Component {
 }
 
 class SimpleSVGViewport extends Component {
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        this.resize();
+        this._undoList = [];
+        this.uiElement.toolbar.visible = value;
+        if (value) {
+            this._viewport.classList.remove("pointer-events-none");
+        }
+        else {
+            this.clear();
+            this.uiElement.settingsWindow.visible = false;
+            this._viewport.classList.add("pointer-events-none");
+        }
+    }
     constructor(components, config) {
         super();
         this.name = "SimpleCanvas2D";
@@ -18023,23 +18086,6 @@ class SimpleSVGViewport extends Component {
             .parentElement;
         viewerContainer.append(this._viewport);
         window.addEventListener("resize", () => this.resize());
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        this.resize();
-        this._undoList = [];
-        this.uiElement.toolbar.visible = value;
-        if (value) {
-            this._viewport.classList.remove("pointer-events-none");
-        }
-        else {
-            this.clear();
-            this.uiElement.settingsWindow.visible = false;
-            this._viewport.classList.add("pointer-events-none");
-        }
     }
     set config(value) {
         this._config = { ...this._config, ...value };
@@ -18157,6 +18203,13 @@ class SimpleSVGViewport extends Component {
 }
 
 class Simple2DMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        this._marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
     constructor(components, marker) {
         super();
         this.name = "Simple2DMarker";
@@ -18175,13 +18228,6 @@ class Simple2DMarker extends Component {
         this._marker = new CSS2DObject(_marker);
         this._components.scene.get().add(this._marker);
         this.visible = true;
-    }
-    set visible(value) {
-        this._visible = value;
-        this._marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
     }
     toggleVisibility() {
         this.visible = !this.visible;
@@ -24285,7 +24331,7 @@ BVH.initialized = false;
  *        A  C  E  G  I  K  M  O
  *        B  D  F  H  J  L  N  P
  * */
-class Fragment$1 {
+let Fragment$1 = class Fragment {
     constructor(geometry, material, count) {
         this.fragments = {};
         this.items = [];
@@ -24382,7 +24428,7 @@ class Fragment$1 {
         if (material === this.mesh.material) {
             this.copyGroups(newGeometry);
         }
-        const newFragment = new Fragment$1(newGeometry, material, this.capacity);
+        const newFragment = new Fragment(newGeometry, material, this.capacity);
         newFragment.mesh.applyMatrix4(this.mesh.matrix);
         newFragment.mesh.updateMatrix();
         this.fragments[id] = newFragment;
@@ -24577,7 +24623,7 @@ class Fragment$1 {
             this.blocks.remove(blockIDs);
         }
     }
-}
+};
 
 const SIZEOF_SHORT = 2;
 const SIZEOF_INT = 4;
@@ -25069,7 +25115,7 @@ class Builder {
      */
     nested(obj) {
         if (obj != this.offset()) {
-            throw new Error('FlatBuffers: struct must be serialized inline.');
+            throw new TypeError('FlatBuffers: struct must be serialized inline.');
         }
     }
     /**
@@ -25078,7 +25124,7 @@ class Builder {
      */
     notNested() {
         if (this.isNested) {
-            throw new Error('FlatBuffers: object serialization must not be nested.');
+            throw new TypeError('FlatBuffers: object serialization must not be nested.');
         }
     }
     /**
@@ -25211,7 +25257,7 @@ class Builder {
             this.prep(this.minalign, SIZEOF_INT +
                 FILE_IDENTIFIER_LENGTH + size_prefix);
             if (file_identifier.length != FILE_IDENTIFIER_LENGTH) {
-                throw new Error('FlatBuffers: file identifier must be length ' +
+                throw new TypeError('FlatBuffers: file identifier must be length ' +
                     FILE_IDENTIFIER_LENGTH);
             }
             for (let i = FILE_IDENTIFIER_LENGTH - 1; i >= 0; i--) {
@@ -25242,7 +25288,7 @@ class Builder {
             this.bb.readInt16(vtable_start + field) != 0;
         // If this fails, the caller will show what field needs to be set.
         if (!ok) {
-            throw new Error('FlatBuffers: field ' + field + ' must be set');
+            throw new TypeError('FlatBuffers: field ' + field + ' must be set');
         }
     }
     /**
@@ -25347,7 +25393,7 @@ class Builder {
                 ret.push(this.createObjectOffset(val));
             }
             else {
-                throw new Error('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
+                throw new TypeError('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
             }
         }
         return ret;
@@ -25615,7 +25661,7 @@ class Fragment {
 }
 
 // automatically generated by the FlatBuffers compiler, do not modify
-class FragmentsGroup$1 {
+let FragmentsGroup$1 = class FragmentsGroup {
     constructor() {
         this.bb = null;
         this.bb_pos = 0;
@@ -25626,11 +25672,11 @@ class FragmentsGroup$1 {
         return this;
     }
     static getRootAsFragmentsGroup(bb, obj) {
-        return (obj || new FragmentsGroup$1()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
     static getSizePrefixedRootAsFragmentsGroup(bb, obj) {
         bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new FragmentsGroup$1()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
     items(index, obj) {
         const offset = this.bb.__offset(this.bb_pos, 4);
@@ -25859,23 +25905,23 @@ class FragmentsGroup$1 {
         builder.finish(offset, undefined, true);
     }
     static createFragmentsGroup(builder, itemsOffset, matrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset, ifcNameOffset, ifcDescriptionOffset, ifcSchemaOffset, maxExpressId) {
-        FragmentsGroup$1.startFragmentsGroup(builder);
-        FragmentsGroup$1.addItems(builder, itemsOffset);
-        FragmentsGroup$1.addMatrix(builder, matrixOffset);
-        FragmentsGroup$1.addIds(builder, idsOffset);
-        FragmentsGroup$1.addItemsKeys(builder, itemsKeysOffset);
-        FragmentsGroup$1.addItemsKeysIndices(builder, itemsKeysIndicesOffset);
-        FragmentsGroup$1.addItemsRels(builder, itemsRelsOffset);
-        FragmentsGroup$1.addItemsRelsIndices(builder, itemsRelsIndicesOffset);
-        FragmentsGroup$1.addFragmentKeys(builder, fragmentKeysOffset);
-        FragmentsGroup$1.addId(builder, idOffset);
-        FragmentsGroup$1.addIfcName(builder, ifcNameOffset);
-        FragmentsGroup$1.addIfcDescription(builder, ifcDescriptionOffset);
-        FragmentsGroup$1.addIfcSchema(builder, ifcSchemaOffset);
-        FragmentsGroup$1.addMaxExpressId(builder, maxExpressId);
-        return FragmentsGroup$1.endFragmentsGroup(builder);
+        FragmentsGroup.startFragmentsGroup(builder);
+        FragmentsGroup.addItems(builder, itemsOffset);
+        FragmentsGroup.addMatrix(builder, matrixOffset);
+        FragmentsGroup.addIds(builder, idsOffset);
+        FragmentsGroup.addItemsKeys(builder, itemsKeysOffset);
+        FragmentsGroup.addItemsKeysIndices(builder, itemsKeysIndicesOffset);
+        FragmentsGroup.addItemsRels(builder, itemsRelsOffset);
+        FragmentsGroup.addItemsRelsIndices(builder, itemsRelsIndicesOffset);
+        FragmentsGroup.addFragmentKeys(builder, fragmentKeysOffset);
+        FragmentsGroup.addId(builder, idOffset);
+        FragmentsGroup.addIfcName(builder, ifcNameOffset);
+        FragmentsGroup.addIfcDescription(builder, ifcDescriptionOffset);
+        FragmentsGroup.addIfcSchema(builder, ifcSchemaOffset);
+        FragmentsGroup.addMaxExpressId(builder, maxExpressId);
+        return FragmentsGroup.endFragmentsGroup(builder);
     }
-}
+};
 
 // TODO: Document this
 class FragmentsGroup extends THREE$1.Group {
@@ -26173,6 +26219,14 @@ class Serializer {
  * [fragment geometry](https://github.com/ifcjs/fragment).
  */
 class FragmentManager extends Component {
+    /** The list of meshes of the created fragments. */
+    get meshes() {
+        const allMeshes = [];
+        for (const fragID in this.list) {
+            allMeshes.push(this.list[fragID].mesh);
+        }
+        return allMeshes;
+    }
     constructor(components) {
         super();
         /** {@link Component.name} */
@@ -26185,14 +26239,6 @@ class FragmentManager extends Component {
         this.onFragmentsLoaded = new Event();
         this._loader = new Serializer();
         this._components = components;
-    }
-    /** The list of meshes of the created fragments. */
-    get meshes() {
-        const allMeshes = [];
-        for (const fragID in this.list) {
-            allMeshes.push(this.list[fragID].mesh);
-        }
-        return allMeshes;
     }
     /** {@link Component.get} */
     get() {
@@ -90616,6 +90662,15 @@ class IfcJsonExporter {
 }
 
 class LineIntersectionPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
     constructor(components, config) {
         super();
         this.name = "LineIntersectionPicker";
@@ -90639,15 +90694,6 @@ class LineIntersectionPicker extends Component {
         this._marker.visible = false;
         this._components.scene.get().add(this._marker);
         this.enabled = false;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
     }
     set config(value) {
         this._config = { ...this._config, ...value };
@@ -90741,6 +90787,16 @@ class LineIntersectionPicker extends Component {
 }
 
 class VertexPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
     constructor(components, config) {
         var _a;
         super();
@@ -90760,16 +90816,6 @@ class VertexPicker extends Component {
         this._marker.visible = false;
         (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
         this.enabled = false;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
     }
     set workingPlane(plane) {
         this._workingPlane = plane;
@@ -90862,6 +90908,14 @@ class VertexPicker extends Component {
 }
 
 class GeometryVerticesMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        for (const marker of this._markers)
+            marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
     constructor(components, geometry) {
         super();
         this.name = "GeometryVerticesMarker";
@@ -90876,14 +90930,6 @@ class GeometryVerticesMarker extends Component {
                 .position.set(position.getX(index), position.getY(index), position.getZ(index));
             this._markers.push(marker);
         }
-    }
-    set visible(value) {
-        this._visible = value;
-        for (const marker of this._markers)
-            marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
     }
     dispose() {
         for (const marker of this._markers)
@@ -91518,6 +91564,21 @@ class NewPset extends SimpleUIComponent {
 }
 
 class PropertyTag extends SimpleUIComponent {
+    get label() {
+        return this._label;
+    }
+    set label(value) {
+        this._label = value;
+        this._labelElement.textContent = value;
+    }
+    get value() {
+        return this._value;
+    }
+    set value(value) {
+        var _a;
+        this._value = value;
+        this._valueElement.textContent = (_a = value === null || value === void 0 ? void 0 : value.toString()) !== null && _a !== void 0 ? _a : null;
+    }
     constructor(components) {
         const wrapper = document.createElement("div");
         wrapper.className =
@@ -91535,24 +91596,23 @@ class PropertyTag extends SimpleUIComponent {
         tagInfo.append(this._labelElement, this._valueElement);
         wrapper.append(tagInfo);
     }
-    get label() {
-        return this._label;
-    }
-    set label(value) {
-        this._label = value;
-        this._labelElement.textContent = value;
-    }
-    get value() {
-        return this._value;
-    }
-    set value(value) {
-        var _a;
-        this._value = value;
-        this._valueElement.textContent = (_a = value === null || value === void 0 ? void 0 : value.toString()) !== null && _a !== void 0 ? _a : null;
-    }
 }
 
 class IfcPropertiesProcessor extends Component {
+    set propertiesManager(manager) {
+        if (!this._propertiesManager && manager) {
+            manager.onElementToPset.on(({ model, psetID, elementID }) => {
+                const modelIndexMap = this._indexMap[model.uuid];
+                if (!modelIndexMap)
+                    return;
+                this.setEntityIndex(model, elementID).add(psetID);
+            });
+            this._propertiesManager = manager;
+        }
+    }
+    get propertiesManager() {
+        return this._propertiesManager;
+    }
     constructor(components) {
         super();
         this.name = "PropertiesParser";
@@ -91596,20 +91656,6 @@ class IfcPropertiesProcessor extends Component {
             [IFCPROPERTYSET]: (model, expressID) => this.newPsetUI(model, expressID),
             [IFCELEMENTQUANTITY]: (model, expressID) => this.newQsetUI(model, expressID),
         };
-    }
-    set propertiesManager(manager) {
-        if (!this._propertiesManager && manager) {
-            manager.onElementToPset.on(({ model, psetID, elementID }) => {
-                const modelIndexMap = this._indexMap[model.uuid];
-                if (!modelIndexMap)
-                    return;
-                this.setEntityIndex(model, elementID).add(psetID);
-            });
-            this._propertiesManager = manager;
-        }
-    }
-    get propertiesManager() {
-        return this._propertiesManager;
     }
     setUI() {
         const container = new FloatingWindow(this._components);
@@ -92594,6 +92640,13 @@ class FragmentHighlighter extends Component {
 }
 
 class FragmentTreeItem extends Component {
+    get children() {
+        return this._children;
+    }
+    set children(children) {
+        this._children = children;
+        children.forEach((child) => this.uiElement.addChild(child.uiElement));
+    }
     constructor(components, classifier, content) {
         super();
         this.name = "FragmentTreeItem";
@@ -92613,13 +92666,6 @@ class FragmentTreeItem extends Component {
             this.hovered.trigger(found);
         };
     }
-    get children() {
-        return this._children;
-    }
-    set children(children) {
-        this._children = children;
-        children.forEach((child) => this.uiElement.addChild(child.uiElement));
-    }
     dispose() {
         this.uiElement.dispose();
         this.selected.reset();
@@ -92634,6 +92680,9 @@ class FragmentTreeItem extends Component {
 }
 
 class FragmentTree extends Component {
+    get uiElement() {
+        return this._tree.uiElement;
+    }
     constructor(components, classifier) {
         super();
         this.name = "FragmentTree";
@@ -92644,9 +92693,6 @@ class FragmentTree extends Component {
         this._components = components;
         this._classifier = classifier;
         this._tree = new FragmentTreeItem(this._components, classifier, this.title);
-    }
-    get uiElement() {
-        return this._tree.uiElement;
     }
     get() {
         return this._tree;
@@ -92910,6 +92956,22 @@ class FragmentHider extends Component {
 // TODO: Clean up and document
 // TODO: Decouple from fragments?
 class FragmentEdges extends Component {
+    get visible() {
+        return this._visible;
+    }
+    set visible(active) {
+        this._visible = active;
+        const scene = this._components.scene.get();
+        for (const id in this._list) {
+            const edge = this._list[id];
+            if (active) {
+                scene.add(edge);
+            }
+            else {
+                edge.removeFromParent();
+            }
+        }
+    }
     constructor(components, culler) {
         super();
         this.edgesToUpdate = new Set();
@@ -92963,22 +93025,6 @@ class FragmentEdges extends Component {
                     }
                 }
             });
-        }
-    }
-    get visible() {
-        return this._visible;
-    }
-    set visible(active) {
-        this._visible = active;
-        const scene = this._components.scene.get();
-        for (const id in this._list) {
-            const edge = this._list[id];
-            if (active) {
-                scene.add(edge);
-            }
-            else {
-                edge.removeFromParent();
-            }
         }
     }
     get() {
@@ -93053,6 +93099,13 @@ class FragmentEdges extends Component {
 
 // TODO: Clean up
 class FragmentCacher extends LocalCacher {
+    get fragmentsIDs() {
+        const allIDs = this.ids;
+        const fragIDs = allIDs.filter((id) => id.includes("-fragments"));
+        if (!fragIDs.length)
+            return fragIDs;
+        return fragIDs.map((id) => id.replace("-fragments", ""));
+    }
     constructor(components, fragments) {
         super(components);
         this._mode = "none";
@@ -93137,13 +93190,6 @@ class FragmentCacher extends LocalCacher {
             }
             this.floatingMenu.visible = true;
         };
-    }
-    get fragmentsIDs() {
-        const allIDs = this.ids;
-        const fragIDs = allIDs.filter((id) => id.includes("-fragments"));
-        if (!fragIDs.length)
-            return fragIDs;
-        return fragIDs.map((id) => id.replace("-fragments", ""));
     }
     async getFragmentGroup(id) {
         const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
@@ -93235,6 +93281,9 @@ class FragmentCoordinator extends Component {
 
 // TODO: Clean up and document
 class FragmentExploder extends Component {
+    get() {
+        return this._explodedFragments;
+    }
     constructor(fragments, groups) {
         super();
         this.fragments = fragments;
@@ -93244,9 +93293,6 @@ class FragmentExploder extends Component {
         this.groupName = "storeys";
         this.enabled = false;
         this._explodedFragments = new Set();
-    }
-    get() {
-        return this._explodedFragments;
     }
     dispose() {
         this._explodedFragments.clear();
@@ -93331,6 +93377,9 @@ class FragmentExploder extends Component {
  * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
  */
 class ProjectionManager {
+    get projection() {
+        return this._currentProjection;
+    }
     constructor(components, camera) {
         this.components = components;
         this._previousDistance = -1;
@@ -93338,9 +93387,6 @@ class ProjectionManager {
         const perspective = "Perspective";
         this._currentCamera = camera.get(perspective);
         this._currentProjection = perspective;
-    }
-    get projection() {
-        return this._currentProjection;
     }
     /**
      * Sets the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
@@ -93778,6 +93824,7 @@ class OrthoPerspectiveCamera extends SimpleCamera {
  *  resolution: <Vector2>, // to be set by renderer
  * }
  */
+
 
 
 UniformsLib.line = {
@@ -94504,584 +94551,948 @@ class EdgesStyles extends Component {
     }
 }
 
-const _box$1 = new Box3();
-const _vector = new Vector3$1();
+var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
-class LineSegmentsGeometry extends InstancedBufferGeometry {
-
-	constructor() {
-
-		super();
-
-		this.isLineSegmentsGeometry = true;
-
-		this.type = 'LineSegmentsGeometry';
-
-		const positions = [ - 1, 2, 0, 1, 2, 0, - 1, 1, 0, 1, 1, 0, - 1, 0, 0, 1, 0, 0, - 1, - 1, 0, 1, - 1, 0 ];
-		const uvs = [ - 1, 2, 1, 2, - 1, 1, 1, 1, - 1, - 1, 1, - 1, - 1, - 2, 1, - 2 ];
-		const index = [ 0, 2, 1, 2, 3, 1, 2, 4, 3, 4, 5, 3, 4, 6, 5, 6, 7, 5 ];
-
-		this.setIndex( index );
-		this.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
-		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
-
-	}
-
-	applyMatrix4( matrix ) {
-
-		const start = this.attributes.instanceStart;
-		const end = this.attributes.instanceEnd;
-
-		if ( start !== undefined ) {
-
-			start.applyMatrix4( matrix );
-
-			end.applyMatrix4( matrix );
-
-			start.needsUpdate = true;
-
-		}
-
-		if ( this.boundingBox !== null ) {
-
-			this.computeBoundingBox();
-
-		}
-
-		if ( this.boundingSphere !== null ) {
-
-			this.computeBoundingSphere();
-
-		}
-
-		return this;
-
-	}
-
-	setPositions( array ) {
-
-		let lineSegments;
-
-		if ( array instanceof Float32Array ) {
-
-			lineSegments = array;
-
-		} else if ( Array.isArray( array ) ) {
-
-			lineSegments = new Float32Array( array );
-
-		}
-
-		const instanceBuffer = new InstancedInterleavedBuffer( lineSegments, 6, 1 ); // xyz, xyz
-
-		this.setAttribute( 'instanceStart', new InterleavedBufferAttribute( instanceBuffer, 3, 0 ) ); // xyz
-		this.setAttribute( 'instanceEnd', new InterleavedBufferAttribute( instanceBuffer, 3, 3 ) ); // xyz
-
-		//
-
-		this.computeBoundingBox();
-		this.computeBoundingSphere();
-
-		return this;
-
-	}
-
-	setColors( array ) {
-
-		let colors;
-
-		if ( array instanceof Float32Array ) {
-
-			colors = array;
-
-		} else if ( Array.isArray( array ) ) {
-
-			colors = new Float32Array( array );
-
-		}
-
-		const instanceColorBuffer = new InstancedInterleavedBuffer( colors, 6, 1 ); // rgb, rgb
-
-		this.setAttribute( 'instanceColorStart', new InterleavedBufferAttribute( instanceColorBuffer, 3, 0 ) ); // rgb
-		this.setAttribute( 'instanceColorEnd', new InterleavedBufferAttribute( instanceColorBuffer, 3, 3 ) ); // rgb
-
-		return this;
-
-	}
-
-	fromWireframeGeometry( geometry ) {
-
-		this.setPositions( geometry.attributes.position.array );
-
-		return this;
-
-	}
-
-	fromEdgesGeometry( geometry ) {
-
-		this.setPositions( geometry.attributes.position.array );
-
-		return this;
-
-	}
-
-	fromMesh( mesh ) {
-
-		this.fromWireframeGeometry( new WireframeGeometry( mesh.geometry ) );
-
-		// set colors, maybe
-
-		return this;
-
-	}
-
-	fromLineSegments( lineSegments ) {
-
-		const geometry = lineSegments.geometry;
-
-		this.setPositions( geometry.attributes.position.array ); // assumes non-indexed
-
-		// set colors, maybe
-
-		return this;
-
-	}
-
-	computeBoundingBox() {
-
-		if ( this.boundingBox === null ) {
-
-			this.boundingBox = new Box3();
-
-		}
-
-		const start = this.attributes.instanceStart;
-		const end = this.attributes.instanceEnd;
-
-		if ( start !== undefined && end !== undefined ) {
-
-			this.boundingBox.setFromBufferAttribute( start );
-
-			_box$1.setFromBufferAttribute( end );
-
-			this.boundingBox.union( _box$1 );
-
-		}
-
-	}
-
-	computeBoundingSphere() {
-
-		if ( this.boundingSphere === null ) {
-
-			this.boundingSphere = new Sphere();
-
-		}
-
-		if ( this.boundingBox === null ) {
-
-			this.computeBoundingBox();
-
-		}
-
-		const start = this.attributes.instanceStart;
-		const end = this.attributes.instanceEnd;
-
-		if ( start !== undefined && end !== undefined ) {
-
-			const center = this.boundingSphere.center;
-
-			this.boundingBox.getCenter( center );
-
-			let maxRadiusSq = 0;
-
-			for ( let i = 0, il = start.count; i < il; i ++ ) {
-
-				_vector.fromBufferAttribute( start, i );
-				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
-
-				_vector.fromBufferAttribute( end, i );
-				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
-
-			}
-
-			this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
-
-			if ( isNaN( this.boundingSphere.radius ) ) {
-
-				console.error( 'THREE.LineSegmentsGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this );
-
-			}
-
-		}
-
-	}
-
-	toJSON() {
-
-		// todo
-
-	}
-
-	applyMatrix( matrix ) {
-
-		console.warn( 'THREE.LineSegmentsGeometry: applyMatrix() has been renamed to applyMatrix4().' );
-
-		return this.applyMatrix4( matrix );
-
-	}
-
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
 
-const _start = new Vector3$1();
-const _end = new Vector3$1();
+var earcut$2 = {exports: {}};
 
-const _start4 = new Vector4();
-const _end4 = new Vector4();
+earcut$2.exports = earcut;
+earcut$2.exports.default = earcut;
 
-const _ssOrigin = new Vector4();
-const _ssOrigin3 = new Vector3$1();
-const _mvMatrix = new Matrix4();
-const _line = new Line3();
-const _closestPoint = new Vector3$1();
+function earcut(data, holeIndices, dim) {
 
-const _box = new Box3();
-const _sphere = new Sphere();
-const _clipToWorldVector = new Vector4();
+    dim = dim || 2;
 
-let _ray, _lineWidth;
+    var hasHoles = holeIndices && holeIndices.length,
+        outerLen = hasHoles ? holeIndices[0] * dim : data.length,
+        outerNode = linkedList(data, 0, outerLen, dim, true),
+        triangles = [];
 
-// Returns the margin required to expand by in world space given the distance from the camera,
-// line width, resolution, and camera projection
-function getWorldSpaceHalfWidth( camera, distance, resolution ) {
+    if (!outerNode || outerNode.next === outerNode.prev) return triangles;
 
-	// transform into clip space, adjust the x and y values by the pixel width offset, then
-	// transform back into world space to get world offset. Note clip space is [-1, 1] so full
-	// width does not need to be halved.
-	_clipToWorldVector.set( 0, 0, - distance, 1.0 ).applyMatrix4( camera.projectionMatrix );
-	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
-	_clipToWorldVector.x = _lineWidth / resolution.width;
-	_clipToWorldVector.y = _lineWidth / resolution.height;
-	_clipToWorldVector.applyMatrix4( camera.projectionMatrixInverse );
-	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+    var minX, minY, maxX, maxY, x, y, invSize;
 
-	return Math.abs( Math.max( _clipToWorldVector.x, _clipToWorldVector.y ) );
+    if (hasHoles) outerNode = eliminateHoles(data, holeIndices, outerNode, dim);
 
+    // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
+    if (data.length > 80 * dim) {
+        minX = maxX = data[0];
+        minY = maxY = data[1];
+
+        for (var i = dim; i < outerLen; i += dim) {
+            x = data[i];
+            y = data[i + 1];
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+
+        // minX, minY and invSize are later used to transform coords into integers for z-order calculation
+        invSize = Math.max(maxX - minX, maxY - minY);
+        invSize = invSize !== 0 ? 32767 / invSize : 0;
+    }
+
+    earcutLinked(outerNode, triangles, dim, minX, minY, invSize, 0);
+
+    return triangles;
 }
 
-function raycastWorldUnits( lineSegments, intersects ) {
+// create a circular doubly linked list from polygon points in the specified winding order
+function linkedList(data, start, end, dim, clockwise) {
+    var i, last;
 
-	const matrixWorld = lineSegments.matrixWorld;
-	const geometry = lineSegments.geometry;
-	const instanceStart = geometry.attributes.instanceStart;
-	const instanceEnd = geometry.attributes.instanceEnd;
-	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+    if (clockwise === (signedArea(data, start, end, dim) > 0)) {
+        for (i = start; i < end; i += dim) last = insertNode(i, data[i], data[i + 1], last);
+    } else {
+        for (i = end - dim; i >= start; i -= dim) last = insertNode(i, data[i], data[i + 1], last);
+    }
 
-	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
+    if (last && equals(last, last.next)) {
+        removeNode(last);
+        last = last.next;
+    }
 
-		_line.start.fromBufferAttribute( instanceStart, i );
-		_line.end.fromBufferAttribute( instanceEnd, i );
-
-		_line.applyMatrix4( matrixWorld );
-
-		const pointOnLine = new Vector3$1();
-		const point = new Vector3$1();
-
-		_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
-		const isInside = point.distanceTo( pointOnLine ) < _lineWidth * 0.5;
-
-		if ( isInside ) {
-
-			intersects.push( {
-				point,
-				pointOnLine,
-				distance: _ray.origin.distanceTo( point ),
-				object: lineSegments,
-				face: null,
-				faceIndex: i,
-				uv: null,
-				uv1: null,
-			} );
-
-		}
-
-	}
-
+    return last;
 }
 
-function raycastScreenSpace( lineSegments, camera, intersects ) {
+// eliminate colinear or duplicate points
+function filterPoints(start, end) {
+    if (!start) return start;
+    if (!end) end = start;
 
-	const projectionMatrix = camera.projectionMatrix;
-	const material = lineSegments.material;
-	const resolution = material.resolution;
-	const matrixWorld = lineSegments.matrixWorld;
+    var p = start,
+        again;
+    do {
+        again = false;
 
-	const geometry = lineSegments.geometry;
-	const instanceStart = geometry.attributes.instanceStart;
-	const instanceEnd = geometry.attributes.instanceEnd;
-	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+        if (!p.steiner && (equals(p, p.next) || area(p.prev, p, p.next) === 0)) {
+            removeNode(p);
+            p = end = p.prev;
+            if (p === p.next) break;
+            again = true;
 
-	const near = - camera.near;
+        } else {
+            p = p.next;
+        }
+    } while (again || p !== end);
 
-	//
-
-	// pick a point 1 unit out along the ray to avoid the ray origin
-	// sitting at the camera origin which will cause "w" to be 0 when
-	// applying the projection matrix.
-	_ray.at( 1, _ssOrigin );
-
-	// ndc space [ - 1.0, 1.0 ]
-	_ssOrigin.w = 1;
-	_ssOrigin.applyMatrix4( camera.matrixWorldInverse );
-	_ssOrigin.applyMatrix4( projectionMatrix );
-	_ssOrigin.multiplyScalar( 1 / _ssOrigin.w );
-
-	// screen space
-	_ssOrigin.x *= resolution.x / 2;
-	_ssOrigin.y *= resolution.y / 2;
-	_ssOrigin.z = 0;
-
-	_ssOrigin3.copy( _ssOrigin );
-
-	_mvMatrix.multiplyMatrices( camera.matrixWorldInverse, matrixWorld );
-
-	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
-
-		_start4.fromBufferAttribute( instanceStart, i );
-		_end4.fromBufferAttribute( instanceEnd, i );
-
-		_start4.w = 1;
-		_end4.w = 1;
-
-		// camera space
-		_start4.applyMatrix4( _mvMatrix );
-		_end4.applyMatrix4( _mvMatrix );
-
-		// skip the segment if it's entirely behind the camera
-		const isBehindCameraNear = _start4.z > near && _end4.z > near;
-		if ( isBehindCameraNear ) {
-
-			continue;
-
-		}
-
-		// trim the segment if it extends behind camera near
-		if ( _start4.z > near ) {
-
-			const deltaDist = _start4.z - _end4.z;
-			const t = ( _start4.z - near ) / deltaDist;
-			_start4.lerp( _end4, t );
-
-		} else if ( _end4.z > near ) {
-
-			const deltaDist = _end4.z - _start4.z;
-			const t = ( _end4.z - near ) / deltaDist;
-			_end4.lerp( _start4, t );
-
-		}
-
-		// clip space
-		_start4.applyMatrix4( projectionMatrix );
-		_end4.applyMatrix4( projectionMatrix );
-
-		// ndc space [ - 1.0, 1.0 ]
-		_start4.multiplyScalar( 1 / _start4.w );
-		_end4.multiplyScalar( 1 / _end4.w );
-
-		// screen space
-		_start4.x *= resolution.x / 2;
-		_start4.y *= resolution.y / 2;
-
-		_end4.x *= resolution.x / 2;
-		_end4.y *= resolution.y / 2;
-
-		// create 2d segment
-		_line.start.copy( _start4 );
-		_line.start.z = 0;
-
-		_line.end.copy( _end4 );
-		_line.end.z = 0;
-
-		// get closest point on ray to segment
-		const param = _line.closestPointToPointParameter( _ssOrigin3, true );
-		_line.at( param, _closestPoint );
-
-		// check if the intersection point is within clip space
-		const zPos = MathUtils.lerp( _start4.z, _end4.z, param );
-		const isInClipSpace = zPos >= - 1 && zPos <= 1;
-
-		const isInside = _ssOrigin3.distanceTo( _closestPoint ) < _lineWidth * 0.5;
-
-		if ( isInClipSpace && isInside ) {
-
-			_line.start.fromBufferAttribute( instanceStart, i );
-			_line.end.fromBufferAttribute( instanceEnd, i );
-
-			_line.start.applyMatrix4( matrixWorld );
-			_line.end.applyMatrix4( matrixWorld );
-
-			const pointOnLine = new Vector3$1();
-			const point = new Vector3$1();
-
-			_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
-
-			intersects.push( {
-				point: point,
-				pointOnLine: pointOnLine,
-				distance: _ray.origin.distanceTo( point ),
-				object: lineSegments,
-				face: null,
-				faceIndex: i,
-				uv: null,
-				uv1: null,
-			} );
-
-		}
-
-	}
-
+    return end;
 }
 
-class LineSegments2 extends Mesh {
+// main ear slicing loop which triangulates a polygon (given as a linked list)
+function earcutLinked(ear, triangles, dim, minX, minY, invSize, pass) {
+    if (!ear) return;
 
-	constructor( geometry = new LineSegmentsGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
+    // interlink polygon nodes in z-order
+    if (!pass && invSize) indexCurve(ear, minX, minY, invSize);
 
-		super( geometry, material );
+    var stop = ear,
+        prev, next;
 
-		this.isLineSegments2 = true;
+    // iterate through ears, slicing them one by one
+    while (ear.prev !== ear.next) {
+        prev = ear.prev;
+        next = ear.next;
 
-		this.type = 'LineSegments2';
+        if (invSize ? isEarHashed(ear, minX, minY, invSize) : isEar(ear)) {
+            // cut off the triangle
+            triangles.push(prev.i / dim | 0);
+            triangles.push(ear.i / dim | 0);
+            triangles.push(next.i / dim | 0);
 
-	}
+            removeNode(ear);
 
-	// for backwards-compatibility, but could be a method of LineSegmentsGeometry...
+            // skipping the next vertex leads to less sliver triangles
+            ear = next.next;
+            stop = next.next;
 
-	computeLineDistances() {
+            continue;
+        }
 
-		const geometry = this.geometry;
+        ear = next;
 
-		const instanceStart = geometry.attributes.instanceStart;
-		const instanceEnd = geometry.attributes.instanceEnd;
-		const lineDistances = new Float32Array( 2 * instanceStart.count );
+        // if we looped through the whole remaining polygon and can't find any more ears
+        if (ear === stop) {
+            // try filtering points and slicing again
+            if (!pass) {
+                earcutLinked(filterPoints(ear), triangles, dim, minX, minY, invSize, 1);
 
-		for ( let i = 0, j = 0, l = instanceStart.count; i < l; i ++, j += 2 ) {
+            // if this didn't work, try curing all small self-intersections locally
+            } else if (pass === 1) {
+                ear = cureLocalIntersections(filterPoints(ear), triangles, dim);
+                earcutLinked(ear, triangles, dim, minX, minY, invSize, 2);
 
-			_start.fromBufferAttribute( instanceStart, i );
-			_end.fromBufferAttribute( instanceEnd, i );
+            // as a last resort, try splitting the remaining polygon into two
+            } else if (pass === 2) {
+                splitEarcut(ear, triangles, dim, minX, minY, invSize);
+            }
 
-			lineDistances[ j ] = ( j === 0 ) ? 0 : lineDistances[ j - 1 ];
-			lineDistances[ j + 1 ] = lineDistances[ j ] + _start.distanceTo( _end );
+            break;
+        }
+    }
+}
 
-		}
+// check whether a polygon node forms a valid ear with adjacent nodes
+function isEar(ear) {
+    var a = ear.prev,
+        b = ear,
+        c = ear.next;
 
-		const instanceDistanceBuffer = new InstancedInterleavedBuffer( lineDistances, 2, 1 ); // d0, d1
+    if (area(a, b, c) >= 0) return false; // reflex, can't be an ear
 
-		geometry.setAttribute( 'instanceDistanceStart', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 0 ) ); // d0
-		geometry.setAttribute( 'instanceDistanceEnd', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 1 ) ); // d1
+    // now make sure we don't have other points inside the potential ear
+    var ax = a.x, bx = b.x, cx = c.x, ay = a.y, by = b.y, cy = c.y;
 
-		return this;
+    // triangle bbox; min & max are calculated like this for speed
+    var x0 = ax < bx ? (ax < cx ? ax : cx) : (bx < cx ? bx : cx),
+        y0 = ay < by ? (ay < cy ? ay : cy) : (by < cy ? by : cy),
+        x1 = ax > bx ? (ax > cx ? ax : cx) : (bx > cx ? bx : cx),
+        y1 = ay > by ? (ay > cy ? ay : cy) : (by > cy ? by : cy);
 
-	}
+    var p = c.next;
+    while (p !== a) {
+        if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, p.x, p.y) &&
+            area(p.prev, p, p.next) >= 0) return false;
+        p = p.next;
+    }
 
-	raycast( raycaster, intersects ) {
+    return true;
+}
 
-		const worldUnits = this.material.worldUnits;
-		const camera = raycaster.camera;
+function isEarHashed(ear, minX, minY, invSize) {
+    var a = ear.prev,
+        b = ear,
+        c = ear.next;
 
-		if ( camera === null && ! worldUnits ) {
+    if (area(a, b, c) >= 0) return false; // reflex, can't be an ear
 
-			console.error( 'LineSegments2: "Raycaster.camera" needs to be set in order to raycast against LineSegments2 while worldUnits is set to false.' );
+    var ax = a.x, bx = b.x, cx = c.x, ay = a.y, by = b.y, cy = c.y;
 
-		}
+    // triangle bbox; min & max are calculated like this for speed
+    var x0 = ax < bx ? (ax < cx ? ax : cx) : (bx < cx ? bx : cx),
+        y0 = ay < by ? (ay < cy ? ay : cy) : (by < cy ? by : cy),
+        x1 = ax > bx ? (ax > cx ? ax : cx) : (bx > cx ? bx : cx),
+        y1 = ay > by ? (ay > cy ? ay : cy) : (by > cy ? by : cy);
 
-		const threshold = ( raycaster.params.Line2 !== undefined ) ? raycaster.params.Line2.threshold || 0 : 0;
+    // z-order range for the current triangle bbox;
+    var minZ = zOrder(x0, y0, minX, minY, invSize),
+        maxZ = zOrder(x1, y1, minX, minY, invSize);
 
-		_ray = raycaster.ray;
+    var p = ear.prevZ,
+        n = ear.nextZ;
 
-		const matrixWorld = this.matrixWorld;
-		const geometry = this.geometry;
-		const material = this.material;
+    // look for points inside the triangle in both directions
+    while (p && p.z >= minZ && n && n.z <= maxZ) {
+        if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 && p !== a && p !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, p.x, p.y) && area(p.prev, p, p.next) >= 0) return false;
+        p = p.prevZ;
 
-		_lineWidth = material.linewidth + threshold;
+        if (n.x >= x0 && n.x <= x1 && n.y >= y0 && n.y <= y1 && n !== a && n !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, n.x, n.y) && area(n.prev, n, n.next) >= 0) return false;
+        n = n.nextZ;
+    }
 
-		// check if we intersect the sphere bounds
-		if ( geometry.boundingSphere === null ) {
+    // look for remaining points in decreasing z-order
+    while (p && p.z >= minZ) {
+        if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 && p !== a && p !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, p.x, p.y) && area(p.prev, p, p.next) >= 0) return false;
+        p = p.prevZ;
+    }
 
-			geometry.computeBoundingSphere();
+    // look for remaining points in increasing z-order
+    while (n && n.z <= maxZ) {
+        if (n.x >= x0 && n.x <= x1 && n.y >= y0 && n.y <= y1 && n !== a && n !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, n.x, n.y) && area(n.prev, n, n.next) >= 0) return false;
+        n = n.nextZ;
+    }
 
-		}
+    return true;
+}
 
-		_sphere.copy( geometry.boundingSphere ).applyMatrix4( matrixWorld );
+// go through all polygon nodes and cure small local self-intersections
+function cureLocalIntersections(start, triangles, dim) {
+    var p = start;
+    do {
+        var a = p.prev,
+            b = p.next.next;
 
-		// increase the sphere bounds by the worst case line screen space width
-		let sphereMargin;
-		if ( worldUnits ) {
+        if (!equals(a, b) && intersects(a, p, p.next, b) && locallyInside(a, b) && locallyInside(b, a)) {
 
-			sphereMargin = _lineWidth * 0.5;
+            triangles.push(a.i / dim | 0);
+            triangles.push(p.i / dim | 0);
+            triangles.push(b.i / dim | 0);
 
-		} else {
+            // remove two nodes involved
+            removeNode(p);
+            removeNode(p.next);
 
-			const distanceToSphere = Math.max( camera.near, _sphere.distanceToPoint( _ray.origin ) );
-			sphereMargin = getWorldSpaceHalfWidth( camera, distanceToSphere, material.resolution );
+            p = start = b;
+        }
+        p = p.next;
+    } while (p !== start);
 
-		}
+    return filterPoints(p);
+}
 
-		_sphere.radius += sphereMargin;
+// try splitting polygon into two and triangulate them independently
+function splitEarcut(start, triangles, dim, minX, minY, invSize) {
+    // look for a valid diagonal that divides the polygon into two
+    var a = start;
+    do {
+        var b = a.next.next;
+        while (b !== a.prev) {
+            if (a.i !== b.i && isValidDiagonal(a, b)) {
+                // split the polygon in two by the diagonal
+                var c = splitPolygon(a, b);
 
-		if ( _ray.intersectsSphere( _sphere ) === false ) {
+                // filter colinear points around the cuts
+                a = filterPoints(a, a.next);
+                c = filterPoints(c, c.next);
 
-			return;
+                // run earcut on each half
+                earcutLinked(a, triangles, dim, minX, minY, invSize, 0);
+                earcutLinked(c, triangles, dim, minX, minY, invSize, 0);
+                return;
+            }
+            b = b.next;
+        }
+        a = a.next;
+    } while (a !== start);
+}
 
-		}
+// link every hole into the outer loop, producing a single-ring polygon without holes
+function eliminateHoles(data, holeIndices, outerNode, dim) {
+    var queue = [],
+        i, len, start, end, list;
 
-		// check if we intersect the box bounds
-		if ( geometry.boundingBox === null ) {
+    for (i = 0, len = holeIndices.length; i < len; i++) {
+        start = holeIndices[i] * dim;
+        end = i < len - 1 ? holeIndices[i + 1] * dim : data.length;
+        list = linkedList(data, start, end, dim, false);
+        if (list === list.next) list.steiner = true;
+        queue.push(getLeftmost(list));
+    }
 
-			geometry.computeBoundingBox();
+    queue.sort(compareX);
 
-		}
+    // process holes from left to right
+    for (i = 0; i < queue.length; i++) {
+        outerNode = eliminateHole(queue[i], outerNode);
+    }
 
-		_box.copy( geometry.boundingBox ).applyMatrix4( matrixWorld );
+    return outerNode;
+}
 
-		// increase the box bounds by the worst case line width
-		let boxMargin;
-		if ( worldUnits ) {
+function compareX(a, b) {
+    return a.x - b.x;
+}
 
-			boxMargin = _lineWidth * 0.5;
+// find a bridge between vertices that connects hole with an outer ring and and link it
+function eliminateHole(hole, outerNode) {
+    var bridge = findHoleBridge(hole, outerNode);
+    if (!bridge) {
+        return outerNode;
+    }
 
-		} else {
+    var bridgeReverse = splitPolygon(bridge, hole);
 
-			const distanceToBox = Math.max( camera.near, _box.distanceToPoint( _ray.origin ) );
-			boxMargin = getWorldSpaceHalfWidth( camera, distanceToBox, material.resolution );
+    // filter collinear points around the cuts
+    filterPoints(bridgeReverse, bridgeReverse.next);
+    return filterPoints(bridge, bridge.next);
+}
 
-		}
+// David Eberly's algorithm for finding a bridge between hole and outer polygon
+function findHoleBridge(hole, outerNode) {
+    var p = outerNode,
+        hx = hole.x,
+        hy = hole.y,
+        qx = -Infinity,
+        m;
 
-		_box.expandByScalar( boxMargin );
+    // find a segment intersected by a ray from the hole's leftmost point to the left;
+    // segment's endpoint with lesser x will be potential connection point
+    do {
+        if (hy <= p.y && hy >= p.next.y && p.next.y !== p.y) {
+            var x = p.x + (hy - p.y) * (p.next.x - p.x) / (p.next.y - p.y);
+            if (x <= hx && x > qx) {
+                qx = x;
+                m = p.x < p.next.x ? p : p.next;
+                if (x === hx) return m; // hole touches outer segment; pick leftmost endpoint
+            }
+        }
+        p = p.next;
+    } while (p !== outerNode);
 
-		if ( _ray.intersectsBox( _box ) === false ) {
+    if (!m) return null;
 
-			return;
+    // look for points inside the triangle of hole point, segment intersection and endpoint;
+    // if there are no points found, we have a valid connection;
+    // otherwise choose the point of the minimum angle with the ray as connection point
 
-		}
+    var stop = m,
+        mx = m.x,
+        my = m.y,
+        tanMin = Infinity,
+        tan;
 
-		if ( worldUnits ) {
+    p = m;
 
-			raycastWorldUnits( this, intersects );
+    do {
+        if (hx >= p.x && p.x >= mx && hx !== p.x &&
+                pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p.x, p.y)) {
 
-		} else {
+            tan = Math.abs(hy - p.y) / (hx - p.x); // tangential
 
-			raycastScreenSpace( this, camera, intersects );
+            if (locallyInside(p, hole) &&
+                (tan < tanMin || (tan === tanMin && (p.x > m.x || (p.x === m.x && sectorContainsSector(m, p)))))) {
+                m = p;
+                tanMin = tan;
+            }
+        }
 
-		}
+        p = p.next;
+    } while (p !== stop);
 
-	}
+    return m;
+}
 
+// whether sector in vertex m contains sector in vertex p in the same coordinates
+function sectorContainsSector(m, p) {
+    return area(m.prev, m, p.prev) < 0 && area(p.next, m, m.next) < 0;
+}
+
+// interlink polygon nodes in z-order
+function indexCurve(start, minX, minY, invSize) {
+    var p = start;
+    do {
+        if (p.z === 0) p.z = zOrder(p.x, p.y, minX, minY, invSize);
+        p.prevZ = p.prev;
+        p.nextZ = p.next;
+        p = p.next;
+    } while (p !== start);
+
+    p.prevZ.nextZ = null;
+    p.prevZ = null;
+
+    sortLinked(p);
+}
+
+// Simon Tatham's linked list merge sort algorithm
+// http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
+function sortLinked(list) {
+    var i, p, q, e, tail, numMerges, pSize, qSize,
+        inSize = 1;
+
+    do {
+        p = list;
+        list = null;
+        tail = null;
+        numMerges = 0;
+
+        while (p) {
+            numMerges++;
+            q = p;
+            pSize = 0;
+            for (i = 0; i < inSize; i++) {
+                pSize++;
+                q = q.nextZ;
+                if (!q) break;
+            }
+            qSize = inSize;
+
+            while (pSize > 0 || (qSize > 0 && q)) {
+
+                if (pSize !== 0 && (qSize === 0 || !q || p.z <= q.z)) {
+                    e = p;
+                    p = p.nextZ;
+                    pSize--;
+                } else {
+                    e = q;
+                    q = q.nextZ;
+                    qSize--;
+                }
+
+                if (tail) tail.nextZ = e;
+                else list = e;
+
+                e.prevZ = tail;
+                tail = e;
+            }
+
+            p = q;
+        }
+
+        tail.nextZ = null;
+        inSize *= 2;
+
+    } while (numMerges > 1);
+
+    return list;
+}
+
+// z-order of a point given coords and inverse of the longer side of data bbox
+function zOrder(x, y, minX, minY, invSize) {
+    // coords are transformed into non-negative 15-bit integer range
+    x = (x - minX) * invSize | 0;
+    y = (y - minY) * invSize | 0;
+
+    x = (x | (x << 8)) & 0x00FF00FF;
+    x = (x | (x << 4)) & 0x0F0F0F0F;
+    x = (x | (x << 2)) & 0x33333333;
+    x = (x | (x << 1)) & 0x55555555;
+
+    y = (y | (y << 8)) & 0x00FF00FF;
+    y = (y | (y << 4)) & 0x0F0F0F0F;
+    y = (y | (y << 2)) & 0x33333333;
+    y = (y | (y << 1)) & 0x55555555;
+
+    return x | (y << 1);
+}
+
+// find the leftmost node of a polygon ring
+function getLeftmost(start) {
+    var p = start,
+        leftmost = start;
+    do {
+        if (p.x < leftmost.x || (p.x === leftmost.x && p.y < leftmost.y)) leftmost = p;
+        p = p.next;
+    } while (p !== start);
+
+    return leftmost;
+}
+
+// check if a point lies within a convex triangle
+function pointInTriangle(ax, ay, bx, by, cx, cy, px, py) {
+    return (cx - px) * (ay - py) >= (ax - px) * (cy - py) &&
+           (ax - px) * (by - py) >= (bx - px) * (ay - py) &&
+           (bx - px) * (cy - py) >= (cx - px) * (by - py);
+}
+
+// check if a diagonal between two polygon nodes is valid (lies in polygon interior)
+function isValidDiagonal(a, b) {
+    return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && // dones't intersect other edges
+           (locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && // locally visible
+            (area(a.prev, a, b.prev) || area(a, b.prev, b)) || // does not create opposite-facing sectors
+            equals(a, b) && area(a.prev, a, a.next) > 0 && area(b.prev, b, b.next) > 0); // special zero-length case
+}
+
+// signed area of a triangle
+function area(p, q, r) {
+    return (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+}
+
+// check if two points are equal
+function equals(p1, p2) {
+    return p1.x === p2.x && p1.y === p2.y;
+}
+
+// check if two segments intersect
+function intersects(p1, q1, p2, q2) {
+    var o1 = sign(area(p1, q1, p2));
+    var o2 = sign(area(p1, q1, q2));
+    var o3 = sign(area(p2, q2, p1));
+    var o4 = sign(area(p2, q2, q1));
+
+    if (o1 !== o2 && o3 !== o4) return true; // general case
+
+    if (o1 === 0 && onSegment(p1, p2, q1)) return true; // p1, q1 and p2 are collinear and p2 lies on p1q1
+    if (o2 === 0 && onSegment(p1, q2, q1)) return true; // p1, q1 and q2 are collinear and q2 lies on p1q1
+    if (o3 === 0 && onSegment(p2, p1, q2)) return true; // p2, q2 and p1 are collinear and p1 lies on p2q2
+    if (o4 === 0 && onSegment(p2, q1, q2)) return true; // p2, q2 and q1 are collinear and q1 lies on p2q2
+
+    return false;
+}
+
+// for collinear points p, q, r, check if point q lies on segment pr
+function onSegment(p, q, r) {
+    return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) && q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
+}
+
+function sign(num) {
+    return num > 0 ? 1 : num < 0 ? -1 : 0;
+}
+
+// check if a polygon diagonal intersects any polygon segments
+function intersectsPolygon(a, b) {
+    var p = a;
+    do {
+        if (p.i !== a.i && p.next.i !== a.i && p.i !== b.i && p.next.i !== b.i &&
+                intersects(p, p.next, a, b)) return true;
+        p = p.next;
+    } while (p !== a);
+
+    return false;
+}
+
+// check if a polygon diagonal is locally inside the polygon
+function locallyInside(a, b) {
+    return area(a.prev, a, a.next) < 0 ?
+        area(a, b, a.next) >= 0 && area(a, a.prev, b) >= 0 :
+        area(a, b, a.prev) < 0 || area(a, a.next, b) < 0;
+}
+
+// check if the middle point of a polygon diagonal is inside the polygon
+function middleInside(a, b) {
+    var p = a,
+        inside = false,
+        px = (a.x + b.x) / 2,
+        py = (a.y + b.y) / 2;
+    do {
+        if (((p.y > py) !== (p.next.y > py)) && p.next.y !== p.y &&
+                (px < (p.next.x - p.x) * (py - p.y) / (p.next.y - p.y) + p.x))
+            inside = !inside;
+        p = p.next;
+    } while (p !== a);
+
+    return inside;
+}
+
+// link two polygon vertices with a bridge; if the vertices belong to the same ring, it splits polygon into two;
+// if one belongs to the outer ring and another to a hole, it merges it into a single ring
+function splitPolygon(a, b) {
+    var a2 = new Node(a.i, a.x, a.y),
+        b2 = new Node(b.i, b.x, b.y),
+        an = a.next,
+        bp = b.prev;
+
+    a.next = b;
+    b.prev = a;
+
+    a2.next = an;
+    an.prev = a2;
+
+    b2.next = a2;
+    a2.prev = b2;
+
+    bp.next = b2;
+    b2.prev = bp;
+
+    return b2;
+}
+
+// create a node and optionally link it with previous one (in a circular doubly linked list)
+function insertNode(i, x, y, last) {
+    var p = new Node(i, x, y);
+
+    if (!last) {
+        p.prev = p;
+        p.next = p;
+
+    } else {
+        p.next = last.next;
+        p.prev = last;
+        last.next.prev = p;
+        last.next = p;
+    }
+    return p;
+}
+
+function removeNode(p) {
+    p.next.prev = p.prev;
+    p.prev.next = p.next;
+
+    if (p.prevZ) p.prevZ.nextZ = p.nextZ;
+    if (p.nextZ) p.nextZ.prevZ = p.prevZ;
+}
+
+function Node(i, x, y) {
+    // vertex index in coordinates array
+    this.i = i;
+
+    // vertex coordinates
+    this.x = x;
+    this.y = y;
+
+    // previous and next vertex nodes in a polygon ring
+    this.prev = null;
+    this.next = null;
+
+    // z-order curve value
+    this.z = 0;
+
+    // previous and next nodes in z-order
+    this.prevZ = null;
+    this.nextZ = null;
+
+    // indicates whether this is a steiner point
+    this.steiner = false;
+}
+
+// return a percentage difference between the polygon area and its triangulation area;
+// used to verify correctness of triangulation
+earcut.deviation = function (data, holeIndices, dim, triangles) {
+    var hasHoles = holeIndices && holeIndices.length;
+    var outerLen = hasHoles ? holeIndices[0] * dim : data.length;
+
+    var polygonArea = Math.abs(signedArea(data, 0, outerLen, dim));
+    if (hasHoles) {
+        for (var i = 0, len = holeIndices.length; i < len; i++) {
+            var start = holeIndices[i] * dim;
+            var end = i < len - 1 ? holeIndices[i + 1] * dim : data.length;
+            polygonArea -= Math.abs(signedArea(data, start, end, dim));
+        }
+    }
+
+    var trianglesArea = 0;
+    for (i = 0; i < triangles.length; i += 3) {
+        var a = triangles[i] * dim;
+        var b = triangles[i + 1] * dim;
+        var c = triangles[i + 2] * dim;
+        trianglesArea += Math.abs(
+            (data[a] - data[c]) * (data[b + 1] - data[a + 1]) -
+            (data[a] - data[b]) * (data[c + 1] - data[a + 1]));
+    }
+
+    return polygonArea === 0 && trianglesArea === 0 ? 0 :
+        Math.abs((trianglesArea - polygonArea) / polygonArea);
+};
+
+function signedArea(data, start, end, dim) {
+    var sum = 0;
+    for (var i = start, j = end - dim; i < end; i += dim) {
+        sum += (data[j] - data[i]) * (data[i + 1] + data[j + 1]);
+        j = i;
+    }
+    return sum;
+}
+
+// turn a polygon in a multi-dimensional array form (e.g. as in GeoJSON) into a form Earcut accepts
+earcut.flatten = function (data) {
+    var dim = data[0][0].length,
+        result = {vertices: [], holes: [], dimensions: dim},
+        holeIndex = 0;
+
+    for (var i = 0; i < data.length; i++) {
+        for (var j = 0; j < data[i].length; j++) {
+            for (var d = 0; d < dim; d++) result.vertices.push(data[i][j][d]);
+        }
+        if (i > 0) {
+            holeIndex += data[i - 1].length;
+            result.holes.push(holeIndex);
+        }
+    }
+    return result;
+};
+
+var earcutExports = earcut$2.exports;
+var earcut$1 = /*@__PURE__*/getDefaultExportFromCjs(earcutExports);
+
+class ClippingFills {
+    constructor(components) {
+        // readonly worker: Worker;
+        this.mesh = new Mesh();
+        this._components = components;
+        this._components.scene.get().add(this.mesh);
+        this.mesh.material = new THREE$1.MeshBasicMaterial({
+            color: "white",
+            side: 2,
+        });
+        this.mesh.position.y -= 0.1;
+        // const code = `
+        //   addEventListener("message", (event) => {
+        //     const { buffer } = event.data;
+        //     const vertices = new Map();
+        //     for (let i = 0; i < buffer.length; i += 3) {
+        //         const x = buffer[i];
+        //         const y = buffer[i + 1];
+        //         const code = \`\${x}-\${y}\`;
+        //         if()
+        //         const code = "" + r + "-" + g + "-" + b;
+        //         colors.add(code);
+        //     }
+        //     postMessage({ colors });
+        //   });
+        // `;
+        // const blob = new Blob([code], { type: "application/javascript" });
+        // this.worker = new Worker(URL.createObjectURL(blob));
+        // this.worker.addEventListener("message", this.handleWorkerMessage);
+    }
+    test(geometry, plane) {
+        // temp
+        this.mesh.geometry = geometry;
+        const range = geometry.drawRange.count;
+        const buffer = geometry.attributes.position.array;
+        if (!buffer)
+            return;
+        const zAxis = plane.normal;
+        const localCoordSystem = new THREE$1.Matrix4();
+        // First, let's convert the 3d points to 2d to simplify
+        // if z is up or down, we can just ignore it
+        const isPlaneHorizontal = zAxis.y === 1 || zAxis.y === -1;
+        if (isPlaneHorizontal) {
+            const pos = new THREE$1.Vector3();
+            plane.coplanarPoint(pos);
+            const xAxis = new THREE$1.Vector3(1, 0, 0);
+            const yAxis = new THREE$1.Vector3(0, 1, 0);
+            const up = new THREE$1.Vector3(0, 1, 0);
+            xAxis.crossVectors(up, zAxis).normalize();
+            yAxis.crossVectors(zAxis, xAxis);
+            // prettier-ignore
+            localCoordSystem.fromArray([
+                xAxis.x, xAxis.y, xAxis.z, 0,
+                yAxis.x, yAxis.y, yAxis.z, 0,
+                zAxis.x, zAxis.y, zAxis.z, 0,
+                pos.x, pos.y, pos.z, 1
+            ]);
+            localCoordSystem.invert();
+        }
+        // -0.7851659380703032
+        // 0.6351651018463915
+        // -3.181819948588538
+        const indices = new Map();
+        const all2DVertices = {};
+        const shapes = new Map();
+        let nextShapeID = 0;
+        const shapesEnds = new Map();
+        const shapesStarts = new Map();
+        const tempVector = new THREE$1.Vector3();
+        // precision
+        const p = 1000;
+        for (let i = 0; i < range * 3; i += 6) {
+            // Convert vertices to indices
+            let x1 = 0;
+            let y1 = 0;
+            let x2 = 0;
+            let y2 = 0;
+            const globalX1 = buffer[i];
+            const globalY1 = buffer[i + 1];
+            const globalZ1 = buffer[i + 2];
+            const globalX2 = buffer[i + 3];
+            const globalY2 = buffer[i + 4];
+            const globalZ2 = buffer[i + 5];
+            if (isPlaneHorizontal) {
+                x1 = Math.trunc(globalX1 * p) / p;
+                y1 = Math.trunc(globalZ1 * p) / p;
+                x2 = Math.trunc(globalX2 * p) / p;
+                y2 = Math.trunc(globalZ2 * p) / p;
+            }
+            else {
+                tempVector.set(globalX1, globalY1, globalZ1);
+                tempVector.applyMatrix4(localCoordSystem);
+                x1 = Math.trunc(tempVector.x * p) / p;
+                y1 = Math.trunc(tempVector.y * p) / p;
+                tempVector.set(globalX2, globalY2, globalZ2);
+                tempVector.applyMatrix4(localCoordSystem);
+                x2 = Math.trunc(tempVector.x * p) / p;
+                y2 = Math.trunc(tempVector.y * p) / p;
+            }
+            const startCode = `${x1}-${y1}`;
+            const endCode = `${x2}-${y2}`;
+            if (!indices.has(startCode))
+                indices.set(startCode, i / 3);
+            if (!indices.has(endCode))
+                indices.set(endCode, i / 3 + 1);
+            const start = indices.get(startCode);
+            const end = indices.get(endCode);
+            all2DVertices[start] = [x1, y1];
+            all2DVertices[end] = [x2, y2];
+            const startMatchesStart = shapesStarts.has(start);
+            const startMatchesEnd = shapesEnds.has(start);
+            const endMatchesStart = shapesStarts.has(end);
+            const endMatchesEnd = shapesEnds.has(end);
+            const noMatches = !startMatchesStart &&
+                !startMatchesEnd &&
+                !endMatchesStart &&
+                !endMatchesEnd;
+            if (noMatches) {
+                // New shape
+                shapesStarts.set(start, nextShapeID);
+                shapesEnds.set(end, nextShapeID);
+                shapes.set(nextShapeID, [start, end]);
+                nextShapeID++;
+            }
+            else if (startMatchesStart && endMatchesEnd) {
+                // Close shape or merge 2 shapes
+                const startIndex = shapesStarts.get(start);
+                const endIndex = shapesEnds.get(end);
+                const isShapeMerge = startIndex !== endIndex;
+                if (isShapeMerge) {
+                    // merge start to end
+                    const endShape = shapes.get(endIndex);
+                    const startShape = shapes.get(startIndex);
+                    shapes.delete(startIndex);
+                    if (!endShape || !startShape)
+                        throw new Error("Shape error!");
+                    for (const index of startShape) {
+                        shapesEnds.set(index, endIndex);
+                        endShape.push(index);
+                    }
+                }
+                shapesStarts.delete(start);
+                shapesEnds.delete(end);
+            }
+            else if (startMatchesEnd && endMatchesStart) {
+                // Close shape or merge 2 shapes
+                const startIndex = shapesStarts.get(end);
+                const endIndex = shapesEnds.get(start);
+                const isShapeMerge = startIndex !== endIndex;
+                if (isShapeMerge) {
+                    // merge start to end
+                    const endShape = shapes.get(endIndex);
+                    const startShape = shapes.get(startIndex);
+                    shapes.delete(startIndex);
+                    if (!endShape || !startShape)
+                        throw new Error("Shape error!");
+                    for (const index of startShape) {
+                        shapesEnds.set(index, endIndex);
+                        endShape.push(index);
+                    }
+                }
+                shapesStarts.delete(end);
+                shapesEnds.delete(start);
+            }
+            else if (startMatchesStart) {
+                // existing contour on start - start
+                const shapeIndex = shapesStarts.get(start);
+                const shape = shapes.get(shapeIndex);
+                if (!shape)
+                    throw new Error("Shape error!");
+                shape.unshift(end);
+                shapesStarts.delete(start);
+                shapesStarts.set(end, shapeIndex);
+            }
+            else if (startMatchesEnd) {
+                // existing contour on start - end
+                const shapeIndex = shapesEnds.get(start);
+                const shape = shapes.get(shapeIndex);
+                if (!shape)
+                    throw new Error("Shape error!");
+                shape.push(end);
+                shapesEnds.delete(start);
+                shapesEnds.set(end, shapeIndex);
+            }
+            else if (endMatchesStart) {
+                // existing contour on end - start
+                const shapeIndex = shapesStarts.get(end);
+                const shape = shapes.get(shapeIndex);
+                if (!shape)
+                    throw new Error("Shape error!");
+                shape.unshift(start);
+                shapesStarts.delete(end);
+                shapesStarts.set(start, shapeIndex);
+            }
+            else if (endMatchesEnd) {
+                // existing contour on end - end
+                const shapeIndex = shapesEnds.get(end);
+                const shape = shapes.get(shapeIndex);
+                if (!shape)
+                    throw new Error("Shape error!");
+                shape.push(start);
+                shapesEnds.delete(end);
+                shapesEnds.set(start, shapeIndex);
+            }
+        }
+        if (shapes.size === 0)
+            return;
+        // first shape only
+        const shapeIndices = shapes.get(1);
+        if (!shapeIndices)
+            throw new Error("ShapeIndices not found!");
+        const vertices = [];
+        const indexMap = new Map();
+        let counter = 0;
+        for (const index of shapeIndices) {
+            const vertex = all2DVertices[index];
+            vertices.push(vertex[0], vertex[1]);
+            indexMap.set(counter++, index);
+        }
+        const result = earcut$1(vertices);
+        if (result.length) {
+            const mapped = result.map((index) => {
+                const result = indexMap.get(index);
+                if (result === undefined)
+                    throw new Error("Map error!");
+                return result;
+            });
+            this.mesh.geometry.setIndex(mapped);
+        }
+    }
 }
 
 /**
  * The edges that are drawn when the {@link EdgesPlane} sections a mesh.
  */
 class ClippingEdges extends Component {
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        this._visible = visible;
+        const names = Object.keys(this._edges);
+        for (const edgeName of names) {
+            this.updateEdgesVisibility(edgeName, visible);
+        }
+        if (visible) {
+            this.update();
+        }
+    }
     constructor(components, plane, styles) {
         super();
         /** {@link Component.name} */
@@ -95102,21 +95513,7 @@ class ClippingEdges extends Component {
         this._components = components;
         this._plane = plane;
         this._styles = styles;
-    }
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(visible) {
-        this._visible = visible;
-        const names = Object.keys(this._edges);
-        for (const edgeName of names) {
-            this.updateEdgesVisibility(edgeName, visible);
-        }
-        if (visible) {
-            this.update();
-        }
+        this.fills = new ClippingFills(components);
     }
     /** {@link Updateable.update} */
     update() {
@@ -95133,34 +95530,19 @@ class ClippingEdges extends Component {
     dispose() {
         const edges = Object.values(this._edges);
         for (const edge of edges) {
-            this._disposer.disposeGeometry(edge.generatorGeometry);
             this._disposer.dispose(edge.mesh, false);
         }
-        ClippingEdges._basicEdges.removeFromParent();
-        ClippingEdges._basicEdges.geometry.dispose();
-        ClippingEdges._basicEdges = new THREE$1.LineSegments();
-    }
-    // Initializes the helper geometry used to compute the vertices
-    static newGeneratorGeometry() {
-        // create line geometry with enough data to hold 100000 segments
-        const generatorGeometry = new THREE$1.BufferGeometry();
-        const buffer = new Float32Array(300000);
-        const linePosAttr = new THREE$1.BufferAttribute(buffer, 3, false);
-        linePosAttr.setUsage(THREE$1.DynamicDrawUsage);
-        generatorGeometry.setAttribute("position", linePosAttr);
-        return generatorGeometry;
     }
     // Creates the geometry of the clipping edges
     newThickEdges(styleName) {
         const styles = this._styles.get();
         const material = styles[styleName].material;
-        const thickLineGeometry = new LineSegmentsGeometry();
-        const thickEdges = new LineSegments2(thickLineGeometry, material);
-        thickEdges.material.polygonOffset = true;
-        thickEdges.material.polygonOffsetFactor = -2;
-        thickEdges.material.polygonOffsetUnits = 1;
-        thickEdges.renderOrder = 3;
-        return thickEdges;
+        const edgesGeometry = new THREE$1.BufferGeometry();
+        const buffer = new Float32Array(300000);
+        const linePosAttr = new THREE$1.BufferAttribute(buffer, 3, false);
+        linePosAttr.setUsage(THREE$1.DynamicDrawUsage);
+        edgesGeometry.setAttribute("position", linePosAttr);
+        return new THREE$1.LineSegments(edgesGeometry, material);
     }
     // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
     drawEdges(styleName) {
@@ -95170,7 +95552,7 @@ class ClippingEdges extends Component {
         }
         const edges = this._edges[styleName];
         let index = 0;
-        const posAttr = edges.generatorGeometry.attributes.position;
+        const posAttr = edges.mesh.geometry.attributes.position;
         // @ts-ignore
         posAttr.array.fill(0);
         const notEmptyMeshes = style.meshes.filter((mesh) => mesh.geometry);
@@ -95205,19 +95587,18 @@ class ClippingEdges extends Component {
         edges.mesh.position.copy(this._plane.normal).multiplyScalar(0.0001);
         posAttr.needsUpdate = true;
         // Update the edges geometry only if there is no NaN in the output (which means there's been an error)
-        const attributes = edges.generatorGeometry.attributes;
+        const attributes = edges.mesh.geometry.attributes;
         const position = attributes.position;
         if (!Number.isNaN(position.array[0])) {
-            ClippingEdges._basicEdges.geometry = edges.generatorGeometry;
-            edges.mesh.geometry.fromLineSegments(ClippingEdges._basicEdges);
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
+            console.log(edges.mesh);
+            this.fills.test(edges.mesh.geometry, this._plane);
         }
     }
     initializeStyle(styleName) {
         this._edges[styleName] = {
             name: styleName,
-            generatorGeometry: ClippingEdges.newGeneratorGeometry(),
             mesh: this.newThickEdges(styleName),
         };
     }
@@ -95277,7 +95658,6 @@ class ClippingEdges extends Component {
         }
     }
 }
-ClippingEdges._basicEdges = new THREE$1.LineSegments();
 
 /**
  * A more advanced version of {@link SimpleClipper} that also includes
@@ -95948,11 +96328,12 @@ class RenderPass extends Pass {
 }
 
 /**
- * postprocessing v6.31.0 build Sun May 07 2023
+ * postprocessing v6.32.2 build Sat Jul 01 2023
  * https://github.com/pmndrs/postprocessing
  * Copyright 2015-2023 Raoul van Rüschen
  * @license Zlib
  */
+
 
 // src/utils/BackCompat.js
 Number(REVISION.replace(/\D+/g, ""));
@@ -96087,7 +96468,7 @@ void main() {
     #define SAMPLES 16
     #define FSAMPLES 16.0
 uniform sampler2D sceneDiffuse;
-uniform sampler2D sceneNormal;
+uniform highp sampler2D sceneNormal;
 uniform highp sampler2D sceneDepth;
 uniform mat4 projectionMatrixInv;
 uniform mat4 viewMatrixInv;
@@ -96137,7 +96518,7 @@ uniform sampler2D bluenoise;
       float b = farZ * nearZ / (nearZ - farZ);
       float linDepth = a + b / depth;
       vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-      vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+      vec4 wpos = projectionMatrixInv * clipVec;
       return wpos.xyz / wpos.w;
     }
     vec3 getWorldPos(float depth, vec2 coord) {
@@ -96148,7 +96529,7 @@ uniform sampler2D bluenoise;
       vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
       vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
       // Perspective division
-     vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+     vec4 worldSpacePosition = viewSpacePosition;
      worldSpacePosition.xyz /= worldSpacePosition.w;
       return worldSpacePosition.xyz;
   }
@@ -96227,7 +96608,7 @@ void main() {
         ;
         float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
-        vec4 offset = projViewMat * vec4(samplePos, 1.0);
+        vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
         float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
@@ -96332,6 +96713,24 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         },
         "distanceFalloff": {
             value: 1.0
+        },
+        "fog": {
+            value: false
+        },
+        "fogExp": {
+            value: false
+        },
+        "fogDensity": {
+            value: 0.0
+        },
+        "fogNear": {
+            value: Infinity
+        },
+        "fogFar": {
+            value: Infinity
+        },
+        "colorMultiply": {
+            value: true
         }
     },
     vertexShader: /* glsl */ `
@@ -96342,8 +96741,8 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 		}`,
     fragmentShader: /* glsl */ `
 		uniform sampler2D sceneDiffuse;
-    uniform sampler2D sceneDepth;
-    uniform sampler2D downsampledDepth;
+    uniform highp sampler2D sceneDepth;
+    uniform highp sampler2D downsampledDepth;
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
@@ -96358,8 +96757,15 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform bool logDepth;
     uniform bool ortho;
     uniform bool screenSpaceRadius;
+    uniform bool fog;
+    uniform bool fogExp;
+    uniform bool colorMultiply;
+    uniform float fogDensity;
+    uniform float fogNear;
+    uniform float fogFar;
     uniform float radius;
     uniform float distanceFalloff;
+    uniform vec3 cameraPos;
     varying vec2 vUv;
     highp float linearize_depth(highp float d, highp float zNear,highp float zFar)
     {
@@ -96389,7 +96795,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         float b = farZ * nearZ / (nearZ - farZ);
         float linDepth = a + b / depth;
         vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+        vec4 wpos = projectionMatrixInv * clipVec;
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
@@ -96402,7 +96808,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         // Perspective division
-       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+       vec4 worldSpacePosition = viewSpacePosition;
        worldSpacePosition.xyz /= worldSpacePosition.w;
         return worldSpacePosition.xyz;
     }
@@ -96439,12 +96845,11 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     void main() {
         //vec4 texel = texture2D(tDiffuse, vUv);//vec3(0.0);
         vec4 sceneTexel = texture2D(sceneDiffuse, vUv);
-
-        #ifdef HALFRES 
         float depth = texture2D(
             sceneDepth,
             vUv
         ).x;
+        #ifdef HALFRES 
         vec4 texel;
         if (depth == 1.0) {
             texel = vec4(0.0, 0.0, 0.0, 1.0);
@@ -96492,10 +96897,24 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 
      
         float finalAo = pow(texel.a, intensity);
+        float fogFactor;
+        float fogDepth = distance(
+            cameraPos,
+            getWorldPos(depth, vUv)
+        );
+        if (fog) {
+            if (fogExp) {
+                fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );
+            } else {
+                fogFactor = smoothstep( fogNear, fogFar, fogDepth );
+            }
+        }
+        finalAo = mix(finalAo, 1.0, fogFactor);
+        vec3 aoApplied = color * mix(vec3(1.0), sceneTexel.rgb, float(colorMultiply));
         if (renderMode == 0.0) {
-            gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 1.0) {
-            gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+            gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
         } else if (renderMode == 2.0) {
             gl_FragColor = vec4( sceneTexel.rgb, sceneTexel.a);
         } else if (renderMode == 3.0) {
@@ -96504,7 +96923,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(sceneTexel.rgb, color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(sceneTexel.rgb, aoApplied, 1.0 - finalAo), sceneTexel.a);
             }
         } else if (renderMode == 4.0) {
             if (vUv.x < 0.5) {
@@ -96512,7 +96931,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else if (abs(vUv.x - 0.5) < 1.0 / resolution.x) {
                 gl_FragColor = vec4(1.0);
             } else {
-                gl_FragColor = vec4( mix(vec3(1.0), color * sceneTexel.rgb, 1.0 - finalAo), sceneTexel.a);
+                gl_FragColor = vec4( mix(vec3(1.0), aoApplied, 1.0 - finalAo), sceneTexel.a);
             }
         }
         #include <dithering_fragment>
@@ -96641,7 +97060,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
      float b = farZ * nearZ / (nearZ - farZ);
      float linDepth = a + b / depth;
      vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-     vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+     vec4 wpos = projectionMatrixInv * clipVec;
      return wpos.xyz / wpos.w;
    }
     vec3 getWorldPos(float depth, vec2 coord) {
@@ -96653,7 +97072,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         // Perspective division
-       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+       vec4 worldSpacePosition = viewSpacePosition;
        worldSpacePosition.xyz /= worldSpacePosition.w;
         return worldSpacePosition.xyz;
     }
@@ -96670,6 +97089,10 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
         vec3 normal = data.rgb * 2.0 - 1.0;
         float count = 1.0;
         float d = texture2D(sceneDepth, vUv).x;
+        if (d == 1.0) {
+          gl_FragColor = data;
+          return;
+        }
         vec3 worldPos = getWorldPos(d, vUv);
         float size = radius;
         float angle;
@@ -96702,11 +97125,19 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
             float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
-            float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
+            float rangeCheck = dSample == 1.0 ? 0.0 :exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
         }
-        occlusion /= count;
+        if (count > 0.0) {
+          occlusion /= count;
+        }
+        #ifdef LOGDEPTH
+          occlusion = clamp(occlusion, 0.0, 1.0);
+          if (occlusion == 0.0) {
+            occlusion = 1.0;
+          }
+        #endif
         gl_FragColor = vec4(0.5 + 0.5 * normal, occlusion);
     }
     `
@@ -96745,7 +97176,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         gl_Position = vec4(position, 1);
     }`,
     fragmentShader: /* glsl */ `
-    uniform sampler2D sceneDepth;
+    uniform highp sampler2D sceneDepth;
     uniform vec2 resolution;
     uniform float near;
     uniform float far;
@@ -96764,7 +97195,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         float b = farZ * nearZ / (nearZ - farZ);
         float linDepth = a + b / depth;
         vec4 clipVec = vec4(uv, linDepth, 1.0) * 2.0 - 1.0;
-        vec4 wpos = viewMatrixInv * projectionMatrixInv * clipVec;
+        vec4 wpos = projectionMatrixInv * clipVec;
         return wpos.xyz / wpos.w;
       }
       vec3 getWorldPos(float depth, vec2 coord) {
@@ -96775,7 +97206,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         vec4 clipSpacePosition = vec4(coord * 2.0 - 1.0, z, 1.0);
         vec4 viewSpacePosition = projectionMatrixInv * clipSpacePosition;
         // Perspective division
-       vec4 worldSpacePosition = viewMatrixInv * viewSpacePosition;
+       vec4 worldSpacePosition = viewSpacePosition;
        worldSpacePosition.xyz /= worldSpacePosition.w;
         return worldSpacePosition.xyz;
     }
@@ -96944,8 +97375,13 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
          * denoiseIterations: number,
          * renderMode: 0 | 1 | 2 | 3 | 4,
          * color: THREE.Color,
-         * gammaCorrection: Boolean,
-         * logarithmicDepthBuffer: Boolean
+         * gammaCorrection: boolean,
+         * logarithmicDepthBuffer: boolean
+         * screenSpaceRadius: boolean,
+         * halfRes: boolean,
+         * depthAwareUpsampling: boolean,
+         * autoRenderBeauty: boolean
+         * colorMultiply: boolean
          * }
          */ this.configuration = new Proxy({
             aoSamples: 16,
@@ -96961,7 +97397,9 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             logarithmicDepthBuffer: false,
             screenSpaceRadius: false,
             halfRes: false,
-            depthAwareUpsampling: true
+            depthAwareUpsampling: true,
+            autoRenderBeauty: true,
+            colorMultiply: true
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -96984,7 +97422,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
-        //  this.effectCompisterQuad = new FullScreenTriangle(new THREE.ShaderMaterial(EffectCompositer));
         this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
             minFilter: LinearFilter,
             magFilter: NearestFilter
@@ -97156,8 +97593,10 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
                 this.debugMode = false;
             }
         }
-        renderer.setRenderTarget(this.beautyRenderTarget);
-        renderer.render(this.scene, this.camera);
+        if (this.configuration.autoRenderBeauty) {
+            renderer.setRenderTarget(this.beautyRenderTarget);
+            renderer.render(this.scene, this.camera);
+        }
         if (this.debugMode) {
             timerQuery = gl.createQuery();
             gl.beginQuery(ext.TIME_ELAPSED_EXT, timerQuery);
@@ -97187,7 +97626,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.effectShaderQuad.material.uniforms["projViewMat"].value = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse.clone());
         this.effectShaderQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
         this.effectShaderQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.position;
+        this.effectShaderQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new Vector3$1());
         this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
@@ -97216,7 +97655,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             this.poissonBlurQuad.material.uniforms["viewMat"].value = this.camera.matrixWorldInverse;
             this.poissonBlurQuad.material.uniforms["projectionMatrixInv"].value = this.camera.projectionMatrixInverse;
             this.poissonBlurQuad.material.uniforms["viewMatrixInv"].value = this.camera.matrixWorld;
-            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.position;
+            this.poissonBlurQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new Vector3$1());
             this.poissonBlurQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
             this.poissonBlurQuad.material.uniforms["time"].value = performance.now() / 1000;
             this.poissonBlurQuad.material.uniforms["blueNoise"].value = this.bluenoise;
@@ -97254,6 +97693,19 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.effectCompositerQuad.material.uniforms["gammaCorrection"].value = this.configuration.gammaCorrection;
         this.effectCompositerQuad.material.uniforms["tDiffuse"].value = this.writeTargetInternal.texture;
         this.effectCompositerQuad.material.uniforms["color"].value = this._c.copy(this.configuration.color).convertSRGBToLinear();
+        this.effectCompositerQuad.material.uniforms["colorMultiply"].value = this.configuration.colorMultiply;
+        this.effectCompositerQuad.material.uniforms["cameraPos"].value = this.camera.getWorldPosition(new Vector3$1());
+        this.effectCompositerQuad.material.uniforms["fog"].value = !!this.scene.fog;
+        if (this.scene.fog) {
+            if (this.scene.fog.isFog) {
+                this.effectCompositerQuad.material.uniforms["fogExp"].value = false;
+                this.effectCompositerQuad.material.uniforms["fogNear"].value = this.scene.fog.near;
+                this.effectCompositerQuad.material.uniforms["fogFar"].value = this.scene.fog.far;
+            } else if (this.scene.fog.isFogExp2) {
+                this.effectCompositerQuad.material.uniforms["fogExp"].value = true;
+                this.effectCompositerQuad.material.uniforms["fogDensity"].value = this.scene.fog.density;
+            } else console.error(`Unsupported fog type ${this.scene.fog.constructor.name} in SSAOPass.`);
+        }
         renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
         this.effectCompositerQuad.render(renderer);
         if (this.debugMode) {
@@ -97698,36 +98150,6 @@ function getProjectedNormalMaterial() {
 // Follows the structure of
 // 		https://github.com/mrdoob/three.js/blob/master/examples/jsm/postprocessing/OutlinePass.js
 class CustomEffectsPass extends Pass {
-    constructor(resolution, components) {
-        super();
-        this.excludedMeshes = [];
-        this.outlinedMeshes = [];
-        this._lineColor = 0x999999;
-        this._outlineColor = 0xffffff;
-        this._opacity = 0.4;
-        this._tolerance = 3;
-        this._correctColor = false;
-        this._glossEnabled = true;
-        this._outlineEnabled = false;
-        this._outlineThickness = 4;
-        this._glossExponent = 0.7;
-        this._minGloss = -0.15;
-        this._maxGloss = 0.15;
-        this.renderScene = components.scene.get();
-        this.renderCamera = components.camera.get();
-        this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
-        this.fsQuad = new FullScreenQuad();
-        this.fsQuad.material = this.createOutlinePostProcessMaterial();
-        this.planeBuffer = this.newRenderTarget();
-        this.glossBuffer = this.newRenderTarget();
-        this.outlineBuffer = this.newRenderTarget();
-        const normalMaterial = getPlaneDistanceMaterial();
-        normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
-        this.normalOverrideMaterial = normalMaterial;
-        const glossMaterial = getProjectedNormalMaterial();
-        glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
-        this.glossOverrideMaterial = glossMaterial;
-    }
     get lineColor() {
         return this._lineColor;
     }
@@ -97816,6 +98238,36 @@ class CustomEffectsPass extends Pass {
         this._outlineEnabled = active;
         const material = this.fsQuad.material;
         material.uniforms.outlineEnabled.value = active ? 1 : 0;
+    }
+    constructor(resolution, components) {
+        super();
+        this.excludedMeshes = [];
+        this.outlinedMeshes = [];
+        this._lineColor = 0x999999;
+        this._outlineColor = 0xffffff;
+        this._opacity = 0.4;
+        this._tolerance = 3;
+        this._correctColor = false;
+        this._glossEnabled = true;
+        this._outlineEnabled = false;
+        this._outlineThickness = 4;
+        this._glossExponent = 0.7;
+        this._minGloss = -0.15;
+        this._maxGloss = 0.15;
+        this.renderScene = components.scene.get();
+        this.renderCamera = components.camera.get();
+        this.resolution = new THREE$1.Vector2(resolution.x, resolution.y);
+        this.fsQuad = new FullScreenQuad();
+        this.fsQuad.material = this.createOutlinePostProcessMaterial();
+        this.planeBuffer = this.newRenderTarget();
+        this.glossBuffer = this.newRenderTarget();
+        this.outlineBuffer = this.newRenderTarget();
+        const normalMaterial = getPlaneDistanceMaterial();
+        normalMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.normalOverrideMaterial = normalMaterial;
+        const glossMaterial = getProjectedNormalMaterial();
+        glossMaterial.clippingPlanes = components.renderer.clippingPlanes;
+        this.glossOverrideMaterial = glossMaterial;
     }
     dispose() {
         this.planeBuffer.dispose();
@@ -98133,19 +98585,6 @@ class CustomEffectsPass extends Pass {
 // TODO: Clean up and document this
 // source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
 class Postproduction {
-    constructor(components, renderer) {
-        this.components = components;
-        this.renderer = renderer;
-        this.excludedItems = new Set();
-        this._enabled = false;
-        this._initialized = false;
-        this._saoEnabled = false;
-        this._customEffectsEnabled = true;
-        this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
-        this._renderTarget.texture.colorSpace = "srgb-linear";
-        this.composer = new EffectComposer(this.renderer, this._renderTarget);
-        this.composer.setSize(window.innerWidth, window.innerHeight);
-    }
     get customEffects() {
         if (!this._customEffects) {
             throw new Error("Custom effects not initialized!");
@@ -98206,6 +98645,19 @@ class Postproduction {
         else {
             this.composer.removePass(this._customEffects);
         }
+    }
+    constructor(components, renderer) {
+        this.components = components;
+        this.renderer = renderer;
+        this.excludedItems = new Set();
+        this._enabled = false;
+        this._initialized = false;
+        this._saoEnabled = false;
+        this._customEffectsEnabled = true;
+        this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+        this._renderTarget.texture.colorSpace = "srgb-linear";
+        this.composer = new EffectComposer(this.renderer, this._renderTarget);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     dispose() {
         var _a, _b, _c, _d;
@@ -98713,23 +99165,6 @@ const DimensionPreviewClassName = "bg-ifcjs-100 rounded-full w-[8px] h-[8px]";
 
 // TODO: Document + clean up this: way less parameters, clearer logic
 class SimpleDimensionLine {
-    constructor(components, data) {
-        this.boundingBox = new THREE$1.Mesh();
-        this._disposer = new Disposer();
-        this._root = new THREE$1.Group();
-        this._endpoints = [];
-        this._components = components;
-        this.start = data.start;
-        this.end = data.end;
-        this._length = this.getLength();
-        this._line = this.createLine(data);
-        this.newEndpointElement(data.endpointElement);
-        // @ts-ignore
-        this.newEndpointElement(data.endpointElement.cloneNode(true));
-        this.label = this.newText();
-        this._root.renderOrder = 2;
-        this._components.scene.get().add(this._root);
-    }
     set visible(value) {
         this.label.visible = value;
         this._endpoints[0].visible = value;
@@ -98764,6 +99199,23 @@ class SimpleDimensionLine {
         const len = dir.length() * 0.5;
         dir = dir.normalize().multiplyScalar(len);
         return this.start.clone().add(dir);
+    }
+    constructor(components, data) {
+        this.boundingBox = new THREE$1.Mesh();
+        this._disposer = new Disposer();
+        this._root = new THREE$1.Group();
+        this._endpoints = [];
+        this._components = components;
+        this.start = data.start;
+        this.end = data.end;
+        this._length = this.getLength();
+        this._line = this.createLine(data);
+        this.newEndpointElement(data.endpointElement);
+        // @ts-ignore
+        this.newEndpointElement(data.endpointElement.cloneNode(true));
+        this.label = this.newText();
+        this._root.renderOrder = 2;
+        this._components.scene.get().add(this._root);
     }
     dispose() {
         this.visible = false;
@@ -98832,6 +99284,39 @@ SimpleDimensionLine.units = "m";
  * display a 3D symbol displaying the numeric value.
  */
 class LengthMeasurement extends Component {
+    /** {@link Component.enabled} */
+    get enabled() {
+        return this._enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(value) {
+        if (!value)
+            this.cancelCreation();
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+    }
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(value) {
+        this._visible = value;
+        if (!this._visible) {
+            this.enabled = false;
+        }
+        for (const dimension of this._measurements) {
+            dimension.visible = this._visible;
+        }
+    }
+    /**
+     * The [Color](https://threejs.org/docs/#api/en/math/Color)
+     * of the geometry of the dimensions.
+     */
+    set color(color) {
+        this._lineMaterial.color = color;
+    }
     constructor(_components) {
         super();
         this._components = _components;
@@ -98880,39 +99365,6 @@ class LengthMeasurement extends Component {
         });
         this.setUI();
         this.enabled = false;
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return this._enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(value) {
-        if (!value)
-            this.cancelCreation();
-        this._enabled = value;
-        this._vertexPicker.enabled = value;
-        this.uiElement.active = value;
-    }
-    /** {@link Hideable.visible} */
-    get visible() {
-        return this._visible;
-    }
-    /** {@link Hideable.visible} */
-    set visible(value) {
-        this._visible = value;
-        if (!this._visible) {
-            this.enabled = false;
-        }
-        for (const dimension of this._measurements) {
-            dimension.visible = this._visible;
-        }
-    }
-    /**
-     * The [Color](https://threejs.org/docs/#api/en/math/Color)
-     * of the geometry of the dimensions.
-     */
-    set color(color) {
-        this._lineMaterial.color = color;
     }
     setUI() {
         const viewerContainer = this._components.renderer.get().domElement
@@ -99232,6 +99684,15 @@ class ViewpointsManager extends Component {
 }
 
 class CubeMap extends Component {
+    set visible(value) {
+        this._visible = value;
+        if (this._visible) {
+            this._cubeWrapper.classList.remove("hidden");
+        }
+        else {
+            this._cubeWrapper.classList.add("hidden");
+        }
+    }
     constructor(components) {
         var _a;
         super();
@@ -99303,15 +99764,6 @@ class CubeMap extends Component {
         this._cube.append(frontFace, topFace, bottomFace, rightFace, leftFace, backFace);
         (_a = this._viewerContainer) === null || _a === void 0 ? void 0 : _a.append(this._cubeWrapper);
         this.visible = true;
-    }
-    set visible(value) {
-        this._visible = value;
-        if (this._visible) {
-            this._cubeWrapper.classList.remove("hidden");
-        }
-        else {
-            this._cubeWrapper.classList.add("hidden");
-        }
     }
     setSize(value = "350") {
         this._cubeWrapper.style.perspective = `${value}px`;
@@ -99470,6 +99922,22 @@ class SelectionHandler extends Component {
 }
 
 class MiniMap extends Component {
+    get lockRotation() {
+        return this._lockRotation;
+    }
+    set lockRotation(active) {
+        this._lockRotation = active;
+        if (active) {
+            this._camera.rotation.z = 0;
+        }
+    }
+    get zoom() {
+        return this._camera.zoom;
+    }
+    set zoom(value) {
+        this._camera.zoom = value;
+        this._camera.updateProjectionMatrix();
+    }
     constructor(components) {
         super();
         this.name = "MiniMap";
@@ -99497,22 +99965,6 @@ class MiniMap extends Component {
         this._camera.rotation.x = -Math.PI / 2;
         this._plane = new THREE$1.Plane(this.down, 200);
         this._renderer.clippingPlanes = [this._plane];
-    }
-    get lockRotation() {
-        return this._lockRotation;
-    }
-    set lockRotation(active) {
-        this._lockRotation = active;
-        if (active) {
-            this._camera.rotation.z = 0;
-        }
-    }
-    get zoom() {
-        return this._camera.zoom;
-    }
-    set zoom(value) {
-        this._camera.zoom = value;
-        this._camera.updateProjectionMatrix();
     }
     get() {
         return this._camera;
@@ -99557,6 +100009,10 @@ class MiniMap extends Component {
  * Helper to control the camera and easily define and navigate 2D floor plans.
  */
 class PlanNavigator extends Component {
+    /** {@link Component.get} */
+    get() {
+        return this.plans;
+    }
     constructor(clipper, camera) {
         super();
         this.clipper = clipper;
@@ -99577,10 +100033,6 @@ class PlanNavigator extends Component {
         this.previousCamera = new THREE$1.Vector3();
         this.previousTarget = new THREE$1.Vector3();
         this.previousProjection = "Perspective";
-    }
-    /** {@link Component.get} */
-    get() {
-        return this.plans;
     }
     /** {@link Disposable.dispose} */
     dispose() {
@@ -99731,6 +100183,13 @@ class PlanNavigator extends Component {
 // TODO: Clean up and document
 // TODO: Deduplicate logic with highlighter
 class FragmentOutliner extends Component {
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(state) {
+        this._enabled = state;
+        this._renderer.postproduction.customEffects.outlineEnabled = state;
+    }
     constructor(components, fragments, renderer) {
         super();
         this.name = "FragmentHighlighter";
@@ -99747,13 +100206,6 @@ class FragmentOutliner extends Component {
         this._fragments = fragments;
         this._renderer = renderer;
         this.enabled = true;
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(state) {
-        this._enabled = state;
-        this._renderer.postproduction.customEffects.outlineEnabled = state;
     }
     get() {
         return this._selection;
@@ -100609,17 +101061,6 @@ class RectangleAnnotation extends BaseSVGAnnotation {
 }
 
 class DrawManager extends Component {
-    constructor(components) {
-        super();
-        this.name = "DrawManager";
-        this.drawingTools = {};
-        this.drawings = {};
-        this._enabled = false;
-        this._isDrawing = false;
-        this._components = components;
-        this.viewport = new SimpleSVGViewport(components);
-        this.setUI();
-    }
     get isDrawing() {
         return this._isDrawing;
     }
@@ -100634,6 +101075,17 @@ class DrawManager extends Component {
         this.uiElement.activationButton.active = value;
         this.uiElement.drawingTools.visible = value;
         this.viewport.enabled = value;
+    }
+    constructor(components) {
+        super();
+        this.name = "DrawManager";
+        this.drawingTools = {};
+        this.drawings = {};
+        this._enabled = false;
+        this._isDrawing = false;
+        this._components = components;
+        this.viewport = new SimpleSVGViewport(components);
+        this.setUI();
     }
     saveDrawing(name) {
         const currentDrawing = this.drawings[name];
@@ -100676,12 +101128,9 @@ class DrawManager extends Component {
     }
 }
 
-var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
 var mapboxGl = {exports: {}};
 
 /* Mapbox GL JS is Copyright © 2020 Mapbox and subject to the Mapbox Terms of Service ((https://www.mapbox.com/legal/tos/). */
-mapboxGl.exports;
 
 (function (module, exports) {
 	(function (global, factory) {
@@ -100729,7 +101178,7 @@ mapboxGl.exports;
 
 	}));
 	
-} (mapboxGl, mapboxGl.exports));
+} (mapboxGl));
 
 var mapboxGlExports = mapboxGl.exports;
 
@@ -101085,33 +101534,6 @@ class MapboxWindow {
 }
 
 class AreaMeasureElement extends Component {
-    constructor(components, points) {
-        super();
-        this.name = "AreaShape";
-        this.enabled = true;
-        this.visible = true;
-        this.points = [];
-        this.workingPlane = null;
-        this._rotationMatrix = null;
-        this._dimensionLines = [];
-        this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
-        this.onAreaComputed = new Event();
-        this.onWorkingPlaneComputed = new Event();
-        this.onPointAdded = new Event();
-        this.onPointRemoved = new Event();
-        this._components = components;
-        const htmlText = document.createElement("div");
-        htmlText.className = DimensionLabelClassName;
-        this.labelMarker = new Simple2DMarker(components, htmlText);
-        this.labelMarker.visible = false;
-        this.onPointAdded.on((point) => {
-            if (this.points.length === 3 && !this._dimensionLines[2]) {
-                this.addDimensionLine(point, this.points[0]);
-                this.labelMarker.visible = true;
-            }
-        });
-        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
-    }
     setPoint(point, index) {
         let _index;
         if (!index) {
@@ -101148,6 +101570,33 @@ class AreaMeasureElement extends Component {
         nextLine === null || nextLine === void 0 ? void 0 : nextLine.dispose();
         this._dimensionLines.splice(index, 1);
         this.onPointRemoved.trigger();
+    }
+    constructor(components, points) {
+        super();
+        this.name = "AreaShape";
+        this.enabled = true;
+        this.visible = true;
+        this.points = [];
+        this.workingPlane = null;
+        this._rotationMatrix = null;
+        this._dimensionLines = [];
+        this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
+        this.onAreaComputed = new Event();
+        this.onWorkingPlaneComputed = new Event();
+        this.onPointAdded = new Event();
+        this.onPointRemoved = new Event();
+        this._components = components;
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        this.labelMarker = new Simple2DMarker(components, htmlText);
+        this.labelMarker.visible = false;
+        this.onPointAdded.on((point) => {
+            if (this.points.length === 3 && !this._dimensionLines[2]) {
+                this.addDimensionLine(point, this.points[0]);
+                this.labelMarker.visible = true;
+            }
+        });
+        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
     }
     toggleLabel() {
         this.labelMarker.toggleVisibility();
@@ -101230,6 +101679,22 @@ class AreaMeasureElement extends Component {
 }
 
 class AreaMeasurement extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+        if (!value)
+            this.cancelCreation();
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set workingPlane(plane) {
+        this._vertexPicker.workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._vertexPicker.workingPlane;
+    }
     constructor(components) {
         super();
         this.name = "AreaMeasurement";
@@ -101250,22 +101715,6 @@ class AreaMeasurement extends Component {
         });
         this.setUI();
         this.enabled = false;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        this._vertexPicker.enabled = value;
-        this.uiElement.active = value;
-        if (!value)
-            this.cancelCreation();
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set workingPlane(plane) {
-        this._vertexPicker.workingPlane = plane;
-    }
-    get workingPlane() {
-        return this._vertexPicker.workingPlane;
     }
     setUI() {
         const viewerContainer = this._components.ui.viewerContainer;
@@ -101356,6 +101805,235 @@ class AreaMeasurement extends Component {
     }
 }
 
+const _box$1 = new Box3();
+const _vector = new Vector3$1();
+
+class LineSegmentsGeometry extends InstancedBufferGeometry {
+
+	constructor() {
+
+		super();
+
+		this.isLineSegmentsGeometry = true;
+
+		this.type = 'LineSegmentsGeometry';
+
+		const positions = [ - 1, 2, 0, 1, 2, 0, - 1, 1, 0, 1, 1, 0, - 1, 0, 0, 1, 0, 0, - 1, - 1, 0, 1, - 1, 0 ];
+		const uvs = [ - 1, 2, 1, 2, - 1, 1, 1, 1, - 1, - 1, 1, - 1, - 1, - 2, 1, - 2 ];
+		const index = [ 0, 2, 1, 2, 3, 1, 2, 4, 3, 4, 5, 3, 4, 6, 5, 6, 7, 5 ];
+
+		this.setIndex( index );
+		this.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
+		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+
+	}
+
+	applyMatrix4( matrix ) {
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined ) {
+
+			start.applyMatrix4( matrix );
+
+			end.applyMatrix4( matrix );
+
+			start.needsUpdate = true;
+
+		}
+
+		if ( this.boundingBox !== null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		if ( this.boundingSphere !== null ) {
+
+			this.computeBoundingSphere();
+
+		}
+
+		return this;
+
+	}
+
+	setPositions( array ) {
+
+		let lineSegments;
+
+		if ( array instanceof Float32Array ) {
+
+			lineSegments = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			lineSegments = new Float32Array( array );
+
+		}
+
+		const instanceBuffer = new InstancedInterleavedBuffer( lineSegments, 6, 1 ); // xyz, xyz
+
+		this.setAttribute( 'instanceStart', new InterleavedBufferAttribute( instanceBuffer, 3, 0 ) ); // xyz
+		this.setAttribute( 'instanceEnd', new InterleavedBufferAttribute( instanceBuffer, 3, 3 ) ); // xyz
+
+		//
+
+		this.computeBoundingBox();
+		this.computeBoundingSphere();
+
+		return this;
+
+	}
+
+	setColors( array ) {
+
+		let colors;
+
+		if ( array instanceof Float32Array ) {
+
+			colors = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			colors = new Float32Array( array );
+
+		}
+
+		const instanceColorBuffer = new InstancedInterleavedBuffer( colors, 6, 1 ); // rgb, rgb
+
+		this.setAttribute( 'instanceColorStart', new InterleavedBufferAttribute( instanceColorBuffer, 3, 0 ) ); // rgb
+		this.setAttribute( 'instanceColorEnd', new InterleavedBufferAttribute( instanceColorBuffer, 3, 3 ) ); // rgb
+
+		return this;
+
+	}
+
+	fromWireframeGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromEdgesGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromMesh( mesh ) {
+
+		this.fromWireframeGeometry( new WireframeGeometry( mesh.geometry ) );
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	fromLineSegments( lineSegments ) {
+
+		const geometry = lineSegments.geometry;
+
+		this.setPositions( geometry.attributes.position.array ); // assumes non-indexed
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	computeBoundingBox() {
+
+		if ( this.boundingBox === null ) {
+
+			this.boundingBox = new Box3();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			this.boundingBox.setFromBufferAttribute( start );
+
+			_box$1.setFromBufferAttribute( end );
+
+			this.boundingBox.union( _box$1 );
+
+		}
+
+	}
+
+	computeBoundingSphere() {
+
+		if ( this.boundingSphere === null ) {
+
+			this.boundingSphere = new Sphere();
+
+		}
+
+		if ( this.boundingBox === null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			const center = this.boundingSphere.center;
+
+			this.boundingBox.getCenter( center );
+
+			let maxRadiusSq = 0;
+
+			for ( let i = 0, il = start.count; i < il; i ++ ) {
+
+				_vector.fromBufferAttribute( start, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+				_vector.fromBufferAttribute( end, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+			}
+
+			this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
+
+			if ( isNaN( this.boundingSphere.radius ) ) {
+
+				console.error( 'THREE.LineSegmentsGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this );
+
+			}
+
+		}
+
+	}
+
+	toJSON() {
+
+		// todo
+
+	}
+
+	applyMatrix( matrix ) {
+
+		console.warn( 'THREE.LineSegmentsGeometry: applyMatrix() has been renamed to applyMatrix4().' );
+
+		return this.applyMatrix4( matrix );
+
+	}
+
+}
+
 class LineGeometry extends LineSegmentsGeometry {
 
 	constructor() {
@@ -101432,6 +102110,351 @@ class LineGeometry extends LineSegmentsGeometry {
 
 }
 
+const _start = new Vector3$1();
+const _end = new Vector3$1();
+
+const _start4 = new Vector4();
+const _end4 = new Vector4();
+
+const _ssOrigin = new Vector4();
+const _ssOrigin3 = new Vector3$1();
+const _mvMatrix = new Matrix4();
+const _line = new Line3();
+const _closestPoint = new Vector3$1();
+
+const _box = new Box3();
+const _sphere = new Sphere();
+const _clipToWorldVector = new Vector4();
+
+let _ray, _lineWidth;
+
+// Returns the margin required to expand by in world space given the distance from the camera,
+// line width, resolution, and camera projection
+function getWorldSpaceHalfWidth( camera, distance, resolution ) {
+
+	// transform into clip space, adjust the x and y values by the pixel width offset, then
+	// transform back into world space to get world offset. Note clip space is [-1, 1] so full
+	// width does not need to be halved.
+	_clipToWorldVector.set( 0, 0, - distance, 1.0 ).applyMatrix4( camera.projectionMatrix );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+	_clipToWorldVector.x = _lineWidth / resolution.width;
+	_clipToWorldVector.y = _lineWidth / resolution.height;
+	_clipToWorldVector.applyMatrix4( camera.projectionMatrixInverse );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+
+	return Math.abs( Math.max( _clipToWorldVector.x, _clipToWorldVector.y ) );
+
+}
+
+function raycastWorldUnits( lineSegments, intersects ) {
+
+	const matrixWorld = lineSegments.matrixWorld;
+	const geometry = lineSegments.geometry;
+	const instanceStart = geometry.attributes.instanceStart;
+	const instanceEnd = geometry.attributes.instanceEnd;
+	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+
+	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
+
+		_line.start.fromBufferAttribute( instanceStart, i );
+		_line.end.fromBufferAttribute( instanceEnd, i );
+
+		_line.applyMatrix4( matrixWorld );
+
+		const pointOnLine = new Vector3$1();
+		const point = new Vector3$1();
+
+		_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+		const isInside = point.distanceTo( pointOnLine ) < _lineWidth * 0.5;
+
+		if ( isInside ) {
+
+			intersects.push( {
+				point,
+				pointOnLine,
+				distance: _ray.origin.distanceTo( point ),
+				object: lineSegments,
+				face: null,
+				faceIndex: i,
+				uv: null,
+				uv1: null,
+			} );
+
+		}
+
+	}
+
+}
+
+function raycastScreenSpace( lineSegments, camera, intersects ) {
+
+	const projectionMatrix = camera.projectionMatrix;
+	const material = lineSegments.material;
+	const resolution = material.resolution;
+	const matrixWorld = lineSegments.matrixWorld;
+
+	const geometry = lineSegments.geometry;
+	const instanceStart = geometry.attributes.instanceStart;
+	const instanceEnd = geometry.attributes.instanceEnd;
+	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+
+	const near = - camera.near;
+
+	//
+
+	// pick a point 1 unit out along the ray to avoid the ray origin
+	// sitting at the camera origin which will cause "w" to be 0 when
+	// applying the projection matrix.
+	_ray.at( 1, _ssOrigin );
+
+	// ndc space [ - 1.0, 1.0 ]
+	_ssOrigin.w = 1;
+	_ssOrigin.applyMatrix4( camera.matrixWorldInverse );
+	_ssOrigin.applyMatrix4( projectionMatrix );
+	_ssOrigin.multiplyScalar( 1 / _ssOrigin.w );
+
+	// screen space
+	_ssOrigin.x *= resolution.x / 2;
+	_ssOrigin.y *= resolution.y / 2;
+	_ssOrigin.z = 0;
+
+	_ssOrigin3.copy( _ssOrigin );
+
+	_mvMatrix.multiplyMatrices( camera.matrixWorldInverse, matrixWorld );
+
+	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
+
+		_start4.fromBufferAttribute( instanceStart, i );
+		_end4.fromBufferAttribute( instanceEnd, i );
+
+		_start4.w = 1;
+		_end4.w = 1;
+
+		// camera space
+		_start4.applyMatrix4( _mvMatrix );
+		_end4.applyMatrix4( _mvMatrix );
+
+		// skip the segment if it's entirely behind the camera
+		const isBehindCameraNear = _start4.z > near && _end4.z > near;
+		if ( isBehindCameraNear ) {
+
+			continue;
+
+		}
+
+		// trim the segment if it extends behind camera near
+		if ( _start4.z > near ) {
+
+			const deltaDist = _start4.z - _end4.z;
+			const t = ( _start4.z - near ) / deltaDist;
+			_start4.lerp( _end4, t );
+
+		} else if ( _end4.z > near ) {
+
+			const deltaDist = _end4.z - _start4.z;
+			const t = ( _end4.z - near ) / deltaDist;
+			_end4.lerp( _start4, t );
+
+		}
+
+		// clip space
+		_start4.applyMatrix4( projectionMatrix );
+		_end4.applyMatrix4( projectionMatrix );
+
+		// ndc space [ - 1.0, 1.0 ]
+		_start4.multiplyScalar( 1 / _start4.w );
+		_end4.multiplyScalar( 1 / _end4.w );
+
+		// screen space
+		_start4.x *= resolution.x / 2;
+		_start4.y *= resolution.y / 2;
+
+		_end4.x *= resolution.x / 2;
+		_end4.y *= resolution.y / 2;
+
+		// create 2d segment
+		_line.start.copy( _start4 );
+		_line.start.z = 0;
+
+		_line.end.copy( _end4 );
+		_line.end.z = 0;
+
+		// get closest point on ray to segment
+		const param = _line.closestPointToPointParameter( _ssOrigin3, true );
+		_line.at( param, _closestPoint );
+
+		// check if the intersection point is within clip space
+		const zPos = MathUtils.lerp( _start4.z, _end4.z, param );
+		const isInClipSpace = zPos >= - 1 && zPos <= 1;
+
+		const isInside = _ssOrigin3.distanceTo( _closestPoint ) < _lineWidth * 0.5;
+
+		if ( isInClipSpace && isInside ) {
+
+			_line.start.fromBufferAttribute( instanceStart, i );
+			_line.end.fromBufferAttribute( instanceEnd, i );
+
+			_line.start.applyMatrix4( matrixWorld );
+			_line.end.applyMatrix4( matrixWorld );
+
+			const pointOnLine = new Vector3$1();
+			const point = new Vector3$1();
+
+			_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+
+			intersects.push( {
+				point: point,
+				pointOnLine: pointOnLine,
+				distance: _ray.origin.distanceTo( point ),
+				object: lineSegments,
+				face: null,
+				faceIndex: i,
+				uv: null,
+				uv1: null,
+			} );
+
+		}
+
+	}
+
+}
+
+class LineSegments2 extends Mesh {
+
+	constructor( geometry = new LineSegmentsGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
+
+		super( geometry, material );
+
+		this.isLineSegments2 = true;
+
+		this.type = 'LineSegments2';
+
+	}
+
+	// for backwards-compatibility, but could be a method of LineSegmentsGeometry...
+
+	computeLineDistances() {
+
+		const geometry = this.geometry;
+
+		const instanceStart = geometry.attributes.instanceStart;
+		const instanceEnd = geometry.attributes.instanceEnd;
+		const lineDistances = new Float32Array( 2 * instanceStart.count );
+
+		for ( let i = 0, j = 0, l = instanceStart.count; i < l; i ++, j += 2 ) {
+
+			_start.fromBufferAttribute( instanceStart, i );
+			_end.fromBufferAttribute( instanceEnd, i );
+
+			lineDistances[ j ] = ( j === 0 ) ? 0 : lineDistances[ j - 1 ];
+			lineDistances[ j + 1 ] = lineDistances[ j ] + _start.distanceTo( _end );
+
+		}
+
+		const instanceDistanceBuffer = new InstancedInterleavedBuffer( lineDistances, 2, 1 ); // d0, d1
+
+		geometry.setAttribute( 'instanceDistanceStart', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 0 ) ); // d0
+		geometry.setAttribute( 'instanceDistanceEnd', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 1 ) ); // d1
+
+		return this;
+
+	}
+
+	raycast( raycaster, intersects ) {
+
+		const worldUnits = this.material.worldUnits;
+		const camera = raycaster.camera;
+
+		if ( camera === null && ! worldUnits ) {
+
+			console.error( 'LineSegments2: "Raycaster.camera" needs to be set in order to raycast against LineSegments2 while worldUnits is set to false.' );
+
+		}
+
+		const threshold = ( raycaster.params.Line2 !== undefined ) ? raycaster.params.Line2.threshold || 0 : 0;
+
+		_ray = raycaster.ray;
+
+		const matrixWorld = this.matrixWorld;
+		const geometry = this.geometry;
+		const material = this.material;
+
+		_lineWidth = material.linewidth + threshold;
+
+		// check if we intersect the sphere bounds
+		if ( geometry.boundingSphere === null ) {
+
+			geometry.computeBoundingSphere();
+
+		}
+
+		_sphere.copy( geometry.boundingSphere ).applyMatrix4( matrixWorld );
+
+		// increase the sphere bounds by the worst case line screen space width
+		let sphereMargin;
+		if ( worldUnits ) {
+
+			sphereMargin = _lineWidth * 0.5;
+
+		} else {
+
+			const distanceToSphere = Math.max( camera.near, _sphere.distanceToPoint( _ray.origin ) );
+			sphereMargin = getWorldSpaceHalfWidth( camera, distanceToSphere, material.resolution );
+
+		}
+
+		_sphere.radius += sphereMargin;
+
+		if ( _ray.intersectsSphere( _sphere ) === false ) {
+
+			return;
+
+		}
+
+		// check if we intersect the box bounds
+		if ( geometry.boundingBox === null ) {
+
+			geometry.computeBoundingBox();
+
+		}
+
+		_box.copy( geometry.boundingBox ).applyMatrix4( matrixWorld );
+
+		// increase the box bounds by the worst case line width
+		let boxMargin;
+		if ( worldUnits ) {
+
+			boxMargin = _lineWidth * 0.5;
+
+		} else {
+
+			const distanceToBox = Math.max( camera.near, _box.distanceToPoint( _ray.origin ) );
+			boxMargin = getWorldSpaceHalfWidth( camera, distanceToBox, material.resolution );
+
+		}
+
+		_box.expandByScalar( boxMargin );
+
+		if ( _ray.intersectsBox( _box ) === false ) {
+
+			return;
+
+		}
+
+		if ( worldUnits ) {
+
+			raycastWorldUnits( this, intersects );
+
+		} else {
+
+			raycastScreenSpace( this, camera, intersects );
+
+		}
+
+	}
+
+}
+
 class Line2 extends LineSegments2 {
 
 	constructor( geometry = new LineGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
@@ -101447,6 +102470,25 @@ class Line2 extends LineSegments2 {
 }
 
 class AngleMeasureElement extends Component {
+    set lineMaterial(material) {
+        this._lineMaterial.dispose();
+        this._lineMaterial = material;
+        this._line.material = material;
+        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    }
+    get lineMaterial() {
+        return this._lineMaterial;
+    }
+    set labelMarker(marker) {
+        this._labelMarker.dispose();
+        this._labelMarker = marker;
+    }
+    get labelMarker() {
+        return this._labelMarker;
+    }
+    get scene() {
+        return this._components.scene.get();
+    }
     constructor(components, points) {
         super();
         this.name = "AngleMeasureElement";
@@ -101480,25 +102522,6 @@ class AngleMeasureElement extends Component {
                 .position.copy((_a = this.points[1]) !== null && _a !== void 0 ? _a : new THREE$1.Vector3());
         });
         points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
-    }
-    set lineMaterial(material) {
-        this._lineMaterial.dispose();
-        this._lineMaterial = material;
-        this._line.material = material;
-        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
-    }
-    get lineMaterial() {
-        return this._lineMaterial;
-    }
-    set labelMarker(marker) {
-        this._labelMarker.dispose();
-        this._labelMarker = marker;
-    }
-    get labelMarker() {
-        return this._labelMarker;
-    }
-    get scene() {
-        return this._components.scene.get();
     }
     setPoint(point, index) {
         let _index;
@@ -101548,6 +102571,30 @@ class AngleMeasureElement extends Component {
 }
 
 class AngleMeasurement extends Component {
+    set lineMaterial(material) {
+        this._lineMaterial.dispose();
+        this._lineMaterial = material;
+        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    }
+    get lineMaterial() {
+        return this._lineMaterial;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        this._vertexPicker.enabled = value;
+        this.uiElement.active = value;
+        if (!value)
+            this.cancelCreation();
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set workingPlane(plane) {
+        this._vertexPicker.workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._vertexPicker.workingPlane;
+    }
     constructor(components) {
         super();
         this.name = "AngleMeasurement";
@@ -101572,30 +102619,6 @@ class AngleMeasurement extends Component {
         });
         this.setUI();
         this.enabled = false;
-    }
-    set lineMaterial(material) {
-        this._lineMaterial.dispose();
-        this._lineMaterial = material;
-        this._lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
-    }
-    get lineMaterial() {
-        return this._lineMaterial;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        this._vertexPicker.enabled = value;
-        this.uiElement.active = value;
-        if (!value)
-            this.cancelCreation();
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set workingPlane(plane) {
-        this._vertexPicker.workingPlane = plane;
-    }
-    get workingPlane() {
-        return this._vertexPicker.workingPlane;
     }
     setUI() {
         const viewerContainer = this._components.ui.viewerContainer;
