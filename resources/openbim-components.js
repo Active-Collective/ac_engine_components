@@ -95251,8 +95251,11 @@ class ClippingFills {
     constructor(plane, geometry, material) {
         // readonly worker: Worker;
         this.mesh = new Mesh(new THREE$1.BufferGeometry());
+        this._coordinateSystem = new THREE$1.Matrix4();
         this.mesh.material = material;
         this._plane = plane;
+        const vertical = plane.normal.y;
+        this._isPlaneHorizontal = vertical === 1 || vertical === -1;
         this._geometry = geometry;
         this.mesh.geometry.attributes.position = geometry.attributes.position;
         // To prevent clipping plane overlapping the filling mesh
@@ -95267,37 +95270,14 @@ class ClippingFills {
         this._plane = null;
         this._geometry = null;
     }
-    update() {
+    update(elements) {
         // temp
         const range = this._geometry.drawRange.count;
         const buffer = this._geometry.attributes.position.array;
         if (!buffer)
             return;
-        const zAxis = this._plane.normal;
-        const localCoordSystem = new THREE$1.Matrix4();
-        // First, let's convert the 3d points to 2d to simplify
-        // if z is up or down, we can just ignore it
-        const isPlaneHorizontal = zAxis.y === 1 || zAxis.y === -1;
-        if (isPlaneHorizontal) {
-            const pos = new THREE$1.Vector3();
-            this._plane.coplanarPoint(pos);
-            const xAxis = new THREE$1.Vector3(1, 0, 0);
-            const yAxis = new THREE$1.Vector3(0, 1, 0);
-            const up = new THREE$1.Vector3(0, 1, 0);
-            xAxis.crossVectors(up, zAxis).normalize();
-            yAxis.crossVectors(zAxis, xAxis);
-            // prettier-ignore
-            localCoordSystem.fromArray([
-                xAxis.x, xAxis.y, xAxis.z, 0,
-                yAxis.x, yAxis.y, yAxis.z, 0,
-                zAxis.x, zAxis.y, zAxis.z, 0,
-                pos.x, pos.y, pos.z, 1
-            ]);
-            localCoordSystem.invert();
-        }
-        // -0.7851659380703032
-        // 0.6351651018463915
-        // -3.181819948588538
+        let currentElement = elements.shift();
+        this.updateCoordinateSystem();
         const indices = new Map();
         const all2DVertices = {};
         const shapes = new Map();
@@ -95309,6 +95289,10 @@ class ClippingFills {
         const p = 1000;
         for (let i = 0; i < range * 3; i += 6) {
             // Convert vertices to indices
+            if (currentElement !== undefined && i > currentElement) {
+                console.log("hey");
+                currentElement = elements.shift();
+            }
             let x1 = 0;
             let y1 = 0;
             let x2 = 0;
@@ -95319,7 +95303,7 @@ class ClippingFills {
             const globalX2 = buffer[i + 3];
             const globalY2 = buffer[i + 4];
             const globalZ2 = buffer[i + 5];
-            if (isPlaneHorizontal) {
+            if (this._isPlaneHorizontal) {
                 x1 = Math.trunc(globalX1 * p) / p;
                 y1 = Math.trunc(globalZ1 * p) / p;
                 x2 = Math.trunc(globalX2 * p) / p;
@@ -95327,11 +95311,11 @@ class ClippingFills {
             }
             else {
                 tempVector.set(globalX1, globalY1, globalZ1);
-                tempVector.applyMatrix4(localCoordSystem);
+                tempVector.applyMatrix4(this._coordinateSystem);
                 x1 = Math.trunc(tempVector.x * p) / p;
                 y1 = Math.trunc(tempVector.y * p) / p;
                 tempVector.set(globalX2, globalY2, globalZ2);
-                tempVector.applyMatrix4(localCoordSystem);
+                tempVector.applyMatrix4(this._coordinateSystem);
                 x2 = Math.trunc(tempVector.x * p) / p;
                 y2 = Math.trunc(tempVector.y * p) / p;
             }
@@ -95463,6 +95447,29 @@ class ClippingFills {
         }
         this.mesh.geometry.setIndex(trueIndices);
     }
+    updateCoordinateSystem() {
+        this._coordinateSystem = new THREE$1.Matrix4();
+        const zAxis = this._plane.normal;
+        // First, let's convert the 3d points to 2d to simplify
+        // if z is up or down, we can just ignore it
+        if (this._isPlaneHorizontal) {
+            const pos = new THREE$1.Vector3();
+            this._plane.coplanarPoint(pos);
+            const xAxis = new THREE$1.Vector3(1, 0, 0);
+            const yAxis = new THREE$1.Vector3(0, 1, 0);
+            const up = new THREE$1.Vector3(0, 1, 0);
+            xAxis.crossVectors(up, zAxis).normalize();
+            yAxis.crossVectors(zAxis, xAxis);
+            // prettier-ignore
+            this._coordinateSystem.fromArray([
+                xAxis.x, xAxis.y, xAxis.z, 0,
+                yAxis.x, yAxis.y, yAxis.z, 0,
+                zAxis.x, zAxis.y, zAxis.z, 0,
+                pos.x, pos.y, pos.z, 1,
+            ]);
+            this._coordinateSystem.invert();
+        }
+    }
 }
 
 /**
@@ -95550,6 +95557,8 @@ class ClippingEdges extends Component {
         const posAttr = edges.mesh.geometry.attributes.position;
         // @ts-ignore
         posAttr.array.fill(0);
+        const indexes = [];
+        let lastIndex = 0;
         const notEmptyMeshes = style.meshes.filter((mesh) => mesh.geometry);
         notEmptyMeshes.forEach((mesh) => {
             if (!mesh.geometry.boundsTree) {
@@ -95569,12 +95578,20 @@ class ClippingEdges extends Component {
                     this._inverseMatrix.copy(tempMesh.matrixWorld).invert();
                     this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
                     index = this.shapecast(tempMesh, posAttr, index);
+                    if (index !== lastIndex) {
+                        indexes.push(index);
+                        lastIndex = index;
+                    }
                 }
             }
             else {
                 this._inverseMatrix.copy(mesh.matrixWorld).invert();
                 this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
                 index = this.shapecast(mesh, posAttr, index);
+                if (index !== lastIndex) {
+                    indexes.push(index);
+                    lastIndex = index;
+                }
             }
         });
         // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
@@ -95587,7 +95604,7 @@ class ClippingEdges extends Component {
         if (!Number.isNaN(position.array[0])) {
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
-            edges.fill.update();
+            edges.fill.update(indexes);
             scene.add(edges.fill.mesh);
         }
     }
@@ -98045,6 +98062,7 @@ const FXAAShader = {
 // - d is the signed distance to the origin
 function getPlaneDistanceMaterial() {
     return new THREE$1.ShaderMaterial({
+        side: 2,
         clipping: true,
         uniforms: {},
         vertexShader: `
@@ -98093,6 +98111,7 @@ function getPlaneDistanceMaterial() {
 // - d is the signed distance to the origin
 function getProjectedNormalMaterial() {
     return new THREE$1.ShaderMaterial({
+        side: 2,
         clipping: true,
         uniforms: {},
         vertexShader: `
