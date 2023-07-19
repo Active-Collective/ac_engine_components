@@ -95271,13 +95271,23 @@ class ClippingFills {
         this._geometry = null;
     }
     update(elements) {
-        // temp
-        const range = this._geometry.drawRange.count;
         const buffer = this._geometry.attributes.position.array;
         if (!buffer)
             return;
-        let currentElement = elements.shift();
         this.updateCoordinateSystem();
+        const allIndices = [];
+        let start = 0;
+        for (let i = 0; i < elements.length; i++) {
+            const end = elements[i] * 3;
+            const indices = this.computeFill(start, end, buffer);
+            for (const index of indices) {
+                allIndices.push(index);
+            }
+            start = end;
+        }
+        this.mesh.geometry.setIndex(allIndices);
+    }
+    computeFill(offset, count, buffer) {
         const indices = new Map();
         const all2DVertices = {};
         const shapes = new Map();
@@ -95286,13 +95296,9 @@ class ClippingFills {
         const shapesStarts = new Map();
         const tempVector = new THREE$1.Vector3();
         // precision
-        const p = 1000;
-        for (let i = 0; i < range * 3; i += 6) {
+        const p = 100000;
+        for (let i = offset; i < count; i += 6) {
             // Convert vertices to indices
-            if (currentElement !== undefined && i > currentElement) {
-                console.log("hey");
-                currentElement = elements.shift();
-            }
             let x1 = 0;
             let y1 = 0;
             let x2 = 0;
@@ -95321,10 +95327,12 @@ class ClippingFills {
             }
             const startCode = `${x1}-${y1}`;
             const endCode = `${x2}-${y2}`;
-            if (!indices.has(startCode))
+            if (!indices.has(startCode)) {
                 indices.set(startCode, i / 3);
-            if (!indices.has(endCode))
+            }
+            if (!indices.has(endCode)) {
                 indices.set(endCode, i / 3 + 1);
+            }
             const start = indices.get(startCode);
             const end = indices.get(endCode);
             all2DVertices[start] = [x1, y1];
@@ -95354,8 +95362,9 @@ class ClippingFills {
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
                     shapes.delete(startIndex);
-                    if (!endShape || !startShape)
+                    if (!endShape || !startShape) {
                         throw new Error("Shape error!");
+                    }
                     for (const index of startShape) {
                         shapesEnds.set(index, endIndex);
                         endShape.push(index);
@@ -95374,8 +95383,9 @@ class ClippingFills {
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
                     shapes.delete(startIndex);
-                    if (!endShape || !startShape)
+                    if (!endShape || !startShape) {
                         throw new Error("Shape error!");
+                    }
                     for (const index of startShape) {
                         shapesEnds.set(index, endIndex);
                         endShape.push(index);
@@ -95388,8 +95398,9 @@ class ClippingFills {
                 // existing contour on start - start
                 const shapeIndex = shapesStarts.get(start);
                 const shape = shapes.get(shapeIndex);
-                if (!shape)
+                if (!shape) {
                     throw new Error("Shape error!");
+                }
                 shape.unshift(end);
                 shapesStarts.delete(start);
                 shapesStarts.set(end, shapeIndex);
@@ -95398,8 +95409,9 @@ class ClippingFills {
                 // existing contour on start - end
                 const shapeIndex = shapesEnds.get(start);
                 const shape = shapes.get(shapeIndex);
-                if (!shape)
+                if (!shape) {
                     throw new Error("Shape error!");
+                }
                 shape.push(end);
                 shapesEnds.delete(start);
                 shapesEnds.set(end, shapeIndex);
@@ -95408,8 +95420,9 @@ class ClippingFills {
                 // existing contour on end - start
                 const shapeIndex = shapesStarts.get(end);
                 const shape = shapes.get(shapeIndex);
-                if (!shape)
+                if (!shape) {
                     throw new Error("Shape error!");
+                }
                 shape.unshift(start);
                 shapesStarts.delete(end);
                 shapesStarts.set(start, shapeIndex);
@@ -95418,8 +95431,9 @@ class ClippingFills {
                 // existing contour on end - end
                 const shapeIndex = shapesEnds.get(end);
                 const shape = shapes.get(shapeIndex);
-                if (!shape)
+                if (!shape) {
                     throw new Error("Shape error!");
+                }
                 shape.push(start);
                 shapesEnds.delete(end);
                 shapesEnds.set(start, shapeIndex);
@@ -95445,7 +95459,7 @@ class ClippingFills {
                 trueIndices.push(trueIndex);
             }
         }
-        this.mesh.geometry.setIndex(trueIndices);
+        return trueIndices;
     }
     updateCoordinateSystem() {
         this._coordinateSystem = new THREE$1.Matrix4();
@@ -95606,6 +95620,7 @@ class ClippingEdges extends Component {
             scene.add(edges.mesh);
             edges.fill.update(indexes);
             scene.add(edges.fill.mesh);
+            console.log(indexes);
         }
     }
     initializeStyle(name) {
