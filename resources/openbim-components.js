@@ -95245,14 +95245,13 @@ var earcut$1 = /*@__PURE__*/getDefaultExportFromCjs(earcutExports);
 class ClippingFills {
     constructor(components) {
         // readonly worker: Worker;
-        this.mesh = new Mesh();
-        this._components = components;
-        this._components.scene.get().add(this.mesh);
-        this.mesh.material = new THREE$1.MeshBasicMaterial({
+        this.mesh = new Mesh(new THREE$1.BufferGeometry(), new THREE$1.MeshBasicMaterial({
             color: "white",
             side: 2,
-        });
-        this.mesh.position.y -= 0.1;
+        }));
+        this._components = components;
+        this._components.scene.get().add(this.mesh);
+        this.mesh.position.y -= 0.01;
         // const code = `
         //   addEventListener("message", (event) => {
         //     const { buffer } = event.data;
@@ -95274,7 +95273,7 @@ class ClippingFills {
     }
     test(geometry, plane) {
         // temp
-        this.mesh.geometry = geometry;
+        this.mesh.geometry.attributes.position = geometry.attributes.position;
         const range = geometry.drawRange.count;
         const buffer = geometry.attributes.position.array;
         if (!buffer)
