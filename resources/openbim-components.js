@@ -95251,6 +95251,8 @@ class ClippingFills {
     constructor(plane, geometry, material) {
         // readonly worker: Worker;
         this.mesh = new Mesh(new THREE$1.BufferGeometry());
+        this._precission = 10000;
+        this._tempVector = new THREE$1.Vector3();
         this._coordinateSystem = new THREE$1.Matrix4();
         this.mesh.material = material;
         this._plane = plane;
@@ -95270,55 +95272,61 @@ class ClippingFills {
         this._plane = null;
         this._geometry = null;
     }
-    update(elements, seams) {
+    update(elements, blockByIndex) {
         const buffer = this._geometry.attributes.position.array;
         if (!buffer)
             return;
         this.updateCoordinateSystem();
-        const j = 0;
         const allIndices = [];
         let start = 0;
         for (let i = 0; i < elements.length; i++) {
-            const end = elements[i] * 3;
-            const currentSeam = seams[j] * 3;
-            const isSeam = seams.length && seams.length > j;
-            if (isSeam && currentSeam > start && currentSeam < end) {
-                const indices = this.computeFill(start, currentSeam, buffer);
+            const end = elements[i];
+            const verticesByBlock = {};
+            for (let j = start; j < end; j += 2) {
+                let block = blockByIndex[j];
+                if (block === undefined) {
+                    block = -1;
+                }
+                if (!verticesByBlock[block]) {
+                    verticesByBlock[block] = [];
+                }
+                verticesByBlock[block].push(j * 3);
+            }
+            for (const block in verticesByBlock) {
+                const vertices = verticesByBlock[block];
+                if (!vertices.length)
+                    continue;
+                const indices = this.computeFill(vertices, buffer);
                 for (const index of indices) {
                     allIndices.push(index);
                 }
-                start = currentSeam;
-            }
-            const indices = this.computeFill(start, end, buffer);
-            for (const index of indices) {
-                allIndices.push(index);
             }
             start = end;
         }
         this.mesh.geometry.setIndex(allIndices);
     }
-    computeFill(offset, finish, buffer) {
+    computeFill(vertices, buffer) {
         const indices = new Map();
         const all2DVertices = {};
         const shapes = new Map();
         let nextShapeID = 0;
         const shapesEnds = new Map();
         const shapesStarts = new Map();
-        const tempVector = new THREE$1.Vector3();
-        // precision
-        const p = 1000;
-        for (let i = offset; i < finish; i += 6) {
+        const openShapes = new Set();
+        const p = this._precission;
+        for (let i = 0; i < vertices.length; i++) {
             // Convert vertices to indices
+            const startVertexIndex = vertices[i];
             let x1 = 0;
             let y1 = 0;
             let x2 = 0;
             let y2 = 0;
-            const globalX1 = buffer[i];
-            const globalY1 = buffer[i + 1];
-            const globalZ1 = buffer[i + 2];
-            const globalX2 = buffer[i + 3];
-            const globalY2 = buffer[i + 4];
-            const globalZ2 = buffer[i + 5];
+            const globalX1 = buffer[startVertexIndex];
+            const globalY1 = buffer[startVertexIndex + 1];
+            const globalZ1 = buffer[startVertexIndex + 2];
+            const globalX2 = buffer[startVertexIndex + 3];
+            const globalY2 = buffer[startVertexIndex + 4];
+            const globalZ2 = buffer[startVertexIndex + 5];
             if (this._isPlaneHorizontal) {
                 x1 = Math.trunc(globalX1 * p) / p;
                 y1 = Math.trunc(globalZ1 * p) / p;
@@ -95326,22 +95334,22 @@ class ClippingFills {
                 y2 = Math.trunc(globalZ2 * p) / p;
             }
             else {
-                tempVector.set(globalX1, globalY1, globalZ1);
-                tempVector.applyMatrix4(this._coordinateSystem);
-                x1 = Math.trunc(tempVector.x * p) / p;
-                y1 = Math.trunc(tempVector.y * p) / p;
-                tempVector.set(globalX2, globalY2, globalZ2);
-                tempVector.applyMatrix4(this._coordinateSystem);
-                x2 = Math.trunc(tempVector.x * p) / p;
-                y2 = Math.trunc(tempVector.y * p) / p;
+                this._tempVector.set(globalX1, globalY1, globalZ1);
+                this._tempVector.applyMatrix4(this._coordinateSystem);
+                x1 = Math.trunc(this._tempVector.x * p) / p;
+                y1 = Math.trunc(this._tempVector.y * p) / p;
+                this._tempVector.set(globalX2, globalY2, globalZ2);
+                this._tempVector.applyMatrix4(this._coordinateSystem);
+                x2 = Math.trunc(this._tempVector.x * p) / p;
+                y2 = Math.trunc(this._tempVector.y * p) / p;
             }
             const startCode = `${x1}|${y1}`;
             const endCode = `${x2}|${y2}`;
             if (!indices.has(startCode)) {
-                indices.set(startCode, i / 3);
+                indices.set(startCode, startVertexIndex / 3);
             }
             if (!indices.has(endCode)) {
-                indices.set(endCode, i / 3 + 1);
+                indices.set(endCode, startVertexIndex / 3 + 1);
             }
             const start = indices.get(startCode);
             const end = indices.get(endCode);
@@ -95359,6 +95367,7 @@ class ClippingFills {
                 // New shape
                 shapesStarts.set(start, nextShapeID);
                 shapesEnds.set(end, nextShapeID);
+                openShapes.add(nextShapeID);
                 shapes.set(nextShapeID, [start, end]);
                 nextShapeID++;
             }
@@ -95372,6 +95381,7 @@ class ClippingFills {
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
                     shapes.delete(startIndex);
+                    openShapes.delete(startIndex);
                     if (!endShape || !startShape) {
                         throw new Error("Shape error!");
                     }
@@ -95379,6 +95389,9 @@ class ClippingFills {
                         shapesEnds.set(index, endIndex);
                         endShape.push(index);
                     }
+                }
+                else {
+                    openShapes.delete(endIndex);
                 }
                 shapesStarts.delete(start);
                 shapesEnds.delete(end);
@@ -95393,6 +95406,7 @@ class ClippingFills {
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
                     shapes.delete(startIndex);
+                    openShapes.delete(startIndex);
                     if (!endShape || !startShape) {
                         throw new Error("Shape error!");
                     }
@@ -95400,6 +95414,9 @@ class ClippingFills {
                         shapesEnds.set(index, endIndex);
                         endShape.push(index);
                     }
+                }
+                else {
+                    openShapes.delete(endIndex);
                 }
                 shapesStarts.delete(end);
                 shapesEnds.delete(start);
@@ -95450,8 +95467,10 @@ class ClippingFills {
             }
         }
         const trueIndices = [];
-        for (const entry of shapes) {
-            const shape = entry[1];
+        for (const [id, shape] of shapes) {
+            if (openShapes.has(id)) {
+                continue;
+            }
             const vertices = [];
             const indexMap = new Map();
             let counter = 0;
@@ -95522,7 +95541,6 @@ class ClippingEdges extends Component {
         /** {@link Component.enabled}. */
         this.enabled = true;
         this.blocksMap = {};
-        this.fragmentSeams = [];
         this.blockByIndex = {};
         this.lastBlock = 0;
         this._edges = {};
@@ -95576,8 +95594,7 @@ class ClippingEdges extends Component {
     }
     // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
     drawEdges(styleName) {
-        this.fragmentSeams = [];
-        this.lastBlock = 0;
+        this.blockByIndex = {};
         const style = this._styles.get()[styleName];
         if (!this._edges[styleName]) {
             this.initializeStyle(styleName);
@@ -95647,7 +95664,7 @@ class ClippingEdges extends Component {
         if (!Number.isNaN(position.array[0])) {
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
-            edges.fill.update(indexes, this.fragmentSeams);
+            edges.fill.update(indexes, this.blockByIndex);
             scene.add(edges.fill.mesh);
         }
     }
@@ -95707,11 +95724,7 @@ class ClippingEdges extends Component {
                     for (let i = 0; i < blocks.length; i++) {
                         const block = blocks[i];
                         if (block >= vertexIndex) {
-                            this.blockByIndex[index] = i;
-                            if (this.lastBlock !== i) {
-                                this.fragmentSeams.push(index - count);
-                                this.lastBlock = i;
-                            }
+                            this.blockByIndex[index - 2] = i;
                             break;
                         }
                     }
