@@ -95270,15 +95270,25 @@ class ClippingFills {
         this._plane = null;
         this._geometry = null;
     }
-    update(elements) {
+    update(elements, seams) {
         const buffer = this._geometry.attributes.position.array;
         if (!buffer)
             return;
         this.updateCoordinateSystem();
+        const j = 0;
         const allIndices = [];
         let start = 0;
         for (let i = 0; i < elements.length; i++) {
             const end = elements[i] * 3;
+            const currentSeam = seams[j] * 3;
+            const isSeam = seams.length && seams.length > j;
+            if (isSeam && currentSeam > start && currentSeam < end) {
+                const indices = this.computeFill(start, currentSeam, buffer);
+                for (const index of indices) {
+                    allIndices.push(index);
+                }
+                start = currentSeam;
+            }
             const indices = this.computeFill(start, end, buffer);
             for (const index of indices) {
                 allIndices.push(index);
@@ -95296,7 +95306,7 @@ class ClippingFills {
         const shapesStarts = new Map();
         const tempVector = new THREE$1.Vector3();
         // precision
-        const p = 100000;
+        const p = 1000;
         for (let i = offset; i < count; i += 6) {
             // Convert vertices to indices
             let x1 = 0;
@@ -95511,6 +95521,9 @@ class ClippingEdges extends Component {
         this.name = "ClippingEdges";
         /** {@link Component.enabled}. */
         this.enabled = true;
+        this.blocksMap = {};
+        this.fragmentSeams = [];
+        this.lastBlock = 0;
         this._edges = {};
         this._disposer = new Disposer();
         this._visible = true;
@@ -95562,6 +95575,8 @@ class ClippingEdges extends Component {
     }
     // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
     drawEdges(styleName) {
+        this.fragmentSeams = [];
+        this.lastBlock = 0;
         const style = this._styles.get()[styleName];
         if (!this._edges[styleName]) {
             this.initializeStyle(styleName);
@@ -95601,13 +95616,27 @@ class ClippingEdges extends Component {
             else {
                 this._inverseMatrix.copy(mesh.matrixWorld).invert();
                 this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
-                index = this.shapecast(mesh, posAttr, index);
+                const isFragment = mesh instanceof FragmentMesh;
+                if (isFragment && !this.blocksMap[mesh.id]) {
+                    const fMesh = mesh;
+                    // TODO: Make this accesible from fragments library
+                    // @ts-ignore
+                    const map = fMesh.fragment.blocks.blocksMap.indices.map;
+                    const blocks = [];
+                    for (const entry of map) {
+                        const value = entry[1][0][1];
+                        blocks.push(value);
+                    }
+                    this.blocksMap[fMesh.id] = blocks;
+                }
+                index = this.shapecast(mesh, posAttr, index, isFragment);
                 if (index !== lastIndex) {
                     indexes.push(index);
                     lastIndex = index;
                 }
             }
         });
+        console.log(this.fragmentSeams);
         // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
         edges.mesh.geometry.setDrawRange(0, index);
         edges.mesh.position.copy(this._plane.normal).multiplyScalar(0.0001);
@@ -95618,7 +95647,7 @@ class ClippingEdges extends Component {
         if (!Number.isNaN(position.array[0])) {
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
-            edges.fill.update(indexes);
+            edges.fill.update(indexes, this.fragmentSeams);
             scene.add(edges.fill.mesh);
             console.log(indexes);
         }
@@ -95629,14 +95658,31 @@ class ClippingEdges extends Component {
         const fill = this.newFillMesh(name, geometry);
         this._edges[name] = { mesh, name, fill };
     }
-    shapecast(mesh, posAttr, index) {
+    shapecast(mesh, posAttr, index, isMultiblockFragment = false) {
         // @ts-ignore
         mesh.geometry.boundsTree.shapecast({
             intersectsBounds: (box) => {
                 return this._localPlane.intersectsBox(box);
             },
             // @ts-ignore
-            intersectsTriangle: (tri) => {
+            intersectsTriangle: (tri, triangleIndex) => {
+                if (isMultiblockFragment) {
+                    const fMesh = mesh;
+                    const blocks = this.blocksMap[fMesh.id];
+                    if (!blocks) {
+                        throw new Error("Blocks not found");
+                    }
+                    for (let i = 0; i < blocks.length; i++) {
+                        const block = blocks[i];
+                        if (block >= triangleIndex * 3) {
+                            if (this.lastBlock !== i) {
+                                this.fragmentSeams.push(index);
+                                this.lastBlock = i;
+                            }
+                            break;
+                        }
+                    }
+                }
                 // check each triangle edge to see if it intersects with the plane. If so then
                 // add it to the list of segments.
                 let count = 0;
