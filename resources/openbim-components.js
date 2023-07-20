@@ -92049,8 +92049,11 @@ class IfcFragmentSettings {
     constructor() {
         /** Whether to extract the IFC properties into a JSON. */
         this.includeProperties = true;
-        /** Generate the geometry for categories that are not included by default. */
-        this.optionalCategories = [IFCSPACE];
+        /**
+         * Generate the geometry for categories that are not included by default,
+         * like IFCSPACE.
+         */
+        this.optionalCategories = [];
         /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
         this.wasm = {
             path: "",
@@ -92431,13 +92434,16 @@ class FragmentIfcLoader extends Component {
     }
     async readAllGeometries() {
         this._converter.saveIfcCategories(this._webIfc);
+        // const isolated = new Set<number>([186]);
         // Some categories (like IfcSpace) need to be created explicitly
         const optionals = this.settings.optionalCategories;
         const callback = (mesh) => {
+            // if (!isolated.has(mesh.expressID)) return;
             this._geometry.streamMesh(this._webIfc, mesh);
         };
         this._webIfc.StreamAllMeshesWithTypes(0, optionals, callback);
         this._webIfc.StreamAllMeshes(0, (mesh) => {
+            // if (!isolated.has(mesh.expressID)) return;
             this._geometry.streamMesh(this._webIfc, mesh);
         });
     }
@@ -95255,6 +95261,7 @@ class ClippingFills {
         this._tempVector = new THREE$1.Vector3();
         this._coordinateSystem = new THREE$1.Matrix4();
         this.mesh.material = material;
+        this.mesh.frustumCulled = false;
         this._plane = plane;
         const vertical = plane.normal.y;
         this._isPlaneHorizontal = vertical === 1 || vertical === -1;
@@ -95294,8 +95301,9 @@ class ClippingFills {
             }
             for (const block in verticesByBlock) {
                 const vertices = verticesByBlock[block];
-                if (!vertices.length)
+                if (!vertices.length) {
                     continue;
+                }
                 const indices = this.computeFill(vertices, buffer);
                 for (const index of indices) {
                     allIndices.push(index);
@@ -95380,13 +95388,14 @@ class ClippingFills {
                     // merge start to end
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
+                    if (!endShape || !startShape) {
+                        return [];
+                    }
                     shapes.delete(startIndex);
                     openShapes.delete(startIndex);
-                    if (!endShape || !startShape) {
-                        throw new Error("Shape error!");
-                    }
+                    shapesEnds.set(startShape[startShape.length - 1], endIndex);
+                    shapesEnds.delete(endShape[endShape.length - 1]);
                     for (const index of startShape) {
-                        shapesEnds.set(index, endIndex);
                         endShape.push(index);
                     }
                 }
@@ -95405,13 +95414,14 @@ class ClippingFills {
                     // merge start to end
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
+                    if (!endShape || !startShape) {
+                        return [];
+                    }
                     shapes.delete(startIndex);
                     openShapes.delete(startIndex);
-                    if (!endShape || !startShape) {
-                        throw new Error("Shape error!");
-                    }
+                    shapesEnds.set(startShape[startShape.length - 1], endIndex);
+                    shapesEnds.delete(endShape[endShape.length - 1]);
                     for (const index of startShape) {
-                        shapesEnds.set(index, endIndex);
                         endShape.push(index);
                     }
                 }
@@ -95421,12 +95431,50 @@ class ClippingFills {
                 shapesStarts.delete(end);
                 shapesEnds.delete(start);
             }
+            else if (startMatchesStart && endMatchesStart) {
+                // Merge 2 shapes, mirroring one of them
+                const startIndex1 = shapesStarts.get(end);
+                const startIndex2 = shapesStarts.get(start);
+                // merge start to end
+                const startShape2 = shapes.get(startIndex2);
+                const startShape1 = shapes.get(startIndex1);
+                if (!startShape2 || !startShape1) {
+                    return [];
+                }
+                shapes.delete(startIndex1);
+                openShapes.delete(startIndex1);
+                shapesStarts.delete(startShape2[0]);
+                shapesStarts.delete(startShape1[0]);
+                shapesEnds.delete(startShape1[startShape1.length - 1]);
+                shapesStarts.set(startShape1[startShape1.length - 1], startIndex2);
+                startShape1.reverse();
+                startShape2.splice(0, 0, ...startShape1);
+            }
+            else if (startMatchesEnd && endMatchesEnd) {
+                // Merge 2 shapes, mirroring one of them
+                const endIndex1 = shapesEnds.get(end);
+                const endIndex2 = shapesEnds.get(start);
+                // merge start to end
+                const endShape2 = shapes.get(endIndex2);
+                const endShape1 = shapes.get(endIndex1);
+                if (!endShape2 || !endShape1) {
+                    return [];
+                }
+                shapes.delete(endIndex1);
+                openShapes.delete(endIndex1);
+                shapesEnds.delete(endShape2[endShape2.length - 1]);
+                shapesEnds.delete(endShape1[endShape1.length - 1]);
+                shapesStarts.delete(endShape1[0]);
+                shapesEnds.set(endShape1[0], endIndex2);
+                endShape1.reverse();
+                endShape2.push(...endShape1);
+            }
             else if (startMatchesStart) {
                 // existing contour on start - start
                 const shapeIndex = shapesStarts.get(start);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    throw new Error("Shape error!");
+                    return [];
                 }
                 shape.unshift(end);
                 shapesStarts.delete(start);
@@ -95437,7 +95485,7 @@ class ClippingFills {
                 const shapeIndex = shapesEnds.get(start);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    throw new Error("Shape error!");
+                    return [];
                 }
                 shape.push(end);
                 shapesEnds.delete(start);
@@ -95448,7 +95496,7 @@ class ClippingFills {
                 const shapeIndex = shapesStarts.get(end);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    throw new Error("Shape error!");
+                    return [];
                 }
                 shape.unshift(start);
                 shapesStarts.delete(end);
@@ -95459,7 +95507,7 @@ class ClippingFills {
                 const shapeIndex = shapesEnds.get(end);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    throw new Error("Shape error!");
+                    return [];
                 }
                 shape.push(start);
                 shapesEnds.delete(end);
@@ -95585,7 +95633,9 @@ class ClippingEdges extends Component {
         const linePosAttr = new THREE$1.BufferAttribute(buffer, 3, false);
         linePosAttr.setUsage(THREE$1.DynamicDrawUsage);
         edgesGeometry.setAttribute("position", linePosAttr);
-        return new THREE$1.LineSegments(edgesGeometry, material);
+        const lines = new THREE$1.LineSegments(edgesGeometry, material);
+        lines.frustumCulled = false;
+        return lines;
     }
     newFillMesh(name, geometry) {
         const styles = this._styles.get();
