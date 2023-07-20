@@ -95297,7 +95297,7 @@ class ClippingFills {
         }
         this.mesh.geometry.setIndex(allIndices);
     }
-    computeFill(offset, count, buffer) {
+    computeFill(offset, finish, buffer) {
         const indices = new Map();
         const all2DVertices = {};
         const shapes = new Map();
@@ -95307,7 +95307,7 @@ class ClippingFills {
         const tempVector = new THREE$1.Vector3();
         // precision
         const p = 1000;
-        for (let i = offset; i < count; i += 6) {
+        for (let i = offset; i < finish; i += 6) {
             // Convert vertices to indices
             let x1 = 0;
             let y1 = 0;
@@ -95335,8 +95335,8 @@ class ClippingFills {
                 x2 = Math.trunc(tempVector.x * p) / p;
                 y2 = Math.trunc(tempVector.y * p) / p;
             }
-            const startCode = `${x1}-${y1}`;
-            const endCode = `${x2}-${y2}`;
+            const startCode = `${x1}|${y1}`;
+            const endCode = `${x2}|${y2}`;
             if (!indices.has(startCode)) {
                 indices.set(startCode, i / 3);
             }
@@ -95523,6 +95523,7 @@ class ClippingEdges extends Component {
         this.enabled = true;
         this.blocksMap = {};
         this.fragmentSeams = [];
+        this.blockByIndex = {};
         this.lastBlock = 0;
         this._edges = {};
         this._disposer = new Disposer();
@@ -95636,7 +95637,6 @@ class ClippingEdges extends Component {
                 }
             }
         });
-        console.log(this.fragmentSeams);
         // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
         edges.mesh.geometry.setDrawRange(0, index);
         edges.mesh.position.copy(this._plane.normal).multiplyScalar(0.0001);
@@ -95649,7 +95649,6 @@ class ClippingEdges extends Component {
             scene.add(edges.mesh);
             edges.fill.update(indexes, this.fragmentSeams);
             scene.add(edges.fill.mesh);
-            console.log(indexes);
         }
     }
     initializeStyle(name) {
@@ -95666,23 +95665,6 @@ class ClippingEdges extends Component {
             },
             // @ts-ignore
             intersectsTriangle: (tri, triangleIndex) => {
-                if (isMultiblockFragment) {
-                    const fMesh = mesh;
-                    const blocks = this.blocksMap[fMesh.id];
-                    if (!blocks) {
-                        throw new Error("Blocks not found");
-                    }
-                    for (let i = 0; i < blocks.length; i++) {
-                        const block = blocks[i];
-                        if (block >= triangleIndex * 3) {
-                            if (this.lastBlock !== i) {
-                                this.fragmentSeams.push(index);
-                                this.lastBlock = i;
-                            }
-                            break;
-                        }
-                    }
-                }
                 // check each triangle edge to see if it intersects with the plane. If so then
                 // add it to the list of segments.
                 let count = 0;
@@ -95714,6 +95696,25 @@ class ClippingEdges extends Component {
                 // more gracefully.
                 if (count !== 2) {
                     index -= count;
+                }
+                if (count === 2 && isMultiblockFragment) {
+                    const fMesh = mesh;
+                    const blocks = this.blocksMap[fMesh.id];
+                    if (!blocks) {
+                        throw new Error("Blocks not found");
+                    }
+                    const vertexIndex = fMesh.geometry.index.array[triangleIndex * 3];
+                    for (let i = 0; i < blocks.length; i++) {
+                        const block = blocks[i];
+                        if (block >= vertexIndex) {
+                            this.blockByIndex[index] = i;
+                            if (this.lastBlock !== i) {
+                                this.fragmentSeams.push(index - count);
+                                this.lastBlock = i;
+                            }
+                            break;
+                        }
+                    }
                 }
             },
         });
