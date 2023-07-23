@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4, OrthographicCamera, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, Raycaster, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4, OrthographicCamera, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -1939,6 +1939,21 @@ var createPopper = /*#__PURE__*/popperGenerator({
   defaultModifiers: defaultModifiers
 }); // eslint-disable-next-line import/no-unused-modules
 
+function numberOfDigits(x) {
+    return Math.max(Math.floor(Math.log10(Math.abs(x))), 0) + 1;
+}
+function toCompositeID(id, count) {
+    const factor = 0.1 ** numberOfDigits(count);
+    id += count * factor;
+    let idString = id.toString();
+    // add missing zeros
+    if (count % 10 === 0) {
+        for (let i = 0; i < factor; i++) {
+            idString += "0";
+        }
+    }
+    return idString;
+}
 // Temporal id generator until the IFC id algorithm is implemented.
 function tooeenRandomId() {
     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -2120,6 +2135,531 @@ function bufferGeometryToIndexed(geometry) {
     geometry.setAttribute("position", new THREE$1.BufferAttribute(realVertices, size === 2 ? 3 : size));
     geometry.setIndex(new THREE$1.BufferAttribute(outIndices, 1));
     geometry.getAttribute("position").needsUpdate = true;
+}
+
+class CSS2DObject extends Object3D {
+
+	constructor( element = document.createElement( 'div' ) ) {
+
+		super();
+
+		this.isCSS2DObject = true;
+
+		this.element = element;
+
+		this.element.style.position = 'absolute';
+		this.element.style.userSelect = 'none';
+
+		this.element.setAttribute( 'draggable', false );
+
+		this.center = new Vector2$1( 0.5, 0.5 ); // ( 0, 0 ) is the lower left; ( 1, 1 ) is the top right
+
+		this.addEventListener( 'removed', function () {
+
+			this.traverse( function ( object ) {
+
+				if ( object.element instanceof Element && object.element.parentNode !== null ) {
+
+					object.element.parentNode.removeChild( object.element );
+
+				}
+
+			} );
+
+		} );
+
+	}
+
+	copy( source, recursive ) {
+
+		super.copy( source, recursive );
+
+		this.element = source.element.cloneNode( true );
+
+		this.center = source.center;
+
+		return this;
+
+	}
+
+}
+
+//
+
+const _vector$3 = new Vector3$1();
+const _viewMatrix = new Matrix4();
+const _viewProjectionMatrix = new Matrix4();
+const _a = new Vector3$1();
+const _b = new Vector3$1();
+
+class CSS2DRenderer {
+
+	constructor( parameters = {} ) {
+
+		const _this = this;
+
+		let _width, _height;
+		let _widthHalf, _heightHalf;
+
+		const cache = {
+			objects: new WeakMap()
+		};
+
+		const domElement = parameters.element !== undefined ? parameters.element : document.createElement( 'div' );
+
+		domElement.style.overflow = 'hidden';
+
+		this.domElement = domElement;
+
+		this.getSize = function () {
+
+			return {
+				width: _width,
+				height: _height
+			};
+
+		};
+
+		this.render = function ( scene, camera ) {
+
+			if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
+			if ( camera.parent === null && camera.matrixWorldAutoUpdate === true ) camera.updateMatrixWorld();
+
+			_viewMatrix.copy( camera.matrixWorldInverse );
+			_viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, _viewMatrix );
+
+			renderObject( scene, scene, camera );
+			zOrder( scene );
+
+		};
+
+		this.setSize = function ( width, height ) {
+
+			_width = width;
+			_height = height;
+
+			_widthHalf = _width / 2;
+			_heightHalf = _height / 2;
+
+			domElement.style.width = width + 'px';
+			domElement.style.height = height + 'px';
+
+		};
+
+		function renderObject( object, scene, camera ) {
+
+			if ( object.isCSS2DObject ) {
+
+				_vector$3.setFromMatrixPosition( object.matrixWorld );
+				_vector$3.applyMatrix4( _viewProjectionMatrix );
+
+				const visible = ( object.visible === true ) && ( _vector$3.z >= - 1 && _vector$3.z <= 1 ) && ( object.layers.test( camera.layers ) === true );
+				object.element.style.display = ( visible === true ) ? '' : 'none';
+
+				if ( visible === true ) {
+
+					object.onBeforeRender( _this, scene, camera );
+
+					const element = object.element;
+
+					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
+
+					if ( element.parentNode !== domElement ) {
+
+						domElement.appendChild( element );
+
+					}
+
+					object.onAfterRender( _this, scene, camera );
+
+				}
+
+				const objectData = {
+					distanceToCameraSquared: getDistanceToSquared( camera, object )
+				};
+
+				cache.objects.set( object, objectData );
+
+			}
+
+			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
+
+				renderObject( object.children[ i ], scene, camera );
+
+			}
+
+		}
+
+		function getDistanceToSquared( object1, object2 ) {
+
+			_a.setFromMatrixPosition( object1.matrixWorld );
+			_b.setFromMatrixPosition( object2.matrixWorld );
+
+			return _a.distanceToSquared( _b );
+
+		}
+
+		function filterAndFlatten( scene ) {
+
+			const result = [];
+
+			scene.traverse( function ( object ) {
+
+				if ( object.isCSS2DObject ) result.push( object );
+
+			} );
+
+			return result;
+
+		}
+
+		function zOrder( scene ) {
+
+			const sorted = filterAndFlatten( scene ).sort( function ( a, b ) {
+
+				if ( a.renderOrder !== b.renderOrder ) {
+
+					return b.renderOrder - a.renderOrder;
+
+				}
+
+				const distanceA = cache.objects.get( a ).distanceToCameraSquared;
+				const distanceB = cache.objects.get( b ).distanceToCameraSquared;
+
+				return distanceA - distanceB;
+
+			} );
+
+			const zMax = sorted.length;
+
+			for ( let i = 0, l = sorted.length; i < l; i ++ ) {
+
+				sorted[ i ].element.style.zIndex = zMax - i;
+
+			}
+
+		}
+
+	}
+
+}
+
+class LineIntersectionPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    constructor(components, config) {
+        super();
+        this.name = "LineIntersectionPicker";
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this._pickedPoint = null;
+        this._raycaster = new Raycaster();
+        this._originVector = new Vector3$1();
+        this._components = components;
+        this.config = {
+            snapDistance: 0.25,
+            ...config,
+        };
+        if (this._raycaster.params.Line) {
+            this._raycaster.params.Line.threshold = 0.2;
+        }
+        this._mouse = new Mouse(components.renderer.get().domElement);
+        const marker = document.createElement("div");
+        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
+        this._marker = new CSS2DObject(marker);
+        this._marker.visible = false;
+        this._components.scene.get().add(this._marker);
+        this.enabled = false;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    get config() {
+        return this._config;
+    }
+    /** {@link Updateable.update} */
+    update() {
+        if (!this.enabled) {
+            return;
+        }
+        this.beforeUpdate.trigger(this);
+        this._raycaster.setFromCamera(this._mouse.position, this._components.camera.get());
+        // @ts-ignore
+        const lines = this._components.meshes.filter((mesh) => mesh.isLine);
+        const intersects = this._raycaster.intersectObjects(lines);
+        // console.log(intersects)
+        if (intersects.length !== 2) {
+            this._pickedPoint = null;
+            this.updateMarker();
+            return;
+        }
+        // if (!intersects[0].index || !intersects[1].index) {return}
+        const lineA = intersects[0].object;
+        const lineB = intersects[1].object;
+        const indices = [intersects[0].index, intersects[1].index];
+        const hitPoint = new Vector3$1()
+            .copy(intersects[0].point)
+            .add(intersects[1].point)
+            .multiplyScalar(0.5);
+        const isSameElement = lineA.uuid === lineB.uuid;
+        if (isSameElement) {
+            const line = lineA;
+            const pos = line.geometry.getAttribute("position");
+            const vectorA = new Vector3$1().fromBufferAttribute(pos, indices[0]);
+            const vectorB = new Vector3$1().fromBufferAttribute(pos, indices[0] + 1);
+            const vectorC = new Vector3$1().fromBufferAttribute(pos, indices[1]);
+            const vectorD = new Vector3$1().fromBufferAttribute(pos, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        else {
+            const pos1 = lineA.geometry.getAttribute("position");
+            const pos2 = lineB.geometry.getAttribute("position");
+            const vectorA = new Vector3$1().fromBufferAttribute(pos1, indices[0]);
+            const vectorB = new Vector3$1().fromBufferAttribute(pos1, indices[0] + 1);
+            const vectorC = new Vector3$1().fromBufferAttribute(pos2, indices[1]);
+            const vectorD = new Vector3$1().fromBufferAttribute(pos2, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        this.afterUpdate.trigger(this);
+    }
+    findIntersection(p1, p2, p3, p4) {
+        const line1Dir = p2.sub(p1);
+        const line2Dir = p4.sub(p3);
+        const lineDirCross = new Vector3$1().crossVectors(line1Dir, line2Dir);
+        const denominator = lineDirCross.lengthSq();
+        if (denominator === 0) {
+            return null;
+        }
+        const lineToPoint = p3.sub(p1);
+        const lineToPointCross = new Vector3$1().crossVectors(lineDirCross, lineToPoint);
+        const t1 = lineToPointCross.dot(line2Dir) / denominator;
+        const intersectionPoint = new Vector3$1().addVectors(p1, line1Dir.multiplyScalar(t1));
+        return intersectionPoint;
+    }
+    updateMarker() {
+        var _a;
+        this._marker.visible = !!this._pickedPoint;
+        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
+    }
+    get() {
+        return this._pickedPoint;
+    }
+}
+
+class Simple2DMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        this._marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
+    constructor(components, marker) {
+        super();
+        this.name = "Simple2DMarker";
+        this.enabled = true;
+        this._visible = true;
+        this._components = components;
+        let _marker;
+        if (marker) {
+            _marker = marker;
+        }
+        else {
+            _marker = document.createElement("div");
+            _marker.className =
+                "w-[15px] h-[15px] border-3 border-solid border-red-600";
+        }
+        this._marker = new CSS2DObject(_marker);
+        this._components.scene.get().add(this._marker);
+        this.visible = true;
+    }
+    toggleVisibility() {
+        this.visible = !this.visible;
+    }
+    dispose() {
+        this._marker.removeFromParent();
+        this._marker.element.remove();
+    }
+    get() {
+        return this._marker;
+    }
+}
+
+class VertexPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    constructor(components, config) {
+        var _a;
+        super();
+        this.name = "VertexPicker";
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this._pickedPoint = null;
+        this._enabled = false;
+        this._workingPlane = null;
+        this._components = components;
+        this.config = {
+            snapDistance: 0.25,
+            showOnlyVertex: false,
+            ...config,
+        };
+        this._marker = new Simple2DMarker(components, this.config.previewElement);
+        this._marker.visible = false;
+        (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
+        this.enabled = false;
+    }
+    set workingPlane(plane) {
+        this._workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._workingPlane;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    get config() {
+        return this._config;
+    }
+    get _raycaster() {
+        return this._components.raycaster;
+    }
+    update() {
+        if (!this.enabled)
+            return;
+        this.beforeUpdate.trigger(this);
+        const intersects = this._raycaster.castRay();
+        if (!intersects) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        const point = this.getClosestVertex(intersects);
+        if (!point) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        const isOnPlane = !this.workingPlane
+            ? true
+            : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
+        if (!isOnPlane) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        this._pickedPoint = point;
+        this._marker.visible = true;
+        this._marker
+            .get()
+            .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
+        this.afterUpdate.trigger(this);
+    }
+    getClosestVertex(intersects) {
+        let closestVertex = new THREE$1.Vector3();
+        let vertexFound = false;
+        let closestDistance = Number.MAX_SAFE_INTEGER;
+        const vertices = this.getVertices(intersects);
+        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
+            if (!vertex)
+                return;
+            const distance = intersects.point.distanceTo(vertex);
+            if (distance > closestDistance || distance > this._config.snapDistance)
+                return;
+            vertexFound = true;
+            closestVertex = vertex;
+            closestDistance = intersects.point.distanceTo(vertex);
+        });
+        if (vertexFound)
+            return closestVertex;
+        return this.config.showOnlyVertex ? null : intersects.point;
+    }
+    getVertices(intersects) {
+        const mesh = intersects.object;
+        if (!intersects.face || !mesh)
+            return null;
+        const geom = mesh.geometry;
+        return [
+            this.getVertex(intersects.face.a, geom),
+            this.getVertex(intersects.face.b, geom),
+            this.getVertex(intersects.face.c, geom),
+        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
+    }
+    getVertex(index, geom) {
+        if (index === undefined)
+            return null;
+        const vertices = geom.attributes.position;
+        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
+    }
+    dispose() {
+        this._marker.dispose();
+    }
+    get() {
+        return this._pickedPoint;
+    }
+}
+
+class GeometryVerticesMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        for (const marker of this._markers)
+            marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
+    constructor(components, geometry) {
+        super();
+        this.name = "GeometryVerticesMarker";
+        this.enabled = true;
+        this._markers = [];
+        this._visible = true;
+        const position = geometry.getAttribute("position");
+        for (let index = 0; index < position.count; index++) {
+            const marker = new Simple2DMarker(components);
+            marker
+                .get()
+                .position.set(position.getX(index), position.getY(index), position.getZ(index));
+            this._markers.push(marker);
+        }
+    }
+    dispose() {
+        for (const marker of this._markers)
+            marker.dispose();
+    }
+    get() {
+        return this._markers;
+    }
 }
 
 class SimpleUIComponent extends Component {
@@ -2685,213 +3225,6 @@ class ToolComponent extends Component {
             }
         }
     }
-}
-
-class CSS2DObject extends Object3D {
-
-	constructor( element = document.createElement( 'div' ) ) {
-
-		super();
-
-		this.isCSS2DObject = true;
-
-		this.element = element;
-
-		this.element.style.position = 'absolute';
-		this.element.style.userSelect = 'none';
-
-		this.element.setAttribute( 'draggable', false );
-
-		this.center = new Vector2$1( 0.5, 0.5 ); // ( 0, 0 ) is the lower left; ( 1, 1 ) is the top right
-
-		this.addEventListener( 'removed', function () {
-
-			this.traverse( function ( object ) {
-
-				if ( object.element instanceof Element && object.element.parentNode !== null ) {
-
-					object.element.parentNode.removeChild( object.element );
-
-				}
-
-			} );
-
-		} );
-
-	}
-
-	copy( source, recursive ) {
-
-		super.copy( source, recursive );
-
-		this.element = source.element.cloneNode( true );
-
-		this.center = source.center;
-
-		return this;
-
-	}
-
-}
-
-//
-
-const _vector$3 = new Vector3$1();
-const _viewMatrix = new Matrix4();
-const _viewProjectionMatrix = new Matrix4();
-const _a = new Vector3$1();
-const _b = new Vector3$1();
-
-class CSS2DRenderer {
-
-	constructor( parameters = {} ) {
-
-		const _this = this;
-
-		let _width, _height;
-		let _widthHalf, _heightHalf;
-
-		const cache = {
-			objects: new WeakMap()
-		};
-
-		const domElement = parameters.element !== undefined ? parameters.element : document.createElement( 'div' );
-
-		domElement.style.overflow = 'hidden';
-
-		this.domElement = domElement;
-
-		this.getSize = function () {
-
-			return {
-				width: _width,
-				height: _height
-			};
-
-		};
-
-		this.render = function ( scene, camera ) {
-
-			if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
-			if ( camera.parent === null && camera.matrixWorldAutoUpdate === true ) camera.updateMatrixWorld();
-
-			_viewMatrix.copy( camera.matrixWorldInverse );
-			_viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, _viewMatrix );
-
-			renderObject( scene, scene, camera );
-			zOrder( scene );
-
-		};
-
-		this.setSize = function ( width, height ) {
-
-			_width = width;
-			_height = height;
-
-			_widthHalf = _width / 2;
-			_heightHalf = _height / 2;
-
-			domElement.style.width = width + 'px';
-			domElement.style.height = height + 'px';
-
-		};
-
-		function renderObject( object, scene, camera ) {
-
-			if ( object.isCSS2DObject ) {
-
-				_vector$3.setFromMatrixPosition( object.matrixWorld );
-				_vector$3.applyMatrix4( _viewProjectionMatrix );
-
-				const visible = ( object.visible === true ) && ( _vector$3.z >= - 1 && _vector$3.z <= 1 ) && ( object.layers.test( camera.layers ) === true );
-				object.element.style.display = ( visible === true ) ? '' : 'none';
-
-				if ( visible === true ) {
-
-					object.onBeforeRender( _this, scene, camera );
-
-					const element = object.element;
-
-					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
-
-					if ( element.parentNode !== domElement ) {
-
-						domElement.appendChild( element );
-
-					}
-
-					object.onAfterRender( _this, scene, camera );
-
-				}
-
-				const objectData = {
-					distanceToCameraSquared: getDistanceToSquared( camera, object )
-				};
-
-				cache.objects.set( object, objectData );
-
-			}
-
-			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
-
-				renderObject( object.children[ i ], scene, camera );
-
-			}
-
-		}
-
-		function getDistanceToSquared( object1, object2 ) {
-
-			_a.setFromMatrixPosition( object1.matrixWorld );
-			_b.setFromMatrixPosition( object2.matrixWorld );
-
-			return _a.distanceToSquared( _b );
-
-		}
-
-		function filterAndFlatten( scene ) {
-
-			const result = [];
-
-			scene.traverse( function ( object ) {
-
-				if ( object.isCSS2DObject ) result.push( object );
-
-			} );
-
-			return result;
-
-		}
-
-		function zOrder( scene ) {
-
-			const sorted = filterAndFlatten( scene ).sort( function ( a, b ) {
-
-				if ( a.renderOrder !== b.renderOrder ) {
-
-					return b.renderOrder - a.renderOrder;
-
-				}
-
-				const distanceA = cache.objects.get( a ).distanceToCameraSquared;
-				const distanceB = cache.objects.get( b ).distanceToCameraSquared;
-
-				return distanceA - distanceB;
-
-			} );
-
-			const zMax = sorted.length;
-
-			for ( let i = 0, l = sorted.length; i < l; i ++ ) {
-
-				sorted[ i ].element.style.zIndex = zMax - i;
-
-			}
-
-		}
-
-	}
-
 }
 
 /**
@@ -18191,45 +18524,6 @@ class SimpleSVGViewport extends Component {
     }
 }
 
-class Simple2DMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        this._marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
-    constructor(components, marker) {
-        super();
-        this.name = "Simple2DMarker";
-        this.enabled = true;
-        this._visible = true;
-        this._components = components;
-        let _marker;
-        if (marker) {
-            _marker = marker;
-        }
-        else {
-            _marker = document.createElement("div");
-            _marker.className =
-                "w-[15px] h-[15px] border-3 border-solid border-red-600";
-        }
-        this._marker = new CSS2DObject(_marker);
-        this._components.scene.get().add(this._marker);
-        this.visible = true;
-    }
-    toggleVisibility() {
-        this.visible = !this.visible;
-    }
-    dispose() {
-        this._marker.removeFromParent();
-        this._marker.element.remove();
-    }
-    get() {
-        return this._marker;
-    }
-}
-
 // TODO: Clean up and document
 // TODO: Disable / enable instance color for instance meshes
 class MaterialManager extends Component {
@@ -24589,8 +24883,11 @@ let Fragment$1 = class Fragment {
         const items = [];
         itemIDs = this.filterHiddenItems(itemIDs, true);
         for (const id of itemIDs) {
-            items.push(this.hiddenInstances[id]);
-            delete this.hiddenInstances[id];
+            const found = this.hiddenInstances[id];
+            if (found !== undefined) {
+                items.push(found);
+                delete this.hiddenInstances[id];
+            }
         }
         this.addInstances(items);
     }
@@ -90672,285 +90969,6 @@ class IfcJsonExporter {
     }
 }
 
-class LineIntersectionPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    constructor(components, config) {
-        super();
-        this.name = "LineIntersectionPicker";
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
-        this._pickedPoint = null;
-        this._raycaster = new Raycaster();
-        this._originVector = new Vector3$1();
-        this._components = components;
-        this.config = {
-            snapDistance: 0.25,
-            ...config,
-        };
-        if (this._raycaster.params.Line) {
-            this._raycaster.params.Line.threshold = 0.2;
-        }
-        this._mouse = new Mouse(components.renderer.get().domElement);
-        const marker = document.createElement("div");
-        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
-        this._marker = new CSS2DObject(marker);
-        this._marker.visible = false;
-        this._components.scene.get().add(this._marker);
-        this.enabled = false;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    /** {@link Updateable.update} */
-    update() {
-        if (!this.enabled) {
-            return;
-        }
-        this.beforeUpdate.trigger(this);
-        this._raycaster.setFromCamera(this._mouse.position, this._components.camera.get());
-        // @ts-ignore
-        const lines = this._components.meshes.filter((mesh) => mesh.isLine);
-        const intersects = this._raycaster.intersectObjects(lines);
-        // console.log(intersects)
-        if (intersects.length !== 2) {
-            this._pickedPoint = null;
-            this.updateMarker();
-            return;
-        }
-        // if (!intersects[0].index || !intersects[1].index) {return}
-        const lineA = intersects[0].object;
-        const lineB = intersects[1].object;
-        const indices = [intersects[0].index, intersects[1].index];
-        const hitPoint = new Vector3$1()
-            .copy(intersects[0].point)
-            .add(intersects[1].point)
-            .multiplyScalar(0.5);
-        const isSameElement = lineA.uuid === lineB.uuid;
-        if (isSameElement) {
-            const line = lineA;
-            const pos = line.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        else {
-            const pos1 = lineA.geometry.getAttribute("position");
-            const pos2 = lineB.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos1, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos1, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos2, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos2, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        this.afterUpdate.trigger(this);
-    }
-    findIntersection(p1, p2, p3, p4) {
-        const line1Dir = p2.sub(p1);
-        const line2Dir = p4.sub(p3);
-        const lineDirCross = new Vector3$1().crossVectors(line1Dir, line2Dir);
-        const denominator = lineDirCross.lengthSq();
-        if (denominator === 0) {
-            return null;
-        }
-        const lineToPoint = p3.sub(p1);
-        const lineToPointCross = new Vector3$1().crossVectors(lineDirCross, lineToPoint);
-        const t1 = lineToPointCross.dot(line2Dir) / denominator;
-        const intersectionPoint = new Vector3$1().addVectors(p1, line1Dir.multiplyScalar(t1));
-        return intersectionPoint;
-    }
-    updateMarker() {
-        var _a;
-        this._marker.visible = !!this._pickedPoint;
-        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
-    }
-    get() {
-        return this._pickedPoint;
-    }
-}
-
-class VertexPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    constructor(components, config) {
-        var _a;
-        super();
-        this.name = "VertexPicker";
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
-        this._pickedPoint = null;
-        this._enabled = false;
-        this._workingPlane = null;
-        this._components = components;
-        this.config = {
-            snapDistance: 0.25,
-            showOnlyVertex: false,
-            ...config,
-        };
-        this._marker = new Simple2DMarker(components, this.config.previewElement);
-        this._marker.visible = false;
-        (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
-        this.enabled = false;
-    }
-    set workingPlane(plane) {
-        this._workingPlane = plane;
-    }
-    get workingPlane() {
-        return this._workingPlane;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    get _raycaster() {
-        return this._components.raycaster;
-    }
-    update() {
-        if (!this.enabled)
-            return;
-        this.beforeUpdate.trigger(this);
-        const intersects = this._raycaster.castRay();
-        if (!intersects) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        const point = this.getClosestVertex(intersects);
-        if (!point) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        const isOnPlane = !this.workingPlane
-            ? true
-            : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
-        if (!isOnPlane) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        this._pickedPoint = point;
-        this._marker.visible = true;
-        this._marker
-            .get()
-            .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
-        this.afterUpdate.trigger(this);
-    }
-    getClosestVertex(intersects) {
-        let closestVertex = new THREE$1.Vector3();
-        let vertexFound = false;
-        let closestDistance = Number.MAX_SAFE_INTEGER;
-        const vertices = this.getVertices(intersects);
-        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
-            if (!vertex)
-                return;
-            const distance = intersects.point.distanceTo(vertex);
-            if (distance > closestDistance || distance > this._config.snapDistance)
-                return;
-            vertexFound = true;
-            closestVertex = vertex;
-            closestDistance = intersects.point.distanceTo(vertex);
-        });
-        if (vertexFound)
-            return closestVertex;
-        return this.config.showOnlyVertex ? null : intersects.point;
-    }
-    getVertices(intersects) {
-        const mesh = intersects.object;
-        if (!intersects.face || !mesh)
-            return null;
-        const geom = mesh.geometry;
-        return [
-            this.getVertex(intersects.face.a, geom),
-            this.getVertex(intersects.face.b, geom),
-            this.getVertex(intersects.face.c, geom),
-        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
-    }
-    getVertex(index, geom) {
-        if (index === undefined)
-            return null;
-        const vertices = geom.attributes.position;
-        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
-    }
-    dispose() {
-        this._marker.dispose();
-    }
-    get() {
-        return this._pickedPoint;
-    }
-}
-
-class GeometryVerticesMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        for (const marker of this._markers)
-            marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
-    constructor(components, geometry) {
-        super();
-        this.name = "GeometryVerticesMarker";
-        this.enabled = true;
-        this._markers = [];
-        this._visible = true;
-        const position = geometry.getAttribute("position");
-        for (let index = 0; index < position.count; index++) {
-            const marker = new Simple2DMarker(components);
-            marker
-                .get()
-                .position.set(position.getX(index), position.getY(index), position.getZ(index));
-            this._markers.push(marker);
-        }
-    }
-    dispose() {
-        for (const marker of this._markers)
-            marker.dispose();
-    }
-    get() {
-        return this._markers;
-    }
-}
-
 class IfcPropertiesUtils {
     static getUnits(properties) {
         var _a;
@@ -92004,27 +92022,18 @@ class SpatialStructure {
         this.itemsByFloor = {};
         this._units = new Units();
     }
+    // TODO: Maybe make this more flexible so that it also support more exotic spatial structures?
     async setUp(webIfc) {
         this._units.setUp(webIfc);
         this.cleanUp();
         try {
             const spatialRels = webIfc.GetLineIDsWithType(0, IFCRELCONTAINEDINSPATIALSTRUCTURE);
-            const spatialRelsSize = spatialRels.size();
-            for (let i = 0; i < spatialRelsSize; i++) {
-                const id = spatialRels.get(i);
-                const properties = webIfc.GetLine(0, id);
-                if (!properties ||
-                    !properties.RelatingStructure ||
-                    !properties.RelatedElements) {
-                    continue;
-                }
-                const floor = properties.RelatingStructure.value;
-                const relatedItems = properties.RelatedElements;
-                for (const related of relatedItems) {
-                    const id = related.value;
-                    this.itemsByFloor[id] = floor;
-                }
+            const allRooms = new Set();
+            const rooms = webIfc.GetLineIDsWithType(0, IFCSPACE);
+            for (let i = 0; i < rooms.size(); i++) {
+                allRooms.add(rooms.get(i));
             }
+            // First add rooms (if any) to floors
             const aggregates = webIfc.GetLineIDsWithType(0, IFCRELAGGREGATES);
             const aggregatesSize = aggregates.size();
             for (let i = 0; i < aggregatesSize; i++) {
@@ -92035,14 +92044,71 @@ class SpatialStructure {
                     !properties.RelatedObjects) {
                     continue;
                 }
-                const container = properties.RelatingObject.value;
-                const relatedItems = properties.RelatedObjects;
-                for (const related of relatedItems) {
-                    const containerFloor = this.itemsByFloor[container];
-                    if (containerFloor === undefined)
-                        continue;
-                    const id = related.value;
-                    this.itemsByFloor[id] = containerFloor;
+                const parentID = properties.RelatingObject.value;
+                const childsIDs = properties.RelatedObjects;
+                for (const child of childsIDs) {
+                    const childID = child.value;
+                    if (allRooms.has(childID)) {
+                        this.itemsByFloor[childID] = parentID;
+                    }
+                }
+            }
+            // Now add items contained in floors and rooms
+            // If items contained in room, look for the floor where that room is and assign it to it
+            const itemsContainedInRooms = {};
+            const spatialRelsSize = spatialRels.size();
+            for (let i = 0; i < spatialRelsSize; i++) {
+                const id = spatialRels.get(i);
+                const properties = webIfc.GetLine(0, id);
+                if (!properties ||
+                    !properties.RelatingStructure ||
+                    !properties.RelatedElements) {
+                    continue;
+                }
+                const structureID = properties.RelatingStructure.value;
+                const relatedItems = properties.RelatedElements;
+                if (allRooms.has(structureID)) {
+                    for (const related of relatedItems) {
+                        if (!itemsContainedInRooms[structureID]) {
+                            itemsContainedInRooms[structureID] = [];
+                        }
+                        const id = related.value;
+                        itemsContainedInRooms[structureID].push(id);
+                    }
+                }
+                else {
+                    for (const related of relatedItems) {
+                        const id = related.value;
+                        this.itemsByFloor[id] = structureID;
+                    }
+                }
+            }
+            for (const roomID in itemsContainedInRooms) {
+                const roomFloor = this.itemsByFloor[roomID];
+                if (roomFloor !== undefined) {
+                    const items = itemsContainedInRooms[roomID];
+                    for (const item of items) {
+                        this.itemsByFloor[item] = roomFloor;
+                    }
+                }
+            }
+            // Finally, add nested items (e.g. elements of curtain walls)
+            for (let i = 0; i < aggregatesSize; i++) {
+                const id = aggregates.get(i);
+                const properties = webIfc.GetLine(0, id);
+                if (!properties ||
+                    !properties.RelatingObject ||
+                    !properties.RelatedObjects) {
+                    continue;
+                }
+                const parentID = properties.RelatingObject.value;
+                const childsIDs = properties.RelatedObjects;
+                for (const child of childsIDs) {
+                    const childID = child.value;
+                    const parentStructure = this.itemsByFloor[parentID];
+                    if (parentStructure !== undefined) {
+                        this.itemsByFloor[childID] = parentStructure;
+                    }
                 }
             }
         }
@@ -92194,29 +92260,28 @@ class DataConverter {
                 const instance = instances[i];
                 matrix.fromArray(instance.matrix);
                 const { expressID } = instance;
-                let instanceID = expressID;
-                let isRepeated = false;
+                let instanceID = expressID.toString();
+                let isComposite = false;
                 if (!previousIDs.has(expressID)) {
                     previousIDs.add(expressID);
                 }
-                else if (!fragment.composites[expressID]) {
-                    fragment.composites[expressID] = 2;
-                    instanceID += 0.001;
-                    isRepeated = true;
-                }
                 else {
+                    if (!fragment.composites[expressID]) {
+                        fragment.composites[expressID] = 1;
+                    }
+                    const count = fragment.composites[expressID];
+                    instanceID = toCompositeID(expressID, count);
+                    isComposite = true;
                     fragment.composites[expressID]++;
-                    instanceID += (fragment.composites[expressID] - 1) * 0.001;
-                    isRepeated = true;
                 }
                 fragment.setInstance(i, {
-                    ids: [instanceID.toString()],
+                    ids: [instanceID],
                     transform: matrix,
                 });
                 const { x, y, z } = instance.color;
                 color.setRGB(x, y, z, "srgb");
                 fragment.mesh.setColorAt(i, color);
-                if (!isRepeated) {
+                if (!isComposite) {
                     this.saveExpressID(expressID.toString());
                 }
             }
@@ -92457,14 +92522,12 @@ class FragmentIfcLoader extends Component {
         // Some categories (like IfcSpace) need to be created explicitly
         const optionals = this.settings.optionalCategories;
         const callback = (mesh) => {
-            if (mesh.expressID !== 32063)
-                return;
+            // if (mesh.expressID !== 32063) return;
             this._geometry.streamMesh(this._webIfc, mesh);
         };
         this._webIfc.StreamAllMeshesWithTypes(0, optionals, callback);
         this._webIfc.StreamAllMeshes(0, (mesh) => {
-            if (mesh.expressID !== 32063)
-                return;
+            // if (mesh.expressID !== 32063) return;
             this._geometry.streamMesh(this._webIfc, mesh);
         });
     }
@@ -92570,15 +92633,6 @@ class FragmentHighlighter extends Component {
         }
         return { id: itemID, fragments };
     }
-    addComposites(mesh, itemID, name) {
-        const composites = mesh.fragment.composites[itemID];
-        if (composites) {
-            for (let i = 1; i < composites; i++) {
-                const compositeID = (itemID + i * 0.001).toString();
-                this.selection[name][mesh.uuid].add(compositeID);
-            }
-        }
-    }
     highlightByID(name, ids, removePrevious = true) {
         if (!this.enabled)
             return;
@@ -92590,8 +92644,14 @@ class FragmentHighlighter extends Component {
             if (!styles[fragID]) {
                 styles[fragID] = new Set();
             }
+            const fragment = this._fragments.list[fragID];
+            const idsNum = new Set();
             for (const id of ids[fragID]) {
                 styles[fragID].add(id);
+                idsNum.add(parseInt(id, 10));
+            }
+            for (const id of idsNum) {
+                this.addComposites(fragment.mesh, id, name);
             }
             this.updateFragmentHighlight(name, fragID);
         }
@@ -92603,6 +92663,15 @@ class FragmentHighlighter extends Component {
         const names = name ? [name] : Object.keys(this.selection);
         for (const name of names) {
             this.clearStyle(name);
+        }
+    }
+    addComposites(mesh, itemID, name) {
+        const composites = mesh.fragment.composites[itemID];
+        if (composites) {
+            for (let i = 1; i < composites; i++) {
+                const compositeID = toCompositeID(itemID, i);
+                this.selection[name][mesh.uuid].add(compositeID);
+            }
         }
     }
     clearStyle(name) {
@@ -92848,6 +92917,15 @@ class FragmentClassifier extends Component {
                         result[guid] = [];
                     }
                     result[guid].push(id);
+                    const fragment = this._fragments.list[guid];
+                    const composites = fragment.composites[id];
+                    if (composites) {
+                        const idNum = parseInt(id, 10);
+                        for (let i = 1; i < composites; i++) {
+                            const compositeID = toCompositeID(idNum, i);
+                            result[guid].push(compositeID);
+                        }
+                    }
                 }
             }
         }
@@ -101838,4 +101916,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, numberOfDigits, toCompositeID, tooeenRandomId };
