@@ -100396,18 +100396,17 @@ class FragmentOutliner extends Component {
         this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
         this._selection = {};
         this._outlinedMeshes = {};
+        this._outlineMaterial = new THREE$1.MeshBasicMaterial({
+            color: "white",
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+        });
         this._tempMatrix = new THREE$1.Matrix4();
-        this._styles = {};
         this._components = components;
         this._fragments = fragments;
         this._renderer = renderer;
         this.enabled = true;
-    }
-    add(name, material, width = 2) {
-        if (this._styles[name]) {
-            throw new Error("A highlight with this name already exists.");
-        }
-        this._styles[name] = { material, width };
     }
     get() {
         return this._selection;
@@ -100423,7 +100422,7 @@ class FragmentOutliner extends Component {
         this._components = null;
         this._renderer = null;
     }
-    outline(name, removePrevious = true) {
+    outline(removePrevious = true) {
         var _a;
         if (!this.enabled)
             return null;
@@ -100446,18 +100445,14 @@ class FragmentOutliner extends Component {
             this._selection = {};
             this.clear();
         }
-        if (!this._selection[name]) {
-            this._selection[name] = {};
-        }
-        const selection = this._selection[name];
-        if (!selection[mesh.uuid]) {
-            selection[mesh.uuid] = new Set();
+        if (!this._selection[mesh.uuid]) {
+            this._selection[mesh.uuid] = new Set();
         }
         fragments.push(mesh.fragment);
         const blockID = mesh.fragment.getVertexBlockID(geometry, index);
         const itemID = mesh.fragment.getItemID(instanceID, blockID);
-        selection[mesh.uuid].add(itemID);
-        this.updateOutline(name, mesh.uuid);
+        this._selection[mesh.uuid].add(itemID);
+        this.updateOutline(mesh.uuid);
         const group = mesh.fragment.group;
         if (group) {
             const idNum = parseInt(itemID, 10);
@@ -100466,11 +100461,11 @@ class FragmentOutliner extends Component {
                 const fragKey = keys[i];
                 const fragID = group.keyFragments[fragKey];
                 fragments.push(this._fragments.list[fragID]);
-                if (!selection[fragID]) {
-                    selection[fragID] = new Set();
+                if (!this._selection[fragID]) {
+                    this._selection[fragID] = new Set();
                 }
-                selection[fragID].add(itemID);
-                this.updateOutline(name, fragID);
+                this._selection[fragID].add(itemID);
+                this.updateOutline(fragID);
             }
         }
         return { id: itemID, fragments };
@@ -100509,31 +100504,25 @@ class FragmentOutliner extends Component {
             }
         }
     }
-    updateOutline(name, fragmentID) {
-        if (!this._selection[name] || !this._selection[name][fragmentID]) {
+    updateOutline(fragmentID) {
+        if (!this._selection[fragmentID]) {
             return;
         }
-        const ids = this._selection[name][fragmentID];
+        const ids = this._selection[fragmentID];
         const fragment = this._fragments.list[fragmentID];
         if (!fragment)
             return;
-        const style = this._styles[name];
-        if (!style) {
-            throw new Error("No material found for style!");
-        }
-        const { material, width } = style;
         const geometry = fragment.mesh.geometry;
         const customEffects = this._renderer.postproduction.customEffects;
-        if (!customEffects.outlinedMeshes[name]) {
-            customEffects.outlinedMeshes[name] = {
+        if (!customEffects.outlinedMeshes.fragments) {
+            customEffects.outlinedMeshes.fragments = {
                 meshes: [],
-                material,
-                width,
+                material: this._outlineMaterial,
             };
         }
         // Create a copy of the original fragment mesh for outline
         if (!this._outlinedMeshes[fragmentID]) {
-            const outlineEffect = customEffects.outlinedMeshes[name];
+            const outlineEffect = customEffects.outlinedMeshes.fragments;
             const newGeometry = new THREE$1.BufferGeometry();
             newGeometry.attributes = geometry.attributes;
             const newMesh = new THREE$1.InstancedMesh(newGeometry, this._invisibleMaterial, fragment.capacity);
