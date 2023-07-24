@@ -94523,10 +94523,6 @@ class EdgesStyles extends Component {
             color: 0x000000,
             linewidth: 0.001,
         });
-        this._defaultFillMaterial = new THREE$1.MeshBasicMaterial({
-            color: "black",
-            side: 2,
-        });
         this.afterUpdate = new Event();
         this.beforeUpdate = new Event();
     }
@@ -94538,7 +94534,7 @@ class EdgesStyles extends Component {
         this.afterUpdate.trigger(this._styles);
     }
     // Creates a new style that applies to all clipping edges for generic models
-    async create(name, meshes, lineMaterial = this._defaultLineMaterial, fillMaterial = this._defaultFillMaterial) {
+    async create(name, meshes, lineMaterial = this._defaultLineMaterial, fillMaterial) {
         for (const mesh of meshes) {
             if (!mesh.geometry.boundsTree)
                 mesh.geometry.computeBoundsTree();
@@ -95254,12 +95250,25 @@ var earcutExports = earcut$2.exports;
 var earcut$1 = /*@__PURE__*/getDefaultExportFromCjs(earcutExports);
 
 class ClippingFills {
-    constructor(plane, geometry, material) {
+    get visible() {
+        return this.mesh.parent !== null;
+    }
+    set visible(value) {
+        if (value) {
+            const scene = this._components.scene.get();
+            scene.add(this.mesh);
+        }
+        else {
+            this.mesh.removeFromParent();
+        }
+    }
+    constructor(components, plane, geometry, material) {
         // readonly worker: Worker;
         this.mesh = new Mesh(new THREE$1.BufferGeometry());
         this._precission = 10000;
         this._tempVector = new THREE$1.Vector3();
         this._coordinateSystem = new THREE$1.Matrix4();
+        this._components = components;
         this.mesh.material = material;
         this.mesh.frustumCulled = false;
         this._plane = plane;
@@ -95270,6 +95279,7 @@ class ClippingFills {
         // To prevent clipping plane overlapping the filling mesh
         const offset = plane.normal.clone().multiplyScalar(0.01);
         this.mesh.position.copy(offset);
+        this.visible = true;
     }
     dispose() {
         this.mesh.geometry.dispose();
@@ -95582,12 +95592,21 @@ class ClippingEdges extends Component {
             this.update();
         }
     }
+    set fillVisible(visible) {
+        for (const name in this._edges) {
+            const edges = this._edges[name];
+            if (edges.fill) {
+                edges.fill.visible = visible;
+            }
+        }
+    }
     constructor(components, plane, styles) {
         super();
         /** {@link Component.name} */
         this.name = "ClippingEdges";
         /** {@link Component.enabled}. */
         this.enabled = true;
+        this._fillNeedsUpdate = false;
         this.blocksMap = {};
         this.blockByIndex = {};
         this.lastBlock = 0;
@@ -95613,6 +95632,11 @@ class ClippingEdges extends Component {
             this.drawEdges(style.name);
         }
     }
+    updateFills() {
+        this._fillNeedsUpdate = true;
+        this.update();
+        this._fillNeedsUpdate = false;
+    }
     /** {@link Component.get} */
     get() {
         return this._edges;
@@ -95621,7 +95645,9 @@ class ClippingEdges extends Component {
     dispose() {
         const edges = Object.values(this._edges);
         for (const edge of edges) {
-            edge.fill.dispose();
+            if (edge.fill) {
+                edge.fill.dispose();
+            }
             this._disposer.dispose(edge.mesh, false);
         }
     }
@@ -95640,7 +95666,10 @@ class ClippingEdges extends Component {
     newFillMesh(name, geometry) {
         const styles = this._styles.get();
         const fillMaterial = styles[name].fillMaterial;
-        return new ClippingFills(this._plane, geometry, fillMaterial);
+        if (fillMaterial) {
+            return new ClippingFills(this._components, this._plane, geometry, fillMaterial);
+        }
+        return undefined;
     }
     // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
     drawEdges(styleName) {
@@ -95657,7 +95686,7 @@ class ClippingEdges extends Component {
         const indexes = [];
         let lastIndex = 0;
         const notEmptyMeshes = style.meshes.filter((mesh) => mesh.geometry);
-        notEmptyMeshes.forEach((mesh) => {
+        for (const mesh of notEmptyMeshes) {
             if (!mesh.geometry.boundsTree) {
                 throw new Error("Boundstree not found for clipping edges subset.");
             }
@@ -95703,7 +95732,7 @@ class ClippingEdges extends Component {
                     lastIndex = index;
                 }
             }
-        });
+        }
         // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
         edges.mesh.geometry.setDrawRange(0, index);
         edges.mesh.position.copy(this._plane.normal).multiplyScalar(0.0001);
@@ -95714,8 +95743,9 @@ class ClippingEdges extends Component {
         if (!Number.isNaN(position.array[0])) {
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
-            edges.fill.update(indexes, this.blockByIndex);
-            scene.add(edges.fill.mesh);
+            if (this._fillNeedsUpdate && edges.fill) {
+                edges.fill.update(indexes, this.blockByIndex);
+            }
         }
     }
     initializeStyle(name) {
@@ -95785,6 +95815,9 @@ class ClippingEdges extends Component {
     }
     updateEdgesVisibility(edgeName, visible) {
         const edges = this._edges[edgeName];
+        if (edges.fill) {
+            edges.fill.visible = visible;
+        }
         edges.mesh.visible = visible;
         if (visible) {
             const scene = this._components.scene.get();
@@ -95828,9 +95861,18 @@ class EdgesPlane extends SimplePlane {
                 }, this.edgesMaxUpdateRate);
             }
         };
+        this.hideFills = () => {
+            this.edges.fillVisible = false;
+        };
+        this.updateFill = () => {
+            this.edges.updateFills();
+            this.edges.fillVisible = true;
+        };
         this.edges = new ClippingEdges(components, this._plane, styles);
         this.toggleControls(true);
         this.edges.visible = true;
+        this.draggingEnded.on(this.updateFill);
+        this.draggingStarted.on(this.hideFills);
     }
     /** {@link Hideable.visible} */
     set visible(state) {
