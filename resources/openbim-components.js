@@ -92053,7 +92053,7 @@ class IfcFragmentSettings {
          * Generate the geometry for categories that are not included by default,
          * like IFCSPACE.
          */
-        this.optionalCategories = [];
+        this.optionalCategories = [IFCSPACE];
         /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
         this.wasm = {
             path: "",
@@ -94546,6 +94546,7 @@ class EdgesStyles extends Component {
             lineMaterial,
             meshes,
             fillMaterial,
+            fragments: {},
         };
     }
     dispose() {
@@ -95606,8 +95607,7 @@ class ClippingEdges extends Component {
         this.name = "ClippingEdges";
         /** {@link Component.enabled}. */
         this.enabled = true;
-        this._fillNeedsUpdate = false;
-        this.blocksMap = {};
+        this.fillNeedsUpdate = false;
         this.blockByIndex = {};
         this.lastBlock = 0;
         this._edges = {};
@@ -95633,9 +95633,8 @@ class ClippingEdges extends Component {
         }
     }
     updateFills() {
-        this._fillNeedsUpdate = true;
+        this.fillNeedsUpdate = true;
         this.update();
-        this._fillNeedsUpdate = false;
     }
     /** {@link Component.get} */
     get() {
@@ -95693,6 +95692,16 @@ class ClippingEdges extends Component {
             const instanced = mesh;
             if (instanced.count > 1) {
                 for (let i = 0; i < instanced.count; i++) {
+                    // Exclude fragment instances that don't belong to this style
+                    const isFragment = instanced instanceof FragmentMesh;
+                    const fMesh = instanced;
+                    const ids = style.fragments[fMesh.fragment.id];
+                    if (isFragment && ids) {
+                        const itemID = fMesh.fragment.items[i];
+                        if (!ids.has(itemID)) {
+                            continue;
+                        }
+                    }
                     const tempMesh = new THREE$1.Mesh(mesh.geometry);
                     tempMesh.matrix.copy(mesh.matrix);
                     const tempMatrix = new THREE$1.Matrix4();
@@ -95703,7 +95712,7 @@ class ClippingEdges extends Component {
                     tempMesh.updateMatrixWorld();
                     this._inverseMatrix.copy(tempMesh.matrixWorld).invert();
                     this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
-                    index = this.shapecast(tempMesh, posAttr, index);
+                    index = this.shapecast(tempMesh, posAttr, index, style);
                     if (index !== lastIndex) {
                         indexes.push(index);
                         lastIndex = index;
@@ -95714,19 +95723,7 @@ class ClippingEdges extends Component {
                 this._inverseMatrix.copy(mesh.matrixWorld).invert();
                 this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
                 const isFragment = mesh instanceof FragmentMesh;
-                if (isFragment && !this.blocksMap[mesh.id]) {
-                    const fMesh = mesh;
-                    // TODO: Make this accesible from fragments library
-                    // @ts-ignore
-                    const map = fMesh.fragment.blocks.blocksMap.indices.map;
-                    const blocks = [];
-                    for (const entry of map) {
-                        const value = entry[1][0][1];
-                        blocks.push(value);
-                    }
-                    this.blocksMap[fMesh.id] = blocks;
-                }
-                index = this.shapecast(mesh, posAttr, index, isFragment);
+                index = this.shapecast(mesh, posAttr, index, style, isFragment);
                 if (index !== lastIndex) {
                     indexes.push(index);
                     lastIndex = index;
@@ -95743,8 +95740,9 @@ class ClippingEdges extends Component {
         if (!Number.isNaN(position.array[0])) {
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
-            if (this._fillNeedsUpdate && edges.fill) {
+            if (this.fillNeedsUpdate && edges.fill) {
                 edges.fill.update(indexes, this.blockByIndex);
+                this.fillNeedsUpdate = false;
             }
         }
     }
@@ -95754,7 +95752,7 @@ class ClippingEdges extends Component {
         const fill = this.newFillMesh(name, geometry);
         this._edges[name] = { mesh, name, fill };
     }
-    shapecast(mesh, posAttr, index, isMultiblockFragment = false) {
+    shapecast(mesh, posAttr, index, style, isMultiblockFragment = false) {
         // @ts-ignore
         mesh.geometry.boundsTree.shapecast({
             intersectsBounds: (box) => {
@@ -95762,6 +95760,19 @@ class ClippingEdges extends Component {
             },
             // @ts-ignore
             intersectsTriangle: (tri, triangleIndex) => {
+                // Exclude triangles of fragment items that don't belong to this style
+                if (isMultiblockFragment && style.fragments) {
+                    const fMesh = mesh;
+                    const ids = style.fragments[mesh.id];
+                    if (ids !== undefined) {
+                        const index = fMesh.geometry.index.array[triangleIndex * 3];
+                        const blockID = fMesh.geometry.attributes.blockID.array[index];
+                        const id = fMesh.fragment.getItemID(0, blockID);
+                        if (!ids.has(id)) {
+                            return;
+                        }
+                    }
+                }
                 // check each triangle edge to see if it intersects with the plane. If so then
                 // add it to the list of segments.
                 let count = 0;
@@ -95796,18 +95807,9 @@ class ClippingEdges extends Component {
                 }
                 if (count === 2 && isMultiblockFragment) {
                     const fMesh = mesh;
-                    const blocks = this.blocksMap[fMesh.id];
-                    if (!blocks) {
-                        throw new Error("Blocks not found");
-                    }
                     const vertexIndex = fMesh.geometry.index.array[triangleIndex * 3];
-                    for (let i = 0; i < blocks.length; i++) {
-                        const block = blocks[i];
-                        if (block >= vertexIndex) {
-                            this.blockByIndex[index - 2] = i;
-                            break;
-                        }
-                    }
+                    const block = fMesh.geometry.attributes.blockID.array[vertexIndex];
+                    this.blockByIndex[index - 2] = block;
                 }
             },
         });
@@ -100347,6 +100349,7 @@ class PlanNavigator extends Component {
         if (this.currentPlan.plane) {
             this.currentPlan.plane.enabled = true;
             if (this.currentPlan.plane instanceof EdgesPlane) {
+                this.currentPlan.plane.edges.fillNeedsUpdate = true;
                 this.currentPlan.plane.edges.visible = true;
             }
         }
