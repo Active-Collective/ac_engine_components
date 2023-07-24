@@ -93432,7 +93432,10 @@ class FragmentExploder extends Component {
         let i = 0;
         const systems = this.groups.get();
         const groups = systems[this.groupName];
+        const mergedIDHeightMap = {};
+        const yTransform = new THREE$1.Matrix4();
         for (const groupName in groups) {
+            yTransform.elements[13] = i * factor * this.height;
             for (const fragID in groups[groupName]) {
                 const fragment = this.fragments.list[fragID];
                 const customID = groupName + fragID;
@@ -93451,7 +93454,6 @@ class FragmentExploder extends Component {
                 else {
                     this._explodedFragments.delete(customID);
                 }
-                const yTransform = this.getOffsetY(i * factor);
                 if (fragment.blocks.count === 1) {
                     // For instanced fragments
                     const ids = groups[groupName][fragID];
@@ -93460,36 +93462,57 @@ class FragmentExploder extends Component {
                         const { instanceID } = fragment.getInstanceAndBlockID(id);
                         fragment.getInstance(instanceID, tempMatrix);
                         tempMatrix.premultiply(yTransform);
-                        fragment.setInstance(instanceID, {
-                            transform: tempMatrix,
-                            ids: [id],
-                        });
+                        fragment.mesh.setMatrixAt(instanceID, tempMatrix);
+                        const composites = fragment.composites[id];
+                        if (composites) {
+                            for (let i = 1; i < composites; i++) {
+                                const idNum = parseInt(id, 10);
+                                const compID = toCompositeID(idNum, i);
+                                const { instanceID } = fragment.getInstanceAndBlockID(compID);
+                                fragment.getInstance(instanceID, tempMatrix);
+                                tempMatrix.premultiply(yTransform);
+                                fragment.mesh.setMatrixAt(instanceID, tempMatrix);
+                            }
+                        }
                     }
+                    fragment.mesh.instanceMatrix.needsUpdate = true;
                 }
                 else {
-                    // For merged fragments
-                    const tempMatrix = new THREE$1.Matrix4();
-                    fragment.getInstance(0, tempMatrix);
-                    tempMatrix.premultiply(yTransform);
-                    fragment.setInstance(0, {
-                        transform: tempMatrix,
-                        ids: fragment.items,
-                    });
+                    if (!mergedIDHeightMap[fragID]) {
+                        mergedIDHeightMap[fragID] = {};
+                    }
+                    const ids = groups[groupName][fragID];
+                    for (const id of ids) {
+                        mergedIDHeightMap[fragID][id] = i * factor * this.height;
+                    }
                 }
-                fragment.mesh.instanceMatrix.needsUpdate = true;
             }
             i++;
         }
-    }
-    getOffsetY(y) {
-        const w = y * this.height;
-        // prettier-ignore
-        return new THREE$1.Matrix4().fromArray([
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, w, 0, 1,
-        ]);
+        const v = new THREE$1.Vector3();
+        // Update merged fragments
+        for (const fragID in mergedIDHeightMap) {
+            const heights = mergedIDHeightMap[fragID];
+            const fragment = this.fragments.list[fragID];
+            const geometry = fragment.mesh.geometry;
+            const position = geometry.attributes.position;
+            for (let i = 0; i < geometry.index.count; i++) {
+                const index = geometry.index.array[i];
+                const blockID = geometry.attributes.blockID.array[index];
+                const id = fragment.getItemID(0, blockID);
+                const height = heights[id];
+                if (height === undefined)
+                    continue;
+                yTransform.elements[13] = height;
+                const x = position.array[index * 3];
+                const y = position.array[index * 3 + 1];
+                const z = position.array[index * 3 + 2];
+                v.set(x, y, z);
+                v.applyMatrix4(yTransform);
+                position.setXYZ(index, v.x, v.y, v.z);
+            }
+            position.needsUpdate = true;
+        }
     }
 }
 
