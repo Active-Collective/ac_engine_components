@@ -92529,18 +92529,23 @@ class FragmentIfcLoader extends Component {
             const index = optionals.indexOf(IFCSPACE);
             optionals.splice(index, 1);
             this._webIfc.StreamAllMeshesWithTypes(0, [IFCSPACE], (mesh) => {
+                if (mesh.expressID !== 32063)
+                    return;
                 this._geometry.streamMesh(this._webIfc, mesh, true);
             });
         }
         // Load rest of optional categories (if any)
         if (optionals.length) {
             this._webIfc.StreamAllMeshesWithTypes(0, optionals, (mesh) => {
+                if (mesh.expressID !== 32063)
+                    return;
                 this._geometry.streamMesh(this._webIfc, mesh);
             });
         }
         // Load common categories
         this._webIfc.StreamAllMeshes(0, (mesh) => {
-            // if (mesh.expressID !== 32063) return;
+            if (mesh.expressID !== 32063)
+                return;
             this._geometry.streamMesh(this._webIfc, mesh);
         });
     }
@@ -100073,24 +100078,29 @@ class FragmentOutliner extends Component {
         fragments.push(mesh.fragment);
         const blockID = mesh.fragment.getVertexBlockID(geometry, index);
         const itemID = mesh.fragment.getItemID(instanceID, blockID);
-        this._selection[mesh.uuid].add(itemID);
+        // Get rid of composite suffix (if any)
+        const idNum = parseInt(itemID, 10);
+        const trueID = idNum.toString();
+        this._selection[mesh.uuid].add(trueID);
+        this.addComposites(mesh, idNum);
         this.updateFragmentHighlight(mesh.uuid);
         const group = mesh.fragment.group;
         if (group) {
-            const idNum = parseInt(itemID, 10);
             const keys = group.data[idNum][0];
             for (let i = 0; i < keys.length; i++) {
                 const fragKey = keys[i];
                 const fragID = group.keyFragments[fragKey];
+                const fragment = this._fragments.list[fragID];
                 fragments.push(this._fragments.list[fragID]);
                 if (!this._selection[fragID]) {
                     this._selection[fragID] = new Set();
                 }
-                this._selection[fragID].add(itemID);
+                this._selection[fragID].add(trueID);
+                this.addComposites(fragment.mesh, idNum);
                 this.updateFragmentHighlight(fragID);
             }
         }
-        return { id: itemID, fragments };
+        return { id: trueID, fragments };
     }
     // highlightByID(
     //   name: string,
@@ -100115,6 +100125,15 @@ class FragmentOutliner extends Component {
     clear() {
         this._selection = {};
         this._renderer.postproduction.customEffects.outlinedMeshes = [];
+    }
+    addComposites(mesh, itemID) {
+        const composites = mesh.fragment.composites[itemID];
+        if (composites) {
+            for (let i = 1; i < composites; i++) {
+                const compositeID = toCompositeID(itemID, i);
+                this._selection[mesh.uuid].add(compositeID);
+            }
+        }
     }
     updateFragmentHighlight(fragmentID) {
         const ids = this._selection[fragmentID];
