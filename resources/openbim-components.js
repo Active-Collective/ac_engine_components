@@ -92367,16 +92367,19 @@ class GeometryReader {
         this.items = {};
         this._webIfc = null;
     }
-    streamMesh(webifc, mesh) {
+    streamMesh(webifc, mesh, forceTransparent = false) {
         this._webIfc = webifc;
         const size = mesh.geometries.size();
         for (let i = 0; i < size; i++) {
             const geometry = mesh.geometries.get(i);
             const geometryID = geometry.geometryExpressID;
             // Transparent geometries need to be separated
-            const isTransparent = geometry.color.w !== 1;
+            const isColorTransparent = geometry.color.w !== 1;
+            const isTransparent = isColorTransparent || forceTransparent;
             const prefix = isTransparent ? "-" : "+";
             const idWithTransparency = prefix + geometryID;
+            if (forceTransparent)
+                geometry.color.w = 0.1;
             if (!this.items[idWithTransparency]) {
                 const buffer = this.newBufferGeometry(geometryID);
                 if (!buffer)
@@ -92521,11 +92524,21 @@ class FragmentIfcLoader extends Component {
         this._converter.saveIfcCategories(this._webIfc);
         // Some categories (like IfcSpace) need to be created explicitly
         const optionals = this.settings.optionalCategories;
-        const callback = (mesh) => {
-            // if (mesh.expressID !== 32063) return;
-            this._geometry.streamMesh(this._webIfc, mesh);
-        };
-        this._webIfc.StreamAllMeshesWithTypes(0, optionals, callback);
+        // Force IFC space to be transparent
+        if (optionals.includes(IFCSPACE)) {
+            const index = optionals.indexOf(IFCSPACE);
+            optionals.splice(index, 1);
+            this._webIfc.StreamAllMeshesWithTypes(0, [IFCSPACE], (mesh) => {
+                this._geometry.streamMesh(this._webIfc, mesh, true);
+            });
+        }
+        // Load rest of optional categories (if any)
+        if (optionals.length) {
+            this._webIfc.StreamAllMeshesWithTypes(0, optionals, (mesh) => {
+                this._geometry.streamMesh(this._webIfc, mesh);
+            });
+        }
+        // Load common categories
         this._webIfc.StreamAllMeshes(0, (mesh) => {
             // if (mesh.expressID !== 32063) return;
             this._geometry.streamMesh(this._webIfc, mesh);
