@@ -148,43 +148,43 @@ class Mouse {
     }
 }
 
-var top = 'top';
-var bottom = 'bottom';
-var right = 'right';
-var left = 'left';
-var auto = 'auto';
-var basePlacements = [top, bottom, right, left];
-var start = 'start';
-var end = 'end';
-var clippingParents = 'clippingParents';
-var viewport = 'viewport';
-var popper = 'popper';
-var reference = 'reference';
-var variationPlacements = /*#__PURE__*/basePlacements.reduce(function (acc, placement) {
-  return acc.concat([placement + "-" + start, placement + "-" + end]);
+var top$1 = 'top';
+var bottom$1 = 'bottom';
+var right$1 = 'right';
+var left$1 = 'left';
+var auto$1 = 'auto';
+var basePlacements$1 = [top$1, bottom$1, right$1, left$1];
+var start$1 = 'start';
+var end$1 = 'end';
+var clippingParents$1 = 'clippingParents';
+var viewport$1 = 'viewport';
+var popper$1 = 'popper';
+var reference$1 = 'reference';
+var variationPlacements$1 = /*#__PURE__*/basePlacements$1.reduce(function (acc, placement) {
+  return acc.concat([placement + "-" + start$1, placement + "-" + end$1]);
 }, []);
-var placements = /*#__PURE__*/[].concat(basePlacements, [auto]).reduce(function (acc, placement) {
-  return acc.concat([placement, placement + "-" + start, placement + "-" + end]);
+var placements$1 = /*#__PURE__*/[].concat(basePlacements$1, [auto$1]).reduce(function (acc, placement) {
+  return acc.concat([placement, placement + "-" + start$1, placement + "-" + end$1]);
 }, []); // modifiers that need to read the DOM
 
-var beforeRead = 'beforeRead';
-var read = 'read';
-var afterRead = 'afterRead'; // pure-logic modifiers
+var beforeRead$1 = 'beforeRead';
+var read$1 = 'read';
+var afterRead$1 = 'afterRead'; // pure-logic modifiers
 
-var beforeMain = 'beforeMain';
-var main = 'main';
-var afterMain = 'afterMain'; // modifier with the purpose to write to the DOM (or write into a framework state)
+var beforeMain$1 = 'beforeMain';
+var main$1 = 'main';
+var afterMain$1 = 'afterMain'; // modifier with the purpose to write to the DOM (or write into a framework state)
 
-var beforeWrite = 'beforeWrite';
-var write = 'write';
-var afterWrite = 'afterWrite';
-var modifierPhases = [beforeRead, read, afterRead, beforeMain, main, afterMain, beforeWrite, write, afterWrite];
+var beforeWrite$1 = 'beforeWrite';
+var write$1 = 'write';
+var afterWrite$1 = 'afterWrite';
+var modifierPhases$1 = [beforeRead$1, read$1, afterRead$1, beforeMain$1, main$1, afterMain$1, beforeWrite$1, write$1, afterWrite$1];
 
-function getNodeName(element) {
+function getNodeName$1(element) {
   return element ? (element.nodeName || '').toLowerCase() : null;
 }
 
-function getWindow(node) {
+function getWindow$1(node) {
   if (node == null) {
     return window;
   }
@@ -197,36 +197,36 @@ function getWindow(node) {
   return node;
 }
 
-function isElement(node) {
-  var OwnElement = getWindow(node).Element;
+function isElement$1(node) {
+  var OwnElement = getWindow$1(node).Element;
   return node instanceof OwnElement || node instanceof Element;
 }
 
-function isHTMLElement(node) {
-  var OwnElement = getWindow(node).HTMLElement;
+function isHTMLElement$1(node) {
+  var OwnElement = getWindow$1(node).HTMLElement;
   return node instanceof OwnElement || node instanceof HTMLElement;
 }
 
-function isShadowRoot(node) {
+function isShadowRoot$1(node) {
   // IE 11 has no ShadowRoot
   if (typeof ShadowRoot === 'undefined') {
     return false;
   }
 
-  var OwnElement = getWindow(node).ShadowRoot;
+  var OwnElement = getWindow$1(node).ShadowRoot;
   return node instanceof OwnElement || node instanceof ShadowRoot;
 }
 
 // and applies them to the HTMLElements such as popper and arrow
 
-function applyStyles(_ref) {
+function applyStyles$2(_ref) {
   var state = _ref.state;
   Object.keys(state.elements).forEach(function (name) {
     var style = state.styles[name] || {};
     var attributes = state.attributes[name] || {};
     var element = state.elements[name]; // arrow is optional + virtual elements
 
-    if (!isHTMLElement(element) || !getNodeName(element)) {
+    if (!isHTMLElement$1(element) || !getNodeName$1(element)) {
       return;
     } // Flow doesn't support to extend this property, but it's the most
     // effective way to apply styles to an HTMLElement
@@ -246,7 +246,7 @@ function applyStyles(_ref) {
   });
 }
 
-function effect$2(_ref2) {
+function effect$5(_ref2) {
   var state = _ref2.state;
   var initialStyles = {
     popper: {
@@ -278,7 +278,7 @@ function effect$2(_ref2) {
         return style;
       }, {}); // arrow is optional + virtual elements
 
-      if (!isHTMLElement(element) || !getNodeName(element)) {
+      if (!isHTMLElement$1(element) || !getNodeName$1(element)) {
         return;
       }
 
@@ -291,24 +291,24 @@ function effect$2(_ref2) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var applyStyles$1 = {
+var applyStyles$3 = {
   name: 'applyStyles',
   enabled: true,
   phase: 'write',
-  fn: applyStyles,
-  effect: effect$2,
+  fn: applyStyles$2,
+  effect: effect$5,
   requires: ['computeStyles']
 };
 
-function getBasePlacement(placement) {
+function getBasePlacement$1(placement) {
   return placement.split('-')[0];
 }
 
-var max = Math.max;
-var min = Math.min;
-var round = Math.round;
+var max$1 = Math.max;
+var min$1 = Math.min;
+var round$1 = Math.round;
 
-function getUAString() {
+function getUAString$1() {
   var uaData = navigator.userAgentData;
 
   if (uaData != null && uaData.brands && Array.isArray(uaData.brands)) {
@@ -320,11 +320,11 @@ function getUAString() {
   return navigator.userAgent;
 }
 
-function isLayoutViewport() {
-  return !/^((?!chrome|android).)*safari/i.test(getUAString());
+function isLayoutViewport$1() {
+  return !/^((?!chrome|android).)*safari/i.test(getUAString$1());
 }
 
-function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+function getBoundingClientRect$1(element, includeScale, isFixedStrategy) {
   if (includeScale === void 0) {
     includeScale = false;
   }
@@ -337,15 +337,15 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
   var scaleX = 1;
   var scaleY = 1;
 
-  if (includeScale && isHTMLElement(element)) {
-    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
-    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
+  if (includeScale && isHTMLElement$1(element)) {
+    scaleX = element.offsetWidth > 0 ? round$1(clientRect.width) / element.offsetWidth || 1 : 1;
+    scaleY = element.offsetHeight > 0 ? round$1(clientRect.height) / element.offsetHeight || 1 : 1;
   }
 
-  var _ref = isElement(element) ? getWindow(element) : window,
+  var _ref = isElement$1(element) ? getWindow$1(element) : window,
       visualViewport = _ref.visualViewport;
 
-  var addVisualOffsets = !isLayoutViewport() && isFixedStrategy;
+  var addVisualOffsets = !isLayoutViewport$1() && isFixedStrategy;
   var x = (clientRect.left + (addVisualOffsets && visualViewport ? visualViewport.offsetLeft : 0)) / scaleX;
   var y = (clientRect.top + (addVisualOffsets && visualViewport ? visualViewport.offsetTop : 0)) / scaleY;
   var width = clientRect.width / scaleX;
@@ -364,8 +364,8 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy) {
 
 // means it doesn't take into account transforms.
 
-function getLayoutRect(element) {
-  var clientRect = getBoundingClientRect(element); // Use the clientRect sizes if it's not been transformed.
+function getLayoutRect$1(element) {
+  var clientRect = getBoundingClientRect$1(element); // Use the clientRect sizes if it's not been transformed.
   // Fixes https://github.com/popperjs/popper-core/issues/1223
 
   var width = element.offsetWidth;
@@ -387,13 +387,13 @@ function getLayoutRect(element) {
   };
 }
 
-function contains(parent, child) {
+function contains$1(parent, child) {
   var rootNode = child.getRootNode && child.getRootNode(); // First, attempt with faster native method
 
   if (parent.contains(child)) {
     return true;
   } // then fallback to custom implementation with Shadow DOM support
-  else if (rootNode && isShadowRoot(rootNode)) {
+  else if (rootNode && isShadowRoot$1(rootNode)) {
       var next = child;
 
       do {
@@ -410,22 +410,22 @@ function contains(parent, child) {
   return false;
 }
 
-function getComputedStyle(element) {
-  return getWindow(element).getComputedStyle(element);
+function getComputedStyle$1(element) {
+  return getWindow$1(element).getComputedStyle(element);
 }
 
-function isTableElement(element) {
-  return ['table', 'td', 'th'].indexOf(getNodeName(element)) >= 0;
+function isTableElement$1(element) {
+  return ['table', 'td', 'th'].indexOf(getNodeName$1(element)) >= 0;
 }
 
-function getDocumentElement(element) {
+function getDocumentElement$1(element) {
   // $FlowFixMe[incompatible-return]: assume body is always available
-  return ((isElement(element) ? element.ownerDocument : // $FlowFixMe[prop-missing]
+  return ((isElement$1(element) ? element.ownerDocument : // $FlowFixMe[prop-missing]
   element.document) || window.document).documentElement;
 }
 
-function getParentNode(element) {
-  if (getNodeName(element) === 'html') {
+function getParentNode$1(element) {
+  if (getNodeName$1(element) === 'html') {
     return element;
   }
 
@@ -434,16 +434,16 @@ function getParentNode(element) {
     // $FlowFixMe[prop-missing]
     element.assignedSlot || // step into the shadow DOM of the parent of a slotted node
     element.parentNode || ( // DOM Element detected
-    isShadowRoot(element) ? element.host : null) || // ShadowRoot detected
+    isShadowRoot$1(element) ? element.host : null) || // ShadowRoot detected
     // $FlowFixMe[incompatible-call]: HTMLElement is a Node
-    getDocumentElement(element) // fallback
+    getDocumentElement$1(element) // fallback
 
   );
 }
 
-function getTrueOffsetParent(element) {
-  if (!isHTMLElement(element) || // https://github.com/popperjs/popper-core/issues/837
-  getComputedStyle(element).position === 'fixed') {
+function getTrueOffsetParent$1(element) {
+  if (!isHTMLElement$1(element) || // https://github.com/popperjs/popper-core/issues/837
+  getComputedStyle$1(element).position === 'fixed') {
     return null;
   }
 
@@ -452,27 +452,27 @@ function getTrueOffsetParent(element) {
 // return the containing block
 
 
-function getContainingBlock(element) {
-  var isFirefox = /firefox/i.test(getUAString());
-  var isIE = /Trident/i.test(getUAString());
+function getContainingBlock$1(element) {
+  var isFirefox = /firefox/i.test(getUAString$1());
+  var isIE = /Trident/i.test(getUAString$1());
 
-  if (isIE && isHTMLElement(element)) {
+  if (isIE && isHTMLElement$1(element)) {
     // In IE 9, 10 and 11 fixed elements containing block is always established by the viewport
-    var elementCss = getComputedStyle(element);
+    var elementCss = getComputedStyle$1(element);
 
     if (elementCss.position === 'fixed') {
       return null;
     }
   }
 
-  var currentNode = getParentNode(element);
+  var currentNode = getParentNode$1(element);
 
-  if (isShadowRoot(currentNode)) {
+  if (isShadowRoot$1(currentNode)) {
     currentNode = currentNode.host;
   }
 
-  while (isHTMLElement(currentNode) && ['html', 'body'].indexOf(getNodeName(currentNode)) < 0) {
-    var css = getComputedStyle(currentNode); // This is non-exhaustive but covers the most common CSS properties that
+  while (isHTMLElement$1(currentNode) && ['html', 'body'].indexOf(getNodeName$1(currentNode)) < 0) {
+    var css = getComputedStyle$1(currentNode); // This is non-exhaustive but covers the most common CSS properties that
     // create a containing block.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
 
@@ -488,34 +488,34 @@ function getContainingBlock(element) {
 // such as table ancestors and cross browser bugs.
 
 
-function getOffsetParent(element) {
-  var window = getWindow(element);
-  var offsetParent = getTrueOffsetParent(element);
+function getOffsetParent$1(element) {
+  var window = getWindow$1(element);
+  var offsetParent = getTrueOffsetParent$1(element);
 
-  while (offsetParent && isTableElement(offsetParent) && getComputedStyle(offsetParent).position === 'static') {
-    offsetParent = getTrueOffsetParent(offsetParent);
+  while (offsetParent && isTableElement$1(offsetParent) && getComputedStyle$1(offsetParent).position === 'static') {
+    offsetParent = getTrueOffsetParent$1(offsetParent);
   }
 
-  if (offsetParent && (getNodeName(offsetParent) === 'html' || getNodeName(offsetParent) === 'body' && getComputedStyle(offsetParent).position === 'static')) {
+  if (offsetParent && (getNodeName$1(offsetParent) === 'html' || getNodeName$1(offsetParent) === 'body' && getComputedStyle$1(offsetParent).position === 'static')) {
     return window;
   }
 
-  return offsetParent || getContainingBlock(element) || window;
+  return offsetParent || getContainingBlock$1(element) || window;
 }
 
-function getMainAxisFromPlacement(placement) {
+function getMainAxisFromPlacement$1(placement) {
   return ['top', 'bottom'].indexOf(placement) >= 0 ? 'x' : 'y';
 }
 
-function within(min$1, value, max$1) {
-  return max(min$1, min(value, max$1));
+function within$1(min, value, max) {
+  return max$1(min, min$1(value, max));
 }
-function withinMaxClamp(min, value, max) {
-  var v = within(min, value, max);
+function withinMaxClamp$1(min, value, max) {
+  var v = within$1(min, value, max);
   return v > max ? max : v;
 }
 
-function getFreshSideObject() {
+function getFreshSideObject$1() {
   return {
     top: 0,
     right: 0,
@@ -524,25 +524,25 @@ function getFreshSideObject() {
   };
 }
 
-function mergePaddingObject(paddingObject) {
-  return Object.assign({}, getFreshSideObject(), paddingObject);
+function mergePaddingObject$1(paddingObject) {
+  return Object.assign({}, getFreshSideObject$1(), paddingObject);
 }
 
-function expandToHashMap(value, keys) {
+function expandToHashMap$1(value, keys) {
   return keys.reduce(function (hashMap, key) {
     hashMap[key] = value;
     return hashMap;
   }, {});
 }
 
-var toPaddingObject = function toPaddingObject(padding, state) {
+var toPaddingObject$1 = function toPaddingObject(padding, state) {
   padding = typeof padding === 'function' ? padding(Object.assign({}, state.rects, {
     placement: state.placement
   })) : padding;
-  return mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
+  return mergePaddingObject$1(typeof padding !== 'number' ? padding : expandToHashMap$1(padding, basePlacements$1));
 };
 
-function arrow(_ref) {
+function arrow$2(_ref) {
   var _state$modifiersData$;
 
   var state = _ref.state,
@@ -550,22 +550,22 @@ function arrow(_ref) {
       options = _ref.options;
   var arrowElement = state.elements.arrow;
   var popperOffsets = state.modifiersData.popperOffsets;
-  var basePlacement = getBasePlacement(state.placement);
-  var axis = getMainAxisFromPlacement(basePlacement);
-  var isVertical = [left, right].indexOf(basePlacement) >= 0;
+  var basePlacement = getBasePlacement$1(state.placement);
+  var axis = getMainAxisFromPlacement$1(basePlacement);
+  var isVertical = [left$1, right$1].indexOf(basePlacement) >= 0;
   var len = isVertical ? 'height' : 'width';
 
   if (!arrowElement || !popperOffsets) {
     return;
   }
 
-  var paddingObject = toPaddingObject(options.padding, state);
-  var arrowRect = getLayoutRect(arrowElement);
-  var minProp = axis === 'y' ? top : left;
-  var maxProp = axis === 'y' ? bottom : right;
+  var paddingObject = toPaddingObject$1(options.padding, state);
+  var arrowRect = getLayoutRect$1(arrowElement);
+  var minProp = axis === 'y' ? top$1 : left$1;
+  var maxProp = axis === 'y' ? bottom$1 : right$1;
   var endDiff = state.rects.reference[len] + state.rects.reference[axis] - popperOffsets[axis] - state.rects.popper[len];
   var startDiff = popperOffsets[axis] - state.rects.reference[axis];
-  var arrowOffsetParent = getOffsetParent(arrowElement);
+  var arrowOffsetParent = getOffsetParent$1(arrowElement);
   var clientSize = arrowOffsetParent ? axis === 'y' ? arrowOffsetParent.clientHeight || 0 : arrowOffsetParent.clientWidth || 0 : 0;
   var centerToReference = endDiff / 2 - startDiff / 2; // Make sure the arrow doesn't overflow the popper if the center point is
   // outside of the popper bounds
@@ -573,13 +573,13 @@ function arrow(_ref) {
   var min = paddingObject[minProp];
   var max = clientSize - arrowRect[len] - paddingObject[maxProp];
   var center = clientSize / 2 - arrowRect[len] / 2 + centerToReference;
-  var offset = within(min, center, max); // Prevents breaking syntax highlighting...
+  var offset = within$1(min, center, max); // Prevents breaking syntax highlighting...
 
   var axisProp = axis;
   state.modifiersData[name] = (_state$modifiersData$ = {}, _state$modifiersData$[axisProp] = offset, _state$modifiersData$.centerOffset = offset - center, _state$modifiersData$);
 }
 
-function effect$1(_ref2) {
+function effect$4(_ref2) {
   var state = _ref2.state,
       options = _ref2.options;
   var _options$element = options.element,
@@ -598,7 +598,7 @@ function effect$1(_ref2) {
     }
   }
 
-  if (!contains(state.elements.popper, arrowElement)) {
+  if (!contains$1(state.elements.popper, arrowElement)) {
     return;
   }
 
@@ -606,21 +606,21 @@ function effect$1(_ref2) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var arrow$1 = {
+var arrow$3 = {
   name: 'arrow',
   enabled: true,
   phase: 'main',
-  fn: arrow,
-  effect: effect$1,
+  fn: arrow$2,
+  effect: effect$4,
   requires: ['popperOffsets'],
   requiresIfExists: ['preventOverflow']
 };
 
-function getVariation(placement) {
+function getVariation$1(placement) {
   return placement.split('-')[1];
 }
 
-var unsetSides = {
+var unsetSides$1 = {
   top: 'auto',
   right: 'auto',
   bottom: 'auto',
@@ -629,17 +629,17 @@ var unsetSides = {
 // Zooming can change the DPR, but it seems to report a value that will
 // cleanly divide the values into the appropriate subpixels.
 
-function roundOffsetsByDPR(_ref, win) {
+function roundOffsetsByDPR$1(_ref, win) {
   var x = _ref.x,
       y = _ref.y;
   var dpr = win.devicePixelRatio || 1;
   return {
-    x: round(x * dpr) / dpr || 0,
-    y: round(y * dpr) / dpr || 0
+    x: round$1(x * dpr) / dpr || 0,
+    y: round$1(y * dpr) / dpr || 0
   };
 }
 
-function mapToStyles(_ref2) {
+function mapToStyles$1(_ref2) {
   var _Object$assign2;
 
   var popper = _ref2.popper,
@@ -669,19 +669,19 @@ function mapToStyles(_ref2) {
   y = _ref3.y;
   var hasX = offsets.hasOwnProperty('x');
   var hasY = offsets.hasOwnProperty('y');
-  var sideX = left;
-  var sideY = top;
+  var sideX = left$1;
+  var sideY = top$1;
   var win = window;
 
   if (adaptive) {
-    var offsetParent = getOffsetParent(popper);
+    var offsetParent = getOffsetParent$1(popper);
     var heightProp = 'clientHeight';
     var widthProp = 'clientWidth';
 
-    if (offsetParent === getWindow(popper)) {
-      offsetParent = getDocumentElement(popper);
+    if (offsetParent === getWindow$1(popper)) {
+      offsetParent = getDocumentElement$1(popper);
 
-      if (getComputedStyle(offsetParent).position !== 'static' && position === 'absolute') {
+      if (getComputedStyle$1(offsetParent).position !== 'static' && position === 'absolute') {
         heightProp = 'scrollHeight';
         widthProp = 'scrollWidth';
       }
@@ -690,16 +690,16 @@ function mapToStyles(_ref2) {
 
     offsetParent = offsetParent;
 
-    if (placement === top || (placement === left || placement === right) && variation === end) {
-      sideY = bottom;
+    if (placement === top$1 || (placement === left$1 || placement === right$1) && variation === end$1) {
+      sideY = bottom$1;
       var offsetY = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.height : // $FlowFixMe[prop-missing]
       offsetParent[heightProp];
       y -= offsetY - popperRect.height;
       y *= gpuAcceleration ? 1 : -1;
     }
 
-    if (placement === left || (placement === top || placement === bottom) && variation === end) {
-      sideX = right;
+    if (placement === left$1 || (placement === top$1 || placement === bottom$1) && variation === end$1) {
+      sideX = right$1;
       var offsetX = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.width : // $FlowFixMe[prop-missing]
       offsetParent[widthProp];
       x -= offsetX - popperRect.width;
@@ -709,12 +709,12 @@ function mapToStyles(_ref2) {
 
   var commonStyles = Object.assign({
     position: position
-  }, adaptive && unsetSides);
+  }, adaptive && unsetSides$1);
 
-  var _ref4 = roundOffsets === true ? roundOffsetsByDPR({
+  var _ref4 = roundOffsets === true ? roundOffsetsByDPR$1({
     x: x,
     y: y
-  }, getWindow(popper)) : {
+  }, getWindow$1(popper)) : {
     x: x,
     y: y
   };
@@ -731,7 +731,7 @@ function mapToStyles(_ref2) {
   return Object.assign({}, commonStyles, (_Object$assign2 = {}, _Object$assign2[sideY] = hasY ? y + "px" : '', _Object$assign2[sideX] = hasX ? x + "px" : '', _Object$assign2.transform = '', _Object$assign2));
 }
 
-function computeStyles(_ref5) {
+function computeStyles$2(_ref5) {
   var state = _ref5.state,
       options = _ref5.options;
   var _options$gpuAccelerat = options.gpuAcceleration,
@@ -741,8 +741,8 @@ function computeStyles(_ref5) {
       _options$roundOffsets = options.roundOffsets,
       roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
   var commonStyles = {
-    placement: getBasePlacement(state.placement),
-    variation: getVariation(state.placement),
+    placement: getBasePlacement$1(state.placement),
+    variation: getVariation$1(state.placement),
     popper: state.elements.popper,
     popperRect: state.rects.popper,
     gpuAcceleration: gpuAcceleration,
@@ -750,7 +750,7 @@ function computeStyles(_ref5) {
   };
 
   if (state.modifiersData.popperOffsets != null) {
-    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles(Object.assign({}, commonStyles, {
+    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles$1(Object.assign({}, commonStyles, {
       offsets: state.modifiersData.popperOffsets,
       position: state.options.strategy,
       adaptive: adaptive,
@@ -759,7 +759,7 @@ function computeStyles(_ref5) {
   }
 
   if (state.modifiersData.arrow != null) {
-    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles(Object.assign({}, commonStyles, {
+    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles$1(Object.assign({}, commonStyles, {
       offsets: state.modifiersData.arrow,
       position: 'absolute',
       adaptive: false,
@@ -773,19 +773,19 @@ function computeStyles(_ref5) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var computeStyles$1 = {
+var computeStyles$3 = {
   name: 'computeStyles',
   enabled: true,
   phase: 'beforeWrite',
-  fn: computeStyles,
+  fn: computeStyles$2,
   data: {}
 };
 
-var passive = {
+var passive$1 = {
   passive: true
 };
 
-function effect(_ref) {
+function effect$3(_ref) {
   var state = _ref.state,
       instance = _ref.instance,
       options = _ref.options;
@@ -793,66 +793,66 @@ function effect(_ref) {
       scroll = _options$scroll === void 0 ? true : _options$scroll,
       _options$resize = options.resize,
       resize = _options$resize === void 0 ? true : _options$resize;
-  var window = getWindow(state.elements.popper);
+  var window = getWindow$1(state.elements.popper);
   var scrollParents = [].concat(state.scrollParents.reference, state.scrollParents.popper);
 
   if (scroll) {
     scrollParents.forEach(function (scrollParent) {
-      scrollParent.addEventListener('scroll', instance.update, passive);
+      scrollParent.addEventListener('scroll', instance.update, passive$1);
     });
   }
 
   if (resize) {
-    window.addEventListener('resize', instance.update, passive);
+    window.addEventListener('resize', instance.update, passive$1);
   }
 
   return function () {
     if (scroll) {
       scrollParents.forEach(function (scrollParent) {
-        scrollParent.removeEventListener('scroll', instance.update, passive);
+        scrollParent.removeEventListener('scroll', instance.update, passive$1);
       });
     }
 
     if (resize) {
-      window.removeEventListener('resize', instance.update, passive);
+      window.removeEventListener('resize', instance.update, passive$1);
     }
   };
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var eventListeners = {
+var eventListeners$1 = {
   name: 'eventListeners',
   enabled: true,
   phase: 'write',
   fn: function fn() {},
-  effect: effect,
+  effect: effect$3,
   data: {}
 };
 
-var hash$1 = {
+var hash$3 = {
   left: 'right',
   right: 'left',
   bottom: 'top',
   top: 'bottom'
 };
-function getOppositePlacement(placement) {
+function getOppositePlacement$1(placement) {
   return placement.replace(/left|right|bottom|top/g, function (matched) {
-    return hash$1[matched];
+    return hash$3[matched];
   });
 }
 
-var hash = {
+var hash$2 = {
   start: 'end',
   end: 'start'
 };
-function getOppositeVariationPlacement(placement) {
+function getOppositeVariationPlacement$1(placement) {
   return placement.replace(/start|end/g, function (matched) {
-    return hash[matched];
+    return hash$2[matched];
   });
 }
 
-function getWindowScroll(node) {
-  var win = getWindow(node);
+function getWindowScroll$1(node) {
+  var win = getWindow$1(node);
   var scrollLeft = win.pageXOffset;
   var scrollTop = win.pageYOffset;
   return {
@@ -861,7 +861,7 @@ function getWindowScroll(node) {
   };
 }
 
-function getWindowScrollBarX(element) {
+function getWindowScrollBarX$1(element) {
   // If <html> has a CSS width greater than the viewport, then this will be
   // incorrect for RTL.
   // Popper 1 is broken in this case and never had a bug report so let's assume
@@ -869,12 +869,12 @@ function getWindowScrollBarX(element) {
   // anyway.
   // Browsers where the left scrollbar doesn't cause an issue report `0` for
   // this (e.g. Edge 2019, IE11, Safari)
-  return getBoundingClientRect(getDocumentElement(element)).left + getWindowScroll(element).scrollLeft;
+  return getBoundingClientRect$1(getDocumentElement$1(element)).left + getWindowScroll$1(element).scrollLeft;
 }
 
-function getViewportRect(element, strategy) {
-  var win = getWindow(element);
-  var html = getDocumentElement(element);
+function getViewportRect$1(element, strategy) {
+  var win = getWindow$1(element);
+  var html = getDocumentElement$1(element);
   var visualViewport = win.visualViewport;
   var width = html.clientWidth;
   var height = html.clientHeight;
@@ -884,7 +884,7 @@ function getViewportRect(element, strategy) {
   if (visualViewport) {
     width = visualViewport.width;
     height = visualViewport.height;
-    var layoutViewport = isLayoutViewport();
+    var layoutViewport = isLayoutViewport$1();
 
     if (layoutViewport || !layoutViewport && strategy === 'fixed') {
       x = visualViewport.offsetLeft;
@@ -895,26 +895,26 @@ function getViewportRect(element, strategy) {
   return {
     width: width,
     height: height,
-    x: x + getWindowScrollBarX(element),
+    x: x + getWindowScrollBarX$1(element),
     y: y
   };
 }
 
 // of the `<html>` and `<body>` rect bounds if horizontally scrollable
 
-function getDocumentRect(element) {
+function getDocumentRect$1(element) {
   var _element$ownerDocumen;
 
-  var html = getDocumentElement(element);
-  var winScroll = getWindowScroll(element);
+  var html = getDocumentElement$1(element);
+  var winScroll = getWindowScroll$1(element);
   var body = (_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body;
-  var width = max(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
-  var height = max(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
-  var x = -winScroll.scrollLeft + getWindowScrollBarX(element);
+  var width = max$1(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
+  var height = max$1(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
+  var x = -winScroll.scrollLeft + getWindowScrollBarX$1(element);
   var y = -winScroll.scrollTop;
 
-  if (getComputedStyle(body || html).direction === 'rtl') {
-    x += max(html.clientWidth, body ? body.clientWidth : 0) - width;
+  if (getComputedStyle$1(body || html).direction === 'rtl') {
+    x += max$1(html.clientWidth, body ? body.clientWidth : 0) - width;
   }
 
   return {
@@ -925,9 +925,9 @@ function getDocumentRect(element) {
   };
 }
 
-function isScrollParent(element) {
+function isScrollParent$1(element) {
   // Firefox wants us to check `-x` and `-y` variations as well
-  var _getComputedStyle = getComputedStyle(element),
+  var _getComputedStyle = getComputedStyle$1(element),
       overflow = _getComputedStyle.overflow,
       overflowX = _getComputedStyle.overflowX,
       overflowY = _getComputedStyle.overflowY;
@@ -935,17 +935,17 @@ function isScrollParent(element) {
   return /auto|scroll|overlay|hidden/.test(overflow + overflowY + overflowX);
 }
 
-function getScrollParent(node) {
-  if (['html', 'body', '#document'].indexOf(getNodeName(node)) >= 0) {
+function getScrollParent$1(node) {
+  if (['html', 'body', '#document'].indexOf(getNodeName$1(node)) >= 0) {
     // $FlowFixMe[incompatible-return]: assume body is always available
     return node.ownerDocument.body;
   }
 
-  if (isHTMLElement(node) && isScrollParent(node)) {
+  if (isHTMLElement$1(node) && isScrollParent$1(node)) {
     return node;
   }
 
-  return getScrollParent(getParentNode(node));
+  return getScrollParent$1(getParentNode$1(node));
 }
 
 /*
@@ -955,23 +955,23 @@ to, because if any of these parent elements scroll, we'll need to re-calculate t
 reference element's position.
 */
 
-function listScrollParents(element, list) {
+function listScrollParents$1(element, list) {
   var _element$ownerDocumen;
 
   if (list === void 0) {
     list = [];
   }
 
-  var scrollParent = getScrollParent(element);
+  var scrollParent = getScrollParent$1(element);
   var isBody = scrollParent === ((_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body);
-  var win = getWindow(scrollParent);
-  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent(scrollParent) ? scrollParent : []) : scrollParent;
+  var win = getWindow$1(scrollParent);
+  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent$1(scrollParent) ? scrollParent : []) : scrollParent;
   var updatedList = list.concat(target);
   return isBody ? updatedList : // $FlowFixMe[incompatible-call]: isBody tells us target will be an HTMLElement here
-  updatedList.concat(listScrollParents(getParentNode(target)));
+  updatedList.concat(listScrollParents$1(getParentNode$1(target)));
 }
 
-function rectToClientRect(rect) {
+function rectToClientRect$1(rect) {
   return Object.assign({}, rect, {
     left: rect.x,
     top: rect.y,
@@ -980,8 +980,8 @@ function rectToClientRect(rect) {
   });
 }
 
-function getInnerBoundingClientRect(element, strategy) {
-  var rect = getBoundingClientRect(element, false, strategy === 'fixed');
+function getInnerBoundingClientRect$1(element, strategy) {
+  var rect = getBoundingClientRect$1(element, false, strategy === 'fixed');
   rect.top = rect.top + element.clientTop;
   rect.left = rect.left + element.clientLeft;
   rect.bottom = rect.top + element.clientHeight;
@@ -993,42 +993,42 @@ function getInnerBoundingClientRect(element, strategy) {
   return rect;
 }
 
-function getClientRectFromMixedType(element, clippingParent, strategy) {
-  return clippingParent === viewport ? rectToClientRect(getViewportRect(element, strategy)) : isElement(clippingParent) ? getInnerBoundingClientRect(clippingParent, strategy) : rectToClientRect(getDocumentRect(getDocumentElement(element)));
+function getClientRectFromMixedType$1(element, clippingParent, strategy) {
+  return clippingParent === viewport$1 ? rectToClientRect$1(getViewportRect$1(element, strategy)) : isElement$1(clippingParent) ? getInnerBoundingClientRect$1(clippingParent, strategy) : rectToClientRect$1(getDocumentRect$1(getDocumentElement$1(element)));
 } // A "clipping parent" is an overflowable container with the characteristic of
 // clipping (or hiding) overflowing elements with a position different from
 // `initial`
 
 
-function getClippingParents(element) {
-  var clippingParents = listScrollParents(getParentNode(element));
-  var canEscapeClipping = ['absolute', 'fixed'].indexOf(getComputedStyle(element).position) >= 0;
-  var clipperElement = canEscapeClipping && isHTMLElement(element) ? getOffsetParent(element) : element;
+function getClippingParents$1(element) {
+  var clippingParents = listScrollParents$1(getParentNode$1(element));
+  var canEscapeClipping = ['absolute', 'fixed'].indexOf(getComputedStyle$1(element).position) >= 0;
+  var clipperElement = canEscapeClipping && isHTMLElement$1(element) ? getOffsetParent$1(element) : element;
 
-  if (!isElement(clipperElement)) {
+  if (!isElement$1(clipperElement)) {
     return [];
   } // $FlowFixMe[incompatible-return]: https://github.com/facebook/flow/issues/1414
 
 
   return clippingParents.filter(function (clippingParent) {
-    return isElement(clippingParent) && contains(clippingParent, clipperElement) && getNodeName(clippingParent) !== 'body';
+    return isElement$1(clippingParent) && contains$1(clippingParent, clipperElement) && getNodeName$1(clippingParent) !== 'body';
   });
 } // Gets the maximum area that the element is visible in due to any number of
 // clipping parents
 
 
-function getClippingRect(element, boundary, rootBoundary, strategy) {
-  var mainClippingParents = boundary === 'clippingParents' ? getClippingParents(element) : [].concat(boundary);
+function getClippingRect$1(element, boundary, rootBoundary, strategy) {
+  var mainClippingParents = boundary === 'clippingParents' ? getClippingParents$1(element) : [].concat(boundary);
   var clippingParents = [].concat(mainClippingParents, [rootBoundary]);
   var firstClippingParent = clippingParents[0];
   var clippingRect = clippingParents.reduce(function (accRect, clippingParent) {
-    var rect = getClientRectFromMixedType(element, clippingParent, strategy);
-    accRect.top = max(rect.top, accRect.top);
-    accRect.right = min(rect.right, accRect.right);
-    accRect.bottom = min(rect.bottom, accRect.bottom);
-    accRect.left = max(rect.left, accRect.left);
+    var rect = getClientRectFromMixedType$1(element, clippingParent, strategy);
+    accRect.top = max$1(rect.top, accRect.top);
+    accRect.right = min$1(rect.right, accRect.right);
+    accRect.bottom = min$1(rect.bottom, accRect.bottom);
+    accRect.left = max$1(rect.left, accRect.left);
     return accRect;
-  }, getClientRectFromMixedType(element, firstClippingParent, strategy));
+  }, getClientRectFromMixedType$1(element, firstClippingParent, strategy));
   clippingRect.width = clippingRect.right - clippingRect.left;
   clippingRect.height = clippingRect.bottom - clippingRect.top;
   clippingRect.x = clippingRect.left;
@@ -1036,39 +1036,39 @@ function getClippingRect(element, boundary, rootBoundary, strategy) {
   return clippingRect;
 }
 
-function computeOffsets(_ref) {
+function computeOffsets$1(_ref) {
   var reference = _ref.reference,
       element = _ref.element,
       placement = _ref.placement;
-  var basePlacement = placement ? getBasePlacement(placement) : null;
-  var variation = placement ? getVariation(placement) : null;
+  var basePlacement = placement ? getBasePlacement$1(placement) : null;
+  var variation = placement ? getVariation$1(placement) : null;
   var commonX = reference.x + reference.width / 2 - element.width / 2;
   var commonY = reference.y + reference.height / 2 - element.height / 2;
   var offsets;
 
   switch (basePlacement) {
-    case top:
+    case top$1:
       offsets = {
         x: commonX,
         y: reference.y - element.height
       };
       break;
 
-    case bottom:
+    case bottom$1:
       offsets = {
         x: commonX,
         y: reference.y + reference.height
       };
       break;
 
-    case right:
+    case right$1:
       offsets = {
         x: reference.x + reference.width,
         y: commonY
       };
       break;
 
-    case left:
+    case left$1:
       offsets = {
         x: reference.x - element.width,
         y: commonY
@@ -1082,17 +1082,17 @@ function computeOffsets(_ref) {
       };
   }
 
-  var mainAxis = basePlacement ? getMainAxisFromPlacement(basePlacement) : null;
+  var mainAxis = basePlacement ? getMainAxisFromPlacement$1(basePlacement) : null;
 
   if (mainAxis != null) {
     var len = mainAxis === 'y' ? 'height' : 'width';
 
     switch (variation) {
-      case start:
+      case start$1:
         offsets[mainAxis] = offsets[mainAxis] - (reference[len] / 2 - element[len] / 2);
         break;
 
-      case end:
+      case end$1:
         offsets[mainAxis] = offsets[mainAxis] + (reference[len] / 2 - element[len] / 2);
         break;
     }
@@ -1101,7 +1101,7 @@ function computeOffsets(_ref) {
   return offsets;
 }
 
-function detectOverflow(state, options) {
+function detectOverflow$1(state, options) {
   if (options === void 0) {
     options = {};
   }
@@ -1112,29 +1112,29 @@ function detectOverflow(state, options) {
       _options$strategy = _options.strategy,
       strategy = _options$strategy === void 0 ? state.strategy : _options$strategy,
       _options$boundary = _options.boundary,
-      boundary = _options$boundary === void 0 ? clippingParents : _options$boundary,
+      boundary = _options$boundary === void 0 ? clippingParents$1 : _options$boundary,
       _options$rootBoundary = _options.rootBoundary,
-      rootBoundary = _options$rootBoundary === void 0 ? viewport : _options$rootBoundary,
+      rootBoundary = _options$rootBoundary === void 0 ? viewport$1 : _options$rootBoundary,
       _options$elementConte = _options.elementContext,
-      elementContext = _options$elementConte === void 0 ? popper : _options$elementConte,
+      elementContext = _options$elementConte === void 0 ? popper$1 : _options$elementConte,
       _options$altBoundary = _options.altBoundary,
       altBoundary = _options$altBoundary === void 0 ? false : _options$altBoundary,
       _options$padding = _options.padding,
       padding = _options$padding === void 0 ? 0 : _options$padding;
-  var paddingObject = mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
-  var altContext = elementContext === popper ? reference : popper;
+  var paddingObject = mergePaddingObject$1(typeof padding !== 'number' ? padding : expandToHashMap$1(padding, basePlacements$1));
+  var altContext = elementContext === popper$1 ? reference$1 : popper$1;
   var popperRect = state.rects.popper;
   var element = state.elements[altBoundary ? altContext : elementContext];
-  var clippingClientRect = getClippingRect(isElement(element) ? element : element.contextElement || getDocumentElement(state.elements.popper), boundary, rootBoundary, strategy);
-  var referenceClientRect = getBoundingClientRect(state.elements.reference);
-  var popperOffsets = computeOffsets({
+  var clippingClientRect = getClippingRect$1(isElement$1(element) ? element : element.contextElement || getDocumentElement$1(state.elements.popper), boundary, rootBoundary, strategy);
+  var referenceClientRect = getBoundingClientRect$1(state.elements.reference);
+  var popperOffsets = computeOffsets$1({
     reference: referenceClientRect,
     element: popperRect,
     strategy: 'absolute',
     placement: placement
   });
-  var popperClientRect = rectToClientRect(Object.assign({}, popperRect, popperOffsets));
-  var elementClientRect = elementContext === popper ? popperClientRect : referenceClientRect; // positive = overflowing the clipping rect
+  var popperClientRect = rectToClientRect$1(Object.assign({}, popperRect, popperOffsets));
+  var elementClientRect = elementContext === popper$1 ? popperClientRect : referenceClientRect; // positive = overflowing the clipping rect
   // 0 or negative = within the clipping rect
 
   var overflowOffsets = {
@@ -1145,11 +1145,11 @@ function detectOverflow(state, options) {
   };
   var offsetData = state.modifiersData.offset; // Offsets can be applied only to the popper element
 
-  if (elementContext === popper && offsetData) {
+  if (elementContext === popper$1 && offsetData) {
     var offset = offsetData[placement];
     Object.keys(overflowOffsets).forEach(function (key) {
-      var multiply = [right, bottom].indexOf(key) >= 0 ? 1 : -1;
-      var axis = [top, bottom].indexOf(key) >= 0 ? 'y' : 'x';
+      var multiply = [right$1, bottom$1].indexOf(key) >= 0 ? 1 : -1;
+      var axis = [top$1, bottom$1].indexOf(key) >= 0 ? 'y' : 'x';
       overflowOffsets[key] += offset[axis] * multiply;
     });
   }
@@ -1157,7 +1157,7 @@ function detectOverflow(state, options) {
   return overflowOffsets;
 }
 
-function computeAutoPlacement(state, options) {
+function computeAutoPlacement$1(state, options) {
   if (options === void 0) {
     options = {};
   }
@@ -1169,27 +1169,27 @@ function computeAutoPlacement(state, options) {
       padding = _options.padding,
       flipVariations = _options.flipVariations,
       _options$allowedAutoP = _options.allowedAutoPlacements,
-      allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements : _options$allowedAutoP;
-  var variation = getVariation(placement);
-  var placements$1 = variation ? flipVariations ? variationPlacements : variationPlacements.filter(function (placement) {
-    return getVariation(placement) === variation;
-  }) : basePlacements;
-  var allowedPlacements = placements$1.filter(function (placement) {
+      allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements$1 : _options$allowedAutoP;
+  var variation = getVariation$1(placement);
+  var placements = variation ? flipVariations ? variationPlacements$1 : variationPlacements$1.filter(function (placement) {
+    return getVariation$1(placement) === variation;
+  }) : basePlacements$1;
+  var allowedPlacements = placements.filter(function (placement) {
     return allowedAutoPlacements.indexOf(placement) >= 0;
   });
 
   if (allowedPlacements.length === 0) {
-    allowedPlacements = placements$1;
+    allowedPlacements = placements;
   } // $FlowFixMe[incompatible-type]: Flow seems to have problems with two array unions...
 
 
   var overflows = allowedPlacements.reduce(function (acc, placement) {
-    acc[placement] = detectOverflow(state, {
+    acc[placement] = detectOverflow$1(state, {
       placement: placement,
       boundary: boundary,
       rootBoundary: rootBoundary,
       padding: padding
-    })[getBasePlacement(placement)];
+    })[getBasePlacement$1(placement)];
     return acc;
   }, {});
   return Object.keys(overflows).sort(function (a, b) {
@@ -1197,16 +1197,16 @@ function computeAutoPlacement(state, options) {
   });
 }
 
-function getExpandedFallbackPlacements(placement) {
-  if (getBasePlacement(placement) === auto) {
+function getExpandedFallbackPlacements$1(placement) {
+  if (getBasePlacement$1(placement) === auto$1) {
     return [];
   }
 
-  var oppositePlacement = getOppositePlacement(placement);
-  return [getOppositeVariationPlacement(placement), oppositePlacement, getOppositeVariationPlacement(oppositePlacement)];
+  var oppositePlacement = getOppositePlacement$1(placement);
+  return [getOppositeVariationPlacement$1(placement), oppositePlacement, getOppositeVariationPlacement$1(oppositePlacement)];
 }
 
-function flip(_ref) {
+function flip$2(_ref) {
   var state = _ref.state,
       options = _ref.options,
       name = _ref.name;
@@ -1228,11 +1228,11 @@ function flip(_ref) {
       flipVariations = _options$flipVariatio === void 0 ? true : _options$flipVariatio,
       allowedAutoPlacements = options.allowedAutoPlacements;
   var preferredPlacement = state.options.placement;
-  var basePlacement = getBasePlacement(preferredPlacement);
+  var basePlacement = getBasePlacement$1(preferredPlacement);
   var isBasePlacement = basePlacement === preferredPlacement;
-  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement(preferredPlacement)] : getExpandedFallbackPlacements(preferredPlacement));
+  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement$1(preferredPlacement)] : getExpandedFallbackPlacements$1(preferredPlacement));
   var placements = [preferredPlacement].concat(fallbackPlacements).reduce(function (acc, placement) {
-    return acc.concat(getBasePlacement(placement) === auto ? computeAutoPlacement(state, {
+    return acc.concat(getBasePlacement$1(placement) === auto$1 ? computeAutoPlacement$1(state, {
       placement: placement,
       boundary: boundary,
       rootBoundary: rootBoundary,
@@ -1250,25 +1250,25 @@ function flip(_ref) {
   for (var i = 0; i < placements.length; i++) {
     var placement = placements[i];
 
-    var _basePlacement = getBasePlacement(placement);
+    var _basePlacement = getBasePlacement$1(placement);
 
-    var isStartVariation = getVariation(placement) === start;
-    var isVertical = [top, bottom].indexOf(_basePlacement) >= 0;
+    var isStartVariation = getVariation$1(placement) === start$1;
+    var isVertical = [top$1, bottom$1].indexOf(_basePlacement) >= 0;
     var len = isVertical ? 'width' : 'height';
-    var overflow = detectOverflow(state, {
+    var overflow = detectOverflow$1(state, {
       placement: placement,
       boundary: boundary,
       rootBoundary: rootBoundary,
       altBoundary: altBoundary,
       padding: padding
     });
-    var mainVariationSide = isVertical ? isStartVariation ? right : left : isStartVariation ? bottom : top;
+    var mainVariationSide = isVertical ? isStartVariation ? right$1 : left$1 : isStartVariation ? bottom$1 : top$1;
 
     if (referenceRect[len] > popperRect[len]) {
-      mainVariationSide = getOppositePlacement(mainVariationSide);
+      mainVariationSide = getOppositePlacement$1(mainVariationSide);
     }
 
-    var altVariationSide = getOppositePlacement(mainVariationSide);
+    var altVariationSide = getOppositePlacement$1(mainVariationSide);
     var checks = [];
 
     if (checkMainAxis) {
@@ -1326,18 +1326,18 @@ function flip(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var flip$1 = {
+var flip$3 = {
   name: 'flip',
   enabled: true,
   phase: 'main',
-  fn: flip,
+  fn: flip$2,
   requiresIfExists: ['offset'],
   data: {
     _skip: false
   }
 };
 
-function getSideOffsets(overflow, rect, preventedOffsets) {
+function getSideOffsets$1(overflow, rect, preventedOffsets) {
   if (preventedOffsets === void 0) {
     preventedOffsets = {
       x: 0,
@@ -1353,28 +1353,28 @@ function getSideOffsets(overflow, rect, preventedOffsets) {
   };
 }
 
-function isAnySideFullyClipped(overflow) {
-  return [top, right, bottom, left].some(function (side) {
+function isAnySideFullyClipped$1(overflow) {
+  return [top$1, right$1, bottom$1, left$1].some(function (side) {
     return overflow[side] >= 0;
   });
 }
 
-function hide(_ref) {
+function hide$2(_ref) {
   var state = _ref.state,
       name = _ref.name;
   var referenceRect = state.rects.reference;
   var popperRect = state.rects.popper;
   var preventedOffsets = state.modifiersData.preventOverflow;
-  var referenceOverflow = detectOverflow(state, {
+  var referenceOverflow = detectOverflow$1(state, {
     elementContext: 'reference'
   });
-  var popperAltOverflow = detectOverflow(state, {
+  var popperAltOverflow = detectOverflow$1(state, {
     altBoundary: true
   });
-  var referenceClippingOffsets = getSideOffsets(referenceOverflow, referenceRect);
-  var popperEscapeOffsets = getSideOffsets(popperAltOverflow, popperRect, preventedOffsets);
-  var isReferenceHidden = isAnySideFullyClipped(referenceClippingOffsets);
-  var hasPopperEscaped = isAnySideFullyClipped(popperEscapeOffsets);
+  var referenceClippingOffsets = getSideOffsets$1(referenceOverflow, referenceRect);
+  var popperEscapeOffsets = getSideOffsets$1(popperAltOverflow, popperRect, preventedOffsets);
+  var isReferenceHidden = isAnySideFullyClipped$1(referenceClippingOffsets);
+  var hasPopperEscaped = isAnySideFullyClipped$1(popperEscapeOffsets);
   state.modifiersData[name] = {
     referenceClippingOffsets: referenceClippingOffsets,
     popperEscapeOffsets: popperEscapeOffsets,
@@ -1388,17 +1388,17 @@ function hide(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var hide$1 = {
+var hide$3 = {
   name: 'hide',
   enabled: true,
   phase: 'main',
   requiresIfExists: ['preventOverflow'],
-  fn: hide
+  fn: hide$2
 };
 
-function distanceAndSkiddingToXY(placement, rects, offset) {
-  var basePlacement = getBasePlacement(placement);
-  var invertDistance = [left, top].indexOf(basePlacement) >= 0 ? -1 : 1;
+function distanceAndSkiddingToXY$1(placement, rects, offset) {
+  var basePlacement = getBasePlacement$1(placement);
+  var invertDistance = [left$1, top$1].indexOf(basePlacement) >= 0 ? -1 : 1;
 
   var _ref = typeof offset === 'function' ? offset(Object.assign({}, rects, {
     placement: placement
@@ -1408,7 +1408,7 @@ function distanceAndSkiddingToXY(placement, rects, offset) {
 
   skidding = skidding || 0;
   distance = (distance || 0) * invertDistance;
-  return [left, right].indexOf(basePlacement) >= 0 ? {
+  return [left$1, right$1].indexOf(basePlacement) >= 0 ? {
     x: distance,
     y: skidding
   } : {
@@ -1417,14 +1417,14 @@ function distanceAndSkiddingToXY(placement, rects, offset) {
   };
 }
 
-function offset(_ref2) {
+function offset$2(_ref2) {
   var state = _ref2.state,
       options = _ref2.options,
       name = _ref2.name;
   var _options$offset = options.offset,
       offset = _options$offset === void 0 ? [0, 0] : _options$offset;
-  var data = placements.reduce(function (acc, placement) {
-    acc[placement] = distanceAndSkiddingToXY(placement, state.rects, offset);
+  var data = placements$1.reduce(function (acc, placement) {
+    acc[placement] = distanceAndSkiddingToXY$1(placement, state.rects, offset);
     return acc;
   }, {});
   var _data$state$placement = data[state.placement],
@@ -1440,22 +1440,22 @@ function offset(_ref2) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var offset$1 = {
+var offset$3 = {
   name: 'offset',
   enabled: true,
   phase: 'main',
   requires: ['popperOffsets'],
-  fn: offset
+  fn: offset$2
 };
 
-function popperOffsets(_ref) {
+function popperOffsets$2(_ref) {
   var state = _ref.state,
       name = _ref.name;
   // Offsets are the actual position the popper needs to have to be
   // properly positioned near its reference element
   // This is the most basic placement, and will be adjusted by
   // the modifiers in the next step
-  state.modifiersData[name] = computeOffsets({
+  state.modifiersData[name] = computeOffsets$1({
     reference: state.rects.reference,
     element: state.rects.popper,
     strategy: 'absolute',
@@ -1464,19 +1464,19 @@ function popperOffsets(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var popperOffsets$1 = {
+var popperOffsets$3 = {
   name: 'popperOffsets',
   enabled: true,
   phase: 'read',
-  fn: popperOffsets,
+  fn: popperOffsets$2,
   data: {}
 };
 
-function getAltAxis(axis) {
+function getAltAxis$1(axis) {
   return axis === 'x' ? 'y' : 'x';
 }
 
-function preventOverflow(_ref) {
+function preventOverflow$2(_ref) {
   var state = _ref.state,
       options = _ref.options,
       name = _ref.name;
@@ -1492,17 +1492,17 @@ function preventOverflow(_ref) {
       tether = _options$tether === void 0 ? true : _options$tether,
       _options$tetherOffset = options.tetherOffset,
       tetherOffset = _options$tetherOffset === void 0 ? 0 : _options$tetherOffset;
-  var overflow = detectOverflow(state, {
+  var overflow = detectOverflow$1(state, {
     boundary: boundary,
     rootBoundary: rootBoundary,
     padding: padding,
     altBoundary: altBoundary
   });
-  var basePlacement = getBasePlacement(state.placement);
-  var variation = getVariation(state.placement);
+  var basePlacement = getBasePlacement$1(state.placement);
+  var variation = getVariation$1(state.placement);
   var isBasePlacement = !variation;
-  var mainAxis = getMainAxisFromPlacement(basePlacement);
-  var altAxis = getAltAxis(mainAxis);
+  var mainAxis = getMainAxisFromPlacement$1(basePlacement);
+  var altAxis = getAltAxis$1(mainAxis);
   var popperOffsets = state.modifiersData.popperOffsets;
   var referenceRect = state.rects.reference;
   var popperRect = state.rects.popper;
@@ -1529,23 +1529,23 @@ function preventOverflow(_ref) {
   if (checkMainAxis) {
     var _offsetModifierState$;
 
-    var mainSide = mainAxis === 'y' ? top : left;
-    var altSide = mainAxis === 'y' ? bottom : right;
+    var mainSide = mainAxis === 'y' ? top$1 : left$1;
+    var altSide = mainAxis === 'y' ? bottom$1 : right$1;
     var len = mainAxis === 'y' ? 'height' : 'width';
     var offset = popperOffsets[mainAxis];
-    var min$1 = offset + overflow[mainSide];
-    var max$1 = offset - overflow[altSide];
+    var min = offset + overflow[mainSide];
+    var max = offset - overflow[altSide];
     var additive = tether ? -popperRect[len] / 2 : 0;
-    var minLen = variation === start ? referenceRect[len] : popperRect[len];
-    var maxLen = variation === start ? -popperRect[len] : -referenceRect[len]; // We need to include the arrow in the calculation so the arrow doesn't go
+    var minLen = variation === start$1 ? referenceRect[len] : popperRect[len];
+    var maxLen = variation === start$1 ? -popperRect[len] : -referenceRect[len]; // We need to include the arrow in the calculation so the arrow doesn't go
     // outside the reference bounds
 
     var arrowElement = state.elements.arrow;
-    var arrowRect = tether && arrowElement ? getLayoutRect(arrowElement) : {
+    var arrowRect = tether && arrowElement ? getLayoutRect$1(arrowElement) : {
       width: 0,
       height: 0
     };
-    var arrowPaddingObject = state.modifiersData['arrow#persistent'] ? state.modifiersData['arrow#persistent'].padding : getFreshSideObject();
+    var arrowPaddingObject = state.modifiersData['arrow#persistent'] ? state.modifiersData['arrow#persistent'].padding : getFreshSideObject$1();
     var arrowPaddingMin = arrowPaddingObject[mainSide];
     var arrowPaddingMax = arrowPaddingObject[altSide]; // If the reference length is smaller than the arrow length, we don't want
     // to include its full size in the calculation. If the reference is small
@@ -1553,15 +1553,15 @@ function preventOverflow(_ref) {
     // reference is not overflowing as well (e.g. virtual elements with no
     // width or height)
 
-    var arrowLen = within(0, referenceRect[len], arrowRect[len]);
+    var arrowLen = within$1(0, referenceRect[len], arrowRect[len]);
     var minOffset = isBasePlacement ? referenceRect[len] / 2 - additive - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis : minLen - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis;
     var maxOffset = isBasePlacement ? -referenceRect[len] / 2 + additive + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis : maxLen + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis;
-    var arrowOffsetParent = state.elements.arrow && getOffsetParent(state.elements.arrow);
+    var arrowOffsetParent = state.elements.arrow && getOffsetParent$1(state.elements.arrow);
     var clientOffset = arrowOffsetParent ? mainAxis === 'y' ? arrowOffsetParent.clientTop || 0 : arrowOffsetParent.clientLeft || 0 : 0;
     var offsetModifierValue = (_offsetModifierState$ = offsetModifierState == null ? void 0 : offsetModifierState[mainAxis]) != null ? _offsetModifierState$ : 0;
     var tetherMin = offset + minOffset - offsetModifierValue - clientOffset;
     var tetherMax = offset + maxOffset - offsetModifierValue;
-    var preventedOffset = within(tether ? min(min$1, tetherMin) : min$1, offset, tether ? max(max$1, tetherMax) : max$1);
+    var preventedOffset = within$1(tether ? min$1(min, tetherMin) : min, offset, tether ? max$1(max, tetherMax) : max);
     popperOffsets[mainAxis] = preventedOffset;
     data[mainAxis] = preventedOffset - offset;
   }
@@ -1569,9 +1569,9 @@ function preventOverflow(_ref) {
   if (checkAltAxis) {
     var _offsetModifierState$2;
 
-    var _mainSide = mainAxis === 'x' ? top : left;
+    var _mainSide = mainAxis === 'x' ? top$1 : left$1;
 
-    var _altSide = mainAxis === 'x' ? bottom : right;
+    var _altSide = mainAxis === 'x' ? bottom$1 : right$1;
 
     var _offset = popperOffsets[altAxis];
 
@@ -1581,7 +1581,7 @@ function preventOverflow(_ref) {
 
     var _max = _offset - overflow[_altSide];
 
-    var isOriginSide = [top, left].indexOf(basePlacement) !== -1;
+    var isOriginSide = [top$1, left$1].indexOf(basePlacement) !== -1;
 
     var _offsetModifierValue = (_offsetModifierState$2 = offsetModifierState == null ? void 0 : offsetModifierState[altAxis]) != null ? _offsetModifierState$2 : 0;
 
@@ -1589,7 +1589,7 @@ function preventOverflow(_ref) {
 
     var _tetherMax = isOriginSide ? _offset + referenceRect[_len] + popperRect[_len] - _offsetModifierValue - normalizedTetherOffsetValue.altAxis : _max;
 
-    var _preventedOffset = tether && isOriginSide ? withinMaxClamp(_tetherMin, _offset, _tetherMax) : within(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
+    var _preventedOffset = tether && isOriginSide ? withinMaxClamp$1(_tetherMin, _offset, _tetherMax) : within$1(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
 
     popperOffsets[altAxis] = _preventedOffset;
     data[altAxis] = _preventedOffset - _offset;
@@ -1599,47 +1599,47 @@ function preventOverflow(_ref) {
 } // eslint-disable-next-line import/no-unused-modules
 
 
-var preventOverflow$1 = {
+var preventOverflow$3 = {
   name: 'preventOverflow',
   enabled: true,
   phase: 'main',
-  fn: preventOverflow,
+  fn: preventOverflow$2,
   requiresIfExists: ['offset']
 };
 
-function getHTMLElementScroll(element) {
+function getHTMLElementScroll$1(element) {
   return {
     scrollLeft: element.scrollLeft,
     scrollTop: element.scrollTop
   };
 }
 
-function getNodeScroll(node) {
-  if (node === getWindow(node) || !isHTMLElement(node)) {
-    return getWindowScroll(node);
+function getNodeScroll$1(node) {
+  if (node === getWindow$1(node) || !isHTMLElement$1(node)) {
+    return getWindowScroll$1(node);
   } else {
-    return getHTMLElementScroll(node);
+    return getHTMLElementScroll$1(node);
   }
 }
 
-function isElementScaled(element) {
+function isElementScaled$1(element) {
   var rect = element.getBoundingClientRect();
-  var scaleX = round(rect.width) / element.offsetWidth || 1;
-  var scaleY = round(rect.height) / element.offsetHeight || 1;
+  var scaleX = round$1(rect.width) / element.offsetWidth || 1;
+  var scaleY = round$1(rect.height) / element.offsetHeight || 1;
   return scaleX !== 1 || scaleY !== 1;
 } // Returns the composite rect of an element relative to its offsetParent.
 // Composite means it takes into account transforms as well as layout.
 
 
-function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
+function getCompositeRect$1(elementOrVirtualElement, offsetParent, isFixed) {
   if (isFixed === void 0) {
     isFixed = false;
   }
 
-  var isOffsetParentAnElement = isHTMLElement(offsetParent);
-  var offsetParentIsScaled = isHTMLElement(offsetParent) && isElementScaled(offsetParent);
-  var documentElement = getDocumentElement(offsetParent);
-  var rect = getBoundingClientRect(elementOrVirtualElement, offsetParentIsScaled, isFixed);
+  var isOffsetParentAnElement = isHTMLElement$1(offsetParent);
+  var offsetParentIsScaled = isHTMLElement$1(offsetParent) && isElementScaled$1(offsetParent);
+  var documentElement = getDocumentElement$1(offsetParent);
+  var rect = getBoundingClientRect$1(elementOrVirtualElement, offsetParentIsScaled, isFixed);
   var scroll = {
     scrollLeft: 0,
     scrollTop: 0
@@ -1650,17 +1650,17 @@ function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
   };
 
   if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
-    if (getNodeName(offsetParent) !== 'body' || // https://github.com/popperjs/popper-core/issues/1078
-    isScrollParent(documentElement)) {
-      scroll = getNodeScroll(offsetParent);
+    if (getNodeName$1(offsetParent) !== 'body' || // https://github.com/popperjs/popper-core/issues/1078
+    isScrollParent$1(documentElement)) {
+      scroll = getNodeScroll$1(offsetParent);
     }
 
-    if (isHTMLElement(offsetParent)) {
-      offsets = getBoundingClientRect(offsetParent, true);
+    if (isHTMLElement$1(offsetParent)) {
+      offsets = getBoundingClientRect$1(offsetParent, true);
       offsets.x += offsetParent.clientLeft;
       offsets.y += offsetParent.clientTop;
     } else if (documentElement) {
-      offsets.x = getWindowScrollBarX(documentElement);
+      offsets.x = getWindowScrollBarX$1(documentElement);
     }
   }
 
@@ -1672,7 +1672,7 @@ function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
   };
 }
 
-function order(modifiers) {
+function order$1(modifiers) {
   var map = new Map();
   var visited = new Set();
   var result = [];
@@ -1704,18 +1704,18 @@ function order(modifiers) {
   return result;
 }
 
-function orderModifiers(modifiers) {
+function orderModifiers$1(modifiers) {
   // order based on dependencies
-  var orderedModifiers = order(modifiers); // order based on phase
+  var orderedModifiers = order$1(modifiers); // order based on phase
 
-  return modifierPhases.reduce(function (acc, phase) {
+  return modifierPhases$1.reduce(function (acc, phase) {
     return acc.concat(orderedModifiers.filter(function (modifier) {
       return modifier.phase === phase;
     }));
   }, []);
 }
 
-function debounce(fn) {
+function debounce$1(fn) {
   var pending;
   return function () {
     if (!pending) {
@@ -1731,7 +1731,7 @@ function debounce(fn) {
   };
 }
 
-function mergeByName(modifiers) {
+function mergeByName$1(modifiers) {
   var merged = modifiers.reduce(function (merged, current) {
     var existing = merged[current.name];
     merged[current.name] = existing ? Object.assign({}, existing, current, {
@@ -1746,13 +1746,13 @@ function mergeByName(modifiers) {
   });
 }
 
-var DEFAULT_OPTIONS = {
+var DEFAULT_OPTIONS$1 = {
   placement: 'bottom',
   modifiers: [],
   strategy: 'absolute'
 };
 
-function areValidElements() {
+function areValidElements$1() {
   for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
     args[_key] = arguments[_key];
   }
@@ -1762,7 +1762,7 @@ function areValidElements() {
   });
 }
 
-function popperGenerator(generatorOptions) {
+function popperGenerator$1(generatorOptions) {
   if (generatorOptions === void 0) {
     generatorOptions = {};
   }
@@ -1771,7 +1771,7 @@ function popperGenerator(generatorOptions) {
       _generatorOptions$def = _generatorOptions.defaultModifiers,
       defaultModifiers = _generatorOptions$def === void 0 ? [] : _generatorOptions$def,
       _generatorOptions$def2 = _generatorOptions.defaultOptions,
-      defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS : _generatorOptions$def2;
+      defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS$1 : _generatorOptions$def2;
   return function createPopper(reference, popper, options) {
     if (options === void 0) {
       options = defaultOptions;
@@ -1780,7 +1780,7 @@ function popperGenerator(generatorOptions) {
     var state = {
       placement: 'bottom',
       orderedModifiers: [],
-      options: Object.assign({}, DEFAULT_OPTIONS, defaultOptions),
+      options: Object.assign({}, DEFAULT_OPTIONS$1, defaultOptions),
       modifiersData: {},
       elements: {
         reference: reference,
@@ -1798,12 +1798,12 @@ function popperGenerator(generatorOptions) {
         cleanupModifierEffects();
         state.options = Object.assign({}, defaultOptions, state.options, options);
         state.scrollParents = {
-          reference: isElement(reference) ? listScrollParents(reference) : reference.contextElement ? listScrollParents(reference.contextElement) : [],
-          popper: listScrollParents(popper)
+          reference: isElement$1(reference) ? listScrollParents$1(reference) : reference.contextElement ? listScrollParents$1(reference.contextElement) : [],
+          popper: listScrollParents$1(popper)
         }; // Orders the modifiers based on their dependencies and `phase`
         // properties
 
-        var orderedModifiers = orderModifiers(mergeByName([].concat(defaultModifiers, state.options.modifiers))); // Strip out disabled modifiers
+        var orderedModifiers = orderModifiers$1(mergeByName$1([].concat(defaultModifiers, state.options.modifiers))); // Strip out disabled modifiers
 
         state.orderedModifiers = orderedModifiers.filter(function (m) {
           return m.enabled;
@@ -1826,14 +1826,14 @@ function popperGenerator(generatorOptions) {
             popper = _state$elements.popper; // Don't proceed if `reference` or `popper` are not valid elements
         // anymore
 
-        if (!areValidElements(reference, popper)) {
+        if (!areValidElements$1(reference, popper)) {
           return;
         } // Store the reference and popper rects to be read by modifiers
 
 
         state.rects = {
-          reference: getCompositeRect(reference, getOffsetParent(popper), state.options.strategy === 'fixed'),
-          popper: getLayoutRect(popper)
+          reference: getCompositeRect$1(reference, getOffsetParent$1(popper), state.options.strategy === 'fixed'),
+          popper: getLayoutRect$1(popper)
         }; // Modifiers have the ability to reset the current update cycle. The
         // most common use case for this is the `flip` modifier changing the
         // placement, which then needs to re-run all the modifiers, because the
@@ -1875,7 +1875,7 @@ function popperGenerator(generatorOptions) {
       },
       // Async and optimistically optimized update – it will not be executed if
       // not necessary (debounced to run at most once-per-tick)
-      update: debounce(function () {
+      update: debounce$1(function () {
         return new Promise(function (resolve) {
           instance.forceUpdate();
           resolve(state);
@@ -1887,7 +1887,7 @@ function popperGenerator(generatorOptions) {
       }
     };
 
-    if (!areValidElements(reference, popper)) {
+    if (!areValidElements$1(reference, popper)) {
       return instance;
     }
 
@@ -1934,9 +1934,9 @@ function popperGenerator(generatorOptions) {
   };
 }
 
-var defaultModifiers = [eventListeners, popperOffsets$1, computeStyles$1, applyStyles$1, offset$1, flip$1, preventOverflow$1, arrow$1, hide$1];
-var createPopper = /*#__PURE__*/popperGenerator({
-  defaultModifiers: defaultModifiers
+var defaultModifiers$1 = [eventListeners$1, popperOffsets$3, computeStyles$3, applyStyles$3, offset$3, flip$3, preventOverflow$3, arrow$3, hide$3];
+var createPopper$1 = /*#__PURE__*/popperGenerator$1({
+  defaultModifiers: defaultModifiers$1
 }); // eslint-disable-next-line import/no-unused-modules
 
 function numberOfDigits(x) {
@@ -2137,532 +2137,13 @@ function bufferGeometryToIndexed(geometry) {
     geometry.getAttribute("position").needsUpdate = true;
 }
 
-class CSS2DObject extends Object3D {
-
-	constructor( element = document.createElement( 'div' ) ) {
-
-		super();
-
-		this.isCSS2DObject = true;
-
-		this.element = element;
-
-		this.element.style.position = 'absolute';
-		this.element.style.userSelect = 'none';
-
-		this.element.setAttribute( 'draggable', false );
-
-		this.center = new Vector2$1( 0.5, 0.5 ); // ( 0, 0 ) is the lower left; ( 1, 1 ) is the top right
-
-		this.addEventListener( 'removed', function () {
-
-			this.traverse( function ( object ) {
-
-				if ( object.element instanceof Element && object.element.parentNode !== null ) {
-
-					object.element.parentNode.removeChild( object.element );
-
-				}
-
-			} );
-
-		} );
-
-	}
-
-	copy( source, recursive ) {
-
-		super.copy( source, recursive );
-
-		this.element = source.element.cloneNode( true );
-
-		this.center = source.center;
-
-		return this;
-
-	}
-
-}
-
-//
-
-const _vector$3 = new Vector3$1();
-const _viewMatrix = new Matrix4();
-const _viewProjectionMatrix = new Matrix4();
-const _a = new Vector3$1();
-const _b = new Vector3$1();
-
-class CSS2DRenderer {
-
-	constructor( parameters = {} ) {
-
-		const _this = this;
-
-		let _width, _height;
-		let _widthHalf, _heightHalf;
-
-		const cache = {
-			objects: new WeakMap()
-		};
-
-		const domElement = parameters.element !== undefined ? parameters.element : document.createElement( 'div' );
-
-		domElement.style.overflow = 'hidden';
-
-		this.domElement = domElement;
-
-		this.getSize = function () {
-
-			return {
-				width: _width,
-				height: _height
-			};
-
-		};
-
-		this.render = function ( scene, camera ) {
-
-			if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
-			if ( camera.parent === null && camera.matrixWorldAutoUpdate === true ) camera.updateMatrixWorld();
-
-			_viewMatrix.copy( camera.matrixWorldInverse );
-			_viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, _viewMatrix );
-
-			renderObject( scene, scene, camera );
-			zOrder( scene );
-
-		};
-
-		this.setSize = function ( width, height ) {
-
-			_width = width;
-			_height = height;
-
-			_widthHalf = _width / 2;
-			_heightHalf = _height / 2;
-
-			domElement.style.width = width + 'px';
-			domElement.style.height = height + 'px';
-
-		};
-
-		function renderObject( object, scene, camera ) {
-
-			if ( object.isCSS2DObject ) {
-
-				_vector$3.setFromMatrixPosition( object.matrixWorld );
-				_vector$3.applyMatrix4( _viewProjectionMatrix );
-
-				const visible = ( object.visible === true ) && ( _vector$3.z >= - 1 && _vector$3.z <= 1 ) && ( object.layers.test( camera.layers ) === true );
-				object.element.style.display = ( visible === true ) ? '' : 'none';
-
-				if ( visible === true ) {
-
-					object.onBeforeRender( _this, scene, camera );
-
-					const element = object.element;
-
-					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
-
-					if ( element.parentNode !== domElement ) {
-
-						domElement.appendChild( element );
-
-					}
-
-					object.onAfterRender( _this, scene, camera );
-
-				}
-
-				const objectData = {
-					distanceToCameraSquared: getDistanceToSquared( camera, object )
-				};
-
-				cache.objects.set( object, objectData );
-
-			}
-
-			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
-
-				renderObject( object.children[ i ], scene, camera );
-
-			}
-
-		}
-
-		function getDistanceToSquared( object1, object2 ) {
-
-			_a.setFromMatrixPosition( object1.matrixWorld );
-			_b.setFromMatrixPosition( object2.matrixWorld );
-
-			return _a.distanceToSquared( _b );
-
-		}
-
-		function filterAndFlatten( scene ) {
-
-			const result = [];
-
-			scene.traverse( function ( object ) {
-
-				if ( object.isCSS2DObject ) result.push( object );
-
-			} );
-
-			return result;
-
-		}
-
-		function zOrder( scene ) {
-
-			const sorted = filterAndFlatten( scene ).sort( function ( a, b ) {
-
-				if ( a.renderOrder !== b.renderOrder ) {
-
-					return b.renderOrder - a.renderOrder;
-
-				}
-
-				const distanceA = cache.objects.get( a ).distanceToCameraSquared;
-				const distanceB = cache.objects.get( b ).distanceToCameraSquared;
-
-				return distanceA - distanceB;
-
-			} );
-
-			const zMax = sorted.length;
-
-			for ( let i = 0, l = sorted.length; i < l; i ++ ) {
-
-				sorted[ i ].element.style.zIndex = zMax - i;
-
-			}
-
-		}
-
-	}
-
-}
-
-class LineIntersectionPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    constructor(components, config) {
-        super();
-        this.name = "LineIntersectionPicker";
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
-        this._pickedPoint = null;
-        this._raycaster = new Raycaster();
-        this._originVector = new Vector3$1();
-        this._components = components;
-        this.config = {
-            snapDistance: 0.25,
-            ...config,
-        };
-        if (this._raycaster.params.Line) {
-            this._raycaster.params.Line.threshold = 0.2;
-        }
-        this._mouse = new Mouse(components.renderer.get().domElement);
-        const marker = document.createElement("div");
-        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
-        this._marker = new CSS2DObject(marker);
-        this._marker.visible = false;
-        this._components.scene.get().add(this._marker);
-        this.enabled = false;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    /** {@link Updateable.update} */
-    update() {
-        if (!this.enabled) {
-            return;
-        }
-        this.beforeUpdate.trigger(this);
-        this._raycaster.setFromCamera(this._mouse.position, this._components.camera.get());
-        // @ts-ignore
-        const lines = this._components.meshes.filter((mesh) => mesh.isLine);
-        const intersects = this._raycaster.intersectObjects(lines);
-        // console.log(intersects)
-        if (intersects.length !== 2) {
-            this._pickedPoint = null;
-            this.updateMarker();
-            return;
-        }
-        // if (!intersects[0].index || !intersects[1].index) {return}
-        const lineA = intersects[0].object;
-        const lineB = intersects[1].object;
-        const indices = [intersects[0].index, intersects[1].index];
-        const hitPoint = new Vector3$1()
-            .copy(intersects[0].point)
-            .add(intersects[1].point)
-            .multiplyScalar(0.5);
-        const isSameElement = lineA.uuid === lineB.uuid;
-        if (isSameElement) {
-            const line = lineA;
-            const pos = line.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        else {
-            const pos1 = lineA.geometry.getAttribute("position");
-            const pos2 = lineB.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos1, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos1, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos2, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos2, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        this.afterUpdate.trigger(this);
-    }
-    findIntersection(p1, p2, p3, p4) {
-        const line1Dir = p2.sub(p1);
-        const line2Dir = p4.sub(p3);
-        const lineDirCross = new Vector3$1().crossVectors(line1Dir, line2Dir);
-        const denominator = lineDirCross.lengthSq();
-        if (denominator === 0) {
-            return null;
-        }
-        const lineToPoint = p3.sub(p1);
-        const lineToPointCross = new Vector3$1().crossVectors(lineDirCross, lineToPoint);
-        const t1 = lineToPointCross.dot(line2Dir) / denominator;
-        const intersectionPoint = new Vector3$1().addVectors(p1, line1Dir.multiplyScalar(t1));
-        return intersectionPoint;
-    }
-    updateMarker() {
-        var _a;
-        this._marker.visible = !!this._pickedPoint;
-        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
-    }
-    get() {
-        return this._pickedPoint;
-    }
-}
-
-class Simple2DMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        this._marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
-    constructor(components, marker) {
-        super();
-        this.name = "Simple2DMarker";
-        this.enabled = true;
-        this._visible = true;
-        this._components = components;
-        let _marker;
-        if (marker) {
-            _marker = marker;
-        }
-        else {
-            _marker = document.createElement("div");
-            _marker.className =
-                "w-[15px] h-[15px] border-3 border-solid border-red-600";
-        }
-        this._marker = new CSS2DObject(_marker);
-        this._components.scene.get().add(this._marker);
-        this.visible = true;
-    }
-    toggleVisibility() {
-        this.visible = !this.visible;
-    }
-    dispose() {
-        this._marker.removeFromParent();
-        this._marker.element.remove();
-    }
-    get() {
-        return this._marker;
-    }
-}
-
-class VertexPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    constructor(components, config) {
-        var _a;
-        super();
-        this.name = "VertexPicker";
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
-        this._pickedPoint = null;
-        this._enabled = false;
-        this._workingPlane = null;
-        this._components = components;
-        this.config = {
-            snapDistance: 0.25,
-            showOnlyVertex: false,
-            ...config,
-        };
-        this._marker = new Simple2DMarker(components, this.config.previewElement);
-        this._marker.visible = false;
-        (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
-        this.enabled = false;
-    }
-    set workingPlane(plane) {
-        this._workingPlane = plane;
-    }
-    get workingPlane() {
-        return this._workingPlane;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    get _raycaster() {
-        return this._components.raycaster;
-    }
-    update() {
-        if (!this.enabled)
-            return;
-        this.beforeUpdate.trigger(this);
-        const intersects = this._raycaster.castRay();
-        if (!intersects) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        const point = this.getClosestVertex(intersects);
-        if (!point) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        const isOnPlane = !this.workingPlane
-            ? true
-            : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
-        if (!isOnPlane) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        this._pickedPoint = point;
-        this._marker.visible = true;
-        this._marker
-            .get()
-            .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
-        this.afterUpdate.trigger(this);
-    }
-    getClosestVertex(intersects) {
-        let closestVertex = new THREE$1.Vector3();
-        let vertexFound = false;
-        let closestDistance = Number.MAX_SAFE_INTEGER;
-        const vertices = this.getVertices(intersects);
-        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
-            if (!vertex)
-                return;
-            const distance = intersects.point.distanceTo(vertex);
-            if (distance > closestDistance || distance > this._config.snapDistance)
-                return;
-            vertexFound = true;
-            closestVertex = vertex;
-            closestDistance = intersects.point.distanceTo(vertex);
-        });
-        if (vertexFound)
-            return closestVertex;
-        return this.config.showOnlyVertex ? null : intersects.point;
-    }
-    getVertices(intersects) {
-        const mesh = intersects.object;
-        if (!intersects.face || !mesh)
-            return null;
-        const geom = mesh.geometry;
-        return [
-            this.getVertex(intersects.face.a, geom),
-            this.getVertex(intersects.face.b, geom),
-            this.getVertex(intersects.face.c, geom),
-        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
-    }
-    getVertex(index, geom) {
-        if (index === undefined)
-            return null;
-        const vertices = geom.attributes.position;
-        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
-    }
-    dispose() {
-        this._marker.dispose();
-    }
-    get() {
-        return this._pickedPoint;
-    }
-}
-
-class GeometryVerticesMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        for (const marker of this._markers)
-            marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
-    constructor(components, geometry) {
-        super();
-        this.name = "GeometryVerticesMarker";
-        this.enabled = true;
-        this._markers = [];
-        this._visible = true;
-        const position = geometry.getAttribute("position");
-        for (let index = 0; index < position.count; index++) {
-            const marker = new Simple2DMarker(components);
-            marker
-                .get()
-                .position.set(position.getX(index), position.getY(index), position.getZ(index));
-            this._markers.push(marker);
-        }
-    }
-    dispose() {
-        for (const marker of this._markers)
-            marker.dispose();
-    }
-    get() {
-        return this._markers;
-    }
-}
-
 class SimpleUIComponent extends Component {
+    set parent(value) {
+        this._parent = value;
+    }
+    get parent() {
+        return this._parent;
+    }
     get active() {
         return this._active;
     }
@@ -2710,13 +2191,14 @@ class SimpleUIComponent extends Component {
         this.onHidden = new Event();
         this.onEnabled = new Event();
         this.onDisabled = new Event();
+        this._parent = null;
         this._enabled = true;
         this._visible = true;
         this._active = false;
         this._components = components;
         this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
-        domElement.id = this.id;
-        this.domElement = domElement;
+        this.domElement = domElement !== null && domElement !== void 0 ? domElement : document.createElement("div");
+        this.domElement.id = this.id;
     }
     cleanData() {
         this.data = {};
@@ -2733,14 +2215,19 @@ class SimpleUIComponent extends Component {
             this.domElement.remove();
     }
     addChild(...items) {
-        items.forEach((item) => {
+        for (const item of items) {
             this.children.push(item);
             this.domElement.append(item.domElement);
-        });
+            if (item instanceof SimpleUIComponent)
+                item.parent = this;
+        }
     }
     removeChild(...items) {
-        for (const item of items)
+        for (const item of items) {
             item.domElement.remove();
+            if (item instanceof SimpleUIComponent)
+                item.parent = null;
+        }
         const filtered = this.children.filter((child) => !items.includes(child));
         this.children = filtered;
     }
@@ -2786,6 +2273,7 @@ class Toolbar extends SimpleUIComponent {
         toolbar.className = Toolbar.Class.Base;
         super(components, toolbar, options === null || options === void 0 ? void 0 : options.id);
         this.children = [];
+        this._parent = null;
         this.name = (_a = _options.name) !== null && _a !== void 0 ? _a : "Toolbar";
         this.position = (_b = _options.position) !== null && _b !== void 0 ? _b : "bottom";
         this.visible = true;
@@ -2852,11 +2340,17 @@ class Button extends SimpleUIComponent {
     }
     set parent(toolbar) {
         this._parent = toolbar;
-        this.menu.position = toolbar.position;
-        this.updateMenuPlacement();
+        if (toolbar) {
+            this.menu.position = toolbar.position;
+            this.updateMenuPlacement();
+        }
     }
     get parent() {
         return this._parent;
+    }
+    set alignment(value) {
+        this.domElement.classList.remove("justify-start", "justify-center", "justify-end");
+        this.domElement.classList.add(`justify-${value}`);
     }
     constructor(components, options) {
         const btn = document.createElement("button");
@@ -2865,11 +2359,13 @@ class Button extends SimpleUIComponent {
         super(components, btn, options === null || options === void 0 ? void 0 : options.id);
         this.name = "TooeenButton";
         this.onClicked = new Event();
+        this._parent = null;
         this._closeOnClick = true;
         this._label = null;
         this._labelElement = document.createElement("p");
         this._labelElement.className = Button.Class.Label;
         this.label = (options === null || options === void 0 ? void 0 : options.name) ? options.name : null;
+        this.alignment = "start";
         if (options === null || options === void 0 ? void 0 : options.materialIconName) {
             const icon = document.createElement("span");
             icon.className = "material-icons md-18";
@@ -2896,7 +2392,7 @@ class Button extends SimpleUIComponent {
         this.menu.parent = this;
         this.menu.setDirection("vertical");
         this.domElement.append(this.menu.domElement);
-        this._popper = createPopper(this.domElement, this.menu.domElement, {
+        this._popper = createPopper$1(this.domElement, this.menu.domElement, {
             modifiers: [
                 {
                     name: "offset",
@@ -2945,13 +2441,13 @@ class Button extends SimpleUIComponent {
 }
 Button.Class = {
     Base: `
-    relative flex gap-x-2 items-center justify-start bg-transparent text-white text-base rounded-md h-fit p-2
-    hover:cursor-pointer hover:bg-ifcjs-200 hover:text-ifcjs-100
-    data-[active=true]:cursor-pointer data-[active=true]:bg-ifcjs-200 data-[active=true]:text-ifcjs-100
-    disabled:cursor-default disabled:bg-transparent disabled:text-gray-500
+    relative flex gap-x-2 items-center bg-transparent text-white rounded-[10px] h-fit p-2
+    hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
+    data-[active=true]:cursor-pointer data-[active=true]:bg-ifcjs-200 data-[active=true]:text-black
+    disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400
     transition-all
     `,
-    Label: "text-base whitespace-nowrap",
+    Label: "text-sm uppercase tracking-[1.25px] font-bold whitespace-nowrap",
 };
 
 class BaseSVGAnnotation extends Component {
@@ -9871,9 +9367,7 @@ class TreeTitle extends UIComponentsStack {
         return this._descriptionElement.textContent;
     }
     set title(value) {
-        if (value) {
-            this._titleElement.textContent = value;
-        }
+        this._titleElement.textContent = value;
     }
     get title() {
         return this._titleElement.textContent;
@@ -9937,7 +9431,7 @@ class TreeView extends SimpleUIComponent {
         this.onExpand = new Event();
         this.onCollapse = new Event();
         this.titleElement = new TreeTitle(components);
-        this.titleElement.title = name;
+        this.titleElement.title = name !== null && name !== void 0 ? name : null;
         this.titleElement.arrow.onclick = () => {
             this.toggle();
         };
@@ -9994,7 +9488,1797 @@ class TreeView extends SimpleUIComponent {
     }
 }
 
-// @ts-ignore
+var top = 'top';
+var bottom = 'bottom';
+var right = 'right';
+var left = 'left';
+var auto = 'auto';
+var basePlacements = [top, bottom, right, left];
+var start = 'start';
+var end = 'end';
+var clippingParents = 'clippingParents';
+var viewport = 'viewport';
+var popper = 'popper';
+var reference = 'reference';
+var variationPlacements = /*#__PURE__*/basePlacements.reduce(function (acc, placement) {
+  return acc.concat([placement + "-" + start, placement + "-" + end]);
+}, []);
+var placements = /*#__PURE__*/[].concat(basePlacements, [auto]).reduce(function (acc, placement) {
+  return acc.concat([placement, placement + "-" + start, placement + "-" + end]);
+}, []); // modifiers that need to read the DOM
+
+var beforeRead = 'beforeRead';
+var read = 'read';
+var afterRead = 'afterRead'; // pure-logic modifiers
+
+var beforeMain = 'beforeMain';
+var main = 'main';
+var afterMain = 'afterMain'; // modifier with the purpose to write to the DOM (or write into a framework state)
+
+var beforeWrite = 'beforeWrite';
+var write = 'write';
+var afterWrite = 'afterWrite';
+var modifierPhases = [beforeRead, read, afterRead, beforeMain, main, afterMain, beforeWrite, write, afterWrite];
+
+function getNodeName(element) {
+  return element ? (element.nodeName || '').toLowerCase() : null;
+}
+
+function getWindow(node) {
+  if (node == null) {
+    return window;
+  }
+
+  if (node.toString() !== '[object Window]') {
+    var ownerDocument = node.ownerDocument;
+    return ownerDocument ? ownerDocument.defaultView || window : window;
+  }
+
+  return node;
+}
+
+function isElement(node) {
+  var OwnElement = getWindow(node).Element;
+  return node instanceof OwnElement || node instanceof Element;
+}
+
+function isHTMLElement(node) {
+  var OwnElement = getWindow(node).HTMLElement;
+  return node instanceof OwnElement || node instanceof HTMLElement;
+}
+
+function isShadowRoot(node) {
+  // IE 11 has no ShadowRoot
+  if (typeof ShadowRoot === 'undefined') {
+    return false;
+  }
+
+  var OwnElement = getWindow(node).ShadowRoot;
+  return node instanceof OwnElement || node instanceof ShadowRoot;
+}
+
+// and applies them to the HTMLElements such as popper and arrow
+
+function applyStyles(_ref) {
+  var state = _ref.state;
+  Object.keys(state.elements).forEach(function (name) {
+    var style = state.styles[name] || {};
+    var attributes = state.attributes[name] || {};
+    var element = state.elements[name]; // arrow is optional + virtual elements
+
+    if (!isHTMLElement(element) || !getNodeName(element)) {
+      return;
+    } // Flow doesn't support to extend this property, but it's the most
+    // effective way to apply styles to an HTMLElement
+    // $FlowFixMe[cannot-write]
+
+
+    Object.assign(element.style, style);
+    Object.keys(attributes).forEach(function (name) {
+      var value = attributes[name];
+
+      if (value === false) {
+        element.removeAttribute(name);
+      } else {
+        element.setAttribute(name, value === true ? '' : value);
+      }
+    });
+  });
+}
+
+function effect$2(_ref2) {
+  var state = _ref2.state;
+  var initialStyles = {
+    popper: {
+      position: state.options.strategy,
+      left: '0',
+      top: '0',
+      margin: '0'
+    },
+    arrow: {
+      position: 'absolute'
+    },
+    reference: {}
+  };
+  Object.assign(state.elements.popper.style, initialStyles.popper);
+  state.styles = initialStyles;
+
+  if (state.elements.arrow) {
+    Object.assign(state.elements.arrow.style, initialStyles.arrow);
+  }
+
+  return function () {
+    Object.keys(state.elements).forEach(function (name) {
+      var element = state.elements[name];
+      var attributes = state.attributes[name] || {};
+      var styleProperties = Object.keys(state.styles.hasOwnProperty(name) ? state.styles[name] : initialStyles[name]); // Set all values to an empty string to unset them
+
+      var style = styleProperties.reduce(function (style, property) {
+        style[property] = '';
+        return style;
+      }, {}); // arrow is optional + virtual elements
+
+      if (!isHTMLElement(element) || !getNodeName(element)) {
+        return;
+      }
+
+      Object.assign(element.style, style);
+      Object.keys(attributes).forEach(function (attribute) {
+        element.removeAttribute(attribute);
+      });
+    });
+  };
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var applyStyles$1 = {
+  name: 'applyStyles',
+  enabled: true,
+  phase: 'write',
+  fn: applyStyles,
+  effect: effect$2,
+  requires: ['computeStyles']
+};
+
+function getBasePlacement(placement) {
+  return placement.split('-')[0];
+}
+
+var max = Math.max;
+var min = Math.min;
+var round = Math.round;
+
+function getUAString() {
+  var uaData = navigator.userAgentData;
+
+  if (uaData != null && uaData.brands && Array.isArray(uaData.brands)) {
+    return uaData.brands.map(function (item) {
+      return item.brand + "/" + item.version;
+    }).join(' ');
+  }
+
+  return navigator.userAgent;
+}
+
+function isLayoutViewport() {
+  return !/^((?!chrome|android).)*safari/i.test(getUAString());
+}
+
+function getBoundingClientRect(element, includeScale, isFixedStrategy) {
+  if (includeScale === void 0) {
+    includeScale = false;
+  }
+
+  if (isFixedStrategy === void 0) {
+    isFixedStrategy = false;
+  }
+
+  var clientRect = element.getBoundingClientRect();
+  var scaleX = 1;
+  var scaleY = 1;
+
+  if (includeScale && isHTMLElement(element)) {
+    scaleX = element.offsetWidth > 0 ? round(clientRect.width) / element.offsetWidth || 1 : 1;
+    scaleY = element.offsetHeight > 0 ? round(clientRect.height) / element.offsetHeight || 1 : 1;
+  }
+
+  var _ref = isElement(element) ? getWindow(element) : window,
+      visualViewport = _ref.visualViewport;
+
+  var addVisualOffsets = !isLayoutViewport() && isFixedStrategy;
+  var x = (clientRect.left + (addVisualOffsets && visualViewport ? visualViewport.offsetLeft : 0)) / scaleX;
+  var y = (clientRect.top + (addVisualOffsets && visualViewport ? visualViewport.offsetTop : 0)) / scaleY;
+  var width = clientRect.width / scaleX;
+  var height = clientRect.height / scaleY;
+  return {
+    width: width,
+    height: height,
+    top: y,
+    right: x + width,
+    bottom: y + height,
+    left: x,
+    x: x,
+    y: y
+  };
+}
+
+// means it doesn't take into account transforms.
+
+function getLayoutRect(element) {
+  var clientRect = getBoundingClientRect(element); // Use the clientRect sizes if it's not been transformed.
+  // Fixes https://github.com/popperjs/popper-core/issues/1223
+
+  var width = element.offsetWidth;
+  var height = element.offsetHeight;
+
+  if (Math.abs(clientRect.width - width) <= 1) {
+    width = clientRect.width;
+  }
+
+  if (Math.abs(clientRect.height - height) <= 1) {
+    height = clientRect.height;
+  }
+
+  return {
+    x: element.offsetLeft,
+    y: element.offsetTop,
+    width: width,
+    height: height
+  };
+}
+
+function contains(parent, child) {
+  var rootNode = child.getRootNode && child.getRootNode(); // First, attempt with faster native method
+
+  if (parent.contains(child)) {
+    return true;
+  } // then fallback to custom implementation with Shadow DOM support
+  else if (rootNode && isShadowRoot(rootNode)) {
+      var next = child;
+
+      do {
+        if (next && parent.isSameNode(next)) {
+          return true;
+        } // $FlowFixMe[prop-missing]: need a better way to handle this...
+
+
+        next = next.parentNode || next.host;
+      } while (next);
+    } // Give up, the result is false
+
+
+  return false;
+}
+
+function getComputedStyle(element) {
+  return getWindow(element).getComputedStyle(element);
+}
+
+function isTableElement(element) {
+  return ['table', 'td', 'th'].indexOf(getNodeName(element)) >= 0;
+}
+
+function getDocumentElement(element) {
+  // $FlowFixMe[incompatible-return]: assume body is always available
+  return ((isElement(element) ? element.ownerDocument : // $FlowFixMe[prop-missing]
+  element.document) || window.document).documentElement;
+}
+
+function getParentNode(element) {
+  if (getNodeName(element) === 'html') {
+    return element;
+  }
+
+  return (// this is a quicker (but less type safe) way to save quite some bytes from the bundle
+    // $FlowFixMe[incompatible-return]
+    // $FlowFixMe[prop-missing]
+    element.assignedSlot || // step into the shadow DOM of the parent of a slotted node
+    element.parentNode || ( // DOM Element detected
+    isShadowRoot(element) ? element.host : null) || // ShadowRoot detected
+    // $FlowFixMe[incompatible-call]: HTMLElement is a Node
+    getDocumentElement(element) // fallback
+
+  );
+}
+
+function getTrueOffsetParent(element) {
+  if (!isHTMLElement(element) || // https://github.com/popperjs/popper-core/issues/837
+  getComputedStyle(element).position === 'fixed') {
+    return null;
+  }
+
+  return element.offsetParent;
+} // `.offsetParent` reports `null` for fixed elements, while absolute elements
+// return the containing block
+
+
+function getContainingBlock(element) {
+  var isFirefox = /firefox/i.test(getUAString());
+  var isIE = /Trident/i.test(getUAString());
+
+  if (isIE && isHTMLElement(element)) {
+    // In IE 9, 10 and 11 fixed elements containing block is always established by the viewport
+    var elementCss = getComputedStyle(element);
+
+    if (elementCss.position === 'fixed') {
+      return null;
+    }
+  }
+
+  var currentNode = getParentNode(element);
+
+  if (isShadowRoot(currentNode)) {
+    currentNode = currentNode.host;
+  }
+
+  while (isHTMLElement(currentNode) && ['html', 'body'].indexOf(getNodeName(currentNode)) < 0) {
+    var css = getComputedStyle(currentNode); // This is non-exhaustive but covers the most common CSS properties that
+    // create a containing block.
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
+
+    if (css.transform !== 'none' || css.perspective !== 'none' || css.contain === 'paint' || ['transform', 'perspective'].indexOf(css.willChange) !== -1 || isFirefox && css.willChange === 'filter' || isFirefox && css.filter && css.filter !== 'none') {
+      return currentNode;
+    } else {
+      currentNode = currentNode.parentNode;
+    }
+  }
+
+  return null;
+} // Gets the closest ancestor positioned element. Handles some edge cases,
+// such as table ancestors and cross browser bugs.
+
+
+function getOffsetParent(element) {
+  var window = getWindow(element);
+  var offsetParent = getTrueOffsetParent(element);
+
+  while (offsetParent && isTableElement(offsetParent) && getComputedStyle(offsetParent).position === 'static') {
+    offsetParent = getTrueOffsetParent(offsetParent);
+  }
+
+  if (offsetParent && (getNodeName(offsetParent) === 'html' || getNodeName(offsetParent) === 'body' && getComputedStyle(offsetParent).position === 'static')) {
+    return window;
+  }
+
+  return offsetParent || getContainingBlock(element) || window;
+}
+
+function getMainAxisFromPlacement(placement) {
+  return ['top', 'bottom'].indexOf(placement) >= 0 ? 'x' : 'y';
+}
+
+function within(min$1, value, max$1) {
+  return max(min$1, min(value, max$1));
+}
+function withinMaxClamp(min, value, max) {
+  var v = within(min, value, max);
+  return v > max ? max : v;
+}
+
+function getFreshSideObject() {
+  return {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0
+  };
+}
+
+function mergePaddingObject(paddingObject) {
+  return Object.assign({}, getFreshSideObject(), paddingObject);
+}
+
+function expandToHashMap(value, keys) {
+  return keys.reduce(function (hashMap, key) {
+    hashMap[key] = value;
+    return hashMap;
+  }, {});
+}
+
+var toPaddingObject = function toPaddingObject(padding, state) {
+  padding = typeof padding === 'function' ? padding(Object.assign({}, state.rects, {
+    placement: state.placement
+  })) : padding;
+  return mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
+};
+
+function arrow(_ref) {
+  var _state$modifiersData$;
+
+  var state = _ref.state,
+      name = _ref.name,
+      options = _ref.options;
+  var arrowElement = state.elements.arrow;
+  var popperOffsets = state.modifiersData.popperOffsets;
+  var basePlacement = getBasePlacement(state.placement);
+  var axis = getMainAxisFromPlacement(basePlacement);
+  var isVertical = [left, right].indexOf(basePlacement) >= 0;
+  var len = isVertical ? 'height' : 'width';
+
+  if (!arrowElement || !popperOffsets) {
+    return;
+  }
+
+  var paddingObject = toPaddingObject(options.padding, state);
+  var arrowRect = getLayoutRect(arrowElement);
+  var minProp = axis === 'y' ? top : left;
+  var maxProp = axis === 'y' ? bottom : right;
+  var endDiff = state.rects.reference[len] + state.rects.reference[axis] - popperOffsets[axis] - state.rects.popper[len];
+  var startDiff = popperOffsets[axis] - state.rects.reference[axis];
+  var arrowOffsetParent = getOffsetParent(arrowElement);
+  var clientSize = arrowOffsetParent ? axis === 'y' ? arrowOffsetParent.clientHeight || 0 : arrowOffsetParent.clientWidth || 0 : 0;
+  var centerToReference = endDiff / 2 - startDiff / 2; // Make sure the arrow doesn't overflow the popper if the center point is
+  // outside of the popper bounds
+
+  var min = paddingObject[minProp];
+  var max = clientSize - arrowRect[len] - paddingObject[maxProp];
+  var center = clientSize / 2 - arrowRect[len] / 2 + centerToReference;
+  var offset = within(min, center, max); // Prevents breaking syntax highlighting...
+
+  var axisProp = axis;
+  state.modifiersData[name] = (_state$modifiersData$ = {}, _state$modifiersData$[axisProp] = offset, _state$modifiersData$.centerOffset = offset - center, _state$modifiersData$);
+}
+
+function effect$1(_ref2) {
+  var state = _ref2.state,
+      options = _ref2.options;
+  var _options$element = options.element,
+      arrowElement = _options$element === void 0 ? '[data-popper-arrow]' : _options$element;
+
+  if (arrowElement == null) {
+    return;
+  } // CSS selector
+
+
+  if (typeof arrowElement === 'string') {
+    arrowElement = state.elements.popper.querySelector(arrowElement);
+
+    if (!arrowElement) {
+      return;
+    }
+  }
+
+  if (!contains(state.elements.popper, arrowElement)) {
+    return;
+  }
+
+  state.elements.arrow = arrowElement;
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var arrow$1 = {
+  name: 'arrow',
+  enabled: true,
+  phase: 'main',
+  fn: arrow,
+  effect: effect$1,
+  requires: ['popperOffsets'],
+  requiresIfExists: ['preventOverflow']
+};
+
+function getVariation(placement) {
+  return placement.split('-')[1];
+}
+
+var unsetSides = {
+  top: 'auto',
+  right: 'auto',
+  bottom: 'auto',
+  left: 'auto'
+}; // Round the offsets to the nearest suitable subpixel based on the DPR.
+// Zooming can change the DPR, but it seems to report a value that will
+// cleanly divide the values into the appropriate subpixels.
+
+function roundOffsetsByDPR(_ref, win) {
+  var x = _ref.x,
+      y = _ref.y;
+  var dpr = win.devicePixelRatio || 1;
+  return {
+    x: round(x * dpr) / dpr || 0,
+    y: round(y * dpr) / dpr || 0
+  };
+}
+
+function mapToStyles(_ref2) {
+  var _Object$assign2;
+
+  var popper = _ref2.popper,
+      popperRect = _ref2.popperRect,
+      placement = _ref2.placement,
+      variation = _ref2.variation,
+      offsets = _ref2.offsets,
+      position = _ref2.position,
+      gpuAcceleration = _ref2.gpuAcceleration,
+      adaptive = _ref2.adaptive,
+      roundOffsets = _ref2.roundOffsets,
+      isFixed = _ref2.isFixed;
+  var _offsets$x = offsets.x,
+      x = _offsets$x === void 0 ? 0 : _offsets$x,
+      _offsets$y = offsets.y,
+      y = _offsets$y === void 0 ? 0 : _offsets$y;
+
+  var _ref3 = typeof roundOffsets === 'function' ? roundOffsets({
+    x: x,
+    y: y
+  }) : {
+    x: x,
+    y: y
+  };
+
+  x = _ref3.x;
+  y = _ref3.y;
+  var hasX = offsets.hasOwnProperty('x');
+  var hasY = offsets.hasOwnProperty('y');
+  var sideX = left;
+  var sideY = top;
+  var win = window;
+
+  if (adaptive) {
+    var offsetParent = getOffsetParent(popper);
+    var heightProp = 'clientHeight';
+    var widthProp = 'clientWidth';
+
+    if (offsetParent === getWindow(popper)) {
+      offsetParent = getDocumentElement(popper);
+
+      if (getComputedStyle(offsetParent).position !== 'static' && position === 'absolute') {
+        heightProp = 'scrollHeight';
+        widthProp = 'scrollWidth';
+      }
+    } // $FlowFixMe[incompatible-cast]: force type refinement, we compare offsetParent with window above, but Flow doesn't detect it
+
+
+    offsetParent = offsetParent;
+
+    if (placement === top || (placement === left || placement === right) && variation === end) {
+      sideY = bottom;
+      var offsetY = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.height : // $FlowFixMe[prop-missing]
+      offsetParent[heightProp];
+      y -= offsetY - popperRect.height;
+      y *= gpuAcceleration ? 1 : -1;
+    }
+
+    if (placement === left || (placement === top || placement === bottom) && variation === end) {
+      sideX = right;
+      var offsetX = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.width : // $FlowFixMe[prop-missing]
+      offsetParent[widthProp];
+      x -= offsetX - popperRect.width;
+      x *= gpuAcceleration ? 1 : -1;
+    }
+  }
+
+  var commonStyles = Object.assign({
+    position: position
+  }, adaptive && unsetSides);
+
+  var _ref4 = roundOffsets === true ? roundOffsetsByDPR({
+    x: x,
+    y: y
+  }, getWindow(popper)) : {
+    x: x,
+    y: y
+  };
+
+  x = _ref4.x;
+  y = _ref4.y;
+
+  if (gpuAcceleration) {
+    var _Object$assign;
+
+    return Object.assign({}, commonStyles, (_Object$assign = {}, _Object$assign[sideY] = hasY ? '0' : '', _Object$assign[sideX] = hasX ? '0' : '', _Object$assign.transform = (win.devicePixelRatio || 1) <= 1 ? "translate(" + x + "px, " + y + "px)" : "translate3d(" + x + "px, " + y + "px, 0)", _Object$assign));
+  }
+
+  return Object.assign({}, commonStyles, (_Object$assign2 = {}, _Object$assign2[sideY] = hasY ? y + "px" : '', _Object$assign2[sideX] = hasX ? x + "px" : '', _Object$assign2.transform = '', _Object$assign2));
+}
+
+function computeStyles(_ref5) {
+  var state = _ref5.state,
+      options = _ref5.options;
+  var _options$gpuAccelerat = options.gpuAcceleration,
+      gpuAcceleration = _options$gpuAccelerat === void 0 ? true : _options$gpuAccelerat,
+      _options$adaptive = options.adaptive,
+      adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
+      _options$roundOffsets = options.roundOffsets,
+      roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
+  var commonStyles = {
+    placement: getBasePlacement(state.placement),
+    variation: getVariation(state.placement),
+    popper: state.elements.popper,
+    popperRect: state.rects.popper,
+    gpuAcceleration: gpuAcceleration,
+    isFixed: state.options.strategy === 'fixed'
+  };
+
+  if (state.modifiersData.popperOffsets != null) {
+    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles(Object.assign({}, commonStyles, {
+      offsets: state.modifiersData.popperOffsets,
+      position: state.options.strategy,
+      adaptive: adaptive,
+      roundOffsets: roundOffsets
+    })));
+  }
+
+  if (state.modifiersData.arrow != null) {
+    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles(Object.assign({}, commonStyles, {
+      offsets: state.modifiersData.arrow,
+      position: 'absolute',
+      adaptive: false,
+      roundOffsets: roundOffsets
+    })));
+  }
+
+  state.attributes.popper = Object.assign({}, state.attributes.popper, {
+    'data-popper-placement': state.placement
+  });
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var computeStyles$1 = {
+  name: 'computeStyles',
+  enabled: true,
+  phase: 'beforeWrite',
+  fn: computeStyles,
+  data: {}
+};
+
+var passive = {
+  passive: true
+};
+
+function effect(_ref) {
+  var state = _ref.state,
+      instance = _ref.instance,
+      options = _ref.options;
+  var _options$scroll = options.scroll,
+      scroll = _options$scroll === void 0 ? true : _options$scroll,
+      _options$resize = options.resize,
+      resize = _options$resize === void 0 ? true : _options$resize;
+  var window = getWindow(state.elements.popper);
+  var scrollParents = [].concat(state.scrollParents.reference, state.scrollParents.popper);
+
+  if (scroll) {
+    scrollParents.forEach(function (scrollParent) {
+      scrollParent.addEventListener('scroll', instance.update, passive);
+    });
+  }
+
+  if (resize) {
+    window.addEventListener('resize', instance.update, passive);
+  }
+
+  return function () {
+    if (scroll) {
+      scrollParents.forEach(function (scrollParent) {
+        scrollParent.removeEventListener('scroll', instance.update, passive);
+      });
+    }
+
+    if (resize) {
+      window.removeEventListener('resize', instance.update, passive);
+    }
+  };
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var eventListeners = {
+  name: 'eventListeners',
+  enabled: true,
+  phase: 'write',
+  fn: function fn() {},
+  effect: effect,
+  data: {}
+};
+
+var hash$1 = {
+  left: 'right',
+  right: 'left',
+  bottom: 'top',
+  top: 'bottom'
+};
+function getOppositePlacement(placement) {
+  return placement.replace(/left|right|bottom|top/g, function (matched) {
+    return hash$1[matched];
+  });
+}
+
+var hash = {
+  start: 'end',
+  end: 'start'
+};
+function getOppositeVariationPlacement(placement) {
+  return placement.replace(/start|end/g, function (matched) {
+    return hash[matched];
+  });
+}
+
+function getWindowScroll(node) {
+  var win = getWindow(node);
+  var scrollLeft = win.pageXOffset;
+  var scrollTop = win.pageYOffset;
+  return {
+    scrollLeft: scrollLeft,
+    scrollTop: scrollTop
+  };
+}
+
+function getWindowScrollBarX(element) {
+  // If <html> has a CSS width greater than the viewport, then this will be
+  // incorrect for RTL.
+  // Popper 1 is broken in this case and never had a bug report so let's assume
+  // it's not an issue. I don't think anyone ever specifies width on <html>
+  // anyway.
+  // Browsers where the left scrollbar doesn't cause an issue report `0` for
+  // this (e.g. Edge 2019, IE11, Safari)
+  return getBoundingClientRect(getDocumentElement(element)).left + getWindowScroll(element).scrollLeft;
+}
+
+function getViewportRect(element, strategy) {
+  var win = getWindow(element);
+  var html = getDocumentElement(element);
+  var visualViewport = win.visualViewport;
+  var width = html.clientWidth;
+  var height = html.clientHeight;
+  var x = 0;
+  var y = 0;
+
+  if (visualViewport) {
+    width = visualViewport.width;
+    height = visualViewport.height;
+    var layoutViewport = isLayoutViewport();
+
+    if (layoutViewport || !layoutViewport && strategy === 'fixed') {
+      x = visualViewport.offsetLeft;
+      y = visualViewport.offsetTop;
+    }
+  }
+
+  return {
+    width: width,
+    height: height,
+    x: x + getWindowScrollBarX(element),
+    y: y
+  };
+}
+
+// of the `<html>` and `<body>` rect bounds if horizontally scrollable
+
+function getDocumentRect(element) {
+  var _element$ownerDocumen;
+
+  var html = getDocumentElement(element);
+  var winScroll = getWindowScroll(element);
+  var body = (_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body;
+  var width = max(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
+  var height = max(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
+  var x = -winScroll.scrollLeft + getWindowScrollBarX(element);
+  var y = -winScroll.scrollTop;
+
+  if (getComputedStyle(body || html).direction === 'rtl') {
+    x += max(html.clientWidth, body ? body.clientWidth : 0) - width;
+  }
+
+  return {
+    width: width,
+    height: height,
+    x: x,
+    y: y
+  };
+}
+
+function isScrollParent(element) {
+  // Firefox wants us to check `-x` and `-y` variations as well
+  var _getComputedStyle = getComputedStyle(element),
+      overflow = _getComputedStyle.overflow,
+      overflowX = _getComputedStyle.overflowX,
+      overflowY = _getComputedStyle.overflowY;
+
+  return /auto|scroll|overlay|hidden/.test(overflow + overflowY + overflowX);
+}
+
+function getScrollParent(node) {
+  if (['html', 'body', '#document'].indexOf(getNodeName(node)) >= 0) {
+    // $FlowFixMe[incompatible-return]: assume body is always available
+    return node.ownerDocument.body;
+  }
+
+  if (isHTMLElement(node) && isScrollParent(node)) {
+    return node;
+  }
+
+  return getScrollParent(getParentNode(node));
+}
+
+/*
+given a DOM element, return the list of all scroll parents, up the list of ancesors
+until we get to the top window object. This list is what we attach scroll listeners
+to, because if any of these parent elements scroll, we'll need to re-calculate the
+reference element's position.
+*/
+
+function listScrollParents(element, list) {
+  var _element$ownerDocumen;
+
+  if (list === void 0) {
+    list = [];
+  }
+
+  var scrollParent = getScrollParent(element);
+  var isBody = scrollParent === ((_element$ownerDocumen = element.ownerDocument) == null ? void 0 : _element$ownerDocumen.body);
+  var win = getWindow(scrollParent);
+  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent(scrollParent) ? scrollParent : []) : scrollParent;
+  var updatedList = list.concat(target);
+  return isBody ? updatedList : // $FlowFixMe[incompatible-call]: isBody tells us target will be an HTMLElement here
+  updatedList.concat(listScrollParents(getParentNode(target)));
+}
+
+function rectToClientRect(rect) {
+  return Object.assign({}, rect, {
+    left: rect.x,
+    top: rect.y,
+    right: rect.x + rect.width,
+    bottom: rect.y + rect.height
+  });
+}
+
+function getInnerBoundingClientRect(element, strategy) {
+  var rect = getBoundingClientRect(element, false, strategy === 'fixed');
+  rect.top = rect.top + element.clientTop;
+  rect.left = rect.left + element.clientLeft;
+  rect.bottom = rect.top + element.clientHeight;
+  rect.right = rect.left + element.clientWidth;
+  rect.width = element.clientWidth;
+  rect.height = element.clientHeight;
+  rect.x = rect.left;
+  rect.y = rect.top;
+  return rect;
+}
+
+function getClientRectFromMixedType(element, clippingParent, strategy) {
+  return clippingParent === viewport ? rectToClientRect(getViewportRect(element, strategy)) : isElement(clippingParent) ? getInnerBoundingClientRect(clippingParent, strategy) : rectToClientRect(getDocumentRect(getDocumentElement(element)));
+} // A "clipping parent" is an overflowable container with the characteristic of
+// clipping (or hiding) overflowing elements with a position different from
+// `initial`
+
+
+function getClippingParents(element) {
+  var clippingParents = listScrollParents(getParentNode(element));
+  var canEscapeClipping = ['absolute', 'fixed'].indexOf(getComputedStyle(element).position) >= 0;
+  var clipperElement = canEscapeClipping && isHTMLElement(element) ? getOffsetParent(element) : element;
+
+  if (!isElement(clipperElement)) {
+    return [];
+  } // $FlowFixMe[incompatible-return]: https://github.com/facebook/flow/issues/1414
+
+
+  return clippingParents.filter(function (clippingParent) {
+    return isElement(clippingParent) && contains(clippingParent, clipperElement) && getNodeName(clippingParent) !== 'body';
+  });
+} // Gets the maximum area that the element is visible in due to any number of
+// clipping parents
+
+
+function getClippingRect(element, boundary, rootBoundary, strategy) {
+  var mainClippingParents = boundary === 'clippingParents' ? getClippingParents(element) : [].concat(boundary);
+  var clippingParents = [].concat(mainClippingParents, [rootBoundary]);
+  var firstClippingParent = clippingParents[0];
+  var clippingRect = clippingParents.reduce(function (accRect, clippingParent) {
+    var rect = getClientRectFromMixedType(element, clippingParent, strategy);
+    accRect.top = max(rect.top, accRect.top);
+    accRect.right = min(rect.right, accRect.right);
+    accRect.bottom = min(rect.bottom, accRect.bottom);
+    accRect.left = max(rect.left, accRect.left);
+    return accRect;
+  }, getClientRectFromMixedType(element, firstClippingParent, strategy));
+  clippingRect.width = clippingRect.right - clippingRect.left;
+  clippingRect.height = clippingRect.bottom - clippingRect.top;
+  clippingRect.x = clippingRect.left;
+  clippingRect.y = clippingRect.top;
+  return clippingRect;
+}
+
+function computeOffsets(_ref) {
+  var reference = _ref.reference,
+      element = _ref.element,
+      placement = _ref.placement;
+  var basePlacement = placement ? getBasePlacement(placement) : null;
+  var variation = placement ? getVariation(placement) : null;
+  var commonX = reference.x + reference.width / 2 - element.width / 2;
+  var commonY = reference.y + reference.height / 2 - element.height / 2;
+  var offsets;
+
+  switch (basePlacement) {
+    case top:
+      offsets = {
+        x: commonX,
+        y: reference.y - element.height
+      };
+      break;
+
+    case bottom:
+      offsets = {
+        x: commonX,
+        y: reference.y + reference.height
+      };
+      break;
+
+    case right:
+      offsets = {
+        x: reference.x + reference.width,
+        y: commonY
+      };
+      break;
+
+    case left:
+      offsets = {
+        x: reference.x - element.width,
+        y: commonY
+      };
+      break;
+
+    default:
+      offsets = {
+        x: reference.x,
+        y: reference.y
+      };
+  }
+
+  var mainAxis = basePlacement ? getMainAxisFromPlacement(basePlacement) : null;
+
+  if (mainAxis != null) {
+    var len = mainAxis === 'y' ? 'height' : 'width';
+
+    switch (variation) {
+      case start:
+        offsets[mainAxis] = offsets[mainAxis] - (reference[len] / 2 - element[len] / 2);
+        break;
+
+      case end:
+        offsets[mainAxis] = offsets[mainAxis] + (reference[len] / 2 - element[len] / 2);
+        break;
+    }
+  }
+
+  return offsets;
+}
+
+function detectOverflow(state, options) {
+  if (options === void 0) {
+    options = {};
+  }
+
+  var _options = options,
+      _options$placement = _options.placement,
+      placement = _options$placement === void 0 ? state.placement : _options$placement,
+      _options$strategy = _options.strategy,
+      strategy = _options$strategy === void 0 ? state.strategy : _options$strategy,
+      _options$boundary = _options.boundary,
+      boundary = _options$boundary === void 0 ? clippingParents : _options$boundary,
+      _options$rootBoundary = _options.rootBoundary,
+      rootBoundary = _options$rootBoundary === void 0 ? viewport : _options$rootBoundary,
+      _options$elementConte = _options.elementContext,
+      elementContext = _options$elementConte === void 0 ? popper : _options$elementConte,
+      _options$altBoundary = _options.altBoundary,
+      altBoundary = _options$altBoundary === void 0 ? false : _options$altBoundary,
+      _options$padding = _options.padding,
+      padding = _options$padding === void 0 ? 0 : _options$padding;
+  var paddingObject = mergePaddingObject(typeof padding !== 'number' ? padding : expandToHashMap(padding, basePlacements));
+  var altContext = elementContext === popper ? reference : popper;
+  var popperRect = state.rects.popper;
+  var element = state.elements[altBoundary ? altContext : elementContext];
+  var clippingClientRect = getClippingRect(isElement(element) ? element : element.contextElement || getDocumentElement(state.elements.popper), boundary, rootBoundary, strategy);
+  var referenceClientRect = getBoundingClientRect(state.elements.reference);
+  var popperOffsets = computeOffsets({
+    reference: referenceClientRect,
+    element: popperRect,
+    strategy: 'absolute',
+    placement: placement
+  });
+  var popperClientRect = rectToClientRect(Object.assign({}, popperRect, popperOffsets));
+  var elementClientRect = elementContext === popper ? popperClientRect : referenceClientRect; // positive = overflowing the clipping rect
+  // 0 or negative = within the clipping rect
+
+  var overflowOffsets = {
+    top: clippingClientRect.top - elementClientRect.top + paddingObject.top,
+    bottom: elementClientRect.bottom - clippingClientRect.bottom + paddingObject.bottom,
+    left: clippingClientRect.left - elementClientRect.left + paddingObject.left,
+    right: elementClientRect.right - clippingClientRect.right + paddingObject.right
+  };
+  var offsetData = state.modifiersData.offset; // Offsets can be applied only to the popper element
+
+  if (elementContext === popper && offsetData) {
+    var offset = offsetData[placement];
+    Object.keys(overflowOffsets).forEach(function (key) {
+      var multiply = [right, bottom].indexOf(key) >= 0 ? 1 : -1;
+      var axis = [top, bottom].indexOf(key) >= 0 ? 'y' : 'x';
+      overflowOffsets[key] += offset[axis] * multiply;
+    });
+  }
+
+  return overflowOffsets;
+}
+
+function computeAutoPlacement(state, options) {
+  if (options === void 0) {
+    options = {};
+  }
+
+  var _options = options,
+      placement = _options.placement,
+      boundary = _options.boundary,
+      rootBoundary = _options.rootBoundary,
+      padding = _options.padding,
+      flipVariations = _options.flipVariations,
+      _options$allowedAutoP = _options.allowedAutoPlacements,
+      allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements : _options$allowedAutoP;
+  var variation = getVariation(placement);
+  var placements$1 = variation ? flipVariations ? variationPlacements : variationPlacements.filter(function (placement) {
+    return getVariation(placement) === variation;
+  }) : basePlacements;
+  var allowedPlacements = placements$1.filter(function (placement) {
+    return allowedAutoPlacements.indexOf(placement) >= 0;
+  });
+
+  if (allowedPlacements.length === 0) {
+    allowedPlacements = placements$1;
+  } // $FlowFixMe[incompatible-type]: Flow seems to have problems with two array unions...
+
+
+  var overflows = allowedPlacements.reduce(function (acc, placement) {
+    acc[placement] = detectOverflow(state, {
+      placement: placement,
+      boundary: boundary,
+      rootBoundary: rootBoundary,
+      padding: padding
+    })[getBasePlacement(placement)];
+    return acc;
+  }, {});
+  return Object.keys(overflows).sort(function (a, b) {
+    return overflows[a] - overflows[b];
+  });
+}
+
+function getExpandedFallbackPlacements(placement) {
+  if (getBasePlacement(placement) === auto) {
+    return [];
+  }
+
+  var oppositePlacement = getOppositePlacement(placement);
+  return [getOppositeVariationPlacement(placement), oppositePlacement, getOppositeVariationPlacement(oppositePlacement)];
+}
+
+function flip(_ref) {
+  var state = _ref.state,
+      options = _ref.options,
+      name = _ref.name;
+
+  if (state.modifiersData[name]._skip) {
+    return;
+  }
+
+  var _options$mainAxis = options.mainAxis,
+      checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
+      _options$altAxis = options.altAxis,
+      checkAltAxis = _options$altAxis === void 0 ? true : _options$altAxis,
+      specifiedFallbackPlacements = options.fallbackPlacements,
+      padding = options.padding,
+      boundary = options.boundary,
+      rootBoundary = options.rootBoundary,
+      altBoundary = options.altBoundary,
+      _options$flipVariatio = options.flipVariations,
+      flipVariations = _options$flipVariatio === void 0 ? true : _options$flipVariatio,
+      allowedAutoPlacements = options.allowedAutoPlacements;
+  var preferredPlacement = state.options.placement;
+  var basePlacement = getBasePlacement(preferredPlacement);
+  var isBasePlacement = basePlacement === preferredPlacement;
+  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement(preferredPlacement)] : getExpandedFallbackPlacements(preferredPlacement));
+  var placements = [preferredPlacement].concat(fallbackPlacements).reduce(function (acc, placement) {
+    return acc.concat(getBasePlacement(placement) === auto ? computeAutoPlacement(state, {
+      placement: placement,
+      boundary: boundary,
+      rootBoundary: rootBoundary,
+      padding: padding,
+      flipVariations: flipVariations,
+      allowedAutoPlacements: allowedAutoPlacements
+    }) : placement);
+  }, []);
+  var referenceRect = state.rects.reference;
+  var popperRect = state.rects.popper;
+  var checksMap = new Map();
+  var makeFallbackChecks = true;
+  var firstFittingPlacement = placements[0];
+
+  for (var i = 0; i < placements.length; i++) {
+    var placement = placements[i];
+
+    var _basePlacement = getBasePlacement(placement);
+
+    var isStartVariation = getVariation(placement) === start;
+    var isVertical = [top, bottom].indexOf(_basePlacement) >= 0;
+    var len = isVertical ? 'width' : 'height';
+    var overflow = detectOverflow(state, {
+      placement: placement,
+      boundary: boundary,
+      rootBoundary: rootBoundary,
+      altBoundary: altBoundary,
+      padding: padding
+    });
+    var mainVariationSide = isVertical ? isStartVariation ? right : left : isStartVariation ? bottom : top;
+
+    if (referenceRect[len] > popperRect[len]) {
+      mainVariationSide = getOppositePlacement(mainVariationSide);
+    }
+
+    var altVariationSide = getOppositePlacement(mainVariationSide);
+    var checks = [];
+
+    if (checkMainAxis) {
+      checks.push(overflow[_basePlacement] <= 0);
+    }
+
+    if (checkAltAxis) {
+      checks.push(overflow[mainVariationSide] <= 0, overflow[altVariationSide] <= 0);
+    }
+
+    if (checks.every(function (check) {
+      return check;
+    })) {
+      firstFittingPlacement = placement;
+      makeFallbackChecks = false;
+      break;
+    }
+
+    checksMap.set(placement, checks);
+  }
+
+  if (makeFallbackChecks) {
+    // `2` may be desired in some cases – research later
+    var numberOfChecks = flipVariations ? 3 : 1;
+
+    var _loop = function _loop(_i) {
+      var fittingPlacement = placements.find(function (placement) {
+        var checks = checksMap.get(placement);
+
+        if (checks) {
+          return checks.slice(0, _i).every(function (check) {
+            return check;
+          });
+        }
+      });
+
+      if (fittingPlacement) {
+        firstFittingPlacement = fittingPlacement;
+        return "break";
+      }
+    };
+
+    for (var _i = numberOfChecks; _i > 0; _i--) {
+      var _ret = _loop(_i);
+
+      if (_ret === "break") break;
+    }
+  }
+
+  if (state.placement !== firstFittingPlacement) {
+    state.modifiersData[name]._skip = true;
+    state.placement = firstFittingPlacement;
+    state.reset = true;
+  }
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var flip$1 = {
+  name: 'flip',
+  enabled: true,
+  phase: 'main',
+  fn: flip,
+  requiresIfExists: ['offset'],
+  data: {
+    _skip: false
+  }
+};
+
+function getSideOffsets(overflow, rect, preventedOffsets) {
+  if (preventedOffsets === void 0) {
+    preventedOffsets = {
+      x: 0,
+      y: 0
+    };
+  }
+
+  return {
+    top: overflow.top - rect.height - preventedOffsets.y,
+    right: overflow.right - rect.width + preventedOffsets.x,
+    bottom: overflow.bottom - rect.height + preventedOffsets.y,
+    left: overflow.left - rect.width - preventedOffsets.x
+  };
+}
+
+function isAnySideFullyClipped(overflow) {
+  return [top, right, bottom, left].some(function (side) {
+    return overflow[side] >= 0;
+  });
+}
+
+function hide(_ref) {
+  var state = _ref.state,
+      name = _ref.name;
+  var referenceRect = state.rects.reference;
+  var popperRect = state.rects.popper;
+  var preventedOffsets = state.modifiersData.preventOverflow;
+  var referenceOverflow = detectOverflow(state, {
+    elementContext: 'reference'
+  });
+  var popperAltOverflow = detectOverflow(state, {
+    altBoundary: true
+  });
+  var referenceClippingOffsets = getSideOffsets(referenceOverflow, referenceRect);
+  var popperEscapeOffsets = getSideOffsets(popperAltOverflow, popperRect, preventedOffsets);
+  var isReferenceHidden = isAnySideFullyClipped(referenceClippingOffsets);
+  var hasPopperEscaped = isAnySideFullyClipped(popperEscapeOffsets);
+  state.modifiersData[name] = {
+    referenceClippingOffsets: referenceClippingOffsets,
+    popperEscapeOffsets: popperEscapeOffsets,
+    isReferenceHidden: isReferenceHidden,
+    hasPopperEscaped: hasPopperEscaped
+  };
+  state.attributes.popper = Object.assign({}, state.attributes.popper, {
+    'data-popper-reference-hidden': isReferenceHidden,
+    'data-popper-escaped': hasPopperEscaped
+  });
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var hide$1 = {
+  name: 'hide',
+  enabled: true,
+  phase: 'main',
+  requiresIfExists: ['preventOverflow'],
+  fn: hide
+};
+
+function distanceAndSkiddingToXY(placement, rects, offset) {
+  var basePlacement = getBasePlacement(placement);
+  var invertDistance = [left, top].indexOf(basePlacement) >= 0 ? -1 : 1;
+
+  var _ref = typeof offset === 'function' ? offset(Object.assign({}, rects, {
+    placement: placement
+  })) : offset,
+      skidding = _ref[0],
+      distance = _ref[1];
+
+  skidding = skidding || 0;
+  distance = (distance || 0) * invertDistance;
+  return [left, right].indexOf(basePlacement) >= 0 ? {
+    x: distance,
+    y: skidding
+  } : {
+    x: skidding,
+    y: distance
+  };
+}
+
+function offset(_ref2) {
+  var state = _ref2.state,
+      options = _ref2.options,
+      name = _ref2.name;
+  var _options$offset = options.offset,
+      offset = _options$offset === void 0 ? [0, 0] : _options$offset;
+  var data = placements.reduce(function (acc, placement) {
+    acc[placement] = distanceAndSkiddingToXY(placement, state.rects, offset);
+    return acc;
+  }, {});
+  var _data$state$placement = data[state.placement],
+      x = _data$state$placement.x,
+      y = _data$state$placement.y;
+
+  if (state.modifiersData.popperOffsets != null) {
+    state.modifiersData.popperOffsets.x += x;
+    state.modifiersData.popperOffsets.y += y;
+  }
+
+  state.modifiersData[name] = data;
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var offset$1 = {
+  name: 'offset',
+  enabled: true,
+  phase: 'main',
+  requires: ['popperOffsets'],
+  fn: offset
+};
+
+function popperOffsets(_ref) {
+  var state = _ref.state,
+      name = _ref.name;
+  // Offsets are the actual position the popper needs to have to be
+  // properly positioned near its reference element
+  // This is the most basic placement, and will be adjusted by
+  // the modifiers in the next step
+  state.modifiersData[name] = computeOffsets({
+    reference: state.rects.reference,
+    element: state.rects.popper,
+    strategy: 'absolute',
+    placement: state.placement
+  });
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var popperOffsets$1 = {
+  name: 'popperOffsets',
+  enabled: true,
+  phase: 'read',
+  fn: popperOffsets,
+  data: {}
+};
+
+function getAltAxis(axis) {
+  return axis === 'x' ? 'y' : 'x';
+}
+
+function preventOverflow(_ref) {
+  var state = _ref.state,
+      options = _ref.options,
+      name = _ref.name;
+  var _options$mainAxis = options.mainAxis,
+      checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
+      _options$altAxis = options.altAxis,
+      checkAltAxis = _options$altAxis === void 0 ? false : _options$altAxis,
+      boundary = options.boundary,
+      rootBoundary = options.rootBoundary,
+      altBoundary = options.altBoundary,
+      padding = options.padding,
+      _options$tether = options.tether,
+      tether = _options$tether === void 0 ? true : _options$tether,
+      _options$tetherOffset = options.tetherOffset,
+      tetherOffset = _options$tetherOffset === void 0 ? 0 : _options$tetherOffset;
+  var overflow = detectOverflow(state, {
+    boundary: boundary,
+    rootBoundary: rootBoundary,
+    padding: padding,
+    altBoundary: altBoundary
+  });
+  var basePlacement = getBasePlacement(state.placement);
+  var variation = getVariation(state.placement);
+  var isBasePlacement = !variation;
+  var mainAxis = getMainAxisFromPlacement(basePlacement);
+  var altAxis = getAltAxis(mainAxis);
+  var popperOffsets = state.modifiersData.popperOffsets;
+  var referenceRect = state.rects.reference;
+  var popperRect = state.rects.popper;
+  var tetherOffsetValue = typeof tetherOffset === 'function' ? tetherOffset(Object.assign({}, state.rects, {
+    placement: state.placement
+  })) : tetherOffset;
+  var normalizedTetherOffsetValue = typeof tetherOffsetValue === 'number' ? {
+    mainAxis: tetherOffsetValue,
+    altAxis: tetherOffsetValue
+  } : Object.assign({
+    mainAxis: 0,
+    altAxis: 0
+  }, tetherOffsetValue);
+  var offsetModifierState = state.modifiersData.offset ? state.modifiersData.offset[state.placement] : null;
+  var data = {
+    x: 0,
+    y: 0
+  };
+
+  if (!popperOffsets) {
+    return;
+  }
+
+  if (checkMainAxis) {
+    var _offsetModifierState$;
+
+    var mainSide = mainAxis === 'y' ? top : left;
+    var altSide = mainAxis === 'y' ? bottom : right;
+    var len = mainAxis === 'y' ? 'height' : 'width';
+    var offset = popperOffsets[mainAxis];
+    var min$1 = offset + overflow[mainSide];
+    var max$1 = offset - overflow[altSide];
+    var additive = tether ? -popperRect[len] / 2 : 0;
+    var minLen = variation === start ? referenceRect[len] : popperRect[len];
+    var maxLen = variation === start ? -popperRect[len] : -referenceRect[len]; // We need to include the arrow in the calculation so the arrow doesn't go
+    // outside the reference bounds
+
+    var arrowElement = state.elements.arrow;
+    var arrowRect = tether && arrowElement ? getLayoutRect(arrowElement) : {
+      width: 0,
+      height: 0
+    };
+    var arrowPaddingObject = state.modifiersData['arrow#persistent'] ? state.modifiersData['arrow#persistent'].padding : getFreshSideObject();
+    var arrowPaddingMin = arrowPaddingObject[mainSide];
+    var arrowPaddingMax = arrowPaddingObject[altSide]; // If the reference length is smaller than the arrow length, we don't want
+    // to include its full size in the calculation. If the reference is small
+    // and near the edge of a boundary, the popper can overflow even if the
+    // reference is not overflowing as well (e.g. virtual elements with no
+    // width or height)
+
+    var arrowLen = within(0, referenceRect[len], arrowRect[len]);
+    var minOffset = isBasePlacement ? referenceRect[len] / 2 - additive - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis : minLen - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis;
+    var maxOffset = isBasePlacement ? -referenceRect[len] / 2 + additive + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis : maxLen + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis;
+    var arrowOffsetParent = state.elements.arrow && getOffsetParent(state.elements.arrow);
+    var clientOffset = arrowOffsetParent ? mainAxis === 'y' ? arrowOffsetParent.clientTop || 0 : arrowOffsetParent.clientLeft || 0 : 0;
+    var offsetModifierValue = (_offsetModifierState$ = offsetModifierState == null ? void 0 : offsetModifierState[mainAxis]) != null ? _offsetModifierState$ : 0;
+    var tetherMin = offset + minOffset - offsetModifierValue - clientOffset;
+    var tetherMax = offset + maxOffset - offsetModifierValue;
+    var preventedOffset = within(tether ? min(min$1, tetherMin) : min$1, offset, tether ? max(max$1, tetherMax) : max$1);
+    popperOffsets[mainAxis] = preventedOffset;
+    data[mainAxis] = preventedOffset - offset;
+  }
+
+  if (checkAltAxis) {
+    var _offsetModifierState$2;
+
+    var _mainSide = mainAxis === 'x' ? top : left;
+
+    var _altSide = mainAxis === 'x' ? bottom : right;
+
+    var _offset = popperOffsets[altAxis];
+
+    var _len = altAxis === 'y' ? 'height' : 'width';
+
+    var _min = _offset + overflow[_mainSide];
+
+    var _max = _offset - overflow[_altSide];
+
+    var isOriginSide = [top, left].indexOf(basePlacement) !== -1;
+
+    var _offsetModifierValue = (_offsetModifierState$2 = offsetModifierState == null ? void 0 : offsetModifierState[altAxis]) != null ? _offsetModifierState$2 : 0;
+
+    var _tetherMin = isOriginSide ? _min : _offset - referenceRect[_len] - popperRect[_len] - _offsetModifierValue + normalizedTetherOffsetValue.altAxis;
+
+    var _tetherMax = isOriginSide ? _offset + referenceRect[_len] + popperRect[_len] - _offsetModifierValue - normalizedTetherOffsetValue.altAxis : _max;
+
+    var _preventedOffset = tether && isOriginSide ? withinMaxClamp(_tetherMin, _offset, _tetherMax) : within(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
+
+    popperOffsets[altAxis] = _preventedOffset;
+    data[altAxis] = _preventedOffset - _offset;
+  }
+
+  state.modifiersData[name] = data;
+} // eslint-disable-next-line import/no-unused-modules
+
+
+var preventOverflow$1 = {
+  name: 'preventOverflow',
+  enabled: true,
+  phase: 'main',
+  fn: preventOverflow,
+  requiresIfExists: ['offset']
+};
+
+function getHTMLElementScroll(element) {
+  return {
+    scrollLeft: element.scrollLeft,
+    scrollTop: element.scrollTop
+  };
+}
+
+function getNodeScroll(node) {
+  if (node === getWindow(node) || !isHTMLElement(node)) {
+    return getWindowScroll(node);
+  } else {
+    return getHTMLElementScroll(node);
+  }
+}
+
+function isElementScaled(element) {
+  var rect = element.getBoundingClientRect();
+  var scaleX = round(rect.width) / element.offsetWidth || 1;
+  var scaleY = round(rect.height) / element.offsetHeight || 1;
+  return scaleX !== 1 || scaleY !== 1;
+} // Returns the composite rect of an element relative to its offsetParent.
+// Composite means it takes into account transforms as well as layout.
+
+
+function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
+  if (isFixed === void 0) {
+    isFixed = false;
+  }
+
+  var isOffsetParentAnElement = isHTMLElement(offsetParent);
+  var offsetParentIsScaled = isHTMLElement(offsetParent) && isElementScaled(offsetParent);
+  var documentElement = getDocumentElement(offsetParent);
+  var rect = getBoundingClientRect(elementOrVirtualElement, offsetParentIsScaled, isFixed);
+  var scroll = {
+    scrollLeft: 0,
+    scrollTop: 0
+  };
+  var offsets = {
+    x: 0,
+    y: 0
+  };
+
+  if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
+    if (getNodeName(offsetParent) !== 'body' || // https://github.com/popperjs/popper-core/issues/1078
+    isScrollParent(documentElement)) {
+      scroll = getNodeScroll(offsetParent);
+    }
+
+    if (isHTMLElement(offsetParent)) {
+      offsets = getBoundingClientRect(offsetParent, true);
+      offsets.x += offsetParent.clientLeft;
+      offsets.y += offsetParent.clientTop;
+    } else if (documentElement) {
+      offsets.x = getWindowScrollBarX(documentElement);
+    }
+  }
+
+  return {
+    x: rect.left + scroll.scrollLeft - offsets.x,
+    y: rect.top + scroll.scrollTop - offsets.y,
+    width: rect.width,
+    height: rect.height
+  };
+}
+
+function order(modifiers) {
+  var map = new Map();
+  var visited = new Set();
+  var result = [];
+  modifiers.forEach(function (modifier) {
+    map.set(modifier.name, modifier);
+  }); // On visiting object, check for its dependencies and visit them recursively
+
+  function sort(modifier) {
+    visited.add(modifier.name);
+    var requires = [].concat(modifier.requires || [], modifier.requiresIfExists || []);
+    requires.forEach(function (dep) {
+      if (!visited.has(dep)) {
+        var depModifier = map.get(dep);
+
+        if (depModifier) {
+          sort(depModifier);
+        }
+      }
+    });
+    result.push(modifier);
+  }
+
+  modifiers.forEach(function (modifier) {
+    if (!visited.has(modifier.name)) {
+      // check for visited object
+      sort(modifier);
+    }
+  });
+  return result;
+}
+
+function orderModifiers(modifiers) {
+  // order based on dependencies
+  var orderedModifiers = order(modifiers); // order based on phase
+
+  return modifierPhases.reduce(function (acc, phase) {
+    return acc.concat(orderedModifiers.filter(function (modifier) {
+      return modifier.phase === phase;
+    }));
+  }, []);
+}
+
+function debounce(fn) {
+  var pending;
+  return function () {
+    if (!pending) {
+      pending = new Promise(function (resolve) {
+        Promise.resolve().then(function () {
+          pending = undefined;
+          resolve(fn());
+        });
+      });
+    }
+
+    return pending;
+  };
+}
+
+function mergeByName(modifiers) {
+  var merged = modifiers.reduce(function (merged, current) {
+    var existing = merged[current.name];
+    merged[current.name] = existing ? Object.assign({}, existing, current, {
+      options: Object.assign({}, existing.options, current.options),
+      data: Object.assign({}, existing.data, current.data)
+    }) : current;
+    return merged;
+  }, {}); // IE11 does not support Object.values
+
+  return Object.keys(merged).map(function (key) {
+    return merged[key];
+  });
+}
+
+var DEFAULT_OPTIONS = {
+  placement: 'bottom',
+  modifiers: [],
+  strategy: 'absolute'
+};
+
+function areValidElements() {
+  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+
+  return !args.some(function (element) {
+    return !(element && typeof element.getBoundingClientRect === 'function');
+  });
+}
+
+function popperGenerator(generatorOptions) {
+  if (generatorOptions === void 0) {
+    generatorOptions = {};
+  }
+
+  var _generatorOptions = generatorOptions,
+      _generatorOptions$def = _generatorOptions.defaultModifiers,
+      defaultModifiers = _generatorOptions$def === void 0 ? [] : _generatorOptions$def,
+      _generatorOptions$def2 = _generatorOptions.defaultOptions,
+      defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS : _generatorOptions$def2;
+  return function createPopper(reference, popper, options) {
+    if (options === void 0) {
+      options = defaultOptions;
+    }
+
+    var state = {
+      placement: 'bottom',
+      orderedModifiers: [],
+      options: Object.assign({}, DEFAULT_OPTIONS, defaultOptions),
+      modifiersData: {},
+      elements: {
+        reference: reference,
+        popper: popper
+      },
+      attributes: {},
+      styles: {}
+    };
+    var effectCleanupFns = [];
+    var isDestroyed = false;
+    var instance = {
+      state: state,
+      setOptions: function setOptions(setOptionsAction) {
+        var options = typeof setOptionsAction === 'function' ? setOptionsAction(state.options) : setOptionsAction;
+        cleanupModifierEffects();
+        state.options = Object.assign({}, defaultOptions, state.options, options);
+        state.scrollParents = {
+          reference: isElement(reference) ? listScrollParents(reference) : reference.contextElement ? listScrollParents(reference.contextElement) : [],
+          popper: listScrollParents(popper)
+        }; // Orders the modifiers based on their dependencies and `phase`
+        // properties
+
+        var orderedModifiers = orderModifiers(mergeByName([].concat(defaultModifiers, state.options.modifiers))); // Strip out disabled modifiers
+
+        state.orderedModifiers = orderedModifiers.filter(function (m) {
+          return m.enabled;
+        });
+        runModifierEffects();
+        return instance.update();
+      },
+      // Sync update – it will always be executed, even if not necessary. This
+      // is useful for low frequency updates where sync behavior simplifies the
+      // logic.
+      // For high frequency updates (e.g. `resize` and `scroll` events), always
+      // prefer the async Popper#update method
+      forceUpdate: function forceUpdate() {
+        if (isDestroyed) {
+          return;
+        }
+
+        var _state$elements = state.elements,
+            reference = _state$elements.reference,
+            popper = _state$elements.popper; // Don't proceed if `reference` or `popper` are not valid elements
+        // anymore
+
+        if (!areValidElements(reference, popper)) {
+          return;
+        } // Store the reference and popper rects to be read by modifiers
+
+
+        state.rects = {
+          reference: getCompositeRect(reference, getOffsetParent(popper), state.options.strategy === 'fixed'),
+          popper: getLayoutRect(popper)
+        }; // Modifiers have the ability to reset the current update cycle. The
+        // most common use case for this is the `flip` modifier changing the
+        // placement, which then needs to re-run all the modifiers, because the
+        // logic was previously ran for the previous placement and is therefore
+        // stale/incorrect
+
+        state.reset = false;
+        state.placement = state.options.placement; // On each update cycle, the `modifiersData` property for each modifier
+        // is filled with the initial data specified by the modifier. This means
+        // it doesn't persist and is fresh on each update.
+        // To ensure persistent data, use `${name}#persistent`
+
+        state.orderedModifiers.forEach(function (modifier) {
+          return state.modifiersData[modifier.name] = Object.assign({}, modifier.data);
+        });
+
+        for (var index = 0; index < state.orderedModifiers.length; index++) {
+          if (state.reset === true) {
+            state.reset = false;
+            index = -1;
+            continue;
+          }
+
+          var _state$orderedModifie = state.orderedModifiers[index],
+              fn = _state$orderedModifie.fn,
+              _state$orderedModifie2 = _state$orderedModifie.options,
+              _options = _state$orderedModifie2 === void 0 ? {} : _state$orderedModifie2,
+              name = _state$orderedModifie.name;
+
+          if (typeof fn === 'function') {
+            state = fn({
+              state: state,
+              options: _options,
+              name: name,
+              instance: instance
+            }) || state;
+          }
+        }
+      },
+      // Async and optimistically optimized update – it will not be executed if
+      // not necessary (debounced to run at most once-per-tick)
+      update: debounce(function () {
+        return new Promise(function (resolve) {
+          instance.forceUpdate();
+          resolve(state);
+        });
+      }),
+      destroy: function destroy() {
+        cleanupModifierEffects();
+        isDestroyed = true;
+      }
+    };
+
+    if (!areValidElements(reference, popper)) {
+      return instance;
+    }
+
+    instance.setOptions(options).then(function (state) {
+      if (!isDestroyed && options.onFirstUpdate) {
+        options.onFirstUpdate(state);
+      }
+    }); // Modifiers have the ability to execute arbitrary code before the first
+    // update cycle runs. They will be executed in the same order as the update
+    // cycle. This is useful when a modifier adds some persistent data that
+    // other modifiers need to use, but the modifier is run after the dependent
+    // one.
+
+    function runModifierEffects() {
+      state.orderedModifiers.forEach(function (_ref) {
+        var name = _ref.name,
+            _ref$options = _ref.options,
+            options = _ref$options === void 0 ? {} : _ref$options,
+            effect = _ref.effect;
+
+        if (typeof effect === 'function') {
+          var cleanupFn = effect({
+            state: state,
+            name: name,
+            instance: instance,
+            options: options
+          });
+
+          var noopFn = function noopFn() {};
+
+          effectCleanupFns.push(cleanupFn || noopFn);
+        }
+      });
+    }
+
+    function cleanupModifierEffects() {
+      effectCleanupFns.forEach(function (fn) {
+        return fn();
+      });
+      effectCleanupFns = [];
+    }
+
+    return instance;
+  };
+}
+
+var defaultModifiers = [eventListeners, popperOffsets$1, computeStyles$1, applyStyles$1, offset$1, flip$1, preventOverflow$1, arrow$1, hide$1];
+var createPopper = /*#__PURE__*/popperGenerator({
+  defaultModifiers: defaultModifiers
+}); // eslint-disable-next-line import/no-unused-modules
+
 /**
  * A component that handles all UI components.
  */
@@ -10315,12 +11599,15 @@ class FloatingWindow extends SimpleUIComponent {
         closeElement.onclick = () => (this.visible = false);
         closeElement.innerText = "close";
         closeElement.className =
-            "material-icons md-16 absolute right-2 top-2 z-20 hover:cursor-pointer hover:text-ifcjs-200";
+            "material-icons text-2xl ml-4 text-gray-400 z-20 hover:cursor-pointer hover:text-ifcjs-200";
         const titleContainer = document.createElement("div");
         titleContainer.id = `${this.id}-title-container`;
         titleContainer.className =
-            "bg-ifcjs-120 sticky z-10 top-0 select-none cursor-move px-5 py-3 text-center";
-        titleContainer.append(titleElement, descriptionElement, closeElement);
+            "sticky z-10 flex justify-between items-center top-0 select-none cursor-move px-6 py-3 border-b-2 border-solid border-[#3A444E]";
+        const head = document.createElement("div");
+        head.className = "flex flex-col";
+        head.append(titleElement, descriptionElement);
+        titleContainer.append(head, closeElement);
         const content = document.createElement("div");
         content.id = `${this.id}-content`;
         content.className = "flex-col gap-y-3 p-3 hidden overflow-auto";
@@ -10392,7 +11679,7 @@ class FloatingWindow extends SimpleUIComponent {
 }
 FloatingWindow.Class = {
     Base: "absolute backdrop-blur-md shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white bg-ifcjs-100 rounded-md",
-    Title: "text-lg font-bold",
+    Title: "text-3xl text-ifcjs-200 font-medium",
     Description: "text-base text-gray-400",
 };
 
@@ -10471,10 +11758,114 @@ class InfoCard extends Component {
     }
 }
 
+class Dropdown extends SimpleUIComponent {
+    get inputValue() {
+        return this._button.textContent;
+    }
+    set inputValue(value) {
+        var _a;
+        const option = (_a = this.options.find((v) => v === value)) !== null && _a !== void 0 ? _a : this.options[0];
+        this._button.textContent = option !== null && option !== void 0 ? option : null;
+        this.onChange.trigger(this.inputValue);
+    }
+    set label(value) {
+        this._label.textContent = value;
+        if (value) {
+            this._label.classList.remove("hidden");
+        }
+        else {
+            this._label.classList.add("hidden");
+        }
+    }
+    get label() {
+        return this._label.textContent;
+    }
+    constructor(components, name = "Tooeen Dropdown") {
+        const div = document.createElement("div");
+        div.className = "w-full";
+        super(components, div);
+        this.name = "Dropdown";
+        this.options = [];
+        this.onChange = new Event();
+        div.innerHTML += `
+    <label id="label-${this.id}" class="block leading-6 text-gray-400 text-xs"></label>
+    <button
+    id="button-${this.id}"
+    data-dropdown-toggle="dropdown-${this.id}"
+    class="text-white w-full ring-1 ring-gray-500 focus:outline-none focus:ring-ifcjs-200 rounded-md text-base p-3 text-center inline-flex items-center"
+    type="button">
+      <svg class="w-2.5 h-2.5 ml-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
+      </svg>
+      </button>
+    <div id="dropdown-${this.id}" class="z-10 absolute hidden mt-1 max-h-[300px] w-fit overflow-auto bg-[#212121] rounded-md shadow">
+      <ul id="dropdownList-${this.id}" class="py-2 text-sm text-white"></ul>
+    </div>
+    `;
+        this._button.onclick = () => this.toggle();
+        this.setClickOutside();
+        this.label = name;
+    }
+    setClickOutside() {
+        document.addEventListener("click", (e) => {
+            if (!this.get().contains(e.target))
+                this._dropdown.classList.add("hidden");
+        }, true);
+    }
+    toggle() {
+        if (this._dropdown.classList.contains("hidden")) {
+            this._dropdown.classList.remove("hidden");
+        }
+        else {
+            this._dropdown.classList.add("hidden");
+        }
+    }
+    addOption(...value) {
+        const options = value.filter((option) => !this.options.includes(option));
+        for (const option of options) {
+            this.options.push(option);
+            const li = document.createElement("li");
+            li.id = `${option.replace(/\s+/g, "_")}-${this.id}`;
+            li.className = "px-4 py-2 text-base cursor-pointer hover:text-ifcjs-200";
+            li.innerHTML = `<p class="block">${option}</p>`;
+            li.onclick = () => {
+                this.inputValue = option;
+                this._dropdown.classList.add("hidden");
+            };
+            const dropdownList = this.get().querySelector(`#dropdownList-${this.id}`);
+            dropdownList.appendChild(li);
+        }
+        return this;
+    }
+    removeOption(...value) {
+        const optionsToDelete = value.filter((option) => this.options.includes(option));
+        for (const name of optionsToDelete) {
+            const option = this.get().querySelector(`#${name.replace(/\s+/g, "_")}-${this.id}`);
+            if (!option)
+                continue;
+            option.remove();
+        }
+        this.options = this.options.filter((option) => !value.includes(option));
+        return this;
+    }
+    getInnerElement(id) {
+        return this.get().querySelector(`#${id}-${this.id}`);
+    }
+    get _button() {
+        return this.getInnerElement("button");
+    }
+    get _dropdown() {
+        return this.getInnerElement("dropdown");
+    }
+    get _label() {
+        return this.getInnerElement("label");
+    }
+}
+
 class InputLabel extends SimpleUIComponent {
     constructor(components, value) {
         const label = document.createElement("label");
-        label.className = `block leading-6 text-gray-400 text-sm`;
+        label.className = `block leading-6 text-gray-400 text-xs`;
         label.textContent = value;
         super(components, label);
         this.name = "InputLabel";
@@ -10509,6 +11900,7 @@ class BaseInput extends SimpleUIComponent {
     }
     set inputValue(value) {
         this.inputElement.value = value;
+        this.onChange.trigger(this.inputValue);
     }
     clear() {
         this.inputValue = "";
@@ -10518,61 +11910,14 @@ class BaseInput extends SimpleUIComponent {
     }
 }
 
-class Dropdown extends BaseInput {
-    constructor(components, name = "Tooeen Dropdown") {
-        const input = document.createElement("select");
-        input.className =
-            "block w-full text-base px-3 rounded-md border-0 h-[40px] text-white bg-ifcjs-100 ring-1 ring-inset ring-ifcjs-120 focus:ring-2 focus:ring-ifcjs-200";
-        super(components, input);
-        this.name = "Dropdown";
-        this.options = [];
-        this.labelElement.textContent = name;
-    }
-    addOption(...value) {
-        for (const v of value) {
-            this.options.push(v);
-        }
-        this.updateOptions();
-        return this;
-    }
-    removeOption(value) {
-        this.options = this.options.filter((option) => option !== value);
-        this.updateOptions();
-        return this;
-    }
-    updateOptions() {
-        const currentOptions = [...this.inputElement.children].map((el) => {
-            const optionText = el.textContent;
-            if (optionText) {
-                const inList = this.options.includes(optionText);
-                if (!inList) {
-                    el.remove();
-                }
-            }
-            return optionText;
-        });
-        const missingOptions = this.options.filter((option) => {
-            if (option) {
-                return !currentOptions.includes(option);
-            }
-            return false;
-        });
-        missingOptions.forEach((value) => {
-            const option = document.createElement("option");
-            option.textContent = value;
-            this.inputElement.append(option);
-        });
-    }
-}
-
 class TextInput extends BaseInput {
     // @ts-ignore
     constructor(components, config) {
         const input = document.createElement("input");
         input.className = `
-    block bg-ifcjs-100 w-full rounded-md border-0 h-[40px] px-3 text-white shadow-sm ring-1 
-    ring-inset text-base ring-ifcjs-120 placeholder:text-gray-400 
-    focus:ring-2 focus:ring-inset focus:ring-ifcjs-200
+    block bg-transparent w-full rounded-md p-3 text-white ring-1 
+    text-base ring-gray-500 placeholder:text-gray-400 
+    focus:ring-ifcjs-200 focus:outline-none
     `;
         super(components, input);
         this.name = "TooeenTextInput";
@@ -10782,6 +12127,34 @@ class ToastNotification extends SimpleUIComponent {
         setTimeout(() => {
             this.visible = false;
         }, this.duration);
+    }
+}
+
+class UIPool extends Component {
+    constructor(components, uiClass) {
+        super();
+        this.name = "UIPool";
+        this.enabled = true;
+        this.list = [];
+        this._components = components;
+        this._uiClass = uiClass;
+    }
+    return(element) {
+        var _a;
+        // @ts-ignore
+        (_a = element.parent) === null || _a === void 0 ? void 0 : _a.removeChild(element);
+        this.list.push(element);
+        console.log("Pool element returned");
+    }
+    get() {
+        if (this.list.length > 0) {
+            const existingUI = this.list.pop();
+            console.log("Pool element taken");
+            return existingUI;
+        }
+        const newUI = new this._uiClass(this._components);
+        console.log("Pool element created");
+        return newUI;
     }
 }
 
@@ -18521,6 +19894,45 @@ class SimpleSVGViewport extends Component {
     /** {@link Resizeable.getSize}. */
     getSize() {
         return this._size;
+    }
+}
+
+class Simple2DMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        this._marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
+    constructor(components, marker) {
+        super();
+        this.name = "Simple2DMarker";
+        this.enabled = true;
+        this._visible = true;
+        this._components = components;
+        let _marker;
+        if (marker) {
+            _marker = marker;
+        }
+        else {
+            _marker = document.createElement("div");
+            _marker.className =
+                "w-[15px] h-[15px] border-3 border-solid border-red-600";
+        }
+        this._marker = new CSS2DObject(_marker);
+        this._components.scene.get().add(this._marker);
+        this.visible = true;
+    }
+    toggleVisibility() {
+        this.visible = !this.visible;
+    }
+    dispose() {
+        this._marker.removeFromParent();
+        this._marker.element.remove();
+    }
+    get() {
+        return this._marker;
     }
 }
 
@@ -90969,6 +92381,285 @@ class IfcJsonExporter {
     }
 }
 
+class LineIntersectionPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    constructor(components, config) {
+        super();
+        this.name = "LineIntersectionPicker";
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this._pickedPoint = null;
+        this._raycaster = new Raycaster();
+        this._originVector = new Vector3$1();
+        this._components = components;
+        this.config = {
+            snapDistance: 0.25,
+            ...config,
+        };
+        if (this._raycaster.params.Line) {
+            this._raycaster.params.Line.threshold = 0.2;
+        }
+        this._mouse = new Mouse(components.renderer.get().domElement);
+        const marker = document.createElement("div");
+        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
+        this._marker = new CSS2DObject(marker);
+        this._marker.visible = false;
+        this._components.scene.get().add(this._marker);
+        this.enabled = false;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    get config() {
+        return this._config;
+    }
+    /** {@link Updateable.update} */
+    update() {
+        if (!this.enabled) {
+            return;
+        }
+        this.beforeUpdate.trigger(this);
+        this._raycaster.setFromCamera(this._mouse.position, this._components.camera.get());
+        // @ts-ignore
+        const lines = this._components.meshes.filter((mesh) => mesh.isLine);
+        const intersects = this._raycaster.intersectObjects(lines);
+        // console.log(intersects)
+        if (intersects.length !== 2) {
+            this._pickedPoint = null;
+            this.updateMarker();
+            return;
+        }
+        // if (!intersects[0].index || !intersects[1].index) {return}
+        const lineA = intersects[0].object;
+        const lineB = intersects[1].object;
+        const indices = [intersects[0].index, intersects[1].index];
+        const hitPoint = new Vector3$1()
+            .copy(intersects[0].point)
+            .add(intersects[1].point)
+            .multiplyScalar(0.5);
+        const isSameElement = lineA.uuid === lineB.uuid;
+        if (isSameElement) {
+            const line = lineA;
+            const pos = line.geometry.getAttribute("position");
+            const vectorA = new Vector3$1().fromBufferAttribute(pos, indices[0]);
+            const vectorB = new Vector3$1().fromBufferAttribute(pos, indices[0] + 1);
+            const vectorC = new Vector3$1().fromBufferAttribute(pos, indices[1]);
+            const vectorD = new Vector3$1().fromBufferAttribute(pos, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        else {
+            const pos1 = lineA.geometry.getAttribute("position");
+            const pos2 = lineB.geometry.getAttribute("position");
+            const vectorA = new Vector3$1().fromBufferAttribute(pos1, indices[0]);
+            const vectorB = new Vector3$1().fromBufferAttribute(pos1, indices[0] + 1);
+            const vectorC = new Vector3$1().fromBufferAttribute(pos2, indices[1]);
+            const vectorD = new Vector3$1().fromBufferAttribute(pos2, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        this.afterUpdate.trigger(this);
+    }
+    findIntersection(p1, p2, p3, p4) {
+        const line1Dir = p2.sub(p1);
+        const line2Dir = p4.sub(p3);
+        const lineDirCross = new Vector3$1().crossVectors(line1Dir, line2Dir);
+        const denominator = lineDirCross.lengthSq();
+        if (denominator === 0) {
+            return null;
+        }
+        const lineToPoint = p3.sub(p1);
+        const lineToPointCross = new Vector3$1().crossVectors(lineDirCross, lineToPoint);
+        const t1 = lineToPointCross.dot(line2Dir) / denominator;
+        const intersectionPoint = new Vector3$1().addVectors(p1, line1Dir.multiplyScalar(t1));
+        return intersectionPoint;
+    }
+    updateMarker() {
+        var _a;
+        this._marker.visible = !!this._pickedPoint;
+        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
+    }
+    get() {
+        return this._pickedPoint;
+    }
+}
+
+class VertexPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    constructor(components, config) {
+        var _a;
+        super();
+        this.name = "VertexPicker";
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this._pickedPoint = null;
+        this._enabled = false;
+        this._workingPlane = null;
+        this._components = components;
+        this.config = {
+            snapDistance: 0.25,
+            showOnlyVertex: false,
+            ...config,
+        };
+        this._marker = new Simple2DMarker(components, this.config.previewElement);
+        this._marker.visible = false;
+        (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
+        this.enabled = false;
+    }
+    set workingPlane(plane) {
+        this._workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._workingPlane;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    get config() {
+        return this._config;
+    }
+    get _raycaster() {
+        return this._components.raycaster;
+    }
+    update() {
+        if (!this.enabled)
+            return;
+        this.beforeUpdate.trigger(this);
+        const intersects = this._raycaster.castRay();
+        if (!intersects) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        const point = this.getClosestVertex(intersects);
+        if (!point) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        const isOnPlane = !this.workingPlane
+            ? true
+            : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
+        if (!isOnPlane) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+            return;
+        }
+        this._pickedPoint = point;
+        this._marker.visible = true;
+        this._marker
+            .get()
+            .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
+        this.afterUpdate.trigger(this);
+    }
+    getClosestVertex(intersects) {
+        let closestVertex = new THREE$1.Vector3();
+        let vertexFound = false;
+        let closestDistance = Number.MAX_SAFE_INTEGER;
+        const vertices = this.getVertices(intersects);
+        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
+            if (!vertex)
+                return;
+            const distance = intersects.point.distanceTo(vertex);
+            if (distance > closestDistance || distance > this._config.snapDistance)
+                return;
+            vertexFound = true;
+            closestVertex = vertex;
+            closestDistance = intersects.point.distanceTo(vertex);
+        });
+        if (vertexFound)
+            return closestVertex;
+        return this.config.showOnlyVertex ? null : intersects.point;
+    }
+    getVertices(intersects) {
+        const mesh = intersects.object;
+        if (!intersects.face || !mesh)
+            return null;
+        const geom = mesh.geometry;
+        return [
+            this.getVertex(intersects.face.a, geom),
+            this.getVertex(intersects.face.b, geom),
+            this.getVertex(intersects.face.c, geom),
+        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
+    }
+    getVertex(index, geom) {
+        if (index === undefined)
+            return null;
+        const vertices = geom.attributes.position;
+        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
+    }
+    dispose() {
+        this._marker.dispose();
+    }
+    get() {
+        return this._pickedPoint;
+    }
+}
+
+class GeometryVerticesMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        for (const marker of this._markers)
+            marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
+    constructor(components, geometry) {
+        super();
+        this.name = "GeometryVerticesMarker";
+        this.enabled = true;
+        this._markers = [];
+        this._visible = true;
+        const position = geometry.getAttribute("position");
+        for (let index = 0; index < position.count; index++) {
+            const marker = new Simple2DMarker(components);
+            marker
+                .get()
+                .position.set(position.getX(index), position.getY(index), position.getZ(index));
+            this._markers.push(marker);
+        }
+    }
+    dispose() {
+        for (const marker of this._markers)
+            marker.dispose();
+    }
+    get() {
+        return this._markers;
+    }
+}
+
 class IfcPropertiesUtils {
     static getUnits(properties) {
         var _a;
@@ -90996,6 +92687,16 @@ class IfcPropertiesUtils {
             return unitValue * factor;
         }
         return 1;
+    }
+    static findItemByGuid(properties, guid) {
+        var _a;
+        for (const id in properties) {
+            const property = properties[id];
+            if (((_a = property.GlobalId) === null || _a === void 0 ? void 0 : _a.value) === guid) {
+                return property;
+            }
+        }
+        return null;
     }
     static findItemOfType(properties, type) {
         for (const id in properties) {
@@ -91098,6 +92799,16 @@ class IfcPropertiesUtils {
         const key = (_a = Object.keys(quantity).find((key) => key.endsWith("Value"))) !== null && _a !== void 0 ? _a : null;
         const value = key ? quantity[key].value : null;
         return { key, value };
+    }
+    static isRel(expressID) {
+        const entityName = IfcCategoryMap[expressID];
+        return entityName.startsWith("IFCREL");
+    }
+    static attributeExists(properties, expressID, attribute) {
+        const entity = properties[expressID];
+        if (!entity)
+            return false;
+        return Object.keys(properties[expressID]).includes(attribute);
     }
 }
 
@@ -91503,7 +93214,7 @@ class NewProp extends SimpleUIComponent {
         this.cancelButton.onclick = () => {
             this.nameInput.clear();
             this.valueInput.clear();
-            this.typeInput.clear();
+            // this.typeInput.clear();
             this.visible = false;
         };
         const buttonsStack = new UIComponentsStack(components, "Horizontal");
@@ -91538,7 +93249,7 @@ class NewPset extends SimpleUIComponent {
         existingPsetContainer.get().classList.add("w-full");
         const existingPsets = new Dropdown(components);
         existingPsets.addOption("My custom pset");
-        existingPsets.labelElement.textContent = "Property set";
+        existingPsets.label = "Property set";
         existingPsetContainer.addChild(existingPsets);
         // #endregion
         // #region Bottom Stack
@@ -91628,6 +93339,7 @@ class PropertyTag extends SimpleUIComponent {
 }
 
 class IfcPropertiesProcessor extends Component {
+    // private _entityUIPool: UIPool<TreeView>;
     set propertiesManager(manager) {
         if (!this._propertiesManager && manager) {
             manager.onElementToPset.on(({ model, psetID, elementID }) => {
@@ -91655,13 +93367,12 @@ class IfcPropertiesProcessor extends Component {
             IFCRELASSIGNSTOGROUP,
         ];
         this.entitiesToIgnore = [IFCOWNERHISTORY, IFCMATERIALLAYERSETUSAGE];
-        this.attributesToIgnore = ["CompositionType"];
+        this.attributesToIgnore = ["CompositionType", "Representation", "ObjectPlacement"];
         this._indexMap = {};
         this._renderFunctions = {};
-        // @ts-ignore
-        this._uiList = {};
         this._propertiesManager = null;
         this._components = components;
+        // this._entityUIPool = new UIPool(this._components, TreeView);
         this._propsList = new UIComponentsStack(this._components, "Vertical");
         this._editInput = new EditProp(this._components);
         this._editInput.visible = false;
@@ -91679,6 +93390,12 @@ class IfcPropertiesProcessor extends Component {
         this._components.ui.add(this._editContainer);
         this._editContainer.get().classList.add("absolute", "top-5", "left-5");
         this._editContainer.addChild(this._editInput, this._newInput, this._newPsetInput);
+        this.uiElement = {
+            main: new Button(components, {
+                materialIconName: "list",
+            }),
+            propertiesWindow: new FloatingWindow(components),
+        };
         this.setUI();
         this._renderFunctions = {
             0: (model, expressID) => this.newEntityUI(model, expressID),
@@ -91687,18 +93404,15 @@ class IfcPropertiesProcessor extends Component {
         };
     }
     setUI() {
-        const container = new FloatingWindow(this._components);
-        this._components.ui.add(container);
-        container.title = "Properties List";
-        container.visible = false;
-        container.addChild(this._propsList);
-        const showButton = new Button(this._components, {
-            materialIconName: "list",
-        });
-        showButton.onclick = () => {
-            container.visible = !container.visible;
+        this._components.ui.add(this.uiElement.propertiesWindow);
+        this.uiElement.propertiesWindow.title = "Element Properties";
+        this.uiElement.propertiesWindow.visible = false;
+        this.uiElement.propertiesWindow.addChild(this._propsList);
+        this.uiElement.main.onclick = () => {
+            this.uiElement.propertiesWindow.visible =
+                !this.uiElement.propertiesWindow.visible;
         };
-        this._editContainerPopper = createPopper(container.get(), this._editContainer.get(), {
+        this._editContainerPopper = createPopper$1(this.uiElement.propertiesWindow.get(), this._editContainer.get(), {
             modifiers: [
                 {
                     name: "offset",
@@ -91711,16 +93425,22 @@ class IfcPropertiesProcessor extends Component {
             ],
         });
         this._editContainerPopper.setOptions({ placement: "right" });
-        container.onMoved.on(() => this._editContainerPopper.update());
-        container.onResized.on(() => this._editContainerPopper.update());
-        container.onHidden.on(() => (this._editInput.visible = false));
-        container.onVisible.on(() => (showButton.active = true));
-        container.onHidden.on(() => (showButton.active = false));
-        this.uiElement = { container, showButton };
+        this.uiElement.propertiesWindow.onMoved.on(() => this._editContainerPopper.update());
+        this.uiElement.propertiesWindow.onResized.on(() => this._editContainerPopper.update());
+        this.uiElement.propertiesWindow.onHidden.on(() => (this._editInput.visible = false));
+        this.uiElement.propertiesWindow.onVisible.on(() => (this.uiElement.main.active = true));
+        this.uiElement.propertiesWindow.onHidden.on(() => (this.uiElement.main.active = false));
     }
     cleanPropertiesList() {
         this._propsList.dispose(true);
-        this.uiElement.container.description = null;
+        // for (const child of this._propsList.children) {
+        //   if (child instanceof TreeView) {
+        //     this._entityUIPool.return(child);
+        //     continue;
+        //   }
+        //   child.dispose();
+        // }
+        this.uiElement.propertiesWindow.description = null;
         this._editContainer.visible = false;
         this._propsList.children = [];
     }
@@ -91754,7 +93474,7 @@ class IfcPropertiesProcessor extends Component {
         if (!ui)
             return;
         const { name } = IfcPropertiesUtils.getEntityName(model.properties, expressID);
-        this.uiElement.container.description = name;
+        this.uiElement.propertiesWindow.description = name;
         this._propsList.addChild(...[ui].flat());
     }
     newEntityUI(model, expressID) {
@@ -91808,6 +93528,7 @@ class IfcPropertiesProcessor extends Component {
         if (!entityAttributes)
             return [];
         const attributesGroup = new TreeView(this._components, "ATTRIBUTES");
+        // const attributesGroup = this._entityUIPool.get();
         attributesGroup.onExpand.on(() => {
             const { uiProcessed } = attributesGroup.data;
             if (uiProcessed)
@@ -91935,7 +93656,9 @@ class IfcPropertiesProcessor extends Component {
         const entity = properties[expressID];
         if (!entity)
             return null;
-        const entityTree = new TreeView(this._components, `${IfcCategoryMap[entity.type]}`);
+        const entityTree = new TreeView(this._components);
+        // const entityTree = this._entityUIPool.get();
+        entityTree.titleElement.title = `${IfcCategoryMap[entity.type]}`;
         const { name } = IfcPropertiesUtils.getEntityName(properties, expressID);
         entityTree.titleElement.description = name;
         return entityTree;
@@ -91963,6 +93686,465 @@ class IfcPropertiesProcessor extends Component {
         };
         // #endregion ManagementUI
         return tag;
+    }
+}
+
+class AttributeQueryUI extends SimpleUIComponent {
+    // Is ok to use Type Assertion in this case?
+    get query() {
+        const attribute = this.attribute.inputValue;
+        const condition = this.condition.inputValue;
+        const value = attribute === "type"
+            ? this.getTypeConstant(this.ifcTypes.inputValue)
+            : this.value.inputValue;
+        const query = { attribute, condition, value };
+        if (this.operator.visible)
+            query.operator = this.operator.inputValue;
+        return query;
+    }
+    set query(value) {
+        if (value.operator)
+            this.operator.inputValue = value.operator;
+        this.attribute.inputValue = value.attribute;
+        this.condition.inputValue = value.condition;
+        if (value.attribute === "type") {
+            this.value.inputValue = null;
+            this.ifcTypes.inputValue = value.value.toString();
+        }
+        else {
+            this.ifcTypes.inputValue = null;
+            this.value.inputValue = value.value;
+        }
+    }
+    getTypeConstant(value) {
+        for (const [key, val] of Object.entries(IfcCategoryMap)) {
+            if (val === value)
+                return Number(key);
+        }
+        return null;
+    }
+    constructor(components) {
+        const div = document.createElement("div");
+        div.className = "flex gap-x-2";
+        super(components, div);
+        this.operator = new Dropdown(components);
+        this.operator.visible = false;
+        this.operator.label = "Operator";
+        this.operator.get().style.width = "300px";
+        this.operator.addOption("AND", "OR");
+        this.attribute = new Dropdown(components);
+        this.attribute.label = "Attribute";
+        this.attribute.addOption("type", "Name", "PredefinedType", "NominalValue", "Description");
+        this.attribute.onChange.on((selection) => {
+            const attributeIsType = selection === "type";
+            this.value.visible = !attributeIsType;
+            this.ifcTypes.visible = attributeIsType;
+        });
+        this.condition = new Dropdown(components);
+        this.condition.label = "Condition";
+        this.condition.addOption("is", "includes", "startsWith", "endsWith", "matches");
+        this.condition.inputValue = this.condition.options[0];
+        this.value = new TextInput(components);
+        this.value.labelElement.textContent = "Value";
+        this.ifcTypes = new Dropdown(components);
+        this.ifcTypes.visible = false;
+        this.ifcTypes.label = "Value";
+        for (const type of Object.values(IfcCategoryMap)) {
+            this.ifcTypes.addOption(type);
+        }
+        this.ifcTypes.inputValue = "IFCWALL";
+        this.removeBtn = new Button(components, { materialIconName: "remove" });
+        this.removeBtn.visible = false;
+        this.removeBtn.get().classList.remove("mt-auto", "hover:bg-ifcjs-200");
+        this.removeBtn.get().classList.add("mt-auto", "mb-2", "hover:bg-error");
+        this.removeBtn.onclick = () => {
+            if (this.parent instanceof SimpleUIComponent)
+                this.parent.removeChild(this);
+            this.dispose();
+        };
+        this.addChild(this.operator, this.attribute, this.condition, this.value, this.ifcTypes, this.removeBtn);
+        this.attribute.inputValue = "Name";
+    }
+}
+
+class QueryGroupUI extends SimpleUIComponent {
+    get query() {
+        const queriesMap = this.children.map((child) => {
+            if (!(child instanceof AttributeQueryUI))
+                return null;
+            return child.query;
+        });
+        const queries = queriesMap.filter((query) => query !== null);
+        const query = { queries };
+        if (this.operator.visible)
+            query.operator = this.operator.inputValue;
+        return query;
+    }
+    set query(value) {
+        if (value.operator)
+            this.operator.inputValue = value.operator;
+        for (const child of this.children) {
+            if (!(child instanceof AttributeQueryUI))
+                continue;
+            this.removeChild(child);
+            child.dispose();
+        }
+        for (const [index, query] of value.queries.entries()) {
+            // @ts-ignore
+            if (!query.condition)
+                continue;
+            const attributeQuery = query;
+            if (index === 0 && attributeQuery.operator)
+                delete attributeQuery.operator;
+            const attributeQueryUI = new AttributeQueryUI(this._components);
+            attributeQueryUI.query = attributeQuery;
+            this.addChild(attributeQueryUI);
+        }
+    }
+    constructor(components) {
+        const div = document.createElement("div");
+        div.className =
+            "flex flex-col gap-y-3 p-3 border border-solid border-ifcjs-120 rounded-md";
+        super(components, div);
+        this.operator = new Dropdown(components);
+        this.operator.visible = false;
+        this.operator.label = null;
+        this.operator.addOption("AND", "OR");
+        const topContainerDiv = document.createElement("div");
+        const topContainer = new SimpleUIComponent(components, topContainerDiv);
+        topContainer.get().classList.add("flex", "gap-x-2", "w-fit", "ml-auto");
+        const newRuleBtn = new Button(components, { materialIconName: "add" });
+        newRuleBtn.get().classList.add("w-fit");
+        newRuleBtn.label = "Add Rule";
+        newRuleBtn.onclick = () => {
+            const propertyQuery = new AttributeQueryUI(components);
+            propertyQuery.operator.visible = true;
+            propertyQuery.operator.inputValue = propertyQuery.operator.options[0];
+            propertyQuery.removeBtn.visible = true;
+            this.addChild(propertyQuery);
+        };
+        const newGroupBtn = new Button(components, { materialIconName: "add" });
+        newGroupBtn.get().classList.add("w-fit");
+        newGroupBtn.label = "Add Group";
+        this.removeBtn = new Button(components, { materialIconName: "delete" });
+        this.removeBtn.label = "Delete Group";
+        this.removeBtn.visible = false;
+        this.removeBtn.onclick = () => {
+            if (this.parent instanceof SimpleUIComponent)
+                this.parent.removeChild(this);
+            this.dispose();
+        };
+        topContainer.addChild(newRuleBtn, this.removeBtn);
+        const propertyQuery = new AttributeQueryUI(components);
+        this.addChild(topContainer, this.operator, propertyQuery);
+    }
+}
+
+class QueryBuilder extends SimpleUIComponent {
+    get query() {
+        const queriesMap = this.children.map((child) => {
+            if (!(child instanceof QueryGroupUI))
+                return null;
+            return child.query;
+        });
+        const query = queriesMap.filter((query) => query !== null);
+        return query;
+    }
+    set query(value) {
+        for (const child of this.children) {
+            if (!(child instanceof QueryGroupUI))
+                continue;
+            this.removeChild(child);
+            child.dispose();
+        }
+        for (const [index, group] of value.entries()) {
+            if (index === 0 && group.operator)
+                delete group.operator;
+            const attributeQueryUI = new QueryGroupUI(this._components);
+            attributeQueryUI.query = group;
+            this.addChild(attributeQueryUI);
+        }
+        this.onQuerySet.trigger(value);
+    }
+    constructor(components) {
+        const div = document.createElement("div");
+        div.className = "flex-col gap-y-3 flex";
+        super(components, div);
+        this.onQuerySet = new Event();
+        this.findButton = new Button(this._components, {
+            materialIconName: "search",
+        });
+        this.findButton.label = "Find";
+        this.findButton.alignment = "center";
+        this.findButton
+            .get()
+            .classList.add("border", "border-solid", "border-ifcjs-120", "hover:border-ifcjs-200");
+        this.findButton.onclick = () => {
+            this.findButton.onClicked.trigger(this.query);
+        };
+        const topContainerDiv = document.createElement("div");
+        const topContainer = new SimpleUIComponent(this._components, topContainerDiv);
+        topContainer.get().classList.add("flex", "gap-x-2", "w-fit", "ml-auto");
+        const newGroupBtn = new Button(this._components, {
+            materialIconName: "add",
+        });
+        newGroupBtn.get().classList.add("w-fit");
+        newGroupBtn.label = "Add Group";
+        newGroupBtn.onclick = () => {
+            const queryGroup = new QueryGroupUI(this._components);
+            queryGroup.operator.visible = true;
+            queryGroup.operator.inputValue = queryGroup.operator.options[0];
+            queryGroup.removeBtn.visible = true;
+            this.addChild(queryGroup);
+            this.get().append(this.findButton.get());
+        };
+        const resetBtn = new Button(this._components, {
+            materialIconName: "refresh",
+        });
+        resetBtn.label = "Reset";
+        topContainer.addChild(newGroupBtn);
+        const queryEditor = new QueryGroupUI(this._components);
+        this.addChild(topContainer, queryEditor, this.findButton);
+        // this.query = [
+        //   {
+        //     queries: [
+        //       { attribute: "Name", condition: "includes", value: "Acabado" },
+        //       {
+        //         operator: "AND",
+        //         attribute: "PredefinedType",
+        //         condition: "is",
+        //         value: "FLOOR",
+        //       },
+        //     ],
+        //   },
+        // ];
+    }
+}
+
+class IfcPropertiesFinder extends Component {
+    constructor(components, fragmentManager) {
+        super();
+        this.name = "IfcPropertiesFinder";
+        this.enabled = true;
+        this._indexedModels = {};
+        this._noHandleAttributes = ["type"];
+        this.onFound = new Event();
+        this._components = components;
+        this._fragmentManager = fragmentManager;
+        this.uiElement = {
+            main: new Button(components, {
+                materialIconName: "manage_search",
+            }),
+            queryWindow: new FloatingWindow(components),
+        };
+        this.setUI();
+        this._conditionFunctions = {
+            is: (leftValue, rightValue) => {
+                return leftValue === rightValue;
+            },
+            includes: (leftValue, rightValue) => {
+                return leftValue.toString().includes(rightValue.toString());
+            },
+            startsWith: (leftValue, rightValue) => {
+                return leftValue.toString().startsWith(rightValue.toString());
+            },
+            endsWith: (leftValue, rightValue) => {
+                return leftValue.toString().endsWith(rightValue.toString());
+            },
+            matches: (leftValue, rightValue) => {
+                const regex = new RegExp(rightValue.toString());
+                return regex.test(leftValue.toString());
+            },
+        };
+    }
+    setUI() {
+        const mainButton = this.uiElement.main;
+        this.uiElement.queryWindow = new FloatingWindow(this._components);
+        this._components.ui.add(this.uiElement.queryWindow);
+        this.uiElement.queryWindow.get().classList.add("overflow-visible");
+        this.uiElement.queryWindow.get().style.width = "500px";
+        this.uiElement.queryWindow.visible = false;
+        this.uiElement.queryWindow.resizeable = false;
+        this.uiElement.queryWindow.title = "Model Queries";
+        mainButton.onclick = () => (this.uiElement.queryWindow.visible =
+            !this.uiElement.queryWindow.visible);
+        this.uiElement.queryWindow.onVisible.on(() => (mainButton.active = true));
+        this.uiElement.queryWindow.onHidden.on(() => (mainButton.active = false));
+        const query = new QueryBuilder(this._components);
+        query.findButton.onClicked.on((query) => {
+            const model = this._fragmentManager.groups[0];
+            if (!model)
+                return;
+            this.find(model, query);
+        });
+        this.uiElement.queryWindow.addChild(query);
+    }
+    indexEntityRelations(model) {
+        const map = {};
+        IfcPropertiesUtils.getRelationMap(model.properties, IFCRELDEFINESBYPROPERTIES, (relatingID, relatedIDs) => {
+            if (!map[relatingID])
+                map[relatingID] = new Set();
+            const props = [];
+            IfcPropertiesUtils.getPsetProps(model.properties, relatingID, (propID) => {
+                props.push(propID);
+                map[relatingID].add(propID);
+                if (!map[propID])
+                    map[propID] = new Set();
+                map[propID].add(relatingID);
+            });
+            for (const relatedID of relatedIDs) {
+                map[relatingID].add(relatedID);
+                for (const propID of props)
+                    map[propID].add(relatedID);
+                // if (!map[relatedID]) map[relatedID] = [];
+                // map[relatedID].add(relatingID, ...props);
+                if (!map[relatedID])
+                    map[relatedID] = new Set();
+                map[relatedID].add(relatedID);
+            }
+        });
+        const ifcRelations = [
+            IFCRELCONTAINEDINSPATIALSTRUCTURE,
+            IFCRELDEFINESBYTYPE,
+            IFCRELASSIGNSTOGROUP,
+        ];
+        for (const relation of ifcRelations) {
+            IfcPropertiesUtils.getRelationMap(model.properties, relation, (relatingID, relatedIDs) => {
+                if (!map[relatingID])
+                    map[relatingID] = new Set();
+                for (const relatedID of relatedIDs) {
+                    map[relatingID].add(relatedID);
+                    // if (!map[relatedID]) map[relatedID] = [];
+                    // map[relatedID].add(relatingID);
+                    if (!map[relatedID])
+                        map[relatedID] = new Set();
+                    map[relatedID].add(relatedID);
+                }
+            });
+        }
+        this._indexedModels[model.uuid] = map;
+        return map;
+    }
+    find(model, queryGroups) {
+        let map = this._indexedModels[model.uuid];
+        if (!map)
+            map = this.indexEntityRelations(model);
+        let relations = [];
+        for (const [index, group] of queryGroups.entries()) {
+            const groupResult = this.simpleQuery(model, group);
+            const groupRelations = [];
+            for (const expressID of groupResult) {
+                const relations = map[expressID];
+                if (!relations)
+                    continue;
+                groupRelations.push(...relations, expressID);
+            }
+            relations =
+                group.operator === "AND" && index > 0
+                    ? this.getCommonElements(relations, groupRelations)
+                    : [...relations, ...groupRelations];
+        }
+        const result = { [model.uuid]: new Set(relations) };
+        const categoriesMap = {};
+        result[model.uuid].forEach((r) => {
+            const entity = model.properties[r];
+            if (!entity)
+                return;
+            const entityName = IfcCategoryMap[entity.type];
+            if (!categoriesMap[entityName])
+                categoriesMap[entityName] = [];
+            categoriesMap[entityName].push(r);
+        });
+        console.log(categoriesMap);
+        this.onFound.trigger(result);
+        return result;
+    }
+    simpleQuery(model, queryGroup) {
+        var _a;
+        const properties = model.properties;
+        if (!properties)
+            throw new Error("Model has no properties");
+        let filteredProps = {};
+        let iterations = 0;
+        let matchingEntities = [];
+        for (const query of queryGroup.queries) {
+            let queryResult = [];
+            const workingProps = query.operator === "AND" ? filteredProps : properties;
+            const isAttributeQuery = query.condition; // Is there a better way?
+            if (isAttributeQuery) {
+                const matchingResult = this.getMatchingEntities(workingProps, query);
+                queryResult = matchingResult.expressIDs;
+                filteredProps = { ...filteredProps, ...matchingResult.entities };
+            }
+            else {
+                queryResult = [...this.simpleQuery(model, query)];
+            }
+            matchingEntities =
+                iterations === 0
+                    ? queryResult
+                    : this.combineArrays(matchingEntities, queryResult, (_a = query.operator) !== null && _a !== void 0 ? _a : "AND" // Defaults to AND if iterations > 0 and query.operator is not defined
+                    );
+            iterations++;
+        }
+        return new Set(matchingEntities);
+    }
+    getMatchingEntities(entities, query) {
+        const { attribute: attributeName, condition, value } = query;
+        const handleAttribute = !this._noHandleAttributes.includes(attributeName);
+        const expressIDs = [];
+        const matchingEntities = [];
+        for (const expressID in entities) {
+            const entity = entities[expressID];
+            const attribute = entity[attributeName];
+            const attributeValue = handleAttribute ? attribute === null || attribute === void 0 ? void 0 : attribute.value : attribute;
+            if (attributeValue === undefined || attributeValue === null)
+                continue;
+            let conditionMatches = this._conditionFunctions[condition](attributeValue, value);
+            if (query.negateResult)
+                conditionMatches = !conditionMatches;
+            if (!conditionMatches)
+                continue;
+            expressIDs.push(entity.expressID);
+            matchingEntities.push(entity);
+        }
+        return { expressIDs, entities: matchingEntities };
+    }
+    combineArrays(arrA, arrB, operator) {
+        if (!operator)
+            return arrB;
+        return operator === "AND"
+            ? this.arrayIntersection(arrA, arrB)
+            : this.arrayUnion(arrA, arrB);
+    }
+    getCommonElements(...lists) {
+        const result = [];
+        const elementsCount = new Map();
+        for (const list of lists) {
+            const uniqueElements = new Set(list);
+            for (const element of uniqueElements) {
+                if (elementsCount.has(element)) {
+                    elementsCount.set(element, elementsCount.get(element) + 1);
+                }
+                else {
+                    elementsCount.set(element, 1);
+                }
+            }
+        }
+        for (const [element, count] of elementsCount) {
+            if (count === lists.length) {
+                result.push(element);
+            }
+        }
+        return result;
+    }
+    arrayIntersection(arrA, arrB) {
+        return arrA.filter((x) => arrB.includes(x));
+    }
+    arrayUnion(arrA, arrB) {
+        return [...arrA, ...arrB];
+    }
+    get() {
+        throw new Error("Method not implemented.");
     }
 }
 
@@ -92789,7 +94971,7 @@ class FragmentTreeItem extends Component {
             const found = classifier.find(this.filter);
             this.selected.trigger(found);
         };
-        this.uiElement.onmouseover = () => {
+        this.uiElement.domElement.onmouseenter = () => {
             const found = classifier.find(this.filter);
             this.hovered.trigger(found);
         };
@@ -93025,12 +95207,27 @@ class FragmentClassifier extends Component {
             this.saveItem(group, "storeys", storeyName, expressID);
         }
     }
+    byIfcRel(group, ifcRel, systemName) {
+        const properties = group.properties;
+        if (!properties)
+            throw new Error("To group by IFC Rel, properties are needed");
+        if (!IfcPropertiesUtils.isRel(ifcRel))
+            return;
+        IfcPropertiesUtils.getRelationMap(properties, ifcRel, (relatingID, relatedIDs) => {
+            const { name: relatingName } = IfcPropertiesUtils.getEntityName(properties, relatingID);
+            for (const expressID of relatedIDs) {
+                this.saveItem(group, systemName, relatingName !== null && relatingName !== void 0 ? relatingName : "NO REL NAME", String(expressID));
+            }
+        });
+    }
     saveItem(group, systemName, className, expressID) {
         if (!this._groupSystems[systemName]) {
             this._groupSystems[systemName] = {};
         }
-        const keys = group.data[expressID][0];
-        for (const key of keys) {
+        const keys = group.data[expressID];
+        if (!keys)
+            return;
+        for (const key of keys[0]) {
             const fragmentID = group.keyFragments[key];
             if (fragmentID) {
                 const system = this._groupSystems[systemName];
@@ -99688,10 +101885,10 @@ class SelectionHandler extends Component {
             selectionMaterial: (_b = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _b !== void 0 ? _b : new THREE$1.MeshBasicMaterial({
                 color: "#BCF124",
                 transparent: true,
-                opacity: 0.6,
+                opacity: 0.85,
                 depthTest: true,
             }),
-            highlightName: (_c = config === null || config === void 0 ? void 0 : config.highlightName) !== null && _c !== void 0 ? _c : "highlight",
+            highlightName: (_c = config === null || config === void 0 ? void 0 : config.highlightName) !== null && _c !== void 0 ? _c : "hover",
             highlightMaterial: (_d = config === null || config === void 0 ? void 0 : config.highlightMaterial) !== null && _d !== void 0 ? _d : new THREE$1.MeshBasicMaterial({
                 color: "#6528D7",
                 transparent: true,
@@ -101971,4 +104168,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, UIPool, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
