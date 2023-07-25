@@ -92781,23 +92781,25 @@ class FragmentClassifier extends Component {
         const size = Object.keys(filter).length;
         const models = {};
         for (const name in filter) {
-            const value = filter[name];
+            const values = filter[name];
             if (!this._groupSystems[name]) {
                 console.warn(`Classification ${name} does not exist.`);
                 continue;
             }
-            const found = this._groupSystems[name][value];
-            if (found) {
-                for (const guid in found) {
-                    if (!models[guid]) {
-                        models[guid] = {};
-                    }
-                    for (const id of found[guid]) {
-                        if (!models[guid][id]) {
-                            models[guid][id] = 1;
+            for (const value of values) {
+                const found = this._groupSystems[name][value];
+                if (found) {
+                    for (const guid in found) {
+                        if (!models[guid]) {
+                            models[guid] = {};
                         }
-                        else {
-                            models[guid][id]++;
+                        for (const id of found[guid]) {
+                            if (!models[guid][id]) {
+                                models[guid][id] = 1;
+                            }
+                            else {
+                                models[guid][id]++;
+                            }
                         }
                     }
                 }
@@ -95268,13 +95270,22 @@ class ClippingFills {
         this.mesh = new Mesh(new THREE$1.BufferGeometry());
         this._precission = 10000;
         this._tempVector = new THREE$1.Vector3();
-        this._coordinateSystem = new THREE$1.Matrix4();
+        // Used to work in the 2D coordinate system of the plane
+        this._plane2DCoordinateSystem = new THREE$1.Matrix4();
         this._components = components;
         this.mesh.material = material;
         this.mesh.frustumCulled = false;
         this._plane = plane;
-        const vertical = plane.normal.y;
-        this._isPlaneHorizontal = vertical === 1 || vertical === -1;
+        const { x, y, z } = plane.normal;
+        if (Math.abs(x) === 1) {
+            this._planeAxis = "x";
+        }
+        else if (Math.abs(y) === 1) {
+            this._planeAxis = "y";
+        }
+        else if (Math.abs(z) === 1) {
+            this._planeAxis = "z";
+        }
         this._geometry = geometry;
         this.mesh.geometry.attributes.position = geometry.attributes.position;
         // To prevent clipping plane overlapping the filling mesh
@@ -95294,7 +95305,7 @@ class ClippingFills {
         const buffer = this._geometry.attributes.position.array;
         if (!buffer)
             return;
-        this.updateCoordinateSystem();
+        this.updatePlane2DCoordinateSystem();
         const allIndices = [];
         let start = 0;
         for (let i = 0; i < elements.length; i++) {
@@ -95346,22 +95357,14 @@ class ClippingFills {
             const globalX2 = buffer[startVertexIndex + 3];
             const globalY2 = buffer[startVertexIndex + 4];
             const globalZ2 = buffer[startVertexIndex + 5];
-            if (this._isPlaneHorizontal) {
-                x1 = Math.trunc(globalX1 * p) / p;
-                y1 = Math.trunc(globalZ1 * p) / p;
-                x2 = Math.trunc(globalX2 * p) / p;
-                y2 = Math.trunc(globalZ2 * p) / p;
-            }
-            else {
-                this._tempVector.set(globalX1, globalY1, globalZ1);
-                this._tempVector.applyMatrix4(this._coordinateSystem);
-                x1 = Math.trunc(this._tempVector.x * p) / p;
-                y1 = Math.trunc(this._tempVector.y * p) / p;
-                this._tempVector.set(globalX2, globalY2, globalZ2);
-                this._tempVector.applyMatrix4(this._coordinateSystem);
-                x2 = Math.trunc(this._tempVector.x * p) / p;
-                y2 = Math.trunc(this._tempVector.y * p) / p;
-            }
+            this._tempVector.set(globalX1, globalY1, globalZ1);
+            this._tempVector.applyMatrix4(this._plane2DCoordinateSystem);
+            x1 = Math.trunc(this._tempVector.x * p) / p;
+            y1 = Math.trunc(this._tempVector.y * p) / p;
+            this._tempVector.set(globalX2, globalY2, globalZ2);
+            this._tempVector.applyMatrix4(this._plane2DCoordinateSystem);
+            x2 = Math.trunc(this._tempVector.x * p) / p;
+            y2 = Math.trunc(this._tempVector.y * p) / p;
             const startCode = `${x1}|${y1}`;
             const endCode = `${x2}|${y2}`;
             if (!indices.has(startCode)) {
@@ -95549,28 +95552,34 @@ class ClippingFills {
         }
         return trueIndices;
     }
-    updateCoordinateSystem() {
-        this._coordinateSystem = new THREE$1.Matrix4();
+    updatePlane2DCoordinateSystem() {
+        // Assuming the normal of the plane is called Z
+        this._plane2DCoordinateSystem = new THREE$1.Matrix4();
+        const xAxis = new THREE$1.Vector3(1, 0, 0);
+        const yAxis = new THREE$1.Vector3(0, 1, 0);
         const zAxis = this._plane.normal;
-        // First, let's convert the 3d points to 2d to simplify
-        // if z is up or down, we can just ignore it
-        if (this._isPlaneHorizontal) {
-            const pos = new THREE$1.Vector3();
-            this._plane.coplanarPoint(pos);
-            const xAxis = new THREE$1.Vector3(1, 0, 0);
-            const yAxis = new THREE$1.Vector3(0, 1, 0);
-            const up = new THREE$1.Vector3(0, 1, 0);
-            xAxis.crossVectors(up, zAxis).normalize();
-            yAxis.crossVectors(zAxis, xAxis);
-            // prettier-ignore
-            this._coordinateSystem.fromArray([
-                xAxis.x, xAxis.y, xAxis.z, 0,
-                yAxis.x, yAxis.y, yAxis.z, 0,
-                zAxis.x, zAxis.y, zAxis.z, 0,
-                pos.x, pos.y, pos.z, 1,
-            ]);
-            this._coordinateSystem.invert();
+        const pos = new THREE$1.Vector3();
+        this._plane.coplanarPoint(pos);
+        if (this._planeAxis === "x") {
+            xAxis.crossVectors(yAxis, zAxis);
         }
+        else if (this._planeAxis === "y") {
+            yAxis.crossVectors(zAxis, xAxis);
+        }
+        else if (this._planeAxis === "z") ;
+        else {
+            // Non-orthogonal to cardinal axis
+            xAxis.crossVectors(yAxis, zAxis).normalize();
+            yAxis.crossVectors(zAxis, xAxis);
+        }
+        // prettier-ignore
+        this._plane2DCoordinateSystem.fromArray([
+            xAxis.x, xAxis.y, xAxis.z, 0,
+            yAxis.x, yAxis.y, yAxis.z, 0,
+            zAxis.x, zAxis.y, zAxis.z, 0,
+            pos.x, pos.y, pos.z, 1,
+        ]);
+        this._plane2DCoordinateSystem.invert();
     }
 }
 
@@ -95631,10 +95640,7 @@ class ClippingEdges extends Component {
         for (const style of styles) {
             this.drawEdges(style.name);
         }
-    }
-    updateFills() {
-        this.fillNeedsUpdate = true;
-        this.update();
+        this.fillNeedsUpdate = false;
     }
     /** {@link Component.get} */
     get() {
@@ -95742,7 +95748,6 @@ class ClippingEdges extends Component {
             scene.add(edges.mesh);
             if (this.fillNeedsUpdate && edges.fill) {
                 edges.fill.update(indexes, this.blockByIndex);
-                this.fillNeedsUpdate = false;
             }
         }
     }
@@ -95763,14 +95768,15 @@ class ClippingEdges extends Component {
                 // Exclude triangles of fragment items that don't belong to this style
                 if (isMultiblockFragment && style.fragments) {
                     const fMesh = mesh;
-                    const ids = style.fragments[mesh.id];
-                    if (ids !== undefined) {
-                        const index = fMesh.geometry.index.array[triangleIndex * 3];
-                        const blockID = fMesh.geometry.attributes.blockID.array[index];
-                        const id = fMesh.fragment.getItemID(0, blockID);
-                        if (!ids.has(id)) {
-                            return;
-                        }
+                    const ids = style.fragments[fMesh.fragment.id];
+                    if (ids === undefined) {
+                        return;
+                    }
+                    const index = fMesh.geometry.index.array[triangleIndex * 3];
+                    const blockID = fMesh.geometry.attributes.blockID.array[index];
+                    const id = fMesh.fragment.getItemID(0, blockID);
+                    if (!ids.has(id)) {
+                        return;
                     }
                 }
                 // check each triangle edge to see if it intersects with the plane. If so then
@@ -95867,7 +95873,8 @@ class EdgesPlane extends SimplePlane {
             this.edges.fillVisible = false;
         };
         this.updateFill = () => {
-            this.edges.updateFills();
+            this.edges.fillNeedsUpdate = true;
+            this.edges.update();
             this.edges.fillVisible = true;
         };
         this.edges = new ClippingEdges(components, this._plane, styles);
