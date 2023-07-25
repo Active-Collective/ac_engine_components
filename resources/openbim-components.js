@@ -94522,6 +94522,8 @@ class IfcFragmentSettings {
             path: "",
             absolute: false,
         };
+        /** Whether to save the absolute location of all IFC items. */
+        this.saveLocations = false;
         /** Loader settings for [web-ifc](https://github.com/ifcjs/web-ifc). */
         this.webIfc = {
             COORDINATE_TO_ORIGIN: true,
@@ -94744,7 +94746,9 @@ class DataConverter {
 
 class GeometryReader {
     constructor() {
+        this.saveLocations = false;
         this.items = {};
+        this.locations = {};
     }
     get webIfc() {
         if (!this._webIfc) {
@@ -94754,14 +94758,24 @@ class GeometryReader {
     }
     cleanUp() {
         this.items = {};
+        this.locations = {};
         this._webIfc = null;
     }
     streamMesh(webifc, mesh, forceTransparent = false) {
         this._webIfc = webifc;
         const size = mesh.geometries.size();
+        const totalTransform = new THREE$1.Vector3();
+        const tempMatrix = new THREE$1.Matrix4();
+        const tempVector = new THREE$1.Vector3();
         for (let i = 0; i < size; i++) {
             const geometry = mesh.geometries.get(i);
             const geometryID = geometry.geometryExpressID;
+            if (this.saveLocations) {
+                tempVector.set(0, 0, 0);
+                tempMatrix.fromArray(geometry.flatTransformation);
+                tempVector.applyMatrix4(tempMatrix);
+                totalTransform.add(tempVector);
+            }
             // Transparent geometries need to be separated
             const isColorTransparent = geometry.color.w !== 1;
             const isTransparent = isColorTransparent || forceTransparent;
@@ -94780,6 +94794,10 @@ class GeometryReader {
                 matrix: geometry.flatTransformation,
                 expressID: mesh.expressID,
             });
+        }
+        if (this.saveLocations) {
+            const { x, y, z } = totalTransform.divideScalar(size);
+            this.locations[mesh.expressID] = [x, y, z];
         }
     }
     newBufferGeometry(geometryID) {
@@ -94834,6 +94852,7 @@ class FragmentIfcLoader extends Component {
         this.name = "FragmentIfcLoader";
         this.enabled = true;
         this.ifcLoaded = new Event();
+        this.locationsSaved = new Event();
         this._webIfc = new IfcAPI2();
         this._geometry = new GeometryReader();
         this._converter = new DataConverter();
@@ -94862,11 +94881,17 @@ class FragmentIfcLoader extends Component {
     }
     /** Loads the IFC file and converts it to a set of fragments. */
     async load(data) {
+        if (this.settings.saveLocations) {
+            this._geometry.saveLocations = true;
+        }
         const before = performance.now();
         await this.readIfcFile(data);
         await this.readAllGeometries();
         const items = this._geometry.items;
         const model = await this._converter.generate(this._webIfc, items);
+        if (this.settings.saveLocations) {
+            this.locationsSaved.trigger(this._geometry.locations);
+        }
         this.cleanUp();
         this._fragments.groups.push(model);
         for (const fragment of model.items) {
