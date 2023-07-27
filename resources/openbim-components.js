@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EdgesGeometry, InstancedBufferGeometry, LineSegments, InstancedBufferAttribute, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, OrthographicCamera, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, UniformsLib, ShaderLib, UniformsUtils, ShaderMaterial, OrthographicCamera, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -92646,8 +92646,9 @@ class FragmentHighlighter extends Component {
         for (const name in this.highlightMats) {
             if (!fragment.fragments[name]) {
                 const material = this.highlightMats[name];
-                fragment.addFragment(name, material);
-                fragment.fragments[name].mesh.renderOrder = 1;
+                const subFragment = fragment.addFragment(name, material);
+                subFragment.mesh.renderOrder = 2;
+                subFragment.mesh.frustumCulled = false;
             }
         }
     }
@@ -92966,150 +92967,6 @@ class FragmentHider extends Component {
                 culled.count = fragment.mesh.count;
             }
         }
-    }
-}
-
-// TODO: Clean up and document
-// TODO: Decouple from fragments?
-class FragmentEdges extends Component {
-    get visible() {
-        return this._visible;
-    }
-    set visible(active) {
-        this._visible = active;
-        const scene = this._components.scene.get();
-        for (const id in this._list) {
-            const edge = this._list[id];
-            if (active) {
-                scene.add(edge);
-            }
-            else {
-                edge.removeFromParent();
-            }
-        }
-    }
-    constructor(components, culler) {
-        super();
-        this.edgesToUpdate = new Set();
-        this.threshold = 80;
-        this.enabled = true;
-        this.name = "FragmentEdges";
-        this._visible = true;
-        this._list = {};
-        this._mat4 = new Matrix4();
-        this._dummy = new Object3D();
-        this._pos = [];
-        this._rot = [];
-        this._scl = [];
-        this._disposer = new Disposer();
-        this.lineMat = new LineBasicMaterial({
-            color: 0x555555,
-            // @ts-ignore
-            onBeforeCompile: (shader) => {
-                shader.vertexShader = `
-    attribute vec3 instT;
-    attribute vec4 instR;
-    attribute vec3 instS;
-    
-    // http://barradeau.com/blog/?p=1109
-    vec3 trs( inout vec3 position, vec3 T, vec4 R, vec3 S ) {
-        position *= S;
-        position += 2.0 * cross( R.xyz, cross( R.xyz, position ) + R.w * position );
-        position += T;
-        return position;
-    }
-    ${shader.vertexShader}
-`.replace(`#include <begin_vertex>`, `#include <begin_vertex>
-      transformed = trs(transformed, instT, instR, instS);
-`);
-            },
-        });
-        this._components = components;
-        if (culler) {
-            culler.viewUpdated.on(() => {
-                const scene = this._components.scene.get();
-                if (!this.visible)
-                    return;
-                for (const id of culler.currentVisibleMeshes) {
-                    if (this._list[id]) {
-                        scene.add(this._list[id]);
-                    }
-                }
-                for (const id of culler.recentlyHiddenMeshes) {
-                    if (this._list[id]) {
-                        scene.remove(this._list[id]);
-                    }
-                }
-            });
-        }
-    }
-    get() {
-        return this._list;
-    }
-    dispose() {
-        for (const guid in this._list) {
-            const edges = this._list[guid];
-            this._disposer.dispose(edges, true);
-        }
-        this.lineMat.dispose();
-        this._list = {};
-        this.edgesToUpdate.clear();
-    }
-    add(fragment) {
-        if (this._list[fragment.mesh.uuid]) {
-            const previous = this._list[fragment.mesh.uuid];
-            previous.removeFromParent();
-            previous.geometry.dispose();
-            previous.geometry = null;
-            delete this._list[fragment.mesh.uuid];
-        }
-        this.getInstanceTransforms(fragment);
-        const edgesGeom = new EdgesGeometry(fragment.mesh.geometry, this.threshold);
-        // @ts-ignore
-        const lineGeom = new InstancedBufferGeometry().copy(edgesGeom);
-        lineGeom.instanceCount = Infinity;
-        this.setAttributes(lineGeom);
-        const lines = new LineSegments(lineGeom, this.lineMat);
-        lines.frustumCulled = false;
-        if (this._visible) {
-            const scene = this._components.scene.get();
-            scene.add(lines);
-        }
-        this._list[fragment.mesh.uuid] = lines;
-        this.updateInstancedEdges(fragment, lineGeom);
-        return lines;
-    }
-    updateInstancedEdges(fragment, lineGeom) {
-        for (let i = 0; i < fragment.mesh.count; i++) {
-            fragment.mesh.getMatrixAt(i, this._mat4);
-            this._mat4.decompose(this._dummy.position, this._dummy.quaternion, this._dummy.scale);
-            this.linesTRS(i, this._dummy, lineGeom);
-        }
-    }
-    setAttributes(lineGeom) {
-        lineGeom.setAttribute("instT", new InstancedBufferAttribute(new Float32Array(this._pos), 3));
-        lineGeom.setAttribute("instR", new InstancedBufferAttribute(new Float32Array(this._rot), 4));
-        lineGeom.setAttribute("instS", new InstancedBufferAttribute(new Float32Array(this._scl), 3));
-        this._pos.length = 0;
-        this._rot.length = 0;
-        this._scl.length = 0;
-    }
-    getInstanceTransforms(fragment) {
-        for (let i = 0; i < fragment.mesh.count; i++) {
-            fragment.getInstance(i, this._dummy.matrix);
-            this._dummy.updateMatrix();
-            this._pos.push(this._dummy.position.x, this._dummy.position.y, this._dummy.position.z);
-            this._rot.push(this._dummy.quaternion.x, this._dummy.quaternion.y, this._dummy.quaternion.z, this._dummy.quaternion.w);
-            this._scl.push(this._dummy.scale.x, this._dummy.scale.y, this._dummy.scale.z);
-        }
-    }
-    linesTRS(index, o, lineGeom) {
-        lineGeom.attributes.instT.setXYZ(index, o.position.x, o.position.y, o.position.z);
-        lineGeom.attributes.instT.needsUpdate = true;
-        lineGeom.attributes.instR.setXYZW(index, o.quaternion.x, o.quaternion.y, o.quaternion.z, o.quaternion.w);
-        lineGeom.attributes.instR.needsUpdate = true;
-        lineGeom.attributes.instS.setXYZ(index, o.scale.x, o.scale.y, o.scale.z);
-        lineGeom.attributes.instS.needsUpdate = true;
     }
 }
 
@@ -98899,14 +98756,13 @@ class ClippingEdges extends Component {
                 if (isMultiblockFragment && style.fragments) {
                     const fMesh = mesh;
                     const ids = style.fragments[fMesh.fragment.id];
-                    if (ids === undefined) {
-                        return;
-                    }
-                    const index = fMesh.geometry.index.array[triangleIndex * 3];
-                    const blockID = fMesh.geometry.attributes.blockID.array[index];
-                    const id = fMesh.fragment.getItemID(0, blockID);
-                    if (!ids.has(id)) {
-                        return;
+                    if (ids !== undefined) {
+                        const index = fMesh.geometry.index.array[triangleIndex * 3];
+                        const blockID = fMesh.geometry.attributes.blockID.array[index];
+                        const id = fMesh.fragment.getItemID(0, blockID);
+                        if (!ids.has(id)) {
+                            return;
+                        }
                     }
                 }
                 // check each triangle edge to see if it intersects with the plane. If so then
@@ -100417,7 +100273,7 @@ class PlanNavigator extends Component {
                 this.currentPlan.plane.edges.visible = true;
             }
         }
-        this.camera.setNavigationMode("Plan");
+        // this.camera.setNavigationMode("Plan");
         const projection = this.currentPlan.ortho ? "Orthographic" : "Perspective";
         this.camera.setProjection(projection);
     }
@@ -102998,4 +102854,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentEdges, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesManager, IfcPropertiesProcessor, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, tooeenRandomId };
