@@ -12609,15 +12609,26 @@ class ToastNotification extends SimpleUIComponent {
     `;
         this._message = config.message;
         const messageID = this.getMessageID();
+        const slotID = `${this.id}-slot`;
         const template = `
         <div id="toast-default" class="flex items-center w-full max-w-xs p-4 text-gray-500 bg-ifcjs-200 rounded-lg shadow dark:text-gray-400 dark:bg-gray-800" role="alert">
             <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-ifcjs-200 bg-ifcjs-300 rounded-full dark:bg-blue-800 dark:text-blue-200">
                 ${icon}
             </div>
             <div id="${messageID}" class="ml-3 text-sm font-normal">${this._message}</div>
+            <div id="${slotID}-1"></div>
         </div>
     `;
         container.innerHTML = template;
+    }
+    addChild(...items) {
+        const slot = this.domElement.querySelector(`#${this.id}-slot`);
+        if (!slot)
+            return;
+        for (const item of items) {
+            this.children.push(item);
+            slot.appendChild(item.domElement);
+        }
     }
     get message() {
         return this._message;
@@ -94515,7 +94526,10 @@ class IfcFragmentSettings {
     constructor() {
         /** Whether to extract the IFC properties into a JSON. */
         this.includeProperties = true;
-        /** Generate the geometry for categories that are not included by default. */
+        /**
+         * Generate the geometry for categories that are not included by default,
+         * like IFCSPACE.
+         */
         this.optionalCategories = [IFCSPACE];
         /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
         this.wasm = {
@@ -94966,6 +94980,9 @@ class FragmentIfcLoader extends Component {
         this._geometry.cleanUp();
         this._converter.cleanUp();
     }
+    isExcluded(id) {
+        return this.isolatedItems.size && !this.isolatedItems.has(id);
+    }
 }
 
 class FragmentHighlighter extends Component {
@@ -95171,8 +95188,9 @@ class FragmentHighlighter extends Component {
         for (const name in this.highlightMats) {
             if (!fragment.fragments[name]) {
                 const material = this.highlightMats[name];
-                fragment.addFragment(name, material);
-                fragment.fragments[name].mesh.renderOrder = 1;
+                const subFragment = fragment.addFragment(name, material);
+                subFragment.mesh.renderOrder = 2;
+                subFragment.mesh.frustumCulled = false;
             }
         }
     }
@@ -95314,23 +95332,25 @@ class FragmentClassifier extends Component {
         const size = Object.keys(filter).length;
         const models = {};
         for (const name in filter) {
-            const value = filter[name];
+            const values = filter[name];
             if (!this._groupSystems[name]) {
                 console.warn(`Classification ${name} does not exist.`);
                 continue;
             }
-            const found = this._groupSystems[name][value];
-            if (found) {
-                for (const guid in found) {
-                    if (!models[guid]) {
-                        models[guid] = {};
-                    }
-                    for (const id of found[guid]) {
-                        if (!models[guid][id]) {
-                            models[guid][id] = 1;
+            for (const value of values) {
+                const found = this._groupSystems[name][value];
+                if (found) {
+                    for (const guid in found) {
+                        if (!models[guid]) {
+                            models[guid] = {};
                         }
-                        else {
-                            models[guid][id]++;
+                        for (const id of found[guid]) {
+                            if (!models[guid][id]) {
+                                models[guid][id] = 1;
+                            }
+                            else {
+                                models[guid][id]++;
+                            }
                         }
                     }
                 }
@@ -97100,7 +97120,7 @@ class EdgesStyles extends Component {
         this.name = "EdgesStyles";
         this.enabled = true;
         this._styles = {};
-        this._defaultMaterial = new LineMaterial({
+        this._defaultLineMaterial = new LineMaterial({
             color: 0x000000,
             linewidth: 0.001,
         });
@@ -97115,468 +97135,707 @@ class EdgesStyles extends Component {
         this.afterUpdate.trigger(this._styles);
     }
     // Creates a new style that applies to all clipping edges for generic models
-    async create(name, meshes, material = this._defaultMaterial) {
+    async create(name, meshes, lineMaterial = this._defaultLineMaterial, fillMaterial, outlineMaterial) {
         for (const mesh of meshes) {
             if (!mesh.geometry.boundsTree)
                 mesh.geometry.computeBoundsTree();
         }
         const renderer = this.components.renderer;
-        material.clippingPlanes = renderer.clippingPlanes;
+        lineMaterial.clippingPlanes = renderer.clippingPlanes;
         this._styles[name] = {
             name,
-            material,
+            lineMaterial,
             meshes,
+            fillMaterial,
+            outlineMaterial,
+            fragments: {},
         };
     }
     dispose() {
         const styles = Object.values(this._styles);
         for (const style of styles) {
             style.meshes.length = 0;
-            style.material.dispose();
+            style.lineMaterial.dispose();
         }
         this._styles = {};
     }
 }
 
-const _box$1 = new Box3();
-const _vector = new Vector3$1();
+var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
-class LineSegmentsGeometry extends InstancedBufferGeometry {
-
-	constructor() {
-
-		super();
-
-		this.isLineSegmentsGeometry = true;
-
-		this.type = 'LineSegmentsGeometry';
-
-		const positions = [ - 1, 2, 0, 1, 2, 0, - 1, 1, 0, 1, 1, 0, - 1, 0, 0, 1, 0, 0, - 1, - 1, 0, 1, - 1, 0 ];
-		const uvs = [ - 1, 2, 1, 2, - 1, 1, 1, 1, - 1, - 1, 1, - 1, - 1, - 2, 1, - 2 ];
-		const index = [ 0, 2, 1, 2, 3, 1, 2, 4, 3, 4, 5, 3, 4, 6, 5, 6, 7, 5 ];
-
-		this.setIndex( index );
-		this.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
-		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
-
-	}
-
-	applyMatrix4( matrix ) {
-
-		const start = this.attributes.instanceStart;
-		const end = this.attributes.instanceEnd;
-
-		if ( start !== undefined ) {
-
-			start.applyMatrix4( matrix );
-
-			end.applyMatrix4( matrix );
-
-			start.needsUpdate = true;
-
-		}
-
-		if ( this.boundingBox !== null ) {
-
-			this.computeBoundingBox();
-
-		}
-
-		if ( this.boundingSphere !== null ) {
-
-			this.computeBoundingSphere();
-
-		}
-
-		return this;
-
-	}
-
-	setPositions( array ) {
-
-		let lineSegments;
-
-		if ( array instanceof Float32Array ) {
-
-			lineSegments = array;
-
-		} else if ( Array.isArray( array ) ) {
-
-			lineSegments = new Float32Array( array );
-
-		}
-
-		const instanceBuffer = new InstancedInterleavedBuffer( lineSegments, 6, 1 ); // xyz, xyz
-
-		this.setAttribute( 'instanceStart', new InterleavedBufferAttribute( instanceBuffer, 3, 0 ) ); // xyz
-		this.setAttribute( 'instanceEnd', new InterleavedBufferAttribute( instanceBuffer, 3, 3 ) ); // xyz
-
-		//
-
-		this.computeBoundingBox();
-		this.computeBoundingSphere();
-
-		return this;
-
-	}
-
-	setColors( array ) {
-
-		let colors;
-
-		if ( array instanceof Float32Array ) {
-
-			colors = array;
-
-		} else if ( Array.isArray( array ) ) {
-
-			colors = new Float32Array( array );
-
-		}
-
-		const instanceColorBuffer = new InstancedInterleavedBuffer( colors, 6, 1 ); // rgb, rgb
-
-		this.setAttribute( 'instanceColorStart', new InterleavedBufferAttribute( instanceColorBuffer, 3, 0 ) ); // rgb
-		this.setAttribute( 'instanceColorEnd', new InterleavedBufferAttribute( instanceColorBuffer, 3, 3 ) ); // rgb
-
-		return this;
-
-	}
-
-	fromWireframeGeometry( geometry ) {
-
-		this.setPositions( geometry.attributes.position.array );
-
-		return this;
-
-	}
-
-	fromEdgesGeometry( geometry ) {
-
-		this.setPositions( geometry.attributes.position.array );
-
-		return this;
-
-	}
-
-	fromMesh( mesh ) {
-
-		this.fromWireframeGeometry( new WireframeGeometry( mesh.geometry ) );
-
-		// set colors, maybe
-
-		return this;
-
-	}
-
-	fromLineSegments( lineSegments ) {
-
-		const geometry = lineSegments.geometry;
-
-		this.setPositions( geometry.attributes.position.array ); // assumes non-indexed
-
-		// set colors, maybe
-
-		return this;
-
-	}
-
-	computeBoundingBox() {
-
-		if ( this.boundingBox === null ) {
-
-			this.boundingBox = new Box3();
-
-		}
-
-		const start = this.attributes.instanceStart;
-		const end = this.attributes.instanceEnd;
-
-		if ( start !== undefined && end !== undefined ) {
-
-			this.boundingBox.setFromBufferAttribute( start );
-
-			_box$1.setFromBufferAttribute( end );
-
-			this.boundingBox.union( _box$1 );
-
-		}
-
-	}
-
-	computeBoundingSphere() {
-
-		if ( this.boundingSphere === null ) {
-
-			this.boundingSphere = new Sphere();
-
-		}
-
-		if ( this.boundingBox === null ) {
-
-			this.computeBoundingBox();
-
-		}
-
-		const start = this.attributes.instanceStart;
-		const end = this.attributes.instanceEnd;
-
-		if ( start !== undefined && end !== undefined ) {
-
-			const center = this.boundingSphere.center;
-
-			this.boundingBox.getCenter( center );
-
-			let maxRadiusSq = 0;
-
-			for ( let i = 0, il = start.count; i < il; i ++ ) {
-
-				_vector.fromBufferAttribute( start, i );
-				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
-
-				_vector.fromBufferAttribute( end, i );
-				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
-
-			}
-
-			this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
-
-			if ( isNaN( this.boundingSphere.radius ) ) {
-
-				console.error( 'THREE.LineSegmentsGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this );
-
-			}
-
-		}
-
-	}
-
-	toJSON() {
-
-		// todo
-
-	}
-
-	applyMatrix( matrix ) {
-
-		console.warn( 'THREE.LineSegmentsGeometry: applyMatrix() has been renamed to applyMatrix4().' );
-
-		return this.applyMatrix4( matrix );
-
-	}
-
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
 
-const _start = new Vector3$1();
-const _end = new Vector3$1();
+var earcut$2 = {exports: {}};
 
-const _start4 = new Vector4();
-const _end4 = new Vector4();
+earcut$2.exports = earcut;
+earcut$2.exports.default = earcut;
 
-const _ssOrigin = new Vector4();
-const _ssOrigin3 = new Vector3$1();
-const _mvMatrix = new Matrix4();
-const _line = new Line3();
-const _closestPoint = new Vector3$1();
+function earcut(data, holeIndices, dim) {
 
-const _box = new Box3();
-const _sphere = new Sphere();
-const _clipToWorldVector = new Vector4();
+    dim = dim || 2;
 
-let _ray, _lineWidth;
+    var hasHoles = holeIndices && holeIndices.length,
+        outerLen = hasHoles ? holeIndices[0] * dim : data.length,
+        outerNode = linkedList(data, 0, outerLen, dim, true),
+        triangles = [];
 
-// Returns the margin required to expand by in world space given the distance from the camera,
-// line width, resolution, and camera projection
-function getWorldSpaceHalfWidth( camera, distance, resolution ) {
+    if (!outerNode || outerNode.next === outerNode.prev) return triangles;
 
-	// transform into clip space, adjust the x and y values by the pixel width offset, then
-	// transform back into world space to get world offset. Note clip space is [-1, 1] so full
-	// width does not need to be halved.
-	_clipToWorldVector.set( 0, 0, - distance, 1.0 ).applyMatrix4( camera.projectionMatrix );
-	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
-	_clipToWorldVector.x = _lineWidth / resolution.width;
-	_clipToWorldVector.y = _lineWidth / resolution.height;
-	_clipToWorldVector.applyMatrix4( camera.projectionMatrixInverse );
-	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+    var minX, minY, maxX, maxY, x, y, invSize;
 
-	return Math.abs( Math.max( _clipToWorldVector.x, _clipToWorldVector.y ) );
+    if (hasHoles) outerNode = eliminateHoles(data, holeIndices, outerNode, dim);
 
+    // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
+    if (data.length > 80 * dim) {
+        minX = maxX = data[0];
+        minY = maxY = data[1];
+
+        for (var i = dim; i < outerLen; i += dim) {
+            x = data[i];
+            y = data[i + 1];
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+
+        // minX, minY and invSize are later used to transform coords into integers for z-order calculation
+        invSize = Math.max(maxX - minX, maxY - minY);
+        invSize = invSize !== 0 ? 32767 / invSize : 0;
+    }
+
+    earcutLinked(outerNode, triangles, dim, minX, minY, invSize, 0);
+
+    return triangles;
 }
 
-function raycastWorldUnits( lineSegments, intersects ) {
+// create a circular doubly linked list from polygon points in the specified winding order
+function linkedList(data, start, end, dim, clockwise) {
+    var i, last;
 
-	const matrixWorld = lineSegments.matrixWorld;
-	const geometry = lineSegments.geometry;
-	const instanceStart = geometry.attributes.instanceStart;
-	const instanceEnd = geometry.attributes.instanceEnd;
-	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+    if (clockwise === (signedArea(data, start, end, dim) > 0)) {
+        for (i = start; i < end; i += dim) last = insertNode(i, data[i], data[i + 1], last);
+    } else {
+        for (i = end - dim; i >= start; i -= dim) last = insertNode(i, data[i], data[i + 1], last);
+    }
 
-	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
+    if (last && equals(last, last.next)) {
+        removeNode(last);
+        last = last.next;
+    }
 
-		_line.start.fromBufferAttribute( instanceStart, i );
-		_line.end.fromBufferAttribute( instanceEnd, i );
-
-		_line.applyMatrix4( matrixWorld );
-
-		const pointOnLine = new Vector3$1();
-		const point = new Vector3$1();
-
-		_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
-		const isInside = point.distanceTo( pointOnLine ) < _lineWidth * 0.5;
-
-		if ( isInside ) {
-
-			intersects.push( {
-				point,
-				pointOnLine,
-				distance: _ray.origin.distanceTo( point ),
-				object: lineSegments,
-				face: null,
-				faceIndex: i,
-				uv: null,
-				uv1: null,
-			} );
-
-		}
-
-	}
-
+    return last;
 }
 
-function raycastScreenSpace( lineSegments, camera, intersects ) {
+// eliminate colinear or duplicate points
+function filterPoints(start, end) {
+    if (!start) return start;
+    if (!end) end = start;
 
-	const projectionMatrix = camera.projectionMatrix;
-	const material = lineSegments.material;
-	const resolution = material.resolution;
-	const matrixWorld = lineSegments.matrixWorld;
+    var p = start,
+        again;
+    do {
+        again = false;
 
-	const geometry = lineSegments.geometry;
-	const instanceStart = geometry.attributes.instanceStart;
-	const instanceEnd = geometry.attributes.instanceEnd;
-	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+        if (!p.steiner && (equals(p, p.next) || area(p.prev, p, p.next) === 0)) {
+            removeNode(p);
+            p = end = p.prev;
+            if (p === p.next) break;
+            again = true;
 
-	const near = - camera.near;
+        } else {
+            p = p.next;
+        }
+    } while (again || p !== end);
 
-	//
-
-	// pick a point 1 unit out along the ray to avoid the ray origin
-	// sitting at the camera origin which will cause "w" to be 0 when
-	// applying the projection matrix.
-	_ray.at( 1, _ssOrigin );
-
-	// ndc space [ - 1.0, 1.0 ]
-	_ssOrigin.w = 1;
-	_ssOrigin.applyMatrix4( camera.matrixWorldInverse );
-	_ssOrigin.applyMatrix4( projectionMatrix );
-	_ssOrigin.multiplyScalar( 1 / _ssOrigin.w );
-
-	// screen space
-	_ssOrigin.x *= resolution.x / 2;
-	_ssOrigin.y *= resolution.y / 2;
-	_ssOrigin.z = 0;
-
-	_ssOrigin3.copy( _ssOrigin );
-
-	_mvMatrix.multiplyMatrices( camera.matrixWorldInverse, matrixWorld );
-
-	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
-
-		_start4.fromBufferAttribute( instanceStart, i );
-		_end4.fromBufferAttribute( instanceEnd, i );
-
-		_start4.w = 1;
-		_end4.w = 1;
-
-		// camera space
-		_start4.applyMatrix4( _mvMatrix );
-		_end4.applyMatrix4( _mvMatrix );
-
-		// skip the segment if it's entirely behind the camera
-		const isBehindCameraNear = _start4.z > near && _end4.z > near;
-		if ( isBehindCameraNear ) {
-
-			continue;
-
-		}
-
-		// trim the segment if it extends behind camera near
-		if ( _start4.z > near ) {
-
-			const deltaDist = _start4.z - _end4.z;
-			const t = ( _start4.z - near ) / deltaDist;
-			_start4.lerp( _end4, t );
-
-		} else if ( _end4.z > near ) {
-
-			const deltaDist = _end4.z - _start4.z;
-			const t = ( _end4.z - near ) / deltaDist;
-			_end4.lerp( _start4, t );
-
-		}
-
-		// clip space
-		_start4.applyMatrix4( projectionMatrix );
-		_end4.applyMatrix4( projectionMatrix );
-
-		// ndc space [ - 1.0, 1.0 ]
-		_start4.multiplyScalar( 1 / _start4.w );
-		_end4.multiplyScalar( 1 / _end4.w );
-
-		// screen space
-		_start4.x *= resolution.x / 2;
-		_start4.y *= resolution.y / 2;
-
-		_end4.x *= resolution.x / 2;
-		_end4.y *= resolution.y / 2;
-
-		// create 2d segment
-		_line.start.copy( _start4 );
-		_line.start.z = 0;
-
-		_line.end.copy( _end4 );
-		_line.end.z = 0;
-
-		// get closest point on ray to segment
-		const param = _line.closestPointToPointParameter( _ssOrigin3, true );
-		_line.at( param, _closestPoint );
-
-		// check if the intersection point is within clip space
-		const zPos = MathUtils.lerp( _start4.z, _end4.z, param );
-		const isInClipSpace = zPos >= - 1 && zPos <= 1;
-
-		const isInside = _ssOrigin3.distanceTo( _closestPoint ) < _lineWidth * 0.5;
-
-		if ( isInClipSpace && isInside ) {
-
-			_line.start.fromBufferAttribute( instanceStart, i );
-			_line.end.fromBufferAttribute( instanceEnd, i );
-
-			_line.start.applyMatrix4( matrixWorld );
-			_line.end.applyMatrix4( matrixWorld );
-
-			const pointOnLine = new Vector3$1();
-			const point = new Vector3$1();
-
-			_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
-
-			intersects.push( {
-				point: point,
-				pointOnLine: pointOnLine,
-				distance: _ray.origin.distanceTo( point ),
-				object: lineSegments,
-				face: null,
-				faceIndex: i,
-				uv: null,
-				uv1: null,
-			} );
-
-		}
-
-	}
-
+    return end;
 }
 
-class LineSegments2 extends Mesh {
+// main ear slicing loop which triangulates a polygon (given as a linked list)
+function earcutLinked(ear, triangles, dim, minX, minY, invSize, pass) {
+    if (!ear) return;
+
+    // interlink polygon nodes in z-order
+    if (!pass && invSize) indexCurve(ear, minX, minY, invSize);
+
+    var stop = ear,
+        prev, next;
+
+    // iterate through ears, slicing them one by one
+    while (ear.prev !== ear.next) {
+        prev = ear.prev;
+        next = ear.next;
+
+        if (invSize ? isEarHashed(ear, minX, minY, invSize) : isEar(ear)) {
+            // cut off the triangle
+            triangles.push(prev.i / dim | 0);
+            triangles.push(ear.i / dim | 0);
+            triangles.push(next.i / dim | 0);
+
+            removeNode(ear);
+
+            // skipping the next vertex leads to less sliver triangles
+            ear = next.next;
+            stop = next.next;
+
+            continue;
+        }
+
+        ear = next;
+
+        // if we looped through the whole remaining polygon and can't find any more ears
+        if (ear === stop) {
+            // try filtering points and slicing again
+            if (!pass) {
+                earcutLinked(filterPoints(ear), triangles, dim, minX, minY, invSize, 1);
+
+            // if this didn't work, try curing all small self-intersections locally
+            } else if (pass === 1) {
+                ear = cureLocalIntersections(filterPoints(ear), triangles, dim);
+                earcutLinked(ear, triangles, dim, minX, minY, invSize, 2);
+
+            // as a last resort, try splitting the remaining polygon into two
+            } else if (pass === 2) {
+                splitEarcut(ear, triangles, dim, minX, minY, invSize);
+            }
+
+            break;
+        }
+    }
+}
+
+// check whether a polygon node forms a valid ear with adjacent nodes
+function isEar(ear) {
+    var a = ear.prev,
+        b = ear,
+        c = ear.next;
+
+    if (area(a, b, c) >= 0) return false; // reflex, can't be an ear
+
+    // now make sure we don't have other points inside the potential ear
+    var ax = a.x, bx = b.x, cx = c.x, ay = a.y, by = b.y, cy = c.y;
+
+    // triangle bbox; min & max are calculated like this for speed
+    var x0 = ax < bx ? (ax < cx ? ax : cx) : (bx < cx ? bx : cx),
+        y0 = ay < by ? (ay < cy ? ay : cy) : (by < cy ? by : cy),
+        x1 = ax > bx ? (ax > cx ? ax : cx) : (bx > cx ? bx : cx),
+        y1 = ay > by ? (ay > cy ? ay : cy) : (by > cy ? by : cy);
+
+    var p = c.next;
+    while (p !== a) {
+        if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, p.x, p.y) &&
+            area(p.prev, p, p.next) >= 0) return false;
+        p = p.next;
+    }
+
+    return true;
+}
+
+function isEarHashed(ear, minX, minY, invSize) {
+    var a = ear.prev,
+        b = ear,
+        c = ear.next;
+
+    if (area(a, b, c) >= 0) return false; // reflex, can't be an ear
+
+    var ax = a.x, bx = b.x, cx = c.x, ay = a.y, by = b.y, cy = c.y;
+
+    // triangle bbox; min & max are calculated like this for speed
+    var x0 = ax < bx ? (ax < cx ? ax : cx) : (bx < cx ? bx : cx),
+        y0 = ay < by ? (ay < cy ? ay : cy) : (by < cy ? by : cy),
+        x1 = ax > bx ? (ax > cx ? ax : cx) : (bx > cx ? bx : cx),
+        y1 = ay > by ? (ay > cy ? ay : cy) : (by > cy ? by : cy);
+
+    // z-order range for the current triangle bbox;
+    var minZ = zOrder(x0, y0, minX, minY, invSize),
+        maxZ = zOrder(x1, y1, minX, minY, invSize);
+
+    var p = ear.prevZ,
+        n = ear.nextZ;
+
+    // look for points inside the triangle in both directions
+    while (p && p.z >= minZ && n && n.z <= maxZ) {
+        if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 && p !== a && p !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, p.x, p.y) && area(p.prev, p, p.next) >= 0) return false;
+        p = p.prevZ;
+
+        if (n.x >= x0 && n.x <= x1 && n.y >= y0 && n.y <= y1 && n !== a && n !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, n.x, n.y) && area(n.prev, n, n.next) >= 0) return false;
+        n = n.nextZ;
+    }
+
+    // look for remaining points in decreasing z-order
+    while (p && p.z >= minZ) {
+        if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 && p !== a && p !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, p.x, p.y) && area(p.prev, p, p.next) >= 0) return false;
+        p = p.prevZ;
+    }
+
+    // look for remaining points in increasing z-order
+    while (n && n.z <= maxZ) {
+        if (n.x >= x0 && n.x <= x1 && n.y >= y0 && n.y <= y1 && n !== a && n !== c &&
+            pointInTriangle(ax, ay, bx, by, cx, cy, n.x, n.y) && area(n.prev, n, n.next) >= 0) return false;
+        n = n.nextZ;
+    }
+
+    return true;
+}
+
+// go through all polygon nodes and cure small local self-intersections
+function cureLocalIntersections(start, triangles, dim) {
+    var p = start;
+    do {
+        var a = p.prev,
+            b = p.next.next;
+
+        if (!equals(a, b) && intersects(a, p, p.next, b) && locallyInside(a, b) && locallyInside(b, a)) {
+
+            triangles.push(a.i / dim | 0);
+            triangles.push(p.i / dim | 0);
+            triangles.push(b.i / dim | 0);
+
+            // remove two nodes involved
+            removeNode(p);
+            removeNode(p.next);
+
+            p = start = b;
+        }
+        p = p.next;
+    } while (p !== start);
+
+    return filterPoints(p);
+}
+
+// try splitting polygon into two and triangulate them independently
+function splitEarcut(start, triangles, dim, minX, minY, invSize) {
+    // look for a valid diagonal that divides the polygon into two
+    var a = start;
+    do {
+        var b = a.next.next;
+        while (b !== a.prev) {
+            if (a.i !== b.i && isValidDiagonal(a, b)) {
+                // split the polygon in two by the diagonal
+                var c = splitPolygon(a, b);
+
+                // filter colinear points around the cuts
+                a = filterPoints(a, a.next);
+                c = filterPoints(c, c.next);
+
+                // run earcut on each half
+                earcutLinked(a, triangles, dim, minX, minY, invSize, 0);
+                earcutLinked(c, triangles, dim, minX, minY, invSize, 0);
+                return;
+            }
+            b = b.next;
+        }
+        a = a.next;
+    } while (a !== start);
+}
+
+// link every hole into the outer loop, producing a single-ring polygon without holes
+function eliminateHoles(data, holeIndices, outerNode, dim) {
+    var queue = [],
+        i, len, start, end, list;
+
+    for (i = 0, len = holeIndices.length; i < len; i++) {
+        start = holeIndices[i] * dim;
+        end = i < len - 1 ? holeIndices[i + 1] * dim : data.length;
+        list = linkedList(data, start, end, dim, false);
+        if (list === list.next) list.steiner = true;
+        queue.push(getLeftmost(list));
+    }
+
+    queue.sort(compareX);
+
+    // process holes from left to right
+    for (i = 0; i < queue.length; i++) {
+        outerNode = eliminateHole(queue[i], outerNode);
+    }
+
+    return outerNode;
+}
+
+function compareX(a, b) {
+    return a.x - b.x;
+}
+
+// find a bridge between vertices that connects hole with an outer ring and and link it
+function eliminateHole(hole, outerNode) {
+    var bridge = findHoleBridge(hole, outerNode);
+    if (!bridge) {
+        return outerNode;
+    }
+
+    var bridgeReverse = splitPolygon(bridge, hole);
+
+    // filter collinear points around the cuts
+    filterPoints(bridgeReverse, bridgeReverse.next);
+    return filterPoints(bridge, bridge.next);
+}
+
+// David Eberly's algorithm for finding a bridge between hole and outer polygon
+function findHoleBridge(hole, outerNode) {
+    var p = outerNode,
+        hx = hole.x,
+        hy = hole.y,
+        qx = -Infinity,
+        m;
+
+    // find a segment intersected by a ray from the hole's leftmost point to the left;
+    // segment's endpoint with lesser x will be potential connection point
+    do {
+        if (hy <= p.y && hy >= p.next.y && p.next.y !== p.y) {
+            var x = p.x + (hy - p.y) * (p.next.x - p.x) / (p.next.y - p.y);
+            if (x <= hx && x > qx) {
+                qx = x;
+                m = p.x < p.next.x ? p : p.next;
+                if (x === hx) return m; // hole touches outer segment; pick leftmost endpoint
+            }
+        }
+        p = p.next;
+    } while (p !== outerNode);
+
+    if (!m) return null;
+
+    // look for points inside the triangle of hole point, segment intersection and endpoint;
+    // if there are no points found, we have a valid connection;
+    // otherwise choose the point of the minimum angle with the ray as connection point
+
+    var stop = m,
+        mx = m.x,
+        my = m.y,
+        tanMin = Infinity,
+        tan;
+
+    p = m;
+
+    do {
+        if (hx >= p.x && p.x >= mx && hx !== p.x &&
+                pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p.x, p.y)) {
+
+            tan = Math.abs(hy - p.y) / (hx - p.x); // tangential
+
+            if (locallyInside(p, hole) &&
+                (tan < tanMin || (tan === tanMin && (p.x > m.x || (p.x === m.x && sectorContainsSector(m, p)))))) {
+                m = p;
+                tanMin = tan;
+            }
+        }
+
+        p = p.next;
+    } while (p !== stop);
+
+    return m;
+}
+
+// whether sector in vertex m contains sector in vertex p in the same coordinates
+function sectorContainsSector(m, p) {
+    return area(m.prev, m, p.prev) < 0 && area(p.next, m, m.next) < 0;
+}
+
+// interlink polygon nodes in z-order
+function indexCurve(start, minX, minY, invSize) {
+    var p = start;
+    do {
+        if (p.z === 0) p.z = zOrder(p.x, p.y, minX, minY, invSize);
+        p.prevZ = p.prev;
+        p.nextZ = p.next;
+        p = p.next;
+    } while (p !== start);
+
+    p.prevZ.nextZ = null;
+    p.prevZ = null;
+
+    sortLinked(p);
+}
+
+// Simon Tatham's linked list merge sort algorithm
+// http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
+function sortLinked(list) {
+    var i, p, q, e, tail, numMerges, pSize, qSize,
+        inSize = 1;
+
+    do {
+        p = list;
+        list = null;
+        tail = null;
+        numMerges = 0;
+
+        while (p) {
+            numMerges++;
+            q = p;
+            pSize = 0;
+            for (i = 0; i < inSize; i++) {
+                pSize++;
+                q = q.nextZ;
+                if (!q) break;
+            }
+            qSize = inSize;
+
+            while (pSize > 0 || (qSize > 0 && q)) {
+
+                if (pSize !== 0 && (qSize === 0 || !q || p.z <= q.z)) {
+                    e = p;
+                    p = p.nextZ;
+                    pSize--;
+                } else {
+                    e = q;
+                    q = q.nextZ;
+                    qSize--;
+                }
+
+                if (tail) tail.nextZ = e;
+                else list = e;
+
+                e.prevZ = tail;
+                tail = e;
+            }
+
+            p = q;
+        }
+
+        tail.nextZ = null;
+        inSize *= 2;
+
+    } while (numMerges > 1);
+
+    return list;
+}
+
+// z-order of a point given coords and inverse of the longer side of data bbox
+function zOrder(x, y, minX, minY, invSize) {
+    // coords are transformed into non-negative 15-bit integer range
+    x = (x - minX) * invSize | 0;
+    y = (y - minY) * invSize | 0;
+
+    x = (x | (x << 8)) & 0x00FF00FF;
+    x = (x | (x << 4)) & 0x0F0F0F0F;
+    x = (x | (x << 2)) & 0x33333333;
+    x = (x | (x << 1)) & 0x55555555;
+
+    y = (y | (y << 8)) & 0x00FF00FF;
+    y = (y | (y << 4)) & 0x0F0F0F0F;
+    y = (y | (y << 2)) & 0x33333333;
+    y = (y | (y << 1)) & 0x55555555;
+
+    return x | (y << 1);
+}
+
+// find the leftmost node of a polygon ring
+function getLeftmost(start) {
+    var p = start,
+        leftmost = start;
+    do {
+        if (p.x < leftmost.x || (p.x === leftmost.x && p.y < leftmost.y)) leftmost = p;
+        p = p.next;
+    } while (p !== start);
+
+    return leftmost;
+}
+
+// check if a point lies within a convex triangle
+function pointInTriangle(ax, ay, bx, by, cx, cy, px, py) {
+    return (cx - px) * (ay - py) >= (ax - px) * (cy - py) &&
+           (ax - px) * (by - py) >= (bx - px) * (ay - py) &&
+           (bx - px) * (cy - py) >= (cx - px) * (by - py);
+}
+
+// check if a diagonal between two polygon nodes is valid (lies in polygon interior)
+function isValidDiagonal(a, b) {
+    return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && // dones't intersect other edges
+           (locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && // locally visible
+            (area(a.prev, a, b.prev) || area(a, b.prev, b)) || // does not create opposite-facing sectors
+            equals(a, b) && area(a.prev, a, a.next) > 0 && area(b.prev, b, b.next) > 0); // special zero-length case
+}
+
+// signed area of a triangle
+function area(p, q, r) {
+    return (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+}
+
+// check if two points are equal
+function equals(p1, p2) {
+    return p1.x === p2.x && p1.y === p2.y;
+}
+
+// check if two segments intersect
+function intersects(p1, q1, p2, q2) {
+    var o1 = sign(area(p1, q1, p2));
+    var o2 = sign(area(p1, q1, q2));
+    var o3 = sign(area(p2, q2, p1));
+    var o4 = sign(area(p2, q2, q1));
+
+    if (o1 !== o2 && o3 !== o4) return true; // general case
+
+    if (o1 === 0 && onSegment(p1, p2, q1)) return true; // p1, q1 and p2 are collinear and p2 lies on p1q1
+    if (o2 === 0 && onSegment(p1, q2, q1)) return true; // p1, q1 and q2 are collinear and q2 lies on p1q1
+    if (o3 === 0 && onSegment(p2, p1, q2)) return true; // p2, q2 and p1 are collinear and p1 lies on p2q2
+    if (o4 === 0 && onSegment(p2, q1, q2)) return true; // p2, q2 and q1 are collinear and q1 lies on p2q2
+
+    return false;
+}
+
+// for collinear points p, q, r, check if point q lies on segment pr
+function onSegment(p, q, r) {
+    return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) && q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
+}
+
+function sign(num) {
+    return num > 0 ? 1 : num < 0 ? -1 : 0;
+}
+
+// check if a polygon diagonal intersects any polygon segments
+function intersectsPolygon(a, b) {
+    var p = a;
+    do {
+        if (p.i !== a.i && p.next.i !== a.i && p.i !== b.i && p.next.i !== b.i &&
+                intersects(p, p.next, a, b)) return true;
+        p = p.next;
+    } while (p !== a);
+
+    return false;
+}
+
+// check if a polygon diagonal is locally inside the polygon
+function locallyInside(a, b) {
+    return area(a.prev, a, a.next) < 0 ?
+        area(a, b, a.next) >= 0 && area(a, a.prev, b) >= 0 :
+        area(a, b, a.prev) < 0 || area(a, a.next, b) < 0;
+}
+
+// check if the middle point of a polygon diagonal is inside the polygon
+function middleInside(a, b) {
+    var p = a,
+        inside = false,
+        px = (a.x + b.x) / 2,
+        py = (a.y + b.y) / 2;
+    do {
+        if (((p.y > py) !== (p.next.y > py)) && p.next.y !== p.y &&
+                (px < (p.next.x - p.x) * (py - p.y) / (p.next.y - p.y) + p.x))
+            inside = !inside;
+        p = p.next;
+    } while (p !== a);
+
+    return inside;
+}
+
+// link two polygon vertices with a bridge; if the vertices belong to the same ring, it splits polygon into two;
+// if one belongs to the outer ring and another to a hole, it merges it into a single ring
+function splitPolygon(a, b) {
+    var a2 = new Node(a.i, a.x, a.y),
+        b2 = new Node(b.i, b.x, b.y),
+        an = a.next,
+        bp = b.prev;
+
+    a.next = b;
+    b.prev = a;
+
+    a2.next = an;
+    an.prev = a2;
+
+    b2.next = a2;
+    a2.prev = b2;
+
+    bp.next = b2;
+    b2.prev = bp;
+
+    return b2;
+}
+
+// create a node and optionally link it with previous one (in a circular doubly linked list)
+function insertNode(i, x, y, last) {
+    var p = new Node(i, x, y);
+
+    if (!last) {
+        p.prev = p;
+        p.next = p;
+
+    } else {
+        p.next = last.next;
+        p.prev = last;
+        last.next.prev = p;
+        last.next = p;
+    }
+    return p;
+}
+
+function removeNode(p) {
+    p.next.prev = p.prev;
+    p.prev.next = p.next;
+
+    if (p.prevZ) p.prevZ.nextZ = p.nextZ;
+    if (p.nextZ) p.nextZ.prevZ = p.prevZ;
+}
+
+function Node(i, x, y) {
+    // vertex index in coordinates array
+    this.i = i;
+
+    // vertex coordinates
+    this.x = x;
+    this.y = y;
+
+    // previous and next vertex nodes in a polygon ring
+    this.prev = null;
+    this.next = null;
+
+    // z-order curve value
+    this.z = 0;
+
+    // previous and next nodes in z-order
+    this.prevZ = null;
+    this.nextZ = null;
+
+    // indicates whether this is a steiner point
+    this.steiner = false;
+}
+
+// return a percentage difference between the polygon area and its triangulation area;
+// used to verify correctness of triangulation
+earcut.deviation = function (data, holeIndices, dim, triangles) {
+    var hasHoles = holeIndices && holeIndices.length;
+    var outerLen = hasHoles ? holeIndices[0] * dim : data.length;
+
+    var polygonArea = Math.abs(signedArea(data, 0, outerLen, dim));
+    if (hasHoles) {
+        for (var i = 0, len = holeIndices.length; i < len; i++) {
+            var start = holeIndices[i] * dim;
+            var end = i < len - 1 ? holeIndices[i + 1] * dim : data.length;
+            polygonArea -= Math.abs(signedArea(data, start, end, dim));
+        }
+    }
+
+    var trianglesArea = 0;
+    for (i = 0; i < triangles.length; i += 3) {
+        var a = triangles[i] * dim;
+        var b = triangles[i + 1] * dim;
+        var c = triangles[i + 2] * dim;
+        trianglesArea += Math.abs(
+            (data[a] - data[c]) * (data[b + 1] - data[a + 1]) -
+            (data[a] - data[b]) * (data[c + 1] - data[a + 1]));
+    }
+
+    return polygonArea === 0 && trianglesArea === 0 ? 0 :
+        Math.abs((trianglesArea - polygonArea) / polygonArea);
+};
+
+function signedArea(data, start, end, dim) {
+    var sum = 0;
+    for (var i = start, j = end - dim; i < end; i += dim) {
+        sum += (data[j] - data[i]) * (data[i + 1] + data[j + 1]);
+        j = i;
+    }
+    return sum;
+}
+
+// turn a polygon in a multi-dimensional array form (e.g. as in GeoJSON) into a form Earcut accepts
+earcut.flatten = function (data) {
+    var dim = data[0][0].length,
+        result = {vertices: [], holes: [], dimensions: dim},
+        holeIndex = 0;
 
 	constructor( geometry = new LineSegmentsGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
 
@@ -97913,96 +98172,8 @@ class ClippingEdges extends Component {
 }
 ClippingEdges._basicEdges = new THREE$1.LineSegments();
 
-/**
- * A more advanced version of {@link SimpleClipper} that also includes
- * {@link ClippingEdges} with customizable lines.
- */
-class EdgesPlane extends SimplePlane {
-    constructor(components, origin, normal, material, styles) {
-        super(components, origin, normal, material, 5, false);
-        /**
-         * The max rate in milliseconds at which edges can be regenerated.
-         * To disable this behaviour set this to 0.
-         */
-        this.edgesMaxUpdateRate = 50;
-        this.lastUpdate = -1;
-        this.updateTimeout = -1;
-        /** {@link Updateable.update} */
-        this.update = () => {
-            if (!this.enabled)
-                return;
-            this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
-            // Rate limited edges update
-            const now = Date.now();
-            if (this.lastUpdate + this.edgesMaxUpdateRate < now) {
-                this.lastUpdate = now;
-                this.edges.update();
-            }
-            else if (this.updateTimeout === -1) {
-                this.updateTimeout = window.setTimeout(() => {
-                    this.update();
-                    this.updateTimeout = -1;
-                }, this.edgesMaxUpdateRate);
-            }
-        };
-        this.edges = new ClippingEdges(components, this._plane, styles);
-        this.toggleControls(true);
-        this.edges.visible = true;
-    }
-    /** {@link Hideable.visible} */
-    set visible(state) {
-        super.visible = state;
-        this.toggleControls(state);
-        this.edges.visible = state;
-    }
-    /** {@link Component.enabled} */
-    get enabled() {
-        return super.enabled;
-    }
-    /** {@link Component.enabled} */
-    set enabled(state) {
-        super.enabled = state;
-        if (state) {
-            this.update();
-        }
-    }
-    /** {@link Disposable.dispose} */
-    dispose() {
-        super.dispose();
-        this.edges.dispose();
-    }
-}
-
-/**
- * A more advanced version of {@link SimpleClipper} that also supports
- * {@link ClippingEdges} with customizable lines.
- */
-class EdgesClipper extends SimpleClipper {
-    constructor(components, PlaneType) {
-        super(components, PlaneType);
-        /** {@link Component.name} */
-        this.name = "EdgesClipper";
-        this.styles = new EdgesStyles(components);
-    }
-    /** {@link Component.get} */
-    dispose() {
-        super.dispose();
-        this.styles.dispose();
-    }
-    /**
-     * Updates all the lines of the {@link ClippingEdges}.
-     */
-    updateEdges() {
-        if (!this.enabled)
-            return;
-        for (const plane of this._planes) {
-            plane.update();
-        }
-    }
-    newPlaneInstance(point, normal) {
-        return new this.PlaneType(this.components, point, normal, this._material, this.styles);
-    }
-}
+var earcutExports = earcut$2.exports;
+var earcut$1 = /*@__PURE__*/getDefaultExportFromCjs(earcutExports);
 
 /**
  * Full-screen textured quad shader
@@ -100304,6 +100475,7 @@ const FXAAShader = {
 // - d is the signed distance to the origin
 function getPlaneDistanceMaterial() {
     return new THREE$1.ShaderMaterial({
+        side: 2,
         clipping: true,
         uniforms: {},
         vertexShader: `
@@ -100352,6 +100524,7 @@ function getPlaneDistanceMaterial() {
 // - d is the signed distance to the origin
 function getProjectedNormalMaterial() {
     return new THREE$1.ShaderMaterial({
+        side: 2,
         clipping: true,
         uniforms: {},
         vertexShader: `
@@ -100411,22 +100584,6 @@ class CustomEffectsPass extends Pass {
         this._lineColor = lineColor;
         const material = this.fsQuad.material;
         material.uniforms.lineColor.value.set(lineColor);
-    }
-    get outlineColor() {
-        return this._outlineColor;
-    }
-    set outlineColor(color) {
-        this._outlineColor = color;
-        const material = this.fsQuad.material;
-        material.uniforms.outlineColor.value.set(color);
-    }
-    get outlineThickness() {
-        return this._outlineThickness;
-    }
-    set outlineThickness(value) {
-        this._outlineThickness = value;
-        const material = this.fsQuad.material;
-        material.uniforms.outlineThickness.value = value;
     }
     get tolerance() {
         return this._tolerance;
@@ -100530,8 +100687,13 @@ class CustomEffectsPass extends Pass {
         this.normalOverrideMaterial.dispose();
         this.glossOverrideMaterial.dispose();
         this.fsQuad.dispose();
-        // geometries disposed in fragmentoutliner
-        this.outlinedMeshes = [];
+        for (const name in this.outlinedMeshes) {
+            const style = this.outlinedMeshes[name];
+            for (const mesh of style.meshes) {
+                this._disposer.dispose(mesh, true, true);
+            }
+            style.material.dispose();
+        }
     }
     setSize(width, height) {
         this.planeBuffer.setSize(width, height);
@@ -100566,15 +100728,46 @@ class CustomEffectsPass extends Pass {
         this.renderScene.overrideMaterial = previousOverrideMaterial;
         // Render outline pass
         if (this._outlineEnabled) {
-            for (const { outline, fragment } of this.outlinedMeshes) {
-                fragment.visible = false;
-                this.renderScene.add(outline);
+            let outlinedMeshesFound = false;
+            for (const name in this.outlinedMeshes) {
+                const style = this.outlinedMeshes[name];
+                for (const mesh of style.meshes) {
+                    outlinedMeshesFound = true;
+                    mesh.userData.materialPreOutline = mesh.material;
+                    mesh.material = style.material;
+                    mesh.userData.groupsPreOutline = mesh.geometry.groups;
+                    mesh.geometry.groups = [];
+                    if (mesh instanceof THREE$1.InstancedMesh) {
+                        mesh.userData.colorPreOutline = mesh.instanceColor;
+                        mesh.instanceColor = null;
+                    }
+                    mesh.userData.parentPreOutline = mesh.parent;
+                    this._outlineScene.add(mesh);
+                }
             }
-            renderer.setRenderTarget(this.outlineBuffer);
-            renderer.render(this.renderScene, this.renderCamera);
-            for (const { outline, fragment } of this.outlinedMeshes) {
-                fragment.visible = true;
-                outline.removeFromParent();
+            // This way, when there are no outlines meshes, it clears the outlines buffer only once
+            // and then skips this render
+            if (outlinedMeshesFound || this._outlinesNeedsUpdate) {
+                renderer.setRenderTarget(this.outlineBuffer);
+                renderer.render(this._outlineScene, this.renderCamera);
+                this._outlinesNeedsUpdate = outlinedMeshesFound;
+            }
+            for (const name in this.outlinedMeshes) {
+                const style = this.outlinedMeshes[name];
+                for (const mesh of style.meshes) {
+                    mesh.material = mesh.userData.materialPreOutline;
+                    mesh.geometry.groups = mesh.userData.groupsPreOutline;
+                    if (mesh instanceof THREE$1.InstancedMesh) {
+                        mesh.instanceColor = mesh.userData.colorPreOutline;
+                    }
+                    if (mesh.userData.parentPreOutline) {
+                        mesh.userData.parentPreOutline.add(mesh);
+                    }
+                    mesh.userData.materialPreOutline = undefined;
+                    mesh.userData.groupsPreOutline = undefined;
+                    mesh.userData.colorPreOutline = undefined;
+                    mesh.userData.parentPreOutline = undefined;
+                }
             }
         }
         for (const mesh of this.excludedMeshes) {
@@ -100586,8 +100779,6 @@ class CustomEffectsPass extends Pass {
         material.uniforms.glossBuffer.value = this.glossBuffer.texture;
         material.uniforms.outlineBuffer.value = this.outlineBuffer.texture;
         material.uniforms.sceneColorBuffer.value = readBuffer.texture;
-        // 2. Draw the outlines using the normal texture
-        // and combine it with the scene color
         if (this.renderToScreen) {
             // If this is the last effect, then renderToScreen is true.
             // So we should render to the screen by setting target null
@@ -100604,26 +100795,26 @@ class CustomEffectsPass extends Pass {
     }
     get vertexShader() {
         return `
-			varying vec2 vUv;
-			void main() {
-				vUv = uv;
-				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-			}
-			`;
+	  varying vec2 vUv;
+	  void main() {
+	  	vUv = uv;
+	  	gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+	  }
+	`;
     }
     get fragmentShader() {
         return `
-	    uniform sampler2D sceneColorBuffer;
-	    uniform sampler2D planeBuffer;
-	    uniform sampler2D glossBuffer;
-	    uniform sampler2D outlineBuffer;
-	    uniform vec4 screenSize;
-	    uniform vec3 lineColor;
-	    uniform vec3 outlineColor;
-	    uniform float outlineEnabled;
-	    uniform int outlineThickness;
+	  uniform sampler2D sceneColorBuffer;
+	  uniform sampler2D planeBuffer;
+	  uniform sampler2D glossBuffer;
+	  uniform sampler2D outlineBuffer;
+	  uniform vec4 screenSize;
+	  uniform vec3 lineColor;
+	  
+	  uniform float outlineEnabled;
+	  
       uniform int width;
-	    uniform float opacity;
+	  uniform float opacity;
       uniform float tolerance;
       uniform float correctColor;
       uniform float glossExponent;
@@ -100631,11 +100822,11 @@ class CustomEffectsPass extends Pass {
       uniform float maxGloss;
       uniform float glossEnabled;
 
-			varying vec2 vUv;
+	  varying vec2 vUv;
 
-			vec4 getValue(sampler2D buffer, int x, int y) {
-				return texture2D(buffer, vUv + screenSize.zw * vec2(x, y));
-			}
+	  vec4 getValue(sampler2D buffer, int x, int y) {
+	  	return texture2D(buffer, vUv + screenSize.zw * vec2(x, y));
+	  }
 
       float normalDiff(vec3 normal1, vec3 normal2) {
         return ((dot(normal1, normal2) - 1.) * -1.) / 2.;
@@ -100651,14 +100842,15 @@ class CustomEffectsPass extends Pass {
         return background;
       }
 
-			void main() {
-				vec3 sceneColor = getValue(sceneColorBuffer, 0, 0).rgb;
-				vec3 normSceneColor = normalize(sceneColor);
-
+	  void main() {
+	  
+	    vec3 sceneColor = getValue(sceneColorBuffer, 0, 0).rgb;
+	    vec3 normSceneColor = normalize(sceneColor);
+  
         vec4 plane = getValue(planeBuffer, 0, 0);
-				vec3 normal = plane.xyz;
+	    vec3 normal = plane.xyz;
         float distance = plane.w;
-
+  
         vec3 normalTop = getValue(planeBuffer, 0, width).rgb;
         vec3 normalBottom = getValue(planeBuffer, 0, -width).rgb;
         vec3 normalRight = getValue(planeBuffer, width, 0).rgb;
@@ -100667,7 +100859,7 @@ class CustomEffectsPass extends Pass {
         vec3 normalTopLeft = getValue(planeBuffer, -width, width).rgb;
         vec3 normalBottomRight = getValue(planeBuffer, width, -width).rgb;
         vec3 normalBottomLeft = getValue(planeBuffer, -width, -width).rgb;
-
+  
         float distanceTop = getValue(planeBuffer, 0, width).a;
         float distanceBottom = getValue(planeBuffer, 0, -width).a;
         float distanceRight = getValue(planeBuffer, width, 0).a;
@@ -100774,21 +100966,32 @@ class CustomEffectsPass extends Pass {
         
         corrected = mix(corrected, vec4(lineColor, 1.), line);
         
-        // Add selection outline
+        // Add outline
         
-        float outlineDiff = 0.;
+        vec4 outlinePreview =getValue(outlineBuffer, 0, 0);
+        float outlineColorCorrection = 1. / max(0.2, outlinePreview.a);
+        vec3 outlineColor = outlinePreview.rgb * outlineColorCorrection;
         
-        outlineDiff += step(0.99, getValue(outlineBuffer, 0, 0).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, 1, 0).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, -1, 0).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, 0, -1).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, 0, 1).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, outlineThickness, 0).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, -outlineThickness, 0).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, 0, -outlineThickness).r);
-        outlineDiff += step(0.99, getValue(outlineBuffer, 0, outlineThickness).r);
+        // thickness between 10 and 2, opacity between 1 and 0.2
+	    int outlineThickness = int(outlinePreview.a * 10.);
+	    
+	    float outlineDiff = 0.;
         
-        float outLine = step(4., outlineDiff) * step(outlineDiff, 8.) * outlineEnabled;
+        outlineDiff += step(0.1, getValue(outlineBuffer, 0, 0).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, 1, 0).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, -1, 0).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, 0, -1).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, 0, 1).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, outlineThickness, 0).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, -outlineThickness, 0).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, 0, -outlineThickness).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, 0, outlineThickness).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, outlineThickness, outlineThickness).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, -outlineThickness, outlineThickness).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, -outlineThickness, -outlineThickness).a);
+        outlineDiff += step(0.1, getValue(outlineBuffer, outlineThickness, -outlineThickness).a);
+        
+        float outLine = step(4., outlineDiff) * step(outlineDiff, 12.) * outlineEnabled;
         corrected = mix(corrected, vec4(outlineColor, 1.), outLine);
         
         gl_FragColor = corrected;
@@ -100810,8 +101013,6 @@ class CustomEffectsPass extends Pass {
                 minGloss: { value: -0.4 },
                 maxGloss: { value: 0 },
                 outlineEnabled: { value: 0 },
-                outlineColor: { value: new THREE$1.Color(this._outlineColor) },
-                outlineThickness: { value: this._outlineThickness },
                 glossExponent: { value: this._glossExponent },
                 width: { value: 1 },
                 lineColor: { value: new THREE$1.Color(this._lineColor) },
@@ -101054,6 +101255,728 @@ class PostproductionRenderer extends SimpleRenderer {
     setPostproductionSize() {
         const { clientWidth, clientHeight } = this.container;
         this.postproduction.setSize(clientWidth, clientHeight);
+    }
+}
+
+class ClippingFills {
+    get visible() {
+        return this.mesh.parent !== null;
+    }
+    set visible(value) {
+        const style = this.getStyle();
+        if (value) {
+            const scene = this._components.scene.get();
+            scene.add(this.mesh);
+            if (style) {
+                style.meshes.add(this.mesh);
+            }
+        }
+        else {
+            this.mesh.removeFromParent();
+            if (style) {
+                style.meshes.delete(this.mesh);
+            }
+        }
+    }
+    constructor(components, plane, geometry, material) {
+        // readonly worker: Worker;
+        this.mesh = new Mesh(new THREE$1.BufferGeometry());
+        this._precission = 10000;
+        this._tempVector = new THREE$1.Vector3();
+        // Used to work in the 2D coordinate system of the plane
+        this._plane2DCoordinateSystem = new THREE$1.Matrix4();
+        this._components = components;
+        this.mesh.material = material;
+        this.mesh.frustumCulled = false;
+        this._plane = plane;
+        const { x, y, z } = plane.normal;
+        if (Math.abs(x) === 1) {
+            this._planeAxis = "x";
+        }
+        else if (Math.abs(y) === 1) {
+            this._planeAxis = "y";
+        }
+        else if (Math.abs(z) === 1) {
+            this._planeAxis = "z";
+        }
+        this._geometry = geometry;
+        this.mesh.geometry.attributes.position = geometry.attributes.position;
+        // To prevent clipping plane overlapping the filling mesh
+        const offset = plane.normal.clone().multiplyScalar(0.01);
+        this.mesh.position.copy(offset);
+        this.visible = true;
+    }
+    dispose() {
+        this.mesh.geometry.dispose();
+        this.mesh.removeFromParent();
+        this.mesh.geometry = null;
+        this.mesh = null;
+        this._plane = null;
+        this._geometry = null;
+    }
+    update(elements, blockByIndex) {
+        const buffer = this._geometry.attributes.position.array;
+        if (!buffer)
+            return;
+        this.updatePlane2DCoordinateSystem();
+        const allIndices = [];
+        let start = 0;
+        for (let i = 0; i < elements.length; i++) {
+            const end = elements[i];
+            const verticesByBlock = {};
+            for (let j = start; j < end; j += 2) {
+                let block = blockByIndex[j];
+                if (block === undefined) {
+                    block = -1;
+                }
+                if (!verticesByBlock[block]) {
+                    verticesByBlock[block] = [];
+                }
+                verticesByBlock[block].push(j * 3);
+            }
+            for (const block in verticesByBlock) {
+                const vertices = verticesByBlock[block];
+                if (!vertices.length) {
+                    continue;
+                }
+                const indices = this.computeFill(vertices, buffer);
+                for (const index of indices) {
+                    allIndices.push(index);
+                }
+            }
+            start = end;
+        }
+        this.mesh.geometry.setIndex(allIndices);
+    }
+    computeFill(vertices, buffer) {
+        const indices = new Map();
+        const all2DVertices = {};
+        const shapes = new Map();
+        let nextShapeID = 0;
+        const shapesEnds = new Map();
+        const shapesStarts = new Map();
+        const openShapes = new Set();
+        const p = this._precission;
+        for (let i = 0; i < vertices.length; i++) {
+            // Convert vertices to indices
+            const startVertexIndex = vertices[i];
+            let x1 = 0;
+            let y1 = 0;
+            let x2 = 0;
+            let y2 = 0;
+            const globalX1 = buffer[startVertexIndex];
+            const globalY1 = buffer[startVertexIndex + 1];
+            const globalZ1 = buffer[startVertexIndex + 2];
+            const globalX2 = buffer[startVertexIndex + 3];
+            const globalY2 = buffer[startVertexIndex + 4];
+            const globalZ2 = buffer[startVertexIndex + 5];
+            this._tempVector.set(globalX1, globalY1, globalZ1);
+            this._tempVector.applyMatrix4(this._plane2DCoordinateSystem);
+            x1 = Math.trunc(this._tempVector.x * p) / p;
+            y1 = Math.trunc(this._tempVector.y * p) / p;
+            this._tempVector.set(globalX2, globalY2, globalZ2);
+            this._tempVector.applyMatrix4(this._plane2DCoordinateSystem);
+            x2 = Math.trunc(this._tempVector.x * p) / p;
+            y2 = Math.trunc(this._tempVector.y * p) / p;
+            if (x1 === x2 && y1 === y2) {
+                continue;
+            }
+            const startCode = `${x1}|${y1}`;
+            const endCode = `${x2}|${y2}`;
+            if (!indices.has(startCode)) {
+                indices.set(startCode, startVertexIndex / 3);
+            }
+            if (!indices.has(endCode)) {
+                indices.set(endCode, startVertexIndex / 3 + 1);
+            }
+            const start = indices.get(startCode);
+            const end = indices.get(endCode);
+            all2DVertices[start] = [x1, y1];
+            all2DVertices[end] = [x2, y2];
+            const startMatchesStart = shapesStarts.has(start);
+            const startMatchesEnd = shapesEnds.has(start);
+            const endMatchesStart = shapesStarts.has(end);
+            const endMatchesEnd = shapesEnds.has(end);
+            const noMatches = !startMatchesStart &&
+                !startMatchesEnd &&
+                !endMatchesStart &&
+                !endMatchesEnd;
+            if (noMatches) {
+                // New shape
+                shapesStarts.set(start, nextShapeID);
+                shapesEnds.set(end, nextShapeID);
+                openShapes.add(nextShapeID);
+                shapes.set(nextShapeID, [start, end]);
+                nextShapeID++;
+            }
+            else if (startMatchesStart && endMatchesEnd) {
+                // Close shape or merge 2 shapes
+                const startIndex = shapesStarts.get(start);
+                const endIndex = shapesEnds.get(end);
+                const isShapeMerge = startIndex !== endIndex;
+                if (isShapeMerge) {
+                    // merge start to end
+                    const endShape = shapes.get(endIndex);
+                    const startShape = shapes.get(startIndex);
+                    if (!endShape || !startShape) {
+                        continue;
+                    }
+                    shapes.delete(startIndex);
+                    openShapes.delete(startIndex);
+                    shapesEnds.set(startShape[startShape.length - 1], endIndex);
+                    shapesEnds.delete(endShape[endShape.length - 1]);
+                    for (const index of startShape) {
+                        endShape.push(index);
+                    }
+                }
+                else {
+                    openShapes.delete(endIndex);
+                }
+                shapesStarts.delete(start);
+                shapesEnds.delete(end);
+            }
+            else if (startMatchesEnd && endMatchesStart) {
+                // Close shape or merge 2 shapes
+                const startIndex = shapesStarts.get(end);
+                const endIndex = shapesEnds.get(start);
+                const isShapeMerge = startIndex !== endIndex;
+                if (isShapeMerge) {
+                    // merge start to end
+                    const endShape = shapes.get(endIndex);
+                    const startShape = shapes.get(startIndex);
+                    if (!endShape || !startShape) {
+                        continue;
+                    }
+                    shapes.delete(startIndex);
+                    openShapes.delete(startIndex);
+                    shapesEnds.set(startShape[startShape.length - 1], endIndex);
+                    shapesEnds.delete(endShape[endShape.length - 1]);
+                    for (const index of startShape) {
+                        endShape.push(index);
+                    }
+                }
+                else {
+                    openShapes.delete(endIndex);
+                }
+                shapesStarts.delete(end);
+                shapesEnds.delete(start);
+            }
+            else if (startMatchesStart && endMatchesStart) {
+                // Merge 2 shapes, mirroring one of them
+                const startIndex1 = shapesStarts.get(end);
+                const startIndex2 = shapesStarts.get(start);
+                // merge start to end
+                const startShape2 = shapes.get(startIndex2);
+                const startShape1 = shapes.get(startIndex1);
+                if (!startShape2 || !startShape1) {
+                    continue;
+                }
+                shapes.delete(startIndex1);
+                openShapes.delete(startIndex1);
+                shapesStarts.delete(startShape2[0]);
+                shapesStarts.delete(startShape1[0]);
+                shapesEnds.delete(startShape1[startShape1.length - 1]);
+                shapesStarts.set(startShape1[startShape1.length - 1], startIndex2);
+                startShape1.reverse();
+                startShape2.splice(0, 0, ...startShape1);
+            }
+            else if (startMatchesEnd && endMatchesEnd) {
+                // Merge 2 shapes, mirroring one of them
+                const endIndex1 = shapesEnds.get(end);
+                const endIndex2 = shapesEnds.get(start);
+                // merge start to end
+                const endShape2 = shapes.get(endIndex2);
+                const endShape1 = shapes.get(endIndex1);
+                if (!endShape2 || !endShape1) {
+                    continue;
+                }
+                shapes.delete(endIndex1);
+                openShapes.delete(endIndex1);
+                shapesEnds.delete(endShape2[endShape2.length - 1]);
+                shapesEnds.delete(endShape1[endShape1.length - 1]);
+                shapesStarts.delete(endShape1[0]);
+                shapesEnds.set(endShape1[0], endIndex2);
+                endShape1.reverse();
+                endShape2.push(...endShape1);
+            }
+            else if (startMatchesStart) {
+                // existing contour on start - start
+                const shapeIndex = shapesStarts.get(start);
+                const shape = shapes.get(shapeIndex);
+                if (!shape) {
+                    continue;
+                }
+                shape.unshift(end);
+                shapesStarts.delete(start);
+                shapesStarts.set(end, shapeIndex);
+            }
+            else if (startMatchesEnd) {
+                // existing contour on start - end
+                const shapeIndex = shapesEnds.get(start);
+                const shape = shapes.get(shapeIndex);
+                if (!shape) {
+                    continue;
+                }
+                shape.push(end);
+                shapesEnds.delete(start);
+                shapesEnds.set(end, shapeIndex);
+            }
+            else if (endMatchesStart) {
+                // existing contour on end - start
+                const shapeIndex = shapesStarts.get(end);
+                const shape = shapes.get(shapeIndex);
+                if (!shape) {
+                    continue;
+                }
+                shape.unshift(start);
+                shapesStarts.delete(end);
+                shapesStarts.set(start, shapeIndex);
+            }
+            else if (endMatchesEnd) {
+                // existing contour on end - end
+                const shapeIndex = shapesEnds.get(end);
+                const shape = shapes.get(shapeIndex);
+                if (!shape) {
+                    continue;
+                }
+                shape.push(start);
+                shapesEnds.delete(end);
+                shapesEnds.set(start, shapeIndex);
+            }
+        }
+        const trueIndices = [];
+        for (const [id, shape] of shapes) {
+            if (openShapes.has(id)) {
+                continue;
+            }
+            const vertices = [];
+            const indexMap = new Map();
+            let counter = 0;
+            for (const index of shape) {
+                const vertex = all2DVertices[index];
+                vertices.push(vertex[0], vertex[1]);
+                indexMap.set(counter++, index);
+            }
+            const result = earcut$1(vertices);
+            for (const index of result) {
+                const trueIndex = indexMap.get(index);
+                if (trueIndex === undefined) {
+                    throw new Error("Map error!");
+                }
+                trueIndices.push(trueIndex);
+            }
+        }
+        return trueIndices;
+    }
+    updatePlane2DCoordinateSystem() {
+        // Assuming the normal of the plane is called Z
+        this._plane2DCoordinateSystem = new THREE$1.Matrix4();
+        const xAxis = new THREE$1.Vector3(1, 0, 0);
+        const yAxis = new THREE$1.Vector3(0, 1, 0);
+        const zAxis = this._plane.normal;
+        const pos = new THREE$1.Vector3();
+        this._plane.coplanarPoint(pos);
+        if (this._planeAxis === "x") {
+            xAxis.crossVectors(yAxis, zAxis);
+        }
+        else if (this._planeAxis === "y") {
+            yAxis.crossVectors(zAxis, xAxis);
+        }
+        else if (this._planeAxis === "z") ;
+        else {
+            // Non-orthogonal to cardinal axis
+            xAxis.crossVectors(yAxis, zAxis).normalize();
+            yAxis.crossVectors(zAxis, xAxis);
+        }
+        // prettier-ignore
+        this._plane2DCoordinateSystem.fromArray([
+            xAxis.x, xAxis.y, xAxis.z, 0,
+            yAxis.x, yAxis.y, yAxis.z, 0,
+            zAxis.x, zAxis.y, zAxis.z, 0,
+            pos.x, pos.y, pos.z, 1,
+        ]);
+        this._plane2DCoordinateSystem.invert();
+    }
+    getStyle() {
+        const renderer = this._components.renderer;
+        if (this.styleName && renderer instanceof PostproductionRenderer) {
+            const effects = renderer.postproduction.customEffects;
+            return effects.outlinedMeshes[this.styleName];
+        }
+        return null;
+    }
+}
+
+/**
+ * The edges that are drawn when the {@link EdgesPlane} sections a mesh.
+ */
+class ClippingEdges extends Component {
+    /** {@link Hideable.visible} */
+    get visible() {
+        return this._visible;
+    }
+    /** {@link Hideable.visible} */
+    set visible(visible) {
+        this._visible = visible;
+        const names = Object.keys(this._edges);
+        for (const edgeName of names) {
+            this.updateEdgesVisibility(edgeName, visible);
+        }
+        if (visible) {
+            this.update();
+        }
+    }
+    set fillVisible(visible) {
+        for (const name in this._edges) {
+            const edges = this._edges[name];
+            if (edges.fill) {
+                edges.fill.visible = visible;
+            }
+        }
+    }
+    constructor(components, plane, styles) {
+        super();
+        /** {@link Component.name} */
+        this.name = "ClippingEdges";
+        /** {@link Component.enabled}. */
+        this.enabled = true;
+        this.fillNeedsUpdate = false;
+        this.blockByIndex = {};
+        this.lastBlock = 0;
+        this._edges = {};
+        this._disposer = new Disposer();
+        this._visible = true;
+        this._inverseMatrix = new THREE$1.Matrix4();
+        this._localPlane = new THREE$1.Plane();
+        this._tempLine = new THREE$1.Line3();
+        this._tempVector = new THREE$1.Vector3();
+        /** {@link Updateable.afterUpdate} */
+        this.afterUpdate = new Event();
+        /** {@link Updateable.beforeUpdate} */
+        this.beforeUpdate = new Event();
+        this._components = components;
+        this._plane = plane;
+        this._styles = styles;
+    }
+    /** {@link Updateable.update} */
+    update() {
+        const styles = Object.values(this._styles.get());
+        for (const style of styles) {
+            this.drawEdges(style.name);
+        }
+        this.fillNeedsUpdate = false;
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._edges;
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        const edges = Object.values(this._edges);
+        for (const edge of edges) {
+            if (edge.fill) {
+                edge.fill.dispose();
+            }
+            this._disposer.dispose(edge.mesh, false);
+        }
+    }
+    newEdgesMesh(styleName) {
+        const styles = this._styles.get();
+        const material = styles[styleName].lineMaterial;
+        const edgesGeometry = new THREE$1.BufferGeometry();
+        const buffer = new Float32Array(300000);
+        const linePosAttr = new THREE$1.BufferAttribute(buffer, 3, false);
+        linePosAttr.setUsage(THREE$1.DynamicDrawUsage);
+        edgesGeometry.setAttribute("position", linePosAttr);
+        const lines = new THREE$1.LineSegments(edgesGeometry, material);
+        lines.frustumCulled = false;
+        return lines;
+    }
+    newFillMesh(name, geometry) {
+        const styles = this._styles.get();
+        const style = styles[name];
+        const fillMaterial = style.fillMaterial;
+        if (fillMaterial) {
+            const fills = new ClippingFills(this._components, this._plane, geometry, fillMaterial);
+            this.newFillOutline(name, fills, style);
+            return fills;
+        }
+        return undefined;
+    }
+    newFillOutline(name, fills, style) {
+        if (!style.outlineMaterial)
+            return;
+        const renderer = this._components.renderer;
+        if (renderer instanceof PostproductionRenderer) {
+            const pRenderer = renderer;
+            const outlines = pRenderer.postproduction.customEffects.outlinedMeshes;
+            if (!outlines[name]) {
+                outlines[name] = {
+                    meshes: new Set(),
+                    material: style.outlineMaterial,
+                };
+            }
+            fills.styleName = name;
+        }
+    }
+    // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
+    drawEdges(styleName) {
+        this.blockByIndex = {};
+        const style = this._styles.get()[styleName];
+        if (!this._edges[styleName]) {
+            this.initializeStyle(styleName);
+        }
+        const edges = this._edges[styleName];
+        let index = 0;
+        const posAttr = edges.mesh.geometry.attributes.position;
+        // @ts-ignore
+        posAttr.array.fill(0);
+        const indexes = [];
+        let lastIndex = 0;
+        const notEmptyMeshes = style.meshes.filter((mesh) => mesh.geometry);
+        for (const mesh of notEmptyMeshes) {
+            if (!mesh.geometry.boundsTree) {
+                throw new Error("Boundstree not found for clipping edges subset.");
+            }
+            const instanced = mesh;
+            if (instanced.count > 1) {
+                for (let i = 0; i < instanced.count; i++) {
+                    // Exclude fragment instances that don't belong to this style
+                    const isFragment = instanced instanceof FragmentMesh;
+                    const fMesh = instanced;
+                    const ids = style.fragments[fMesh.fragment.id];
+                    if (isFragment && ids) {
+                        const itemID = fMesh.fragment.items[i];
+                        if (!ids.has(itemID)) {
+                            continue;
+                        }
+                    }
+                    const tempMesh = new THREE$1.Mesh(mesh.geometry);
+                    tempMesh.matrix.copy(mesh.matrix);
+                    const tempMatrix = new THREE$1.Matrix4();
+                    instanced.getMatrixAt(i, tempMatrix);
+                    tempMesh.applyMatrix4(tempMatrix);
+                    tempMesh.applyMatrix4(mesh.matrix);
+                    tempMesh.updateMatrix();
+                    tempMesh.updateMatrixWorld();
+                    this._inverseMatrix.copy(tempMesh.matrixWorld).invert();
+                    this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
+                    index = this.shapecast(tempMesh, posAttr, index, style);
+                    if (index !== lastIndex) {
+                        indexes.push(index);
+                        lastIndex = index;
+                    }
+                }
+            }
+            else {
+                this._inverseMatrix.copy(mesh.matrixWorld).invert();
+                this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
+                const isFragment = mesh instanceof FragmentMesh;
+                index = this.shapecast(mesh, posAttr, index, style, isFragment);
+                if (index !== lastIndex) {
+                    indexes.push(index);
+                    lastIndex = index;
+                }
+            }
+        }
+        // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
+        edges.mesh.geometry.setDrawRange(0, index);
+        edges.mesh.position.copy(this._plane.normal).multiplyScalar(0.0001);
+        posAttr.needsUpdate = true;
+        // Update the edges geometry only if there is no NaN in the output (which means there's been an error)
+        const attributes = edges.mesh.geometry.attributes;
+        const position = attributes.position;
+        if (!Number.isNaN(position.array[0])) {
+            const scene = this._components.scene.get();
+            scene.add(edges.mesh);
+            if (this.fillNeedsUpdate && edges.fill) {
+                edges.fill.update(indexes, this.blockByIndex);
+            }
+        }
+    }
+    initializeStyle(name) {
+        const mesh = this.newEdgesMesh(name);
+        const geometry = mesh.geometry;
+        const fill = this.newFillMesh(name, geometry);
+        this._edges[name] = { mesh, name, fill };
+    }
+    shapecast(mesh, posAttr, index, style, isMultiblockFragment = false) {
+        // @ts-ignore
+        mesh.geometry.boundsTree.shapecast({
+            intersectsBounds: (box) => {
+                return this._localPlane.intersectsBox(box);
+            },
+            // @ts-ignore
+            intersectsTriangle: (tri, triangleIndex) => {
+                // Exclude triangles of fragment items that don't belong to this style
+                if (isMultiblockFragment && style.fragments) {
+                    const fMesh = mesh;
+                    const ids = style.fragments[fMesh.fragment.id];
+                    if (ids !== undefined) {
+                        const index = fMesh.geometry.index.array[triangleIndex * 3];
+                        const blockID = fMesh.geometry.attributes.blockID.array[index];
+                        const id = fMesh.fragment.getItemID(0, blockID);
+                        if (!ids.has(id)) {
+                            return;
+                        }
+                    }
+                }
+                // check each triangle edge to see if it intersects with the plane. If so then
+                // add it to the list of segments.
+                let count = 0;
+                this._tempLine.start.copy(tri.a);
+                this._tempLine.end.copy(tri.b);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                this._tempLine.start.copy(tri.b);
+                this._tempLine.end.copy(tri.c);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                this._tempLine.start.copy(tri.c);
+                this._tempLine.end.copy(tri.a);
+                if (this._localPlane.intersectLine(this._tempLine, this._tempVector)) {
+                    const result = this._tempVector.applyMatrix4(mesh.matrixWorld);
+                    posAttr.setXYZ(index, result.x, result.y, result.z);
+                    count++;
+                    index++;
+                }
+                // If we only intersected with one or three sides then just remove it. This could be handled
+                // more gracefully.
+                if (count !== 2) {
+                    index -= count;
+                }
+                if (count === 2 && isMultiblockFragment) {
+                    const fMesh = mesh;
+                    const vertexIndex = fMesh.geometry.index.array[triangleIndex * 3];
+                    const block = fMesh.geometry.attributes.blockID.array[vertexIndex];
+                    this.blockByIndex[index - 2] = block;
+                }
+            },
+        });
+        return index;
+    }
+    updateEdgesVisibility(edgeName, visible) {
+        const edges = this._edges[edgeName];
+        if (edges.fill) {
+            edges.fill.visible = visible;
+        }
+        edges.mesh.visible = visible;
+        if (visible) {
+            const scene = this._components.scene.get();
+            scene.add(edges.mesh);
+        }
+        else {
+            edges.mesh.removeFromParent();
+        }
+    }
+}
+
+/**
+ * A more advanced version of {@link SimpleClipper} that also includes
+ * {@link ClippingEdges} with customizable lines.
+ */
+class EdgesPlane extends SimplePlane {
+    constructor(components, origin, normal, material, styles) {
+        super(components, origin, normal, material, 5, false);
+        /**
+         * The max rate in milliseconds at which edges can be regenerated.
+         * To disable this behaviour set this to 0.
+         */
+        this.edgesMaxUpdateRate = 50;
+        this.lastUpdate = -1;
+        this.updateTimeout = -1;
+        /** {@link Updateable.update} */
+        this.update = () => {
+            if (!this.enabled)
+                return;
+            this._plane.setFromNormalAndCoplanarPoint(this._normal, this._helper.position);
+            // Rate limited edges update
+            const now = Date.now();
+            if (this.lastUpdate + this.edgesMaxUpdateRate < now) {
+                this.lastUpdate = now;
+                this.edges.update();
+            }
+            else if (this.updateTimeout === -1) {
+                this.updateTimeout = window.setTimeout(() => {
+                    this.update();
+                    this.updateTimeout = -1;
+                }, this.edgesMaxUpdateRate);
+            }
+        };
+        this.hideFills = () => {
+            this.edges.fillVisible = false;
+        };
+        this.updateFill = () => {
+            this.edges.fillNeedsUpdate = true;
+            this.edges.update();
+            this.edges.fillVisible = true;
+        };
+        this.edges = new ClippingEdges(components, this._plane, styles);
+        this.toggleControls(true);
+        this.edges.visible = true;
+        this.draggingEnded.on(this.updateFill);
+        this.draggingStarted.on(this.hideFills);
+    }
+    /** {@link Hideable.visible} */
+    set visible(state) {
+        super.visible = state;
+        this.toggleControls(state);
+        this.edges.visible = state;
+    }
+    /** {@link Component.enabled} */
+    get enabled() {
+        return super.enabled;
+    }
+    /** {@link Component.enabled} */
+    set enabled(state) {
+        super.enabled = state;
+        if (state) {
+            this.update();
+        }
+    }
+    /** {@link Disposable.dispose} */
+    dispose() {
+        super.dispose();
+        this.edges.dispose();
+    }
+}
+
+/**
+ * A more advanced version of {@link SimpleClipper} that also supports
+ * {@link ClippingEdges} with customizable lines.
+ */
+class EdgesClipper extends SimpleClipper {
+    constructor(components, PlaneType) {
+        super(components, PlaneType);
+        /** {@link Component.name} */
+        this.name = "EdgesClipper";
+        this.styles = new EdgesStyles(components);
+    }
+    /** {@link Component.get} */
+    dispose() {
+        super.dispose();
+        this.styles.dispose();
+    }
+    /**
+     * Updates all the lines of the {@link ClippingEdges}.
+     */
+    updateEdges() {
+        if (!this.enabled)
+            return;
+        for (const plane of this._planes) {
+            plane.update();
+        }
+    }
+    newPlaneInstance(point, normal) {
+        return new this.PlaneType(this.components, point, normal, this._material, this.styles);
     }
 }
 
@@ -102402,10 +103325,11 @@ class PlanNavigator extends Component {
         if (this.currentPlan.plane) {
             this.currentPlan.plane.enabled = true;
             if (this.currentPlan.plane instanceof EdgesPlane) {
+                this.currentPlan.plane.edges.fillNeedsUpdate = true;
                 this.currentPlan.plane.edges.visible = true;
             }
         }
-        this.camera.setNavigationMode("Plan");
+        // this.camera.setNavigationMode("Plan");
         const projection = this.currentPlan.ortho ? "Orthographic" : "Perspective";
         this.camera.setProjection(projection);
     }
@@ -102446,16 +103370,18 @@ class FragmentOutliner extends Component {
     }
     constructor(components, fragments, renderer) {
         super();
-        this.name = "FragmentHighlighter";
+        this.name = "FragmentOutliner";
         this._enabled = true;
+        this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
         this._selection = {};
         this._outlinedMeshes = {};
-        this._tempMatrix = new THREE$1.Matrix4();
-        this._selectOverrideMaterial = new THREE$1.MeshBasicMaterial({
+        this.outlineMaterial = new THREE$1.MeshBasicMaterial({
             color: "white",
-            depthTest: false,
             transparent: true,
+            depthTest: false,
+            depthWrite: false,
         });
+        this._tempMatrix = new THREE$1.Matrix4();
         this._components = components;
         this._fragments = fragments;
         this._renderer = renderer;
@@ -102465,12 +103391,12 @@ class FragmentOutliner extends Component {
         return this._selection;
     }
     dispose() {
-        this._selectOverrideMaterial.dispose();
         this._selection = {};
         for (const id in this._outlinedMeshes) {
             const mesh = this._outlinedMeshes[id];
             mesh.geometry.dispose();
         }
+        this._invisibleMaterial.dispose();
         this._fragments = null;
         this._components = null;
         this._renderer = null;
@@ -102550,7 +103476,22 @@ class FragmentOutliner extends Component {
     // }
     clear() {
         this._selection = {};
-        this._renderer.postproduction.customEffects.outlinedMeshes = [];
+        const customEffects = this._renderer.postproduction.customEffects;
+        const fragmentsOutline = customEffects.outlinedMeshes.fragments;
+        if (fragmentsOutline) {
+            fragmentsOutline.meshes.clear();
+        }
+        for (const fragID in this._outlinedMeshes) {
+            const fragment = this._fragments.list[fragID];
+            const isBlockFragment = fragment.blocks.count > 1;
+            const mesh = this._outlinedMeshes[fragID];
+            if (isBlockFragment) {
+                mesh.geometry.setIndex([]);
+            }
+            else {
+                mesh.count = 0;
+            }
+        }
     }
     addComposites(mesh, itemID) {
         const composites = mesh.fragment.composites[itemID];
@@ -102567,41 +103508,52 @@ class FragmentOutliner extends Component {
         if (!fragment)
             return;
         const geometry = fragment.mesh.geometry;
+        const customEffects = this._renderer.postproduction.customEffects;
+        if (!customEffects.outlinedMeshes.fragments) {
+            customEffects.outlinedMeshes.fragments = {
+                meshes: new Set(),
+                material: this.outlineMaterial,
+            };
+        }
+        const outlineEffect = customEffects.outlinedMeshes.fragments;
         // Create a copy of the original fragment mesh for outline
         if (!this._outlinedMeshes[fragmentID]) {
-            const newMesh = new THREE$1.InstancedMesh(geometry.clone(), [this._selectOverrideMaterial], fragment.capacity);
+            const newGeometry = new THREE$1.BufferGeometry();
+            newGeometry.attributes = geometry.attributes;
+            const newMesh = new THREE$1.InstancedMesh(newGeometry, this._invisibleMaterial, fragment.capacity);
             newMesh.frustumCulled = false;
             newMesh.renderOrder = 999;
             this._outlinedMeshes[fragmentID] = newMesh;
+            const scene = this._components.scene.get();
+            scene.add(newMesh);
         }
-        const outline = this._outlinedMeshes[fragmentID];
-        const customEffects = this._renderer.postproduction.customEffects;
-        customEffects.outlinedMeshes.push({ outline, fragment: fragment.mesh });
+        const outlineMesh = this._outlinedMeshes[fragmentID];
+        outlineEffect.meshes.add(outlineMesh);
         const isBlockFragment = fragment.blocks.count > 1;
         if (isBlockFragment) {
-            const groups = [];
-            for (const id of ids) {
-                const { blockID } = fragment.getInstanceAndBlockID(id);
-                // @ts-ignore
-                const value = fragment.blocks.blocksMap.indices.map.get(blockID);
-                if (value) {
-                    const [start, blockEnd] = value[0];
-                    const end = blockEnd + 1;
-                    const count = end - start;
-                    groups.push({ start, count, materialIndex: 0 });
+            const indices = fragment.mesh.geometry.index.array;
+            const newIndex = [];
+            const idsSet = new Set(ids);
+            for (let i = 0; i < indices.length - 2; i += 3) {
+                const index = indices[i];
+                const blockID = fragment.mesh.geometry.attributes.blockID.array;
+                const block = blockID[index];
+                const itemID = fragment.mesh.fragment.getItemID(0, block);
+                if (idsSet.has(itemID)) {
+                    newIndex.push(indices[i], indices[i + 1], indices[i + 2]);
                 }
             }
-            outline.geometry.groups = groups;
+            outlineMesh.geometry.setIndex(newIndex);
         }
         else {
             let counter = 0;
             for (const id of ids) {
                 const { instanceID } = fragment.getInstanceAndBlockID(id);
                 fragment.mesh.getMatrixAt(instanceID, this._tempMatrix);
-                outline.setMatrixAt(counter++, this._tempMatrix);
+                outlineMesh.setMatrixAt(counter++, this._tempMatrix);
             }
-            outline.count = counter;
-            outline.instanceMatrix.needsUpdate = true;
+            outlineMesh.count = counter;
+            outlineMesh.instanceMatrix.needsUpdate = true;
         }
     }
 }
@@ -103396,8 +104348,6 @@ class DrawManager extends Component {
     }
 }
 
-var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
-
 var mapboxGl = {exports: {}};
 
 /* Mapbox GL JS is Copyright © 2020 Mapbox and subject to the Mapbox Terms of Service ((https://www.mapbox.com/legal/tos/). */
@@ -104075,6 +105025,235 @@ class AreaMeasurement extends Component {
     }
 }
 
+const _box$1 = new Box3();
+const _vector = new Vector3$1();
+
+class LineSegmentsGeometry extends InstancedBufferGeometry {
+
+	constructor() {
+
+		super();
+
+		this.isLineSegmentsGeometry = true;
+
+		this.type = 'LineSegmentsGeometry';
+
+		const positions = [ - 1, 2, 0, 1, 2, 0, - 1, 1, 0, 1, 1, 0, - 1, 0, 0, 1, 0, 0, - 1, - 1, 0, 1, - 1, 0 ];
+		const uvs = [ - 1, 2, 1, 2, - 1, 1, 1, 1, - 1, - 1, 1, - 1, - 1, - 2, 1, - 2 ];
+		const index = [ 0, 2, 1, 2, 3, 1, 2, 4, 3, 4, 5, 3, 4, 6, 5, 6, 7, 5 ];
+
+		this.setIndex( index );
+		this.setAttribute( 'position', new Float32BufferAttribute( positions, 3 ) );
+		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+
+	}
+
+	applyMatrix4( matrix ) {
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined ) {
+
+			start.applyMatrix4( matrix );
+
+			end.applyMatrix4( matrix );
+
+			start.needsUpdate = true;
+
+		}
+
+		if ( this.boundingBox !== null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		if ( this.boundingSphere !== null ) {
+
+			this.computeBoundingSphere();
+
+		}
+
+		return this;
+
+	}
+
+	setPositions( array ) {
+
+		let lineSegments;
+
+		if ( array instanceof Float32Array ) {
+
+			lineSegments = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			lineSegments = new Float32Array( array );
+
+		}
+
+		const instanceBuffer = new InstancedInterleavedBuffer( lineSegments, 6, 1 ); // xyz, xyz
+
+		this.setAttribute( 'instanceStart', new InterleavedBufferAttribute( instanceBuffer, 3, 0 ) ); // xyz
+		this.setAttribute( 'instanceEnd', new InterleavedBufferAttribute( instanceBuffer, 3, 3 ) ); // xyz
+
+		//
+
+		this.computeBoundingBox();
+		this.computeBoundingSphere();
+
+		return this;
+
+	}
+
+	setColors( array ) {
+
+		let colors;
+
+		if ( array instanceof Float32Array ) {
+
+			colors = array;
+
+		} else if ( Array.isArray( array ) ) {
+
+			colors = new Float32Array( array );
+
+		}
+
+		const instanceColorBuffer = new InstancedInterleavedBuffer( colors, 6, 1 ); // rgb, rgb
+
+		this.setAttribute( 'instanceColorStart', new InterleavedBufferAttribute( instanceColorBuffer, 3, 0 ) ); // rgb
+		this.setAttribute( 'instanceColorEnd', new InterleavedBufferAttribute( instanceColorBuffer, 3, 3 ) ); // rgb
+
+		return this;
+
+	}
+
+	fromWireframeGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromEdgesGeometry( geometry ) {
+
+		this.setPositions( geometry.attributes.position.array );
+
+		return this;
+
+	}
+
+	fromMesh( mesh ) {
+
+		this.fromWireframeGeometry( new WireframeGeometry( mesh.geometry ) );
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	fromLineSegments( lineSegments ) {
+
+		const geometry = lineSegments.geometry;
+
+		this.setPositions( geometry.attributes.position.array ); // assumes non-indexed
+
+		// set colors, maybe
+
+		return this;
+
+	}
+
+	computeBoundingBox() {
+
+		if ( this.boundingBox === null ) {
+
+			this.boundingBox = new Box3();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			this.boundingBox.setFromBufferAttribute( start );
+
+			_box$1.setFromBufferAttribute( end );
+
+			this.boundingBox.union( _box$1 );
+
+		}
+
+	}
+
+	computeBoundingSphere() {
+
+		if ( this.boundingSphere === null ) {
+
+			this.boundingSphere = new Sphere();
+
+		}
+
+		if ( this.boundingBox === null ) {
+
+			this.computeBoundingBox();
+
+		}
+
+		const start = this.attributes.instanceStart;
+		const end = this.attributes.instanceEnd;
+
+		if ( start !== undefined && end !== undefined ) {
+
+			const center = this.boundingSphere.center;
+
+			this.boundingBox.getCenter( center );
+
+			let maxRadiusSq = 0;
+
+			for ( let i = 0, il = start.count; i < il; i ++ ) {
+
+				_vector.fromBufferAttribute( start, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+				_vector.fromBufferAttribute( end, i );
+				maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( _vector ) );
+
+			}
+
+			this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
+
+			if ( isNaN( this.boundingSphere.radius ) ) {
+
+				console.error( 'THREE.LineSegmentsGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this );
+
+			}
+
+		}
+
+	}
+
+	toJSON() {
+
+		// todo
+
+	}
+
+	applyMatrix( matrix ) {
+
+		console.warn( 'THREE.LineSegmentsGeometry: applyMatrix() has been renamed to applyMatrix4().' );
+
+		return this.applyMatrix4( matrix );
+
+	}
+
+}
+
 class LineGeometry extends LineSegmentsGeometry {
 
 	constructor() {
@@ -104146,6 +105325,351 @@ class LineGeometry extends LineSegmentsGeometry {
 		// set colors, maybe
 
 		return this;
+
+	}
+
+}
+
+const _start = new Vector3$1();
+const _end = new Vector3$1();
+
+const _start4 = new Vector4();
+const _end4 = new Vector4();
+
+const _ssOrigin = new Vector4();
+const _ssOrigin3 = new Vector3$1();
+const _mvMatrix = new Matrix4();
+const _line = new Line3();
+const _closestPoint = new Vector3$1();
+
+const _box = new Box3();
+const _sphere = new Sphere();
+const _clipToWorldVector = new Vector4();
+
+let _ray, _lineWidth;
+
+// Returns the margin required to expand by in world space given the distance from the camera,
+// line width, resolution, and camera projection
+function getWorldSpaceHalfWidth( camera, distance, resolution ) {
+
+	// transform into clip space, adjust the x and y values by the pixel width offset, then
+	// transform back into world space to get world offset. Note clip space is [-1, 1] so full
+	// width does not need to be halved.
+	_clipToWorldVector.set( 0, 0, - distance, 1.0 ).applyMatrix4( camera.projectionMatrix );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+	_clipToWorldVector.x = _lineWidth / resolution.width;
+	_clipToWorldVector.y = _lineWidth / resolution.height;
+	_clipToWorldVector.applyMatrix4( camera.projectionMatrixInverse );
+	_clipToWorldVector.multiplyScalar( 1.0 / _clipToWorldVector.w );
+
+	return Math.abs( Math.max( _clipToWorldVector.x, _clipToWorldVector.y ) );
+
+}
+
+function raycastWorldUnits( lineSegments, intersects ) {
+
+	const matrixWorld = lineSegments.matrixWorld;
+	const geometry = lineSegments.geometry;
+	const instanceStart = geometry.attributes.instanceStart;
+	const instanceEnd = geometry.attributes.instanceEnd;
+	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+
+	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
+
+		_line.start.fromBufferAttribute( instanceStart, i );
+		_line.end.fromBufferAttribute( instanceEnd, i );
+
+		_line.applyMatrix4( matrixWorld );
+
+		const pointOnLine = new Vector3$1();
+		const point = new Vector3$1();
+
+		_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+		const isInside = point.distanceTo( pointOnLine ) < _lineWidth * 0.5;
+
+		if ( isInside ) {
+
+			intersects.push( {
+				point,
+				pointOnLine,
+				distance: _ray.origin.distanceTo( point ),
+				object: lineSegments,
+				face: null,
+				faceIndex: i,
+				uv: null,
+				uv1: null,
+			} );
+
+		}
+
+	}
+
+}
+
+function raycastScreenSpace( lineSegments, camera, intersects ) {
+
+	const projectionMatrix = camera.projectionMatrix;
+	const material = lineSegments.material;
+	const resolution = material.resolution;
+	const matrixWorld = lineSegments.matrixWorld;
+
+	const geometry = lineSegments.geometry;
+	const instanceStart = geometry.attributes.instanceStart;
+	const instanceEnd = geometry.attributes.instanceEnd;
+	const segmentCount = Math.min( geometry.instanceCount, instanceStart.count );
+
+	const near = - camera.near;
+
+	//
+
+	// pick a point 1 unit out along the ray to avoid the ray origin
+	// sitting at the camera origin which will cause "w" to be 0 when
+	// applying the projection matrix.
+	_ray.at( 1, _ssOrigin );
+
+	// ndc space [ - 1.0, 1.0 ]
+	_ssOrigin.w = 1;
+	_ssOrigin.applyMatrix4( camera.matrixWorldInverse );
+	_ssOrigin.applyMatrix4( projectionMatrix );
+	_ssOrigin.multiplyScalar( 1 / _ssOrigin.w );
+
+	// screen space
+	_ssOrigin.x *= resolution.x / 2;
+	_ssOrigin.y *= resolution.y / 2;
+	_ssOrigin.z = 0;
+
+	_ssOrigin3.copy( _ssOrigin );
+
+	_mvMatrix.multiplyMatrices( camera.matrixWorldInverse, matrixWorld );
+
+	for ( let i = 0, l = segmentCount; i < l; i ++ ) {
+
+		_start4.fromBufferAttribute( instanceStart, i );
+		_end4.fromBufferAttribute( instanceEnd, i );
+
+		_start4.w = 1;
+		_end4.w = 1;
+
+		// camera space
+		_start4.applyMatrix4( _mvMatrix );
+		_end4.applyMatrix4( _mvMatrix );
+
+		// skip the segment if it's entirely behind the camera
+		const isBehindCameraNear = _start4.z > near && _end4.z > near;
+		if ( isBehindCameraNear ) {
+
+			continue;
+
+		}
+
+		// trim the segment if it extends behind camera near
+		if ( _start4.z > near ) {
+
+			const deltaDist = _start4.z - _end4.z;
+			const t = ( _start4.z - near ) / deltaDist;
+			_start4.lerp( _end4, t );
+
+		} else if ( _end4.z > near ) {
+
+			const deltaDist = _end4.z - _start4.z;
+			const t = ( _end4.z - near ) / deltaDist;
+			_end4.lerp( _start4, t );
+
+		}
+
+		// clip space
+		_start4.applyMatrix4( projectionMatrix );
+		_end4.applyMatrix4( projectionMatrix );
+
+		// ndc space [ - 1.0, 1.0 ]
+		_start4.multiplyScalar( 1 / _start4.w );
+		_end4.multiplyScalar( 1 / _end4.w );
+
+		// screen space
+		_start4.x *= resolution.x / 2;
+		_start4.y *= resolution.y / 2;
+
+		_end4.x *= resolution.x / 2;
+		_end4.y *= resolution.y / 2;
+
+		// create 2d segment
+		_line.start.copy( _start4 );
+		_line.start.z = 0;
+
+		_line.end.copy( _end4 );
+		_line.end.z = 0;
+
+		// get closest point on ray to segment
+		const param = _line.closestPointToPointParameter( _ssOrigin3, true );
+		_line.at( param, _closestPoint );
+
+		// check if the intersection point is within clip space
+		const zPos = MathUtils.lerp( _start4.z, _end4.z, param );
+		const isInClipSpace = zPos >= - 1 && zPos <= 1;
+
+		const isInside = _ssOrigin3.distanceTo( _closestPoint ) < _lineWidth * 0.5;
+
+		if ( isInClipSpace && isInside ) {
+
+			_line.start.fromBufferAttribute( instanceStart, i );
+			_line.end.fromBufferAttribute( instanceEnd, i );
+
+			_line.start.applyMatrix4( matrixWorld );
+			_line.end.applyMatrix4( matrixWorld );
+
+			const pointOnLine = new Vector3$1();
+			const point = new Vector3$1();
+
+			_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
+
+			intersects.push( {
+				point: point,
+				pointOnLine: pointOnLine,
+				distance: _ray.origin.distanceTo( point ),
+				object: lineSegments,
+				face: null,
+				faceIndex: i,
+				uv: null,
+				uv1: null,
+			} );
+
+		}
+
+	}
+
+}
+
+class LineSegments2 extends Mesh {
+
+	constructor( geometry = new LineSegmentsGeometry(), material = new LineMaterial( { color: Math.random() * 0xffffff } ) ) {
+
+		super( geometry, material );
+
+		this.isLineSegments2 = true;
+
+		this.type = 'LineSegments2';
+
+	}
+
+	// for backwards-compatibility, but could be a method of LineSegmentsGeometry...
+
+	computeLineDistances() {
+
+		const geometry = this.geometry;
+
+		const instanceStart = geometry.attributes.instanceStart;
+		const instanceEnd = geometry.attributes.instanceEnd;
+		const lineDistances = new Float32Array( 2 * instanceStart.count );
+
+		for ( let i = 0, j = 0, l = instanceStart.count; i < l; i ++, j += 2 ) {
+
+			_start.fromBufferAttribute( instanceStart, i );
+			_end.fromBufferAttribute( instanceEnd, i );
+
+			lineDistances[ j ] = ( j === 0 ) ? 0 : lineDistances[ j - 1 ];
+			lineDistances[ j + 1 ] = lineDistances[ j ] + _start.distanceTo( _end );
+
+		}
+
+		const instanceDistanceBuffer = new InstancedInterleavedBuffer( lineDistances, 2, 1 ); // d0, d1
+
+		geometry.setAttribute( 'instanceDistanceStart', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 0 ) ); // d0
+		geometry.setAttribute( 'instanceDistanceEnd', new InterleavedBufferAttribute( instanceDistanceBuffer, 1, 1 ) ); // d1
+
+		return this;
+
+	}
+
+	raycast( raycaster, intersects ) {
+
+		const worldUnits = this.material.worldUnits;
+		const camera = raycaster.camera;
+
+		if ( camera === null && ! worldUnits ) {
+
+			console.error( 'LineSegments2: "Raycaster.camera" needs to be set in order to raycast against LineSegments2 while worldUnits is set to false.' );
+
+		}
+
+		const threshold = ( raycaster.params.Line2 !== undefined ) ? raycaster.params.Line2.threshold || 0 : 0;
+
+		_ray = raycaster.ray;
+
+		const matrixWorld = this.matrixWorld;
+		const geometry = this.geometry;
+		const material = this.material;
+
+		_lineWidth = material.linewidth + threshold;
+
+		// check if we intersect the sphere bounds
+		if ( geometry.boundingSphere === null ) {
+
+			geometry.computeBoundingSphere();
+
+		}
+
+		_sphere.copy( geometry.boundingSphere ).applyMatrix4( matrixWorld );
+
+		// increase the sphere bounds by the worst case line screen space width
+		let sphereMargin;
+		if ( worldUnits ) {
+
+			sphereMargin = _lineWidth * 0.5;
+
+		} else {
+
+			const distanceToSphere = Math.max( camera.near, _sphere.distanceToPoint( _ray.origin ) );
+			sphereMargin = getWorldSpaceHalfWidth( camera, distanceToSphere, material.resolution );
+
+		}
+
+		_sphere.radius += sphereMargin;
+
+		if ( _ray.intersectsSphere( _sphere ) === false ) {
+
+			return;
+
+		}
+
+		// check if we intersect the box bounds
+		if ( geometry.boundingBox === null ) {
+
+			geometry.computeBoundingBox();
+
+		}
+
+		_box.copy( geometry.boundingBox ).applyMatrix4( matrixWorld );
+
+		// increase the box bounds by the worst case line width
+		let boxMargin;
+		if ( worldUnits ) {
+
+			boxMargin = _lineWidth * 0.5;
+
+		} else {
+
+			const distanceToBox = Math.max( camera.near, _box.distanceToPoint( _ray.origin ) );
+			boxMargin = getWorldSpaceHalfWidth( camera, distanceToBox, material.resolution );
+
+		}
+
+		_box.expandByScalar( boxMargin );
+
+		if ( _ray.intersectsBox( _box ) === false ) {
+
+			return;
+
+		}
+
+		if ( worldUnits ) {
+
+			raycastWorldUnits( this, intersects );
+
+		} else {
+
+			raycastScreenSpace( this, camera, intersects );
+
+		}
 
 	}
 
