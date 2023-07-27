@@ -92357,6 +92357,8 @@ class FragmentIfcLoader extends Component {
         this.name = "FragmentIfcLoader";
         this.enabled = true;
         this.ifcLoaded = new Event();
+        // For debugging purposes
+        this.isolatedItems = new Set();
         this._webIfc = new IfcAPI2();
         this._geometry = new GeometryReader();
         this._converter = new DataConverter();
@@ -92434,16 +92436,19 @@ class FragmentIfcLoader extends Component {
     }
     async readAllGeometries() {
         this._converter.saveIfcCategories(this._webIfc);
-        // const isolated = new Set<number>([186]);
         // Some categories (like IfcSpace) need to be created explicitly
         const optionals = this.settings.optionalCategories;
         const callback = (mesh) => {
-            // if (!isolated.has(mesh.expressID)) return;
+            if (this.isExcluded(mesh.expressID)) {
+                return;
+            }
             this._geometry.streamMesh(this._webIfc, mesh);
         };
         this._webIfc.StreamAllMeshesWithTypes(0, optionals, callback);
         this._webIfc.StreamAllMeshes(0, (mesh) => {
-            // if (!isolated.has(mesh.expressID)) return;
+            if (this.isExcluded(mesh.expressID)) {
+                return;
+            }
             this._geometry.streamMesh(this._webIfc, mesh);
         });
     }
@@ -92452,6 +92457,9 @@ class FragmentIfcLoader extends Component {
         this._webIfc = new IfcAPI2();
         this._geometry.cleanUp();
         this._converter.cleanUp();
+    }
+    isExcluded(id) {
+        return this.isolatedItems.size && !this.isolatedItems.has(id);
     }
 }
 
@@ -98457,6 +98465,9 @@ class ClippingFills {
             this._tempVector.applyMatrix4(this._plane2DCoordinateSystem);
             x2 = Math.trunc(this._tempVector.x * p) / p;
             y2 = Math.trunc(this._tempVector.y * p) / p;
+            if (x1 === x2 && y1 === y2) {
+                continue;
+            }
             const startCode = `${x1}|${y1}`;
             const endCode = `${x2}|${y2}`;
             if (!indices.has(startCode)) {
@@ -98495,7 +98506,7 @@ class ClippingFills {
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
                     if (!endShape || !startShape) {
-                        return [];
+                        continue;
                     }
                     shapes.delete(startIndex);
                     openShapes.delete(startIndex);
@@ -98521,7 +98532,7 @@ class ClippingFills {
                     const endShape = shapes.get(endIndex);
                     const startShape = shapes.get(startIndex);
                     if (!endShape || !startShape) {
-                        return [];
+                        continue;
                     }
                     shapes.delete(startIndex);
                     openShapes.delete(startIndex);
@@ -98545,7 +98556,7 @@ class ClippingFills {
                 const startShape2 = shapes.get(startIndex2);
                 const startShape1 = shapes.get(startIndex1);
                 if (!startShape2 || !startShape1) {
-                    return [];
+                    continue;
                 }
                 shapes.delete(startIndex1);
                 openShapes.delete(startIndex1);
@@ -98564,7 +98575,7 @@ class ClippingFills {
                 const endShape2 = shapes.get(endIndex2);
                 const endShape1 = shapes.get(endIndex1);
                 if (!endShape2 || !endShape1) {
-                    return [];
+                    continue;
                 }
                 shapes.delete(endIndex1);
                 openShapes.delete(endIndex1);
@@ -98580,7 +98591,7 @@ class ClippingFills {
                 const shapeIndex = shapesStarts.get(start);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    return [];
+                    continue;
                 }
                 shape.unshift(end);
                 shapesStarts.delete(start);
@@ -98591,7 +98602,7 @@ class ClippingFills {
                 const shapeIndex = shapesEnds.get(start);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    return [];
+                    continue;
                 }
                 shape.push(end);
                 shapesEnds.delete(start);
@@ -98602,7 +98613,7 @@ class ClippingFills {
                 const shapeIndex = shapesStarts.get(end);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    return [];
+                    continue;
                 }
                 shape.unshift(start);
                 shapesStarts.delete(end);
@@ -98613,7 +98624,7 @@ class ClippingFills {
                 const shapeIndex = shapesEnds.get(end);
                 const shape = shapes.get(shapeIndex);
                 if (!shape) {
-                    return [];
+                    continue;
                 }
                 shape.push(start);
                 shapesEnds.delete(end);
