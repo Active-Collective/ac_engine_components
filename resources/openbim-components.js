@@ -99731,19 +99731,15 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
 }
 
 /**
- * NVIDIA FXAA by Timothy Lottes
- * https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
- * - WebGL port by @supereggbert
- * http://www.glge.org/demos/fxaa/
- * Further improved by Daniel Sturk
+ * Gamma Correction Shader
+ * http://en.wikipedia.org/wiki/gamma_correction
  */
 
-const FXAAShader = {
+const GammaCorrectionShader = {
 
 	uniforms: {
 
-		'tDiffuse': { value: null },
-		'resolution': { value: new Vector2$1( 1 / 1024, 1 / 512 ) }
+		'tDiffuse': { value: null }
 
 	},
 
@@ -99758,256 +99754,19 @@ const FXAAShader = {
 
 		}`,
 
-	fragmentShader: `
-	precision highp float;
+	fragmentShader: /* glsl */`
 
-	uniform sampler2D tDiffuse;
+		uniform sampler2D tDiffuse;
 
-	uniform vec2 resolution;
+		varying vec2 vUv;
 
-	varying vec2 vUv;
+		void main() {
 
-	// FXAA 3.11 implementation by NVIDIA, ported to WebGL by Agost Biro (biro@archilogic.com)
+			vec4 tex = texture2D( tDiffuse, vUv );
 
-	//----------------------------------------------------------------------------------
-	// File:        es3-kepler\FXAA\assets\shaders/FXAA_DefaultES.frag
-	// SDK Version: v3.00
-	// Email:       gameworks@nvidia.com
-	// Site:        http://developer.nvidia.com/
-	//
-	// Copyright (c) 2014-2015, NVIDIA CORPORATION. All rights reserved.
-	//
-	// Redistribution and use in source and binary forms, with or without
-	// modification, are permitted provided that the following conditions
-	// are met:
-	//  * Redistributions of source code must retain the above copyright
-	//    notice, this list of conditions and the following disclaimer.
-	//  * Redistributions in binary form must reproduce the above copyright
-	//    notice, this list of conditions and the following disclaimer in the
-	//    documentation and/or other materials provided with the distribution.
-	//  * Neither the name of NVIDIA CORPORATION nor the names of its
-	//    contributors may be used to endorse or promote products derived
-	//    from this software without specific prior written permission.
-	//
-	// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-	// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-	// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-	// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-	// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-	// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-	// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-	// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-	// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-	// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-	//
-	//----------------------------------------------------------------------------------
+			gl_FragColor = LinearTosRGB( tex );
 
-	#ifndef FXAA_DISCARD
-			//
-			// Only valid for PC OpenGL currently.
-			// Probably will not work when FXAA_GREEN_AS_LUMA = 1.
-			//
-			// 1 = Use discard on pixels which don't need AA.
-			//     For APIs which enable concurrent TEX+ROP from same surface.
-			// 0 = Return unchanged color on pixels which don't need AA.
-			//
-			#define FXAA_DISCARD 0
-	#endif
-
-	/*--------------------------------------------------------------------------*/
-	#define FxaaTexTop(t, p) texture2D(t, p, -100.0)
-	#define FxaaTexOff(t, p, o, r) texture2D(t, p + (o * r), -100.0)
-	/*--------------------------------------------------------------------------*/
-
-	#define NUM_SAMPLES 5
-
-	// assumes colors have premultipliedAlpha, so that the calculated color contrast is scaled by alpha
-	float contrast( vec4 a, vec4 b ) {
-			vec4 diff = abs( a - b );
-			return max( max( max( diff.r, diff.g ), diff.b ), diff.a );
-	}
-
-	/*============================================================================
-
-									FXAA3 QUALITY - PC
-
-	============================================================================*/
-
-	/*--------------------------------------------------------------------------*/
-	vec4 FxaaPixelShader(
-			vec2 posM,
-			sampler2D tex,
-			vec2 fxaaQualityRcpFrame,
-			float fxaaQualityEdgeThreshold,
-			float fxaaQualityinvEdgeThreshold
-	) {
-			vec4 rgbaM = FxaaTexTop(tex, posM);
-			vec4 rgbaS = FxaaTexOff(tex, posM, vec2( 0.0, 1.0), fxaaQualityRcpFrame.xy);
-			vec4 rgbaE = FxaaTexOff(tex, posM, vec2( 1.0, 0.0), fxaaQualityRcpFrame.xy);
-			vec4 rgbaN = FxaaTexOff(tex, posM, vec2( 0.0,-1.0), fxaaQualityRcpFrame.xy);
-			vec4 rgbaW = FxaaTexOff(tex, posM, vec2(-1.0, 0.0), fxaaQualityRcpFrame.xy);
-			// . S .
-			// W M E
-			// . N .
-
-			bool earlyExit = max( max( max(
-					contrast( rgbaM, rgbaN ),
-					contrast( rgbaM, rgbaS ) ),
-					contrast( rgbaM, rgbaE ) ),
-					contrast( rgbaM, rgbaW ) )
-					< fxaaQualityEdgeThreshold;
-			// . 0 .
-			// 0 0 0
-			// . 0 .
-
-			#if (FXAA_DISCARD == 1)
-					if(earlyExit) FxaaDiscard;
-			#else
-					if(earlyExit) return rgbaM;
-			#endif
-
-			float contrastN = contrast( rgbaM, rgbaN );
-			float contrastS = contrast( rgbaM, rgbaS );
-			float contrastE = contrast( rgbaM, rgbaE );
-			float contrastW = contrast( rgbaM, rgbaW );
-
-			float relativeVContrast = ( contrastN + contrastS ) - ( contrastE + contrastW );
-			relativeVContrast *= fxaaQualityinvEdgeThreshold;
-
-			bool horzSpan = relativeVContrast > 0.;
-			// . 1 .
-			// 0 0 0
-			// . 1 .
-
-			// 45 deg edge detection and corners of objects, aka V/H contrast is too similar
-			if( abs( relativeVContrast ) < .3 ) {
-					// locate the edge
-					vec2 dirToEdge;
-					dirToEdge.x = contrastE > contrastW ? 1. : -1.;
-					dirToEdge.y = contrastS > contrastN ? 1. : -1.;
-					// . 2 .      . 1 .
-					// 1 0 2  ~=  0 0 1
-					// . 1 .      . 0 .
-
-					// tap 2 pixels and see which ones are "outside" the edge, to
-					// determine if the edge is vertical or horizontal
-
-					vec4 rgbaAlongH = FxaaTexOff(tex, posM, vec2( dirToEdge.x, -dirToEdge.y ), fxaaQualityRcpFrame.xy);
-					float matchAlongH = contrast( rgbaM, rgbaAlongH );
-					// . 1 .
-					// 0 0 1
-					// . 0 H
-
-					vec4 rgbaAlongV = FxaaTexOff(tex, posM, vec2( -dirToEdge.x, dirToEdge.y ), fxaaQualityRcpFrame.xy);
-					float matchAlongV = contrast( rgbaM, rgbaAlongV );
-					// V 1 .
-					// 0 0 1
-					// . 0 .
-
-					relativeVContrast = matchAlongV - matchAlongH;
-					relativeVContrast *= fxaaQualityinvEdgeThreshold;
-
-					if( abs( relativeVContrast ) < .3 ) { // 45 deg edge
-							// 1 1 .
-							// 0 0 1
-							// . 0 1
-
-							// do a simple blur
-							return mix(
-									rgbaM,
-									(rgbaN + rgbaS + rgbaE + rgbaW) * .25,
-									.4
-							);
-					}
-
-					horzSpan = relativeVContrast > 0.;
-			}
-
-			if(!horzSpan) rgbaN = rgbaW;
-			if(!horzSpan) rgbaS = rgbaE;
-			// . 0 .      1
-			// 1 0 1  ->  0
-			// . 0 .      1
-
-			bool pairN = contrast( rgbaM, rgbaN ) > contrast( rgbaM, rgbaS );
-			if(!pairN) rgbaN = rgbaS;
-
-			vec2 offNP;
-			offNP.x = (!horzSpan) ? 0.0 : fxaaQualityRcpFrame.x;
-			offNP.y = ( horzSpan) ? 0.0 : fxaaQualityRcpFrame.y;
-
-			bool doneN = false;
-			bool doneP = false;
-
-			float nDist = 0.;
-			float pDist = 0.;
-
-			vec2 posN = posM;
-			vec2 posP = posM;
-
-			int iterationsUsed = 0;
-			int iterationsUsedN = 0;
-			int iterationsUsedP = 0;
-			for( int i = 0; i < NUM_SAMPLES; i++ ) {
-					iterationsUsed = i;
-
-					float increment = float(i + 1);
-
-					if(!doneN) {
-							nDist += increment;
-							posN = posM + offNP * nDist;
-							vec4 rgbaEndN = FxaaTexTop(tex, posN.xy);
-							doneN = contrast( rgbaEndN, rgbaM ) > contrast( rgbaEndN, rgbaN );
-							iterationsUsedN = i;
-					}
-
-					if(!doneP) {
-							pDist += increment;
-							posP = posM - offNP * pDist;
-							vec4 rgbaEndP = FxaaTexTop(tex, posP.xy);
-							doneP = contrast( rgbaEndP, rgbaM ) > contrast( rgbaEndP, rgbaN );
-							iterationsUsedP = i;
-					}
-
-					if(doneN || doneP) break;
-			}
-
-
-			if ( !doneP && !doneN ) return rgbaM; // failed to find end of edge
-
-			float dist = min(
-					doneN ? float( iterationsUsedN ) / float( NUM_SAMPLES - 1 ) : 1.,
-					doneP ? float( iterationsUsedP ) / float( NUM_SAMPLES - 1 ) : 1.
-			);
-
-			// hacky way of reduces blurriness of mostly diagonal edges
-			// but reduces AA quality
-			dist = pow(dist, .5);
-
-			dist = 1. - dist;
-
-			return mix(
-					rgbaM,
-					rgbaN,
-					dist * .5
-			);
-	}
-
-	void main() {
-			const float edgeDetectionQuality = .2;
-			const float invEdgeDetectionQuality = 1. / edgeDetectionQuality;
-
-			gl_FragColor = FxaaPixelShader(
-					vUv,
-					tDiffuse,
-					resolution,
-					edgeDetectionQuality, // [0,1] contrast needed, otherwise early discard
-					invEdgeDetectionQuality
-			);
-
-	}
-	`
+		}`
 
 };
 
@@ -100142,15 +99901,6 @@ class CustomEffectsPass extends Pass {
         const material = this.fsQuad.material;
         material.uniforms.opacity.value = value;
     }
-    get correctColor() {
-        return this._correctColor;
-    }
-    set correctColor(active) {
-        this._correctColor = active;
-        const value = active ? 1 : 0;
-        const material = this.fsQuad.material;
-        material.uniforms.correctColor.value = value;
-    }
     get glossEnabled() {
         return this._glossEnabled;
     }
@@ -100176,6 +99926,7 @@ class CustomEffectsPass extends Pass {
         material.uniforms.minGloss.value = value;
     }
     get maxGloss() {
+        new THREE$1.MeshBasicMaterial().color.convertLinearToSRGB();
         return this._maxGloss;
     }
     set maxGloss(value) {
@@ -100201,7 +99952,6 @@ class CustomEffectsPass extends Pass {
         this._lineColor = 0x999999;
         this._opacity = 0.4;
         this._tolerance = 3;
-        this._correctColor = false;
         this._glossEnabled = true;
         this._glossExponent = 0.7;
         this._minGloss = -0.15;
@@ -100358,7 +100108,6 @@ class CustomEffectsPass extends Pass {
       uniform int width;
 	  uniform float opacity;
       uniform float tolerance;
-      uniform float correctColor;
       uniform float glossExponent;
       uniform float minGloss;
       uniform float maxGloss;
@@ -100386,8 +100135,8 @@ class CustomEffectsPass extends Pass {
 
 	  void main() {
 	  
-	    vec3 sceneColor = getValue(sceneColorBuffer, 0, 0).rgb;
-	    vec3 normSceneColor = normalize(sceneColor);
+	    vec4 sceneColor = getValue(sceneColorBuffer, 0, 0);
+	    vec3 normSceneColor = normalize(sceneColor.rgb);
   
         vec4 plane = getValue(planeBuffer, 0, 0);
 	    vec3 normal = plane.xyz;
@@ -100483,15 +100232,6 @@ class CustomEffectsPass extends Pass {
         line *= background;
         line *= opacity;
         
-        // Correct color to make it look similar to sao postprocessing colors
-        
-        float factor = clamp(correctColor * 1.5, 1., 4.);
-        float sum = 0.05 * step(1.5, factor);
-        float r = pow(sceneColor.r + sum, 1. / factor);
-        float g = pow(sceneColor.g + sum, 1. / factor);
-        float b = pow(sceneColor.b + sum, 1. / factor);
-        vec4 corrected = vec4(r, g, b, 1.);
-        
         // Add gloss
         
         vec3 gloss = getValue(glossBuffer, 0, 0).xyz;
@@ -100500,9 +100240,9 @@ class CustomEffectsPass extends Pass {
         gloss = min(pow(gloss, glossExpVector), vec3(1.,1.,1.));
         gloss *= diffGloss;
         gloss += minGloss;
-        vec4 glossedColor = corrected + vec4(gloss, 1.) * glossEnabled;
+        vec4 glossedColor = sceneColor + vec4(gloss, 1.) * glossEnabled;
         
-        corrected = mix(corrected, glossedColor, background);
+        vec4 corrected = mix(sceneColor, glossedColor, background);
         
         // Draw lines
         
@@ -100544,7 +100284,6 @@ class CustomEffectsPass extends Pass {
         return new THREE$1.ShaderMaterial({
             uniforms: {
                 opacity: { value: this._opacity },
-                correctColor: { value: 1 },
                 debugVisualize: { value: 0 },
                 sceneColorBuffer: { value: null },
                 tolerance: { value: this._tolerance },
@@ -100579,9 +100318,20 @@ class CustomEffectsPass extends Pass {
     }
 }
 
-// TODO: Clean up and document this
 // source: https://discourse.threejs.org/t/how-to-render-full-outlines-as-a-post-process-tutorial/22674
 class Postproduction {
+    get basePass() {
+        if (!this._basePass) {
+            throw new Error("Custom effects not initialized!");
+        }
+        return this._basePass;
+    }
+    get gammaPass() {
+        if (!this._gammaPass) {
+            throw new Error("Custom effects not initialized!");
+        }
+        return this._gammaPass;
+    }
     get customEffects() {
         if (!this._customEffects) {
             throw new Error("Custom effects not initialized!");
@@ -100603,45 +100353,8 @@ class Postproduction {
         }
         this._enabled = active;
     }
-    get saoEnabled() {
-        return this._saoEnabled;
-    }
-    set saoEnabled(active) {
-        if (this._saoEnabled === active)
-            return;
-        this._saoEnabled = active;
-        if (!this._n8ao)
-            return;
-        if (active) {
-            this.composer.addPass(this._n8ao);
-            if (this._customEffects && this._customEffectsEnabled) {
-                this.composer.removePass(this._customEffects);
-                this.composer.addPass(this._customEffects);
-                this._customEffects.correctColor = false;
-            }
-        }
-        else {
-            this.composer.removePass(this._n8ao);
-            if (this._customEffects) {
-                this._customEffects.correctColor = true;
-            }
-        }
-    }
-    get customEffectsEnabled() {
-        return this._customEffectsEnabled;
-    }
-    set customEffectsEnabled(active) {
-        if (this._customEffectsEnabled === active)
-            return;
-        this._customEffectsEnabled = active;
-        if (!this._customEffects)
-            return;
-        if (active) {
-            this.composer.addPass(this._customEffects);
-        }
-        else {
-            this.composer.removePass(this._customEffects);
-        }
+    get settings() {
+        return { ...this._settings };
     }
     constructor(components, renderer) {
         this.components = components;
@@ -100649,8 +100362,11 @@ class Postproduction {
         this.excludedItems = new Set();
         this._enabled = false;
         this._initialized = false;
-        this._saoEnabled = false;
-        this._customEffectsEnabled = true;
+        this._settings = {
+            gamma: true,
+            custom: true,
+            ao: false,
+        };
         this._renderTarget = new THREE$1.WebGLRenderTarget(window.innerWidth, window.innerHeight);
         this._renderTarget.texture.colorSpace = "srgb-linear";
         this.composer = new EffectComposer(this.renderer, this._renderTarget);
@@ -100661,16 +100377,27 @@ class Postproduction {
         this._renderTarget.dispose();
         (_a = this._depthTexture) === null || _a === void 0 ? void 0 : _a.dispose();
         (_b = this._customEffects) === null || _b === void 0 ? void 0 : _b.dispose();
-        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.dispose();
+        (_c = this._gammaPass) === null || _c === void 0 ? void 0 : _c.dispose();
         (_d = this._n8ao) === null || _d === void 0 ? void 0 : _d.dispose();
         this.excludedItems.clear();
     }
+    setPasses(settings) {
+        for (const name in settings) {
+            const key = name;
+            if (this._settings[key] !== undefined) {
+                this._settings[key] = settings[key];
+            }
+        }
+        this.updatePasses();
+    }
     setSize(width, height) {
-        var _a, _b, _c;
-        this.composer.setSize(width, height);
-        (_a = this._n8ao) === null || _a === void 0 ? void 0 : _a.setSize(width, height);
-        (_b = this._customEffects) === null || _b === void 0 ? void 0 : _b.setSize(width, height);
-        (_c = this._fxaaPass) === null || _c === void 0 ? void 0 : _c.setSize(width, height);
+        if (this._initialized) {
+            this.composer.setSize(width, height);
+            this.basePass.setSize(width, height);
+            this.n8ao.setSize(width, height);
+            this.customEffects.setSize(width, height);
+            this.gammaPass.setSize(width, height);
+        }
     }
     update() {
         if (!this._enabled)
@@ -100701,11 +100428,14 @@ class Postproduction {
         }
         const renderer = this.components.renderer;
         this.renderer.clippingPlanes = renderer.clippingPlanes;
-        this.addBasePass(scene, camera);
-        this.addSaoPass(scene, camera);
-        this.addOutlinePass();
-        // this.addFXAAPass();
+        this.renderer.outputColorSpace = "srgb";
+        this.renderer.toneMapping = THREE$1.NoToneMapping;
+        this.newBasePass(scene, camera);
+        this.newSaoPass(scene, camera);
+        this.newGammaPass();
+        this.newCustomPass();
         this._initialized = true;
+        this.updatePasses();
     }
     updateProjection(camera) {
         this.composer.passes.forEach((pass) => {
@@ -100714,22 +100444,30 @@ class Postproduction {
         });
         this.update();
     }
-    addOutlinePass() {
-        const customOutline = new CustomEffectsPass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
-        this._customEffects = customOutline;
-        this.composer.addPass(customOutline);
+    updatePasses() {
+        for (const pass of this.composer.passes) {
+            this.composer.removePass(pass);
+        }
+        if (this._basePass) {
+            this.composer.addPass(this.basePass);
+        }
+        if (this._settings.gamma) {
+            this.composer.addPass(this.gammaPass);
+        }
+        if (this._settings.ao) {
+            this.composer.addPass(this.n8ao);
+        }
+        if (this._settings.custom) {
+            this.composer.addPass(this.customEffects);
+        }
     }
-    // TODO: Work in progress, this needs adjustment
-    // private addGlossPass() {
-    //   const customGloss = new CustomGlossPass(
-    //     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    //     this.components
-    //   );
-    //
-    //   this.gloss = customGloss;
-    //   this.composer.addPass(customGloss);
-    // }
-    addSaoPass(scene, camera) {
+    newCustomPass() {
+        this._customEffects = new CustomEffectsPass(new THREE$1.Vector2(window.innerWidth, window.innerHeight), this.components);
+    }
+    newGammaPass() {
+        this._gammaPass = new ShaderPass(GammaCorrectionShader);
+    }
+    newSaoPass(scene, camera) {
         const { width, height } = this.components.renderer.getSize();
         this._n8ao = new $05f6997e4b65da14$export$2d57db20b5eb5e0a(scene, camera, width, height);
         // this.composer.addPass(this.n8ao);
@@ -100744,15 +100482,8 @@ class Postproduction {
         configuration.halfRes = true;
         configuration.color = new THREE$1.Color().setHex(0xcccccc, "srgb-linear");
     }
-    addFXAAPass() {
-        const effectFXAA = new ShaderPass(FXAAShader);
-        effectFXAA.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
-        this._fxaaPass = effectFXAA;
-        this.composer.addPass(effectFXAA);
-    }
-    addBasePass(scene, camera) {
+    newBasePass(scene, camera) {
         this._basePass = new RenderPass(scene, camera);
-        this.composer.addPass(this._basePass);
     }
 }
 
