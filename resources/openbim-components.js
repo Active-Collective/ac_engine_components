@@ -2836,7 +2836,8 @@ class Toolbar extends SimpleUIComponent {
     }
 }
 Toolbar.Class = {
-    Base: "flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto bg-ifcjs-100 z-50 backdrop-blur-md",
+    Base: `flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto backdrop-blur-md 
+           bg-ifcjs-100 z-50 backdrop-blur-md`,
 };
 
 class Button extends SimpleUIComponent {
@@ -2896,6 +2897,12 @@ class Button extends SimpleUIComponent {
             icon.className = "material-icons md-18";
             icon.textContent = options === null || options === void 0 ? void 0 : options.materialIconName;
             btn.append(icon);
+        }
+        if (options === null || options === void 0 ? void 0 : options.tooltip) {
+            const tooltip = document.createElement("span");
+            tooltip.textContent = options.tooltip;
+            tooltip.className = Button.Class.Tooltip;
+            btn.append(tooltip);
         }
         this.domElement.append(this._labelElement);
         if ((options === null || options === void 0 ? void 0 : options.closeOnClick) !== undefined) {
@@ -2966,13 +2973,18 @@ class Button extends SimpleUIComponent {
 }
 Button.Class = {
     Base: `
-    relative flex gap-x-2 items-center bg-transparent text-white rounded-[10px] h-fit p-2
-    hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
+    group relative flex gap-x-2 items-center bg-transparent text-white rounded-[10px] 
+    h-fit p-2 hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
     data-[active=true]:cursor-pointer data-[active=true]:bg-ifcjs-200 data-[active=true]:text-black
-    disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400
+    disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400 pointer-events-auto
     transition-all
     `,
     Label: "text-sm uppercase tracking-[1.25px] font-bold whitespace-nowrap",
+    Tooltip: `
+    group-hover:opacity-100 transition-opacity bg-ifcjs-100 text-sm text-gray-100 rounded-md 
+    absolute left-1/2 -translate-x-1/2 -translate-y-12 opacity-0 mx-auto p-4 w-max h-4 flex items-center
+    pointer-events-none
+    `,
 };
 
 class BaseSVGAnnotation extends Component {
@@ -102624,45 +102636,82 @@ class PlanObjects {
         this._visible = active;
         const scene = this._components.scene.get();
         for (const id in this._objects) {
-            const item = this._objects[id];
+            const { root, marker } = this._objects[id];
             if (active) {
-                scene.add(item);
+                scene.add(root);
+                root.add(marker);
             }
             else {
-                item.removeFromParent();
+                root.removeFromParent();
+                marker.removeFromParent();
             }
         }
     }
     constructor(components) {
         this.offsetFactor = 0.2;
+        this._scale = new THREE$1.Vector2(1, 1);
         this._min = new THREE$1.Vector3();
         this._max = new THREE$1.Vector3();
         this._objects = {};
         this._visible = false;
-        this._geometry = new THREE$1.PlaneGeometry(1, 1, 1);
+        this._planeGeometry = new THREE$1.PlaneGeometry(1, 1, 1);
+        this._linesGeometry = new THREE$1.BufferGeometry();
+        this.lineMaterial = new THREE$1.LineDashedMaterial({
+            color: 0xbcf124,
+            dashSize: 0.2,
+            gapSize: 0.2,
+        });
         this._material = new THREE$1.MeshBasicMaterial({
             transparent: true,
             opacity: 0.3,
+            color: 0x1a2128,
+            depthTest: false,
         });
         this._components = components;
         this.resetBounds();
+        this.createPlaneOutlineGeometry();
+        this.uiElement = new Button(components, {
+            materialIconName: "layers",
+            tooltip: "Plans",
+        });
+        this.uiElement.onclick = () => {
+            this.visible = !this.visible;
+        };
     }
     dispose() {
         this.visible = false;
+        for (const id in this._objects) {
+            const { marker } = this._objects[id];
+            marker.element.remove();
+        }
         this._objects = {};
-        this._geometry.dispose();
+        this._planeGeometry.dispose();
         this._material.dispose();
+        this.uiElement.dispose();
         this._components = null;
     }
-    add(id, point) {
+    add(config) {
+        const { id, point, name } = config;
         const root = new THREE$1.Group();
-        const mesh = new THREE$1.Mesh(this._geometry, this._material);
-        mesh.scale.x = 10;
-        mesh.scale.y = 10;
-        mesh.rotation.x = -Math.PI / 2;
-        mesh.position.copy(point);
-        root.add(mesh);
-        this._objects[id] = root;
+        root.position.copy(point);
+        const plane = new THREE$1.Mesh(this._planeGeometry, this._material);
+        plane.rotation.x = -Math.PI / 2;
+        root.add(plane);
+        const outline = new THREE$1.LineSegments(this._linesGeometry, this.lineMaterial);
+        outline.computeLineDistances();
+        outline.rotation.x = -Math.PI / 2;
+        root.add(outline);
+        const button = new Button(this._components, {
+            materialIconName: "location_on",
+            tooltip: name,
+        });
+        const { domElement } = button;
+        domElement.className = domElement.className.replace("bg-transparent", "");
+        domElement.className += " bg-ifcjs-100 transition-none rounded-full";
+        // element.className = this.pointClass;
+        const marker = new CSS2DObject(domElement);
+        root.add(marker);
+        this._objects[id] = { root, plane, outline, marker, button };
     }
     setBounds(points, override = false) {
         if (override) {
@@ -102674,17 +102723,49 @@ class PlanObjects {
         const dimensions = FragmentBoundingBox.getDimensions(bbox);
         const { width, depth, center } = dimensions;
         const offset = (width + depth / 2) * this.offsetFactor;
+        const newScale = new THREE$1.Vector2(width + offset, depth + offset);
+        const previousScaleMatrix = this.newScaleMatrix(this._scale);
+        const newScaleMatrix = this.newScaleMatrix(newScale);
+        previousScaleMatrix.invert();
+        this._planeGeometry.applyMatrix4(previousScaleMatrix);
+        this._linesGeometry.applyMatrix4(previousScaleMatrix);
+        this._planeGeometry.applyMatrix4(newScaleMatrix);
+        this._linesGeometry.applyMatrix4(newScaleMatrix);
         for (const id in this._objects) {
-            const object = this._objects[id];
-            const plane = object.children[0];
-            plane.scale.set(width + offset, depth + offset, 1);
-            object.position.x = center.x;
-            object.position.z = center.z;
+            const { root, outline } = this._objects[id];
+            outline.computeLineDistances();
+            root.position.x = center.x;
+            root.position.z = center.z;
         }
     }
     resetBounds() {
         this._min = FragmentBoundingBox.newBound(true);
         this._max = FragmentBoundingBox.newBound(false);
+    }
+    newScaleMatrix(scale) {
+        const { x, y } = scale;
+        // prettier-ignore
+        return new THREE$1.Matrix4().fromArray([
+            x, 0, 0, 0,
+            0, y, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ]);
+    }
+    createPlaneOutlineGeometry() {
+        // prettier-ignore
+        const vertices = new Float32Array([
+            -0.5, -0.5, 0,
+            -0.5, 0.5, 0,
+            -0.5, 0.5, 0,
+            0.5, 0.5, 0,
+            0.5, 0.5, 0,
+            0.5, -0.5, 0,
+            0.5, -0.5, 0,
+            -0.5, -0.5, 0,
+        ]);
+        const posAttr = new THREE$1.BufferAttribute(vertices, 3);
+        this._linesGeometry.setAttribute("position", posAttr);
     }
 }
 
@@ -102764,7 +102845,7 @@ class FragmentPlans extends Component {
         plane.visible = false;
         const plan = { ...config, plane };
         this._plans.push(plan);
-        this.objects.add(config.id, config.point);
+        this.objects.add(config);
     }
     /**
      * Make the navigator go to the specified floor plan.
