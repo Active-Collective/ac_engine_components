@@ -12052,9 +12052,10 @@ class SimpleUICard extends SimpleUIComponent {
         card.className =
             "bg-ifcjs-120 p-2 text-white flex items-center rounded-lg border-transparent border border-solid";
         const id = (_a = info.id) !== null && _a !== void 0 ? _a : generateUUID();
+        const descriptionClass = "opacity-50 mt-4";
         const descriptionMenu = `
             <div id="${id}-before-description"></div>
-            <p id="${id}-description">${info.description}</p>
+                <p class="${descriptionClass}" id="${id}-description">${info.description}</p>
             <div id="${id}-after-description"></div>
     `;
         const description = info.description ? descriptionMenu : "";
@@ -12129,6 +12130,10 @@ class FloatingWindow extends SimpleUIComponent {
         titleElement.id = `${this.id}-title`;
         titleElement.textContent = "Tooeen Floating Window";
         titleElement.className = FloatingWindow.Class.Title;
+        if (config === null || config === void 0 ? void 0 : config.title) {
+            titleElement.textContent = config.title;
+            titleElement.classList.remove("hidden");
+        }
         const descriptionElement = document.createElement("p");
         descriptionElement.id = `${this.id}-description`;
         descriptionElement.className = FloatingWindow.Class.Description;
@@ -102670,13 +102675,14 @@ class PlanObjects {
         this._components = components;
         this.resetBounds();
         this.createPlaneOutlineGeometry();
-        this.uiElement = new Button(components, {
+        const button = new Button(components, {
             materialIconName: "layers",
             tooltip: "Plans",
         });
-        this.uiElement.onclick = () => {
+        button.onclick = () => {
             this.visible = !this.visible;
         };
+        this.uiElement = { planObjectButton: button };
     }
     dispose() {
         this.visible = false;
@@ -102687,7 +102693,7 @@ class PlanObjects {
         this._objects = {};
         this._planeGeometry.dispose();
         this._material.dispose();
-        this.uiElement.dispose();
+        this.uiElement.planObjectButton.dispose();
         this._components = null;
     }
     add(config) {
@@ -102706,7 +102712,7 @@ class PlanObjects {
             tooltip: name,
         });
         const { domElement } = button;
-        domElement.className = domElement.className.replace("bg-transparent", "");
+        domElement.classList.remove("bg-transparent");
         domElement.className += " bg-ifcjs-100 transition-none rounded-full";
         // element.className = this.pointClass;
         const marker = new CSS2DObject(domElement);
@@ -102791,9 +102797,35 @@ class FragmentPlans extends Component {
         this._previousCamera = new THREE$1.Vector3();
         this._previousTarget = new THREE$1.Vector3();
         this._previousProjection = "Perspective";
+        this._components = components;
         this._clipper = clipper;
         this._camera = camera;
         this.objects = new PlanObjects(components);
+        const listButton = new Button(components, {
+            materialIconName: "folder_copy",
+            tooltip: "Plans list",
+        });
+        const floatingWindow = new FloatingWindow(components, {
+            title: "Floor plans",
+        });
+        components.ui.add(floatingWindow);
+        const topButtonGroup = new UIComponentsStack(components, "Horizontal");
+        floatingWindow.addChild(topButtonGroup);
+        const exitButton = new Button(components, {
+            materialIconName: "logout",
+        });
+        topButtonGroup.addChild(exitButton);
+        floatingWindow.visible = false;
+        const planList = new UIComponentsStack(components, "Vertical");
+        floatingWindow.addChild(planList);
+        const text = document.createElement("p");
+        text.textContent = "No plans yet.";
+        const defaultText = new SimpleUIComponent(components, text);
+        floatingWindow.addChild(defaultText);
+        this.uiElement = { listButton, floatingWindow, planList, defaultText };
+        listButton.onclick = () => {
+            floatingWindow.visible = !floatingWindow.visible;
+        };
     }
     /** {@link Component.get} */
     get() {
@@ -102805,6 +102837,10 @@ class FragmentPlans extends Component {
         this._plans = [];
         this._clipper.dispose();
         this.objects.dispose();
+        const { planList, listButton, floatingWindow } = this.uiElement;
+        planList.dispose();
+        floatingWindow.dispose();
+        listButton.dispose();
     }
     // TODO: Compute georreference matrix when generating fragmentsgroup
     // so that we can correctly add floors in georreferenced models
@@ -102887,6 +102923,35 @@ class FragmentPlans extends Component {
         }
         this.currentPlan = null;
         await this._camera.controls.setLookAt(this._previousCamera.x, this._previousCamera.y, this._previousCamera.z, this._previousTarget.x, this._previousTarget.y, this._previousTarget.z, animate);
+    }
+    updatePlansList() {
+        const { defaultText, planList } = this.uiElement;
+        planList.dispose(true);
+        if (!this._plans.length) {
+            defaultText.visible = true;
+            return;
+        }
+        defaultText.visible = false;
+        for (const plan of this._plans) {
+            const height = Math.trunc(plan.point.y * 10) / 10;
+            const description = `Height: ${height}`;
+            const simpleCard = new SimpleUICard(this._components, {
+                title: plan.name,
+                description,
+            });
+            const planButton = new Button(this._components, {
+                materialIconName: "arrow_outward",
+            });
+            simpleCard.addChild(planButton);
+            const extraButton = new Button(this._components, {
+                materialIconName: "expand_more",
+            });
+            simpleCard.addChild(extraButton);
+            simpleCard.domElement.classList.remove("bg-ifcjs-120");
+            simpleCard.domElement.classList.remove("border-transparent");
+            simpleCard.domElement.className += ` min-w-[300px] my-2 bg-ifcjs-100 border-1 border-solid border-[#3A444E] `;
+            planList.addChild(simpleCard);
+        }
     }
     storeCameraPosition() {
         if (this.enabled) {
