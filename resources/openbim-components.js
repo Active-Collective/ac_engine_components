@@ -2836,7 +2836,8 @@ class Toolbar extends SimpleUIComponent {
     }
 }
 Toolbar.Class = {
-    Base: "flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto bg-ifcjs-100 z-50 backdrop-blur-md",
+    Base: `flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto backdrop-blur-md 
+           bg-ifcjs-100 z-50 backdrop-blur-md`,
 };
 
 class Button extends SimpleUIComponent {
@@ -2877,6 +2878,12 @@ class Button extends SimpleUIComponent {
         this.domElement.classList.remove("justify-start", "justify-center", "justify-end");
         this.domElement.classList.add(`justify-${value}`);
     }
+    get icon() {
+        return this.domElement.querySelector(`#${this.id}-icon`);
+    }
+    get tooltip() {
+        return this.domElement.querySelector(`#${this.id}-tooltip`);
+    }
     constructor(components, options) {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -2893,9 +2900,17 @@ class Button extends SimpleUIComponent {
         this.alignment = "start";
         if (options === null || options === void 0 ? void 0 : options.materialIconName) {
             const icon = document.createElement("span");
+            icon.id = `${this.id}-icon`;
             icon.className = "material-icons md-18";
             icon.textContent = options === null || options === void 0 ? void 0 : options.materialIconName;
             btn.append(icon);
+        }
+        if (options === null || options === void 0 ? void 0 : options.tooltip) {
+            const tooltip = document.createElement("span");
+            tooltip.id = `${this.id}-tooltip`;
+            tooltip.textContent = options.tooltip;
+            tooltip.className = Button.Class.Tooltip;
+            btn.append(tooltip);
         }
         this.domElement.append(this._labelElement);
         if ((options === null || options === void 0 ? void 0 : options.closeOnClick) !== undefined) {
@@ -2966,13 +2981,18 @@ class Button extends SimpleUIComponent {
 }
 Button.Class = {
     Base: `
-    relative flex gap-x-2 items-center bg-transparent text-white rounded-[10px] h-fit p-2
-    hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
+    group relative flex gap-x-2 items-center bg-transparent text-white rounded-[10px] 
+    h-fit p-2 hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
     data-[active=true]:cursor-pointer data-[active=true]:bg-ifcjs-200 data-[active=true]:text-black
-    disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400
+    disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400 pointer-events-auto
     transition-all
     `,
-    Label: "text-sm uppercase tracking-[1.25px] font-bold whitespace-nowrap",
+    Label: "text-sm tracking-[1.25px] whitespace-nowrap",
+    Tooltip: `
+    group-hover:opacity-100 transition-opacity bg-ifcjs-100 text-sm text-gray-100 rounded-md 
+    absolute left-1/2 -translate-x-1/2 -translate-y-12 opacity-0 mx-auto p-4 w-max h-4 flex items-center
+    pointer-events-none
+    `,
 };
 
 class BaseSVGAnnotation extends Component {
@@ -12040,9 +12060,10 @@ class SimpleUICard extends SimpleUIComponent {
         card.className =
             "bg-ifcjs-120 p-2 text-white flex items-center rounded-lg border-transparent border border-solid";
         const id = (_a = info.id) !== null && _a !== void 0 ? _a : generateUUID();
+        const descriptionClass = "opacity-50 mt-4";
         const descriptionMenu = `
             <div id="${id}-before-description"></div>
-            <p id="${id}-description">${info.description}</p>
+                <p class="${descriptionClass}" id="${id}-description">${info.description}</p>
             <div id="${id}-after-description"></div>
     `;
         const description = info.description ? descriptionMenu : "";
@@ -12117,6 +12138,10 @@ class FloatingWindow extends SimpleUIComponent {
         titleElement.id = `${this.id}-title`;
         titleElement.textContent = "Tooeen Floating Window";
         titleElement.className = FloatingWindow.Class.Title;
+        if (config === null || config === void 0 ? void 0 : config.title) {
+            titleElement.textContent = config.title;
+            titleElement.classList.remove("hidden");
+        }
         const descriptionElement = document.createElement("p");
         descriptionElement.id = `${this.id}-description`;
         descriptionElement.className = FloatingWindow.Class.Description;
@@ -12203,7 +12228,7 @@ class FloatingWindow extends SimpleUIComponent {
     }
 }
 FloatingWindow.Class = {
-    Base: "absolute backdrop-blur-md shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white bg-ifcjs-100 rounded-md",
+    Base: "absolute bg-ifcjs-100 backdrop-blur-md shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white rounded-md",
     Title: "text-3xl text-ifcjs-200 font-medium",
     Description: "text-base text-gray-400",
 };
@@ -27896,15 +27921,15 @@ let FragmentsGroup$1 = class FragmentsGroup {
         const offset = this.bb.__offset(this.bb_pos, 4);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    matrix(index) {
+    coordinationMatrix(index) {
         const offset = this.bb.__offset(this.bb_pos, 6);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
-    matrixLength() {
+    coordinationMatrixLength() {
         const offset = this.bb.__offset(this.bb_pos, 6);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    matrixArray() {
+    coordinationMatrixArray() {
         const offset = this.bb.__offset(this.bb_pos, 6);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
@@ -27992,8 +28017,20 @@ let FragmentsGroup$1 = class FragmentsGroup {
         const offset = this.bb.__offset(this.bb_pos, 28);
         return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
     }
+    boundingBox(index) {
+        const offset = this.bb.__offset(this.bb_pos, 30);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    boundingBoxLength() {
+        const offset = this.bb.__offset(this.bb_pos, 30);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    boundingBoxArray() {
+        const offset = this.bb.__offset(this.bb_pos, 30);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
     static startFragmentsGroup(builder) {
-        builder.startObject(13);
+        builder.startObject(14);
     }
     static addItems(builder, itemsOffset) {
         builder.addFieldOffset(0, itemsOffset, 0);
@@ -28008,17 +28045,17 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static startItemsVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
-    static addMatrix(builder, matrixOffset) {
-        builder.addFieldOffset(1, matrixOffset, 0);
+    static addCoordinationMatrix(builder, coordinationMatrixOffset) {
+        builder.addFieldOffset(1, coordinationMatrixOffset, 0);
     }
-    static createMatrixVector(builder, data) {
+    static createCoordinationMatrixVector(builder, data) {
         builder.startVector(4, data.length, 4);
         for (let i = data.length - 1; i >= 0; i--) {
             builder.addFloat32(data[i]);
         }
         return builder.endVector();
     }
-    static startMatrixVector(builder, numElems) {
+    static startCoordinationMatrixVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
     static addIds(builder, idsOffset) {
@@ -28104,6 +28141,19 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static addMaxExpressId(builder, maxExpressId) {
         builder.addFieldInt32(12, maxExpressId, 0);
     }
+    static addBoundingBox(builder, boundingBoxOffset) {
+        builder.addFieldOffset(13, boundingBoxOffset, 0);
+    }
+    static createBoundingBoxVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startBoundingBoxVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
     static endFragmentsGroup(builder) {
         const offset = builder.endObject();
         return offset;
@@ -28114,10 +28164,10 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
         builder.finish(offset, undefined, true);
     }
-    static createFragmentsGroup(builder, itemsOffset, matrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset, ifcNameOffset, ifcDescriptionOffset, ifcSchemaOffset, maxExpressId) {
+    static createFragmentsGroup(builder, itemsOffset, coordinationMatrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset, ifcNameOffset, ifcDescriptionOffset, ifcSchemaOffset, maxExpressId, boundingBoxOffset) {
         FragmentsGroup.startFragmentsGroup(builder);
         FragmentsGroup.addItems(builder, itemsOffset);
-        FragmentsGroup.addMatrix(builder, matrixOffset);
+        FragmentsGroup.addCoordinationMatrix(builder, coordinationMatrixOffset);
         FragmentsGroup.addIds(builder, idsOffset);
         FragmentsGroup.addItemsKeys(builder, itemsKeysOffset);
         FragmentsGroup.addItemsKeysIndices(builder, itemsKeysIndicesOffset);
@@ -28129,6 +28179,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         FragmentsGroup.addIfcDescription(builder, ifcDescriptionOffset);
         FragmentsGroup.addIfcSchema(builder, ifcSchemaOffset);
         FragmentsGroup.addMaxExpressId(builder, maxExpressId);
+        FragmentsGroup.addBoundingBox(builder, boundingBoxOffset);
         return FragmentsGroup.endFragmentsGroup(builder);
     }
 };
@@ -28138,7 +28189,8 @@ class FragmentsGroup extends THREE$1.Group {
     constructor() {
         super(...arguments);
         this.items = [];
-        this.matrix = new THREE$1.Matrix4();
+        this.boundingBox = new THREE$1.Box3();
+        this.coordinationMatrix = new THREE$1.Matrix4();
         this.keyFragments = {};
         // data: [expressID: number]: [keys, rels]
         this.data = {};
@@ -28153,7 +28205,7 @@ class FragmentsGroup extends THREE$1.Group {
         for (const fragment of this.items) {
             fragment.dispose(disposeResources);
         }
-        this.matrix = new THREE$1.Matrix4();
+        this.coordinationMatrix = new THREE$1.Matrix4();
         this.keyFragments = {};
         this.data = {};
         this.properties = {};
@@ -28223,7 +28275,7 @@ class Serializer {
             items.push(exported);
         }
         const itemsVector = G.createItemsVector(builder, items);
-        const matrixVector = G.createMatrixVector(builder, group.matrix.elements);
+        const matrixVector = G.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
         let fragmentKeys = "";
         for (const key in group.keyFragments) {
             const fragmentID = group.keyFragments[key];
@@ -28263,6 +28315,9 @@ class Serializer {
         const relsIVector = G.createItemsRelsIndicesVector(builder, relsIndices);
         const relsVector = G.createItemsRelsVector(builder, itemsRels);
         const idsVector = G.createIdsVector(builder, ids);
+        const { min, max } = group.boundingBox;
+        const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
+        const bboxVector = G.createBoundingBoxVector(builder, bbox);
         G.startFragmentsGroup(builder);
         G.addId(builder, groupID);
         G.addIfcName(builder, ifcName);
@@ -28276,7 +28331,8 @@ class Serializer {
         G.addItemsKeys(builder, keysVector);
         G.addItemsRelsIndices(builder, relsIVector);
         G.addItemsRels(builder, relsVector);
-        G.addMatrix(builder, matrixVector);
+        G.addCoordinationMatrix(builder, matrixVector);
+        G.addBoundingBox(builder, bboxVector);
         const result = FragmentsGroup$1.endFragmentsGroup(builder);
         builder.finish(result);
         return builder.asUint8Array();
@@ -28365,7 +28421,8 @@ class Serializer {
             schema: group.ifcSchema() || "",
             maxExpressId: group.maxExpressId() || 0,
         };
-        const matrixArray = group.matrixArray() || new Float32Array();
+        const defaultMatrix = new THREE$1.Matrix4().elements;
+        const matrixArray = group.coordinationMatrixArray() || defaultMatrix;
         const ids = group.idsArray() || new Uint32Array();
         const keysIndices = group.itemsKeysIndicesArray() || new Uint32Array();
         const keysArray = group.itemsKeysArray() || new Uint32Array();
@@ -28375,11 +28432,15 @@ class Serializer {
         const keysIdsArray = keysIdsString.split(this.fragmentIDSeparator);
         this.setGroupData(fragmentsGroup, ids, keysIndices, keysArray, 0);
         this.setGroupData(fragmentsGroup, ids, relsIndices, relsArray, 1);
+        const bbox = group.boundingBoxArray() || [0, 0, 0, 0, 0, 0];
+        const [minX, minY, minZ, maxX, maxY, maxZ] = bbox;
+        fragmentsGroup.boundingBox.min.set(minX, minY, minZ);
+        fragmentsGroup.boundingBox.max.set(maxX, maxY, maxZ);
         for (let i = 0; i < keysIdsArray.length; i++) {
             fragmentsGroup.keyFragments[i] = keysIdsArray[i];
         }
         if (matrixArray.length === 16) {
-            fragmentsGroup.matrix.fromArray(matrixArray);
+            fragmentsGroup.coordinationMatrix.fromArray(matrixArray);
         }
         return fragmentsGroup;
     }
@@ -94547,12 +94608,130 @@ class IfcFragmentSettings {
     }
 }
 
+/**
+ * A simple implementation of bounding box that works for fragments. The resulting bbox is not 100% precise, but
+ * it's fast, and should suffice for general use cases such as camera zooming.
+ */
+class FragmentBoundingBox {
+    constructor() {
+        this.name = "FragmentBoundingBox";
+        this.enabled = true;
+        this._absoluteMin = FragmentBoundingBox.newBound(true);
+        this._absoluteMax = FragmentBoundingBox.newBound(false);
+    }
+    static getDimensions(bbox) {
+        const { min, max } = bbox;
+        const width = Math.abs(max.x - min.x);
+        const height = Math.abs(max.y - min.y);
+        const depth = Math.abs(max.z - min.z);
+        const center = new THREE$1.Vector3();
+        center.subVectors(max, min).divideScalar(2).add(min);
+        return { width, height, depth, center };
+    }
+    static newBound(positive) {
+        const factor = positive ? 1 : -1;
+        return new THREE$1.Vector3(factor * Number.MAX_VALUE, factor * Number.MAX_VALUE, factor * Number.MAX_VALUE);
+    }
+    static getBounds(points, min, max) {
+        const maxPoint = max || this.newBound(false);
+        const minPoint = min || this.newBound(true);
+        for (const point of points) {
+            if (point.x < minPoint.x)
+                minPoint.x = point.x;
+            if (point.y < minPoint.y)
+                minPoint.y = point.y;
+            if (point.z < minPoint.z)
+                minPoint.z = point.z;
+            if (point.x > maxPoint.x)
+                maxPoint.x = point.x;
+            if (point.y > maxPoint.y)
+                maxPoint.y = point.y;
+            if (point.z > maxPoint.z)
+                maxPoint.z = point.z;
+        }
+        return new THREE$1.Box3(min, max);
+    }
+    get() {
+        const min = this._absoluteMin.clone();
+        const max = this._absoluteMax.clone();
+        return new THREE$1.Box3(min, max);
+    }
+    getMesh() {
+        const bbox = new THREE$1.Box3(this._absoluteMin, this._absoluteMax);
+        const dimensions = FragmentBoundingBox.getDimensions(bbox);
+        const { width, height, depth, center } = dimensions;
+        const box = new THREE$1.BoxGeometry(width, height, depth);
+        const mesh = new THREE$1.Mesh(box);
+        mesh.position.copy(center);
+        return mesh;
+    }
+    reset() {
+        this._absoluteMin = FragmentBoundingBox.newBound(false);
+        this._absoluteMax = FragmentBoundingBox.newBound(true);
+    }
+    add(group) {
+        for (const frag of group.items) {
+            this.addFragment(frag);
+        }
+    }
+    addFragment(fragment) {
+        const bbox = FragmentBoundingBox.getFragmentBounds(fragment);
+        const instanceTransform = new THREE$1.Matrix4();
+        for (let i = 0; i < fragment.mesh.count; i++) {
+            fragment.getInstance(i, instanceTransform);
+            const min = bbox.min.clone();
+            const max = bbox.max.clone();
+            min.applyMatrix4(instanceTransform);
+            max.applyMatrix4(instanceTransform);
+            if (min.x < this._absoluteMin.x)
+                this._absoluteMin.x = min.x;
+            if (min.y < this._absoluteMin.y)
+                this._absoluteMin.y = min.y;
+            if (min.z < this._absoluteMin.z)
+                this._absoluteMin.z = min.z;
+            if (max.x > this._absoluteMax.x)
+                this._absoluteMax.x = max.x;
+            if (max.y > this._absoluteMax.y)
+                this._absoluteMax.y = max.y;
+            if (max.z > this._absoluteMax.z)
+                this._absoluteMax.z = max.z;
+        }
+    }
+    static getFragmentBounds(fragment) {
+        const position = fragment.mesh.geometry.attributes.position;
+        const maxNum = Number.MAX_VALUE;
+        const minNum = -maxNum;
+        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
+        const max = new THREE$1.Vector3(minNum, minNum, minNum);
+        const indices = Array.from(fragment.mesh.geometry.index.array);
+        for (const index of indices) {
+            const x = position.getX(index);
+            const y = position.getY(index);
+            const z = position.getZ(index);
+            if (x < min.x)
+                min.x = x;
+            if (y < min.y)
+                min.y = y;
+            if (z < min.z)
+                min.z = z;
+            if (x > max.x)
+                max.x = x;
+            if (y > max.y)
+                max.y = y;
+            if (z > max.z)
+                max.z = z;
+        }
+        return new THREE$1.Box3(min, max);
+    }
+}
+
 class DataConverter {
     constructor() {
         this.settings = new IfcFragmentSettings();
         this._categories = {};
         this._model = new FragmentsGroup();
         this._ifcCategories = new IfcCategories();
+        this._bbox = new FragmentBoundingBox();
         this._fragmentKey = 0;
         this._keyFragmentMap = {};
         this._itemKeyMap = {};
@@ -94581,10 +94760,17 @@ class DataConverter {
         const itemsData = this.getFragmentsGroupData();
         this._model.keyFragments = this._keyFragmentMap;
         this._model.data = itemsData;
-        this._model.matrix = this.getCoordinationMatrix(webIfc);
+        this._model.coordinationMatrix = this.getCoordinationMatrix(webIfc);
         this._model.properties = await this.getModelProperties(webIfc);
         this._model.uuid = this.getProjectID(webIfc) || this._model.uuid;
         this._model.ifcMetadata = this.getIfcMetadata(webIfc);
+        this._model.boundingBox = this.getBoundingBox();
+    }
+    getBoundingBox() {
+        this._bbox.add(this._model);
+        const result = this._bbox.get();
+        this._bbox.reset();
+        return result;
     }
     getIfcMetadata(webIfc) {
         const { FILE_NAME, FILE_DESCRIPTION } = WEBIFC;
@@ -102455,18 +102641,158 @@ class MiniMap extends Component {
     }
 }
 
+class PlanObjects {
+    get visible() {
+        return this._visible;
+    }
+    set visible(active) {
+        this._visible = active;
+        const scene = this._components.scene.get();
+        for (const id in this._objects) {
+            const { root, marker } = this._objects[id];
+            if (active) {
+                scene.add(root);
+                root.add(marker);
+            }
+            else {
+                root.removeFromParent();
+                marker.removeFromParent();
+            }
+        }
+    }
+    constructor(components) {
+        this.offsetFactor = 0.2;
+        this.planClicked = new Event();
+        this._scale = new THREE$1.Vector2(1, 1);
+        this._min = new THREE$1.Vector3();
+        this._max = new THREE$1.Vector3();
+        this._objects = {};
+        this._visible = false;
+        this._planeGeometry = new THREE$1.PlaneGeometry(1, 1, 1);
+        this._linesGeometry = new THREE$1.BufferGeometry();
+        this.lineMaterial = new THREE$1.LineDashedMaterial({
+            color: 0xbcf124,
+            dashSize: 0.2,
+            gapSize: 0.2,
+        });
+        this._material = new THREE$1.MeshBasicMaterial({
+            transparent: true,
+            opacity: 0.3,
+            color: 0x1a2128,
+            depthTest: false,
+        });
+        this._components = components;
+        this.resetBounds();
+        this.createPlaneOutlineGeometry();
+        const button = new Button(components, {
+            materialIconName: "layers",
+            tooltip: "3D Plans",
+        });
+        button.onclick = () => {
+            this.visible = !this.visible;
+        };
+        this.uiElement = { planObjectButton: button };
+    }
+    dispose() {
+        this.visible = false;
+        for (const id in this._objects) {
+            const { marker } = this._objects[id];
+            marker.element.remove();
+        }
+        this._objects = {};
+        this._planeGeometry.dispose();
+        this._material.dispose();
+        this.uiElement.planObjectButton.dispose();
+        this._components = null;
+    }
+    add(config) {
+        const { id, point, name } = config;
+        const root = new THREE$1.Group();
+        root.position.copy(point);
+        const plane = new THREE$1.Mesh(this._planeGeometry, this._material);
+        plane.rotation.x = -Math.PI / 2;
+        root.add(plane);
+        const outline = new THREE$1.LineSegments(this._linesGeometry, this.lineMaterial);
+        outline.computeLineDistances();
+        outline.rotation.x = -Math.PI / 2;
+        root.add(outline);
+        const button = new Button(this._components, {
+            materialIconName: "location_on",
+            tooltip: name,
+        });
+        button.onclick = () => {
+            this.planClicked.trigger({ id: config.id });
+        };
+        const { domElement } = button;
+        domElement.classList.remove("bg-transparent");
+        domElement.className += " bg-ifcjs-100 transition-none rounded-full";
+        // element.className = this.pointClass;
+        const marker = new CSS2DObject(domElement);
+        root.add(marker);
+        this._objects[id] = { root, plane, outline, marker, button };
+    }
+    setBounds(points, override = false) {
+        if (override) {
+            this.resetBounds();
+        }
+        const bbox = FragmentBoundingBox.getBounds(points, this._min, this._max);
+        this._min = bbox.min;
+        this._max = bbox.max;
+        const dimensions = FragmentBoundingBox.getDimensions(bbox);
+        const { width, depth, center } = dimensions;
+        const offset = (width + depth / 2) * this.offsetFactor;
+        const newScale = new THREE$1.Vector2(width + offset, depth + offset);
+        const previousScaleMatrix = this.newScaleMatrix(this._scale);
+        const newScaleMatrix = this.newScaleMatrix(newScale);
+        previousScaleMatrix.invert();
+        this._planeGeometry.applyMatrix4(previousScaleMatrix);
+        this._linesGeometry.applyMatrix4(previousScaleMatrix);
+        this._planeGeometry.applyMatrix4(newScaleMatrix);
+        this._linesGeometry.applyMatrix4(newScaleMatrix);
+        for (const id in this._objects) {
+            const { root, outline } = this._objects[id];
+            outline.computeLineDistances();
+            root.position.x = center.x;
+            root.position.z = center.z;
+        }
+    }
+    resetBounds() {
+        this._min = FragmentBoundingBox.newBound(true);
+        this._max = FragmentBoundingBox.newBound(false);
+    }
+    newScaleMatrix(scale) {
+        const { x, y } = scale;
+        // prettier-ignore
+        return new THREE$1.Matrix4().fromArray([
+            x, 0, 0, 0,
+            0, y, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ]);
+    }
+    createPlaneOutlineGeometry() {
+        // prettier-ignore
+        const vertices = new Float32Array([
+            -0.5, -0.5, 0,
+            -0.5, 0.5, 0,
+            -0.5, 0.5, 0,
+            0.5, 0.5, 0,
+            0.5, 0.5, 0,
+            0.5, -0.5, 0,
+            0.5, -0.5, 0,
+            -0.5, -0.5, 0,
+        ]);
+        const posAttr = new THREE$1.BufferAttribute(vertices, 3);
+        this._linesGeometry.setAttribute("position", posAttr);
+    }
+}
+
 /**
  * Helper to control the camera and easily define and navigate 2D floor plans.
  */
-class PlanNavigator extends Component {
-    /** {@link Component.get} */
-    get() {
-        return this.plans;
-    }
-    constructor(clipper, camera) {
+class FragmentPlans extends Component {
+    constructor(components, clipper, camera) {
         super();
-        this.clipper = clipper;
-        this.camera = camera;
         this.name = "PlanNavigator";
         /** {@link Component.enabled} */
         this.enabled = false;
@@ -102476,19 +102802,82 @@ class PlanNavigator extends Component {
         this.defaultSectionOffset = 1.5;
         /** The offset of the 2D camera to the floor plan elevation. */
         this.defaultCameraOffset = 30;
+        this.navigated = new Event();
+        this.exited = new Event();
         /** The created floor plans. */
         this.storeys = [];
-        this.plans = [];
-        this.floorPlanViewCached = false;
-        this.previousCamera = new THREE$1.Vector3();
-        this.previousTarget = new THREE$1.Vector3();
-        this.previousProjection = "Perspective";
+        this.commands = {};
+        this._plans = [];
+        this._floorPlanViewCached = false;
+        this._previousCamera = new THREE$1.Vector3();
+        this._previousTarget = new THREE$1.Vector3();
+        this._previousProjection = "Perspective";
+        this.hideCommandsMenu = () => {
+            this.uiElement.commandsMenu.visible = false;
+        };
+        this._components = components;
+        this._clipper = clipper;
+        this._camera = camera;
+        this.objects = new PlanObjects(components);
+        this.setupPlanObjectUI();
+        const topButtonContainer = new UIComponentsStack(this._components, "Horizontal");
+        const exitButton = new Button(components, {
+            materialIconName: "logout",
+        });
+        topButtonContainer.addChild(exitButton);
+        exitButton.enabled = false;
+        exitButton.onclick = () => this.exitPlanView();
+        const listButton = new Button(components, {
+            materialIconName: "folder_copy",
+            tooltip: "Plans list",
+        });
+        const floatingWindow = new FloatingWindow(components, {
+            title: "Floor plans",
+        });
+        components.ui.add(floatingWindow);
+        floatingWindow.visible = false;
+        floatingWindow.addChild(topButtonContainer);
+        const planList = new UIComponentsStack(components, "Vertical");
+        floatingWindow.addChild(planList);
+        const text = document.createElement("p");
+        text.textContent = "No plans yet.";
+        const defaultText = new SimpleUIComponent(components, text);
+        floatingWindow.addChild(defaultText);
+        const commandsMenuDom = document.createElement("div");
+        const commandsMenu = new SimpleUIComponent(components, commandsMenuDom);
+        this.toggleCommandsMenuEvent(true);
+        commandsMenuDom.className =
+            "absolute bg-ifcjs-100 backdrop-blur-md rounded-md p-3";
+        commandsMenuDom.style.zIndex = "9999";
+        components.ui.add(commandsMenu);
+        commandsMenu.visible = false;
+        this.uiElement = {
+            listButton,
+            floatingWindow,
+            planList,
+            defaultText,
+            exitButton,
+            commandsMenu,
+        };
+        listButton.onclick = () => {
+            floatingWindow.visible = !floatingWindow.visible;
+        };
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._plans;
     }
     /** {@link Disposable.dispose} */
     dispose() {
         this.storeys = [];
-        this.plans = [];
-        this.clipper.dispose();
+        this._plans = [];
+        this._clipper.dispose();
+        this.objects.dispose();
+        this.uiElement.planList.dispose();
+        this.uiElement.floatingWindow.dispose();
+        this.uiElement.listButton.dispose();
+        this.uiElement.commandsMenu.dispose();
+        this.toggleCommandsMenuEvent(false);
     }
     // TODO: Compute georreference matrix when generating fragmentsgroup
     // so that we can correctly add floors in georreferenced models
@@ -102499,16 +102888,21 @@ class PlanNavigator extends Component {
         }
         const { properties } = model;
         const floorsProps = IfcPropertiesUtils.getAllItemsOfType(properties, IFCBUILDINGSTOREY);
+        const coordHeight = model.coordinationMatrix.elements[13];
         const units = IfcPropertiesUtils.getUnits(properties);
         for (const floor of floorsProps) {
-            const height = floor.Elevation.value * units + this.defaultSectionOffset;
+            const height = floor.Elevation.value * units + coordHeight;
             await this.create({
+                name: floor.Name.value,
+                id: floor.GlobalId.value,
                 normal: new THREE$1.Vector3(0, -1, 0),
                 point: new THREE$1.Vector3(0, height, 0),
-                id: floor.Name.value,
                 ortho: true,
+                offset: this.defaultSectionOffset,
             });
         }
+        const { min, max } = model.boundingBox;
+        this.objects.setBounds([min, max]);
     }
     /**
      * Creates a new floor plan in the navigator.
@@ -102516,14 +102910,15 @@ class PlanNavigator extends Component {
      * @param config - Necessary data to initialize the floor plan.
      */
     async create(config) {
-        const previousPlan = this.plans.find((plan) => plan.id === config.id);
+        const previousPlan = this._plans.find((plan) => plan.id === config.id);
         if (previousPlan) {
             throw new Error(`There's already a plan with the id: ${config.id}`);
         }
         const plane = await this.createClippingPlane(config);
         plane.visible = false;
         const plan = { ...config, plane };
-        this.plans.push(plan);
+        this._plans.push(plan);
+        this.objects.add(config);
     }
     /**
      * Make the navigator go to the specified floor plan.
@@ -102536,6 +102931,8 @@ class PlanNavigator extends Component {
         if (((_a = this.currentPlan) === null || _a === void 0 ? void 0 : _a.id) === id) {
             return;
         }
+        this.objects.visible = false;
+        this.navigated.trigger({ id });
         this.storeCameraPosition();
         this.hidePreviousClippingPlane();
         this.updateCurrentPlan(id);
@@ -102544,6 +102941,7 @@ class PlanNavigator extends Component {
             await this.moveCameraTo2DPlanPosition(animate);
             this.enabled = true;
         }
+        this.uiElement.exitButton.enabled = true;
     }
     /**
      * Deactivate navigator and go back to the previous view.
@@ -102554,9 +102952,10 @@ class PlanNavigator extends Component {
         if (!this.enabled)
             return;
         this.enabled = false;
+        this.exited.trigger();
         this.cacheFloorplanView();
-        this.camera.setNavigationMode("Orbit");
-        await this.camera.setProjection(this.previousProjection);
+        this._camera.setNavigationMode("Orbit");
+        await this._camera.setProjection(this._previousProjection);
         if (this.currentPlan && this.currentPlan.plane) {
             this.currentPlan.plane.enabled = false;
             if (this.currentPlan.plane instanceof EdgesPlane) {
@@ -102564,7 +102963,70 @@ class PlanNavigator extends Component {
             }
         }
         this.currentPlan = null;
-        await this.camera.controls.setLookAt(this.previousCamera.x, this.previousCamera.y, this.previousCamera.z, this.previousTarget.x, this.previousTarget.y, this.previousTarget.z, animate);
+        await this._camera.controls.setLookAt(this._previousCamera.x, this._previousCamera.y, this._previousCamera.z, this._previousTarget.x, this._previousTarget.y, this._previousTarget.z, animate);
+        this.uiElement.exitButton.enabled = false;
+    }
+    updatePlansList() {
+        const { defaultText, planList, commandsMenu } = this.uiElement;
+        planList.dispose(true);
+        if (!this._plans.length) {
+            defaultText.visible = true;
+            return;
+        }
+        defaultText.visible = false;
+        commandsMenu.dispose(true);
+        const commandsCount = Object.keys(this.commands).length;
+        for (const name in this.commands) {
+            const command = this.commands[name];
+            const button = new Button(this._components, { name });
+            commandsMenu.addChild(button);
+            button.onclick = () => {
+                if (this._selectedPlanMenu) {
+                    const plan = this._plans.find((plan) => plan.id === this._selectedPlanMenu);
+                    if (plan) {
+                        command(plan);
+                    }
+                }
+            };
+        }
+        for (const plan of this._plans) {
+            const height = Math.trunc(plan.point.y * 10) / 10;
+            const description = `Height: ${height}`;
+            const simpleCard = new SimpleUICard(this._components, {
+                title: plan.name,
+                description,
+            });
+            const toolbar = new Toolbar(this._components);
+            this._components.ui.addToolbar(toolbar);
+            simpleCard.addChild(toolbar);
+            const planButton = new Button(this._components, {
+                materialIconName: "arrow_outward",
+            });
+            planButton.onclick = () => {
+                this.goTo(plan.id);
+            };
+            toolbar.addChild(planButton);
+            const extraButton = new Button(this._components, {
+                materialIconName: "expand_more",
+            });
+            extraButton.onclick = (event) => {
+                if (!event)
+                    return;
+                this._selectedPlanMenu = plan.id;
+                const { x, y } = event;
+                commandsMenu.domElement.style.left = `${x + 20}px`;
+                commandsMenu.domElement.style.top = `${y - 10}px`;
+                commandsMenu.visible = true;
+            };
+            if (!commandsCount) {
+                extraButton.enabled = false;
+            }
+            toolbar.addChild(extraButton);
+            simpleCard.domElement.classList.remove("bg-ifcjs-120");
+            simpleCard.domElement.classList.remove("border-transparent");
+            simpleCard.domElement.className += ` min-w-[300px] my-2 bg-ifcjs-100 border-1 border-solid border-[#3A444E] `;
+            planList.addChild(simpleCard);
+        }
     }
     storeCameraPosition() {
         if (this.enabled) {
@@ -102576,21 +103038,25 @@ class PlanNavigator extends Component {
     }
     async createClippingPlane(config) {
         const { normal, point } = config;
-        const plane = this.clipper.createFromNormalAndCoplanarPoint(normal, point);
+        const clippingPoint = point.clone();
+        if (config.offset) {
+            clippingPoint.y += config.offset;
+        }
+        const plane = this._clipper.createFromNormalAndCoplanarPoint(normal, clippingPoint);
         plane.enabled = false;
         await plane.edges.update();
         plane.edges.visible = false;
         return plane;
     }
     cacheFloorplanView() {
-        this.floorPlanViewCached = true;
-        this.camera.controls.saveState();
+        this._floorPlanViewCached = true;
+        this._camera.controls.saveState();
     }
     async moveCameraTo2DPlanPosition(animate) {
-        if (this.floorPlanViewCached)
-            await this.camera.controls.reset(animate);
+        if (this._floorPlanViewCached)
+            await this._camera.controls.reset(animate);
         else
-            await this.camera.controls.setLookAt(0, 100, 0, 0, 0, 0, animate);
+            await this._camera.controls.setLookAt(0, 100, 0, 0, 0, 0, animate);
     }
     activateCurrentPlan() {
         if (!this.currentPlan)
@@ -102602,18 +103068,18 @@ class PlanNavigator extends Component {
                 this.currentPlan.plane.edges.visible = true;
             }
         }
-        // this.camera.setNavigationMode("Plan");
+        this._camera.setNavigationMode("Plan");
         const projection = this.currentPlan.ortho ? "Orthographic" : "Perspective";
-        this.camera.setProjection(projection);
+        this._camera.setProjection(projection);
     }
     store3dCameraPosition() {
-        const camera = this.camera.get();
-        camera.getWorldPosition(this.previousCamera);
-        this.camera.controls.getTarget(this.previousTarget);
-        this.previousProjection = this.camera.getProjection();
+        const camera = this._camera.get();
+        camera.getWorldPosition(this._previousCamera);
+        this._camera.controls.getTarget(this._previousTarget);
+        this._previousProjection = this._camera.getProjection();
     }
     updateCurrentPlan(id) {
-        const foundPlan = this.plans.find((plan) => plan.id === id);
+        const foundPlan = this._plans.find((plan) => plan.id === id);
         if (!foundPlan) {
             throw new Error("The specified plan is undefined!");
         }
@@ -102627,6 +103093,34 @@ class PlanNavigator extends Component {
             if (this.currentPlan.plane instanceof EdgesPlane) {
                 this.currentPlan.plane.edges.visible = false;
             }
+        }
+    }
+    setupPlanObjectUI() {
+        this.objects.planClicked.on(async ({ id }) => {
+            const button = this.objects.uiElement.planObjectButton;
+            if (!this.enabled) {
+                if (button.icon && button.tooltip) {
+                    button.icon.textContent = "logout";
+                    button.tooltip.textContent = "Exit floorplans";
+                }
+                button.onclick = () => {
+                    this.exitPlanView();
+                    if (button.icon && button.tooltip) {
+                        button.icon.textContent = "layers";
+                        button.tooltip.textContent = "3D plans";
+                    }
+                    button.onclick = () => (this.objects.visible = !this.objects.visible);
+                };
+            }
+            this.goTo(id);
+        });
+    }
+    toggleCommandsMenuEvent(active) {
+        if (active) {
+            window.addEventListener("click", this.hideCommandsMenu);
+        }
+        else {
+            window.removeEventListener("click", this.hideCommandsMenu);
         }
     }
 }
@@ -102817,111 +103311,6 @@ class FragmentOutliner extends Component {
             outlineMesh.count = counter;
             outlineMesh.instanceMatrix.needsUpdate = true;
         }
-    }
-}
-
-/**
- * A simple implementation of bounding box that works for fragments. The resulting bbox is not 100% precise, but
- * it's fast, and should suffice for general use cases such as camera zooming.
- */
-class FragmentBoundingBox extends Component {
-    constructor() {
-        super();
-        this.name = "FragmentBoundingBox";
-        this.enabled = true;
-        this._mesh = new THREE$1.Mesh(new THREE$1.BoxGeometry(), new THREE$1.MeshBasicMaterial({
-            color: "red",
-            depthTest: false,
-            depthWrite: false,
-            transparent: true,
-            opacity: 0.3,
-        }));
-        this._mesh.renderOrder = 1;
-        this._absoluteMin = FragmentBoundingBox.newBound(true);
-        this._absoluteMax = FragmentBoundingBox.newBound(false);
-    }
-    get() {
-        return this._mesh;
-    }
-    dispose() {
-        this._mesh.removeFromParent();
-        this._mesh.geometry.dispose();
-        this._mesh.material.dispose();
-        this._mesh.geometry = null;
-        this._mesh.material = null;
-    }
-    update() {
-        const width = this._absoluteMax.x - this._absoluteMin.x;
-        const height = this._absoluteMax.y - this._absoluteMin.y;
-        const depth = this._absoluteMax.z - this._absoluteMin.z;
-        if (this._mesh.geometry) {
-            this._mesh.geometry.dispose();
-            this._mesh.geometry = new THREE$1.BoxGeometry(width, height, depth);
-        }
-        this._mesh.position.set(this._absoluteMax.x - width / 2, this._absoluteMax.y - height / 2, this._absoluteMax.z - depth / 2);
-    }
-    reset() {
-        this._mesh.geometry.dispose();
-        this._absoluteMin = FragmentBoundingBox.newBound(false);
-        this._absoluteMax = FragmentBoundingBox.newBound(true);
-    }
-    addGroup(group) {
-        for (const frag of group.items) {
-            this.add(frag);
-        }
-    }
-    add(fragment) {
-        const bbox = FragmentBoundingBox.getBounds(fragment);
-        const instanceTransform = new THREE$1.Matrix4();
-        for (let i = 0; i < fragment.mesh.count; i++) {
-            fragment.getInstance(i, instanceTransform);
-            const min = bbox.min.clone();
-            const max = bbox.max.clone();
-            min.applyMatrix4(instanceTransform);
-            max.applyMatrix4(instanceTransform);
-            if (min.x < this._absoluteMin.x)
-                this._absoluteMin.x = min.x;
-            if (min.y < this._absoluteMin.y)
-                this._absoluteMin.y = min.y;
-            if (min.z < this._absoluteMin.z)
-                this._absoluteMin.z = min.z;
-            if (max.x > this._absoluteMax.x)
-                this._absoluteMax.x = max.x;
-            if (max.y > this._absoluteMax.y)
-                this._absoluteMax.y = max.y;
-            if (max.z > this._absoluteMax.z)
-                this._absoluteMax.z = max.z;
-        }
-    }
-    static getBounds(fragment) {
-        const position = fragment.mesh.geometry.attributes.position;
-        const maxNum = Number.MAX_VALUE;
-        const minNum = -maxNum;
-        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
-        const max = new THREE$1.Vector3(minNum, minNum, minNum);
-        const indices = Array.from(fragment.mesh.geometry.index.array);
-        for (const index of indices) {
-            const x = position.getX(index);
-            const y = position.getY(index);
-            const z = position.getZ(index);
-            if (x < min.x)
-                min.x = x;
-            if (y < min.y)
-                min.y = y;
-            if (z < min.z)
-                min.z = z;
-            if (x > max.x)
-                max.x = x;
-            if (y > max.y)
-                max.y = y;
-            if (z > max.z)
-                max.z = z;
-        }
-        return new THREE$1.Box3(min, max);
-    }
-    static newBound(positive) {
-        const factor = positive ? 1 : -1;
-        return new THREE$1.Vector3(factor * Number.MAX_VALUE, factor * Number.MAX_VALUE, factor * Number.MAX_VALUE);
     }
 }
 
@@ -105183,4 +105572,4 @@ class AngleMeasurement extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PlanNavigator, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, UIPool, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, EditProp, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentPlans, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, NewProp, NewPset, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIComponentsStack, UIManager, UIPool, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, getElementPsets, getElementQsets, getElementStorey, numberOfDigits, toCompositeID, tooeenRandomId };
