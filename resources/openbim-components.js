@@ -2878,6 +2878,12 @@ class Button extends SimpleUIComponent {
         this.domElement.classList.remove("justify-start", "justify-center", "justify-end");
         this.domElement.classList.add(`justify-${value}`);
     }
+    get icon() {
+        return this.domElement.querySelector(`#${this.id}-icon`);
+    }
+    get tooltip() {
+        return this.domElement.querySelector(`#${this.id}-tooltip`);
+    }
     constructor(components, options) {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -2894,12 +2900,14 @@ class Button extends SimpleUIComponent {
         this.alignment = "start";
         if (options === null || options === void 0 ? void 0 : options.materialIconName) {
             const icon = document.createElement("span");
+            icon.id = `${this.id}-icon`;
             icon.className = "material-icons md-18";
             icon.textContent = options === null || options === void 0 ? void 0 : options.materialIconName;
             btn.append(icon);
         }
         if (options === null || options === void 0 ? void 0 : options.tooltip) {
             const tooltip = document.createElement("span");
+            tooltip.id = `${this.id}-tooltip`;
             tooltip.textContent = options.tooltip;
             tooltip.className = Button.Class.Tooltip;
             btn.append(tooltip);
@@ -2979,7 +2987,7 @@ Button.Class = {
     disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400 pointer-events-auto
     transition-all
     `,
-    Label: "text-sm uppercase tracking-[1.25px] font-bold whitespace-nowrap",
+    Label: "text-sm tracking-[1.25px] whitespace-nowrap",
     Tooltip: `
     group-hover:opacity-100 transition-opacity bg-ifcjs-100 text-sm text-gray-100 rounded-md 
     absolute left-1/2 -translate-x-1/2 -translate-y-12 opacity-0 mx-auto p-4 w-max h-4 flex items-center
@@ -12220,7 +12228,7 @@ class FloatingWindow extends SimpleUIComponent {
     }
 }
 FloatingWindow.Class = {
-    Base: "absolute backdrop-blur-md shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white bg-ifcjs-100 rounded-md",
+    Base: "absolute bg-ifcjs-100 backdrop-blur-md shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white rounded-md",
     Title: "text-3xl text-ifcjs-200 font-medium",
     Description: "text-base text-gray-400",
 };
@@ -102654,6 +102662,7 @@ class PlanObjects {
     }
     constructor(components) {
         this.offsetFactor = 0.2;
+        this.planClicked = new Event();
         this._scale = new THREE$1.Vector2(1, 1);
         this._min = new THREE$1.Vector3();
         this._max = new THREE$1.Vector3();
@@ -102677,7 +102686,7 @@ class PlanObjects {
         this.createPlaneOutlineGeometry();
         const button = new Button(components, {
             materialIconName: "layers",
-            tooltip: "Plans",
+            tooltip: "3D Plans",
         });
         button.onclick = () => {
             this.visible = !this.visible;
@@ -102711,6 +102720,9 @@ class PlanObjects {
             materialIconName: "location_on",
             tooltip: name,
         });
+        button.onclick = () => {
+            this.planClicked.trigger({ id: config.id });
+        };
         const { domElement } = button;
         domElement.classList.remove("bg-transparent");
         domElement.className += " bg-ifcjs-100 transition-none rounded-full";
@@ -102790,17 +102802,31 @@ class FragmentPlans extends Component {
         this.defaultSectionOffset = 1.5;
         /** The offset of the 2D camera to the floor plan elevation. */
         this.defaultCameraOffset = 30;
+        this.navigated = new Event();
+        this.exited = new Event();
         /** The created floor plans. */
         this.storeys = [];
+        this.commands = {};
         this._plans = [];
         this._floorPlanViewCached = false;
         this._previousCamera = new THREE$1.Vector3();
         this._previousTarget = new THREE$1.Vector3();
         this._previousProjection = "Perspective";
+        this.hideCommandsMenu = () => {
+            this.uiElement.commandsMenu.visible = false;
+        };
         this._components = components;
         this._clipper = clipper;
         this._camera = camera;
         this.objects = new PlanObjects(components);
+        this.setupPlanObjectUI();
+        const topButtonContainer = new UIComponentsStack(this._components, "Horizontal");
+        const exitButton = new Button(components, {
+            materialIconName: "logout",
+        });
+        topButtonContainer.addChild(exitButton);
+        exitButton.enabled = false;
+        exitButton.onclick = () => this.exitPlanView();
         const listButton = new Button(components, {
             materialIconName: "folder_copy",
             tooltip: "Plans list",
@@ -102809,20 +102835,30 @@ class FragmentPlans extends Component {
             title: "Floor plans",
         });
         components.ui.add(floatingWindow);
-        const topButtonGroup = new UIComponentsStack(components, "Horizontal");
-        floatingWindow.addChild(topButtonGroup);
-        const exitButton = new Button(components, {
-            materialIconName: "logout",
-        });
-        topButtonGroup.addChild(exitButton);
         floatingWindow.visible = false;
+        floatingWindow.addChild(topButtonContainer);
         const planList = new UIComponentsStack(components, "Vertical");
         floatingWindow.addChild(planList);
         const text = document.createElement("p");
         text.textContent = "No plans yet.";
         const defaultText = new SimpleUIComponent(components, text);
         floatingWindow.addChild(defaultText);
-        this.uiElement = { listButton, floatingWindow, planList, defaultText };
+        const commandsMenuDom = document.createElement("div");
+        const commandsMenu = new SimpleUIComponent(components, commandsMenuDom);
+        this.toggleCommandsMenuEvent(true);
+        commandsMenuDom.className =
+            "absolute bg-ifcjs-100 backdrop-blur-md rounded-md p-3";
+        commandsMenuDom.style.zIndex = "9999";
+        components.ui.add(commandsMenu);
+        commandsMenu.visible = false;
+        this.uiElement = {
+            listButton,
+            floatingWindow,
+            planList,
+            defaultText,
+            exitButton,
+            commandsMenu,
+        };
         listButton.onclick = () => {
             floatingWindow.visible = !floatingWindow.visible;
         };
@@ -102837,10 +102873,11 @@ class FragmentPlans extends Component {
         this._plans = [];
         this._clipper.dispose();
         this.objects.dispose();
-        const { planList, listButton, floatingWindow } = this.uiElement;
-        planList.dispose();
-        floatingWindow.dispose();
-        listButton.dispose();
+        this.uiElement.planList.dispose();
+        this.uiElement.floatingWindow.dispose();
+        this.uiElement.listButton.dispose();
+        this.uiElement.commandsMenu.dispose();
+        this.toggleCommandsMenuEvent(false);
     }
     // TODO: Compute georreference matrix when generating fragmentsgroup
     // so that we can correctly add floors in georreferenced models
@@ -102894,6 +102931,8 @@ class FragmentPlans extends Component {
         if (((_a = this.currentPlan) === null || _a === void 0 ? void 0 : _a.id) === id) {
             return;
         }
+        this.objects.visible = false;
+        this.navigated.trigger({ id });
         this.storeCameraPosition();
         this.hidePreviousClippingPlane();
         this.updateCurrentPlan(id);
@@ -102902,6 +102941,7 @@ class FragmentPlans extends Component {
             await this.moveCameraTo2DPlanPosition(animate);
             this.enabled = true;
         }
+        this.uiElement.exitButton.enabled = true;
     }
     /**
      * Deactivate navigator and go back to the previous view.
@@ -102912,6 +102952,7 @@ class FragmentPlans extends Component {
         if (!this.enabled)
             return;
         this.enabled = false;
+        this.exited.trigger();
         this.cacheFloorplanView();
         this._camera.setNavigationMode("Orbit");
         await this._camera.setProjection(this._previousProjection);
@@ -102923,15 +102964,31 @@ class FragmentPlans extends Component {
         }
         this.currentPlan = null;
         await this._camera.controls.setLookAt(this._previousCamera.x, this._previousCamera.y, this._previousCamera.z, this._previousTarget.x, this._previousTarget.y, this._previousTarget.z, animate);
+        this.uiElement.exitButton.enabled = false;
     }
     updatePlansList() {
-        const { defaultText, planList } = this.uiElement;
+        const { defaultText, planList, commandsMenu } = this.uiElement;
         planList.dispose(true);
         if (!this._plans.length) {
             defaultText.visible = true;
             return;
         }
         defaultText.visible = false;
+        commandsMenu.dispose(true);
+        const commandsCount = Object.keys(this.commands).length;
+        for (const name in this.commands) {
+            const command = this.commands[name];
+            const button = new Button(this._components, { name });
+            commandsMenu.addChild(button);
+            button.onclick = () => {
+                if (this._selectedPlanMenu) {
+                    const plan = this._plans.find((plan) => plan.id === this._selectedPlanMenu);
+                    if (plan) {
+                        command(plan);
+                    }
+                }
+            };
+        }
         for (const plan of this._plans) {
             const height = Math.trunc(plan.point.y * 10) / 10;
             const description = `Height: ${height}`;
@@ -102939,14 +102996,32 @@ class FragmentPlans extends Component {
                 title: plan.name,
                 description,
             });
+            const toolbar = new Toolbar(this._components);
+            this._components.ui.addToolbar(toolbar);
+            simpleCard.addChild(toolbar);
             const planButton = new Button(this._components, {
                 materialIconName: "arrow_outward",
             });
-            simpleCard.addChild(planButton);
+            planButton.onclick = () => {
+                this.goTo(plan.id);
+            };
+            toolbar.addChild(planButton);
             const extraButton = new Button(this._components, {
                 materialIconName: "expand_more",
             });
-            simpleCard.addChild(extraButton);
+            extraButton.onclick = (event) => {
+                if (!event)
+                    return;
+                this._selectedPlanMenu = plan.id;
+                const { x, y } = event;
+                commandsMenu.domElement.style.left = `${x + 20}px`;
+                commandsMenu.domElement.style.top = `${y - 10}px`;
+                commandsMenu.visible = true;
+            };
+            if (!commandsCount) {
+                extraButton.enabled = false;
+            }
+            toolbar.addChild(extraButton);
             simpleCard.domElement.classList.remove("bg-ifcjs-120");
             simpleCard.domElement.classList.remove("border-transparent");
             simpleCard.domElement.className += ` min-w-[300px] my-2 bg-ifcjs-100 border-1 border-solid border-[#3A444E] `;
@@ -102993,7 +103068,7 @@ class FragmentPlans extends Component {
                 this.currentPlan.plane.edges.visible = true;
             }
         }
-        // this.camera.setNavigationMode("Plan");
+        this._camera.setNavigationMode("Plan");
         const projection = this.currentPlan.ortho ? "Orthographic" : "Perspective";
         this._camera.setProjection(projection);
     }
@@ -103018,6 +103093,34 @@ class FragmentPlans extends Component {
             if (this.currentPlan.plane instanceof EdgesPlane) {
                 this.currentPlan.plane.edges.visible = false;
             }
+        }
+    }
+    setupPlanObjectUI() {
+        this.objects.planClicked.on(async ({ id }) => {
+            const button = this.objects.uiElement.planObjectButton;
+            if (!this.enabled) {
+                if (button.icon && button.tooltip) {
+                    button.icon.textContent = "logout";
+                    button.tooltip.textContent = "Exit floorplans";
+                }
+                button.onclick = () => {
+                    this.exitPlanView();
+                    if (button.icon && button.tooltip) {
+                        button.icon.textContent = "layers";
+                        button.tooltip.textContent = "3D plans";
+                    }
+                    button.onclick = () => (this.objects.visible = !this.objects.visible);
+                };
+            }
+            this.goTo(id);
+        });
+    }
+    toggleCommandsMenuEvent(active) {
+        if (active) {
+            window.addEventListener("click", this.hideCommandsMenu);
+        }
+        else {
+            window.removeEventListener("click", this.hideCommandsMenu);
         }
     }
 }
