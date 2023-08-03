@@ -3184,7 +3184,7 @@ class SimpleScene extends Component {
 class ToolComponent extends Component {
     constructor() {
         super(...arguments);
-        this.list = {};
+        this.list = new Map();
         this.onToolAdded = new Event();
         this.onToolRemoved = new Event();
         /** {@link Component.name} */
@@ -3202,19 +3202,19 @@ class ToolComponent extends Component {
      * @param tool - The tool to register.
      */
     add(id, tool) {
-        const existingTool = this.list[id];
+        const existingTool = this.list.get(id);
         if (existingTool) {
             console.warn(`A tool with the id: ${String(id)} already exists`);
             return;
         }
-        this.list[id] = tool;
+        this.list.set(id, tool);
     }
     /**
      * Deletes a previously registered tool component.
      * @param id - The registered ID of the tool to be delete.
      */
     remove(id) {
-        delete this.list[id];
+        this.list.delete(id);
         this.onToolRemoved.trigger();
     }
     /**
@@ -3222,10 +3222,10 @@ class ToolComponent extends Component {
      * @param id - The id of the registered tool.
      */
     get(id) {
-        if (!this.list[id]) {
+        if (!this.list.has(id)) {
             throw new Error("The requested component does not exist!");
         }
-        return this.list[id];
+        return this.list.get(id);
     }
     /**
      * Gets one of your tools of That Open Platform. You can pass the type of
