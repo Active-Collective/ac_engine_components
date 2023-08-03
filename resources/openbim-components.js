@@ -100055,6 +100055,10 @@ function getProjectedNormalMaterial() {
       #include <clipping_planes_fragment>
       vec3 cameraPixelVec = normalize(vCameraPosition - vPosition);
       float difference = abs(dot(vNormal, cameraPixelVec));
+      
+      // This achieves a double gloss effect: when the surface is perpendicular and when it's parallel
+      difference = abs((difference * 2.) - 1.);
+      
       gl_FragColor = vec4(difference, difference, difference, 1.);
     }
     `,
@@ -100140,9 +100144,9 @@ class CustomEffectsPass extends Pass {
         this._opacity = 0.4;
         this._tolerance = 3;
         this._glossEnabled = true;
-        this._glossExponent = 0.7;
-        this._minGloss = -0.15;
-        this._maxGloss = 0.15;
+        this._glossExponent = 1.9;
+        this._minGloss = -0.1;
+        this._maxGloss = 0.1;
         this._outlinesNeedsUpdate = false;
         this.renderScene = components.scene.get();
         this.renderCamera = components.camera.get();
@@ -100478,8 +100482,8 @@ class CustomEffectsPass extends Pass {
                 glossBuffer: { value: null },
                 outlineBuffer: { value: null },
                 glossEnabled: { value: 1 },
-                minGloss: { value: -0.4 },
-                maxGloss: { value: 0 },
+                minGloss: { value: this._minGloss },
+                maxGloss: { value: this._maxGloss },
                 outlineEnabled: { value: 0 },
                 glossExponent: { value: this._glossExponent },
                 width: { value: 1 },
