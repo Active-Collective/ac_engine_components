@@ -3,8 +3,8 @@ import { Event } from "../../base-types";
 import { SimpleUIComponent } from "../SimpleUIComponent";
 import { UIManager } from "../UIManager";
 
-export class TextInput extends SimpleUIComponent<HTMLDivElement> {
-  name = "TooeenTextInput";
+export class TextArea extends SimpleUIComponent<HTMLDivElement> {
+  name = "TooeenTextArea";
   readonly onChange: Event<string> = new Event();
 
   set value(value: string) {
@@ -29,6 +29,14 @@ export class TextInput extends SimpleUIComponent<HTMLDivElement> {
     return this.innerElements.label.textContent;
   }
 
+  set placeholder(value: string) {
+    this.innerElements.input.placeholder = value;
+  }
+
+  get placeholder() {
+    return this.innerElements.input.placeholder;
+  }
+
   innerElements: {
     label: HTMLLabelElement;
     input: HTMLInputElement;
@@ -37,8 +45,8 @@ export class TextInput extends SimpleUIComponent<HTMLDivElement> {
   constructor(components: Components) {
     const template = `
     <div class="w-full">
-      <label id="label" class="${UIManager.Class.Label}"></label>
-      <input id="input" type="text" class="block bg-transparent w-full rounded-md p-3 text-white ring-1 text-base ring-gray-500 focus:ring-ifcjs-200 focus:outline-none placeholder:text-gray-400">
+      <label id="label" for="message" class="${UIManager.Class.Label}"></label>
+      <textarea id="input" rows="4" class="block bg-transparent w-full rounded-md p-3 text-white ring-1 text-base ring-gray-500 focus:ring-ifcjs-200 focus:outline-none placeholder:text-gray-400"></textarea>
     </div>
     `;
     super(components, template);
@@ -48,7 +56,8 @@ export class TextInput extends SimpleUIComponent<HTMLDivElement> {
       input: this.getInnerElement("input") as HTMLInputElement,
     };
 
-    this.label = "Tooeen Text";
+    this.label = "Tooeen Text Area";
+    this.placeholder = "Write something...";
 
     this.innerElements.label.setAttribute("for", `input-${this.id}`);
   }
