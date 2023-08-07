@@ -93092,6 +93092,34 @@ class IfcJsonExporter {
         properties = null;
     }
     async getAllGeometriesIDs(modelID, webIfc) {
+        // Exclude location info of spatial structure
+        const placementIDs = new Set();
+        const structures = new Set();
+        this.getStructure(IFCPROJECT, structures, webIfc);
+        this.getStructure(IFCSITE, structures, webIfc);
+        this.getStructure(IFCBUILDING, structures, webIfc);
+        this.getStructure(IFCBUILDINGSTOREY, structures, webIfc);
+        this.getStructure(IFCSPACE, structures, webIfc);
+        for (const id of structures) {
+            const properties = webIfc.GetLine(0, id);
+            const placementRef = properties.ObjectPlacement;
+            if (!placementRef || placementRef.value === null) {
+                continue;
+            }
+            const placementID = placementRef.value;
+            placementIDs.add(placementID);
+            const placementProps = webIfc.GetLine(0, placementID);
+            const relPlacementID = placementProps.RelativePlacement;
+            if (!relPlacementID || relPlacementID.value === null) {
+                continue;
+            }
+            placementIDs.add(relPlacementID.value);
+            const relPlacement = webIfc.GetLine(0, relPlacementID.value);
+            const location = relPlacement.Location;
+            if (location && location.value !== null) {
+                placementIDs.add(location.value);
+            }
+        }
         const geometriesIDs = new Set();
         const geomTypesArray = Array.from(GeometryTypes);
         for (let i = 0; i < geomTypesArray.length; i++) {
@@ -93100,10 +93128,22 @@ class IfcJsonExporter {
             const ids = await webIfc.GetLineIDsWithType(modelID, category);
             const idsSize = ids.size();
             for (let j = 0; j < idsSize; j++) {
-                geometriesIDs.add(ids.get(j));
+                const id = ids.get(j);
+                if (placementIDs.has(id)) {
+                    continue;
+                }
+                geometriesIDs.add(id);
             }
         }
         return geometriesIDs;
+    }
+    getStructure(type, result, webIfc) {
+        const found = webIfc.GetLineIDsWithType(0, type);
+        const size = found.size();
+        for (let i = 0; i < size; i++) {
+            const id = found.get(i);
+            result.add(id);
+        }
     }
 }
 
@@ -102757,7 +102797,9 @@ class FragmentPlans extends Component {
         const coordHeight = model.coordinationMatrix.elements[13];
         const units = IfcPropertiesUtils.getUnits(properties);
         for (const floor of floorsProps) {
-            const height = floor.Elevation.value * units + coordHeight;
+            const floorHeight = { value: 0 };
+            this.getAbsoluteFloorHeight(floor.ObjectPlacement.value, model.properties, floorHeight);
+            const height = floorHeight.value * units + coordHeight;
             await this.create({
                 name: floor.Name.value,
                 id: floor.GlobalId.value,
@@ -102986,6 +103028,17 @@ class FragmentPlans extends Component {
         }
         else {
             window.removeEventListener("click", this.hideCommandsMenu);
+        }
+    }
+    getAbsoluteFloorHeight(placementID, properties, height) {
+        const placementRef = properties[placementID];
+        const placement = properties[placementRef.RelativePlacement.value];
+        const location = properties[placement.Location.value];
+        const currentHeight = location.Coordinates[2].value;
+        height.value += currentHeight;
+        const parentRef = placementRef.PlacementRelTo;
+        if (parentRef && parentRef.value !== null) {
+            this.getAbsoluteFloorHeight(parentRef.value, properties, height);
         }
     }
 }
@@ -106914,4 +106967,4 @@ class DXFExporter {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentPlans, FragmentTree, GeometryTypes, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
