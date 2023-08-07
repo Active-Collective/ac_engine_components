@@ -12249,7 +12249,7 @@ class InfoCard extends Component {
         window.title = "Info card";
         this._viewerContainer.append(window.domElement);
         window.updateReferencePoints();
-        this.uiElement = window;
+        this.uiElement = { window };
     }
     // private worldToScreen(vector3: Vector3, vector2: Vector2) {
     //     const camera = this._components.camera.get()
@@ -12268,9 +12268,10 @@ class InfoCard extends Component {
         const vector2 = new Vector2$1(rect.x, rect.y);
         this._line.setAttribute("x1", (rect.x + rect.width / 2).toString());
         this._line.setAttribute("y1", (rect.y + rect.height / 2).toString());
-        this.uiElement.updateReferencePoints();
-        let minimumPoint = this.uiElement.referencePoints.center;
-        for (const point in this.uiElement.referencePoints) {
+        const window = this.uiElement.window;
+        window.updateReferencePoints();
+        let minimumPoint = window.referencePoints.center;
+        for (const point in window.referencePoints) {
             // @ts-ignore
             const currentPoint = this.uiElement.referencePoints[point];
             const currentDistance = currentPoint.distanceTo(vector2);
