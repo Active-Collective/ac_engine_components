@@ -9872,26 +9872,18 @@ class Button extends SimpleUIComponent {
             this.menu.visible = true;
             this._popper.update();
         };
-        // this.domElement.addEventListener("mouseover", ({ target }) => {
-        //   if (
-        //     target !== this.get() &&
-        //     target !== this.innerElements.icon &&
-        //     target !== this.innerElements.label
-        //   ) {
-        //     return;
-        //   }
-        //   this.innerElements.tooltip.classList.add("opacity-100");
-        // });
-        // this.domElement.addEventListener("mouseleave", ({ target }) => {
-        //   if (
-        //     target !== this.get() &&
-        //     target !== this.innerElements.icon &&
-        //     target !== this.innerElements.label
-        //   ) {
-        //     return;
-        //   }
-        //   this.innerElements.tooltip.classList.add("opacity-0");
-        // });
+        this.domElement.addEventListener("mouseover", ({ target }) => {
+            if (this.isButton(target)) {
+                if (this._components.ui.tooltipsEnabled) {
+                    this.innerElements.tooltip.classList.remove("opacity-0");
+                }
+            }
+        });
+        this.domElement.addEventListener("mouseleave", ({ target }) => {
+            if (this.isButton(target)) {
+                this.innerElements.tooltip.classList.add("opacity-0");
+            }
+        });
         // #region Extensible menu
         this.menu = new Toolbar(components);
         this.menu.visible = false;
@@ -9943,6 +9935,11 @@ class Button extends SimpleUIComponent {
             placement = "left";
         }
         this._popper.setOptions({ placement });
+    }
+    isButton(element) {
+        return (element === this.get() ||
+            element === this.innerElements.icon ||
+            element === this.innerElements.label);
     }
 }
 Button.Class = {
@@ -11889,6 +11886,7 @@ class UIManager extends Component {
         this.name = "UIManager";
         this.enabled = true;
         this.toolbars = [];
+        this.tooltipsEnabled = true;
         this.containers = {
             top: document.createElement("div"),
             right: document.createElement("div"),
@@ -12716,6 +12714,7 @@ class ToastNotification extends SimpleUIComponent {
             icon: this.getInnerElement("icon"),
             message: this.getInnerElement("message"),
         };
+        this.domElement.style.zIndex = "9999";
         this.materialIcon = (_a = config.materialIconName) !== null && _a !== void 0 ? _a : "done";
         this.message = config.message;
     }
@@ -20267,16 +20266,18 @@ class LocalCacher extends Component {
         this._storedModels = "open-bim-components-stored-files";
         this._components = components;
         this._db = new ModelDatabase();
-        this.uiElement = { main: new Button(components) };
-        this.uiElement.main.materialIcon = "storage";
-        this.saveButton = new Button(components);
-        this.saveButton.label = "Save";
-        this.saveButton.materialIcon = "save";
-        this.uiElement.main.addChild(this.saveButton);
-        this.loadButton = new Button(components);
-        this.loadButton.label = "Download";
-        this.loadButton.materialIcon = "download";
-        this.uiElement.main.addChild(this.loadButton);
+        const main = new Button(components);
+        main.materialIcon = "storage";
+        main.tooltip = "Local cacher";
+        const saveButton = new Button(components);
+        saveButton.label = "Save";
+        saveButton.materialIcon = "save";
+        main.addChild(saveButton);
+        const loadButton = new Button(components);
+        loadButton.label = "Download";
+        loadButton.materialIcon = "download";
+        main.addChild(loadButton);
+        this.uiElement = { main, loadButton, saveButton };
         const renderer = this._components.renderer.get();
         const viewerContainer = renderer.domElement.parentElement;
         this.floatingMenu = new FloatingWindow(components, "file-list-menu");
@@ -20288,7 +20289,7 @@ class LocalCacher extends Component {
         savedFilesMenuHTML.style.width = "340px";
         savedFilesMenuHTML.style.height = "400px";
         viewerContainer.appendChild(this.floatingMenu.get());
-        this.saveButton.onclick = () => {
+        saveButton.onclick = () => {
             if (this.floatingMenu.visible) {
                 this.floatingMenu.visible = false;
             }
@@ -95661,6 +95662,7 @@ class FragmentIfcLoader extends Component {
     setupOpenButton() {
         const button = new Button(this._components);
         button.materialIcon = "upload_file";
+        button.tooltip = "Load IFC";
         const fileOpener = document.createElement("input");
         fileOpener.type = "file";
         fileOpener.accept = ".ifc";
@@ -96298,7 +96300,7 @@ class FragmentCacher extends LocalCacher {
         super(components);
         this._mode = "none";
         this._fragments = fragments;
-        this.saveButton.onclick = () => {
+        this.uiElement.saveButton.onclick = () => {
             this.floatingMenu.title = "Save items";
             if (this.floatingMenu.visible && this._mode === "save") {
                 this.floatingMenu.visible = false;
@@ -96335,7 +96337,7 @@ class FragmentCacher extends LocalCacher {
             }
             this.floatingMenu.visible = true;
         };
-        this.loadButton.onclick = () => {
+        this.uiElement.loadButton.onclick = () => {
             this.floatingMenu.title = "Load saved items";
             if (this.floatingMenu.visible && this._mode === "load") {
                 this.floatingMenu.visible = false;
@@ -96823,6 +96825,7 @@ class OrthoPerspectiveCamera extends SimpleCamera {
     setUI() {
         const mainButton = new Button(this.components);
         mainButton.materialIcon = "video_camera_back";
+        mainButton.tooltip = "Camera";
         const projection = new Button(this.components, {
             materialIconName: "camera",
             name: "Projection",
@@ -102260,6 +102263,10 @@ class CubeMap extends Component {
             left: new THREE$1.Vector3(-1, 0, 0),
             back: new THREE$1.Vector3(0, 0, -1),
         };
+        this.update = () => {
+            this._matrix.extractRotation(this._camera.get().matrixWorldInverse);
+            this._cube.style.transform = `translateZ(-300px) ${this.getCameraCSSMatrix(this._matrix)}`;
+        };
         this._components = components;
         this._cubeWrapper.id = "tooeen-cube-map";
         this._cubeWrapper.className = "absolute z-10";
@@ -102270,6 +102277,9 @@ class CubeMap extends Component {
         this._cube.style.transform = "translateZ(-300px)";
         this._cube.style.textTransform = "uppercase";
         this._cubeWrapper.append(this._cube);
+        if (components.camera.isUpdateable()) {
+            components.camera.afterUpdate.on(this.update);
+        }
         // #region Cube faces
         const frontFace = document.createElement("div");
         frontFace.id = "cube-map-front";
@@ -102353,10 +102363,6 @@ class CubeMap extends Component {
             }
             this._camera.fit(undefined, this.offset);
         }
-    }
-    update() {
-        this._matrix.extractRotation(this._camera.get().matrixWorldInverse);
-        this._cube.style.transform = `translateZ(-300px) ${this.getCameraCSSMatrix(this._matrix)}`;
     }
     get _viewerContainer() {
         return this._components.renderer.get().domElement.parentElement;
@@ -108541,6 +108547,8 @@ class DXFExporter {
         drawing.setActiveLayer("projection");
         const projectedLines = await this._projector.project(meshes, height);
         this.drawGeometry(projectedLines.geometry, drawing);
+        projectedLines.geometry.dispose();
+        projectedLines.material.dispose();
         // Draw section lines
         const edges = plan.plane.edges.get();
         for (const layerName in edges) {
