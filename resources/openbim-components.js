@@ -14931,7 +14931,7 @@ class ScreenCuller extends Component {
         this._colors = { r: 0, g: 0, b: 0, i: 0 };
         // Alternative scene and meshes to make the visibility check
         this._scene = new THREE$1.Scene();
-        this.updateVisibility = (force) => {
+        this.updateVisibility = async (force) => {
             if (!this.enabled)
                 return;
             if (!this.needsUpdate && !force)
@@ -14941,7 +14941,8 @@ class ScreenCuller extends Component {
             this.renderer.setSize(this.rtWidth, this.rtHeight);
             this.renderer.setRenderTarget(this.renderTarget);
             this.renderer.render(this._scene, camera);
-            this.renderer.readRenderTargetPixels(this.renderTarget, 0, 0, this.rtWidth, this.rtHeight, this._buffer);
+            const context = this.renderer.getContext();
+            await readPixelsAsync(context, 0, 0, this.rtWidth, this.rtHeight, context.RGBA, context.UNSIGNED_BYTE, this._buffer);
             this.renderer.setRenderTarget(null);
             if (this.renderDebugFrame) {
                 this.renderer.render(this._scene, camera);
@@ -15136,6 +15137,45 @@ class ScreenCuller extends Component {
             code: `${this._colors.r}-${this._colors.g}-${this._colors.b}`,
         };
     }
+}
+//
+// Thanks to the advice here https://github.com/zalo/TetSim/commit/9696c2e1cd6354fb9bd40dbd299c58f4de0341dd
+//
+function clientWaitAsync(gl, sync, flags, interval_ms) {
+    return new Promise((resolve, reject) => {
+        function test() {
+            const res = gl.clientWaitSync(sync, flags, 0);
+            if (res == gl.WAIT_FAILED) {
+                reject();
+                return;
+            }
+            if (res == gl.TIMEOUT_EXPIRED) {
+                setTimeout(test, interval_ms);
+                return;
+            }
+            resolve();
+        }
+        test();
+    });
+}
+async function getBufferSubDataAsync(gl, target, buffer, srcByteOffset, dstBuffer, dstOffset, length) {
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    gl.flush();
+    await clientWaitAsync(gl, sync, 0, 10);
+    gl.deleteSync(sync);
+    gl.bindBuffer(target, buffer);
+    gl.getBufferSubData(target, srcByteOffset, dstBuffer, dstOffset, length);
+    gl.bindBuffer(target, null);
+}
+async function readPixelsAsync(gl, x, y, w, h, format, type, dest) {
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf);
+    gl.bufferData(gl.PIXEL_PACK_BUFFER, dest.byteLength, gl.STREAM_READ);
+    gl.readPixels(x, y, w, h, format, type, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    await getBufferSubDataAsync(gl, gl.PIXEL_PACK_BUFFER, buf, 0, dest);
+    gl.deleteBuffer(buf);
+    return dest;
 }
 
 /*
