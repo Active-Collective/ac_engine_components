@@ -9769,8 +9769,8 @@ class Toolbar extends SimpleUIComponent {
     }
 }
 Toolbar.Class = {
-    Base: `flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto backdrop-blur-md 
-           bg-ifcjs-100 z-50 backdrop-blur-md`,
+    Base: `flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto backdrop-blur-xl 
+           bg-ifcjs-100 z-50 backdrop-blur-xl`,
 };
 
 class Button extends SimpleUIComponent {
@@ -12205,7 +12205,7 @@ class FloatingWindow extends SimpleUIComponent {
     }
 }
 FloatingWindow.Class = {
-    Base: "absolute flex flex-col backdrop-blur-md shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white bg-ifcjs-100 rounded-md",
+    Base: "absolute flex flex-col backdrop-blur-xl shadow-md overflow-auto top-5 resize z-50 left-5 min-h-[80px] min-w-[150px] w-fit h-fit text-white bg-ifcjs-100 rounded-md",
     Description: "text-base text-gray-400",
 };
 
@@ -12629,7 +12629,7 @@ class DragAndDropInput extends SimpleUIComponent {
         const template = `
       <div class="absolute top-8 bottom-8 left-8 right-8">
         <div class="flex items-center justify-center w-full h-full">
-            <label for="dropzone-file" class="h-full flex flex-col items-center justify-center w-full border-2 border-gray-300 border-dashed rounded-lg cursor-pointer backdrop-blur-md bg-ifcjs-100 dark:hover:bg-bray-800 dark:bg-gray-700 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600 transition ease-in-out hover:backdrop-blur-xl duration-300">
+            <label for="dropzone-file" class="h-full flex flex-col items-center justify-center w-full border-2 border-gray-300 border-dashed rounded-lg cursor-pointer backdrop-blur-xl bg-ifcjs-100 dark:hover:bg-bray-800 dark:bg-gray-700 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600 transition ease-in-out hover:backdrop-blur-xl duration-300">
                 <div class="flex flex-col items-center justify-center pt-5 pb-6">
                     <svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
@@ -14902,6 +14902,46 @@ class SimpleClipper extends Component {
     }
 }
 
+//
+// Thanks to the advice here https://github.com/zalo/TetSim/commit/9696c2e1cd6354fb9bd40dbd299c58f4de0341dd
+//
+function clientWaitAsync(gl, sync, flags, intervalMilliseconds) {
+    return new Promise((resolve, reject) => {
+        function test() {
+            const res = gl.clientWaitSync(sync, flags, 0);
+            if (res === gl.WAIT_FAILED) {
+                reject();
+                return;
+            }
+            if (res === gl.TIMEOUT_EXPIRED) {
+                setTimeout(test, intervalMilliseconds);
+                return;
+            }
+            resolve();
+        }
+        test();
+    });
+}
+async function getBufferSubDataAsync(gl, target, buffer, srcByteOffset, dstBuffer, dstOffset, length) {
+    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    gl.flush();
+    await clientWaitAsync(gl, sync, 0, 10);
+    gl.deleteSync(sync);
+    gl.bindBuffer(target, buffer);
+    gl.getBufferSubData(target, srcByteOffset, dstBuffer, dstOffset, length);
+    gl.bindBuffer(target, null);
+}
+async function readPixelsAsync(gl, x, y, w, h, format, type, dest) {
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf);
+    gl.bufferData(gl.PIXEL_PACK_BUFFER, dest.byteLength, gl.STREAM_READ);
+    gl.readPixels(x, y, w, h, format, type, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    await getBufferSubDataAsync(gl, gl.PIXEL_PACK_BUFFER, buf, 0, dest);
+    gl.deleteBuffer(buf);
+    return dest;
+}
+
 // TODO: Clean up and document
 // TODO: Work at the instance level instead of the mesh level
 class ScreenCuller extends Component {
@@ -15137,45 +15177,6 @@ class ScreenCuller extends Component {
             code: `${this._colors.r}-${this._colors.g}-${this._colors.b}`,
         };
     }
-}
-//
-// Thanks to the advice here https://github.com/zalo/TetSim/commit/9696c2e1cd6354fb9bd40dbd299c58f4de0341dd
-//
-function clientWaitAsync(gl, sync, flags, interval_ms) {
-    return new Promise((resolve, reject) => {
-        function test() {
-            const res = gl.clientWaitSync(sync, flags, 0);
-            if (res == gl.WAIT_FAILED) {
-                reject();
-                return;
-            }
-            if (res == gl.TIMEOUT_EXPIRED) {
-                setTimeout(test, interval_ms);
-                return;
-            }
-            resolve();
-        }
-        test();
-    });
-}
-async function getBufferSubDataAsync(gl, target, buffer, srcByteOffset, dstBuffer, dstOffset, length) {
-    const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
-    gl.flush();
-    await clientWaitAsync(gl, sync, 0, 10);
-    gl.deleteSync(sync);
-    gl.bindBuffer(target, buffer);
-    gl.getBufferSubData(target, srcByteOffset, dstBuffer, dstOffset, length);
-    gl.bindBuffer(target, null);
-}
-async function readPixelsAsync(gl, x, y, w, h, format, type, dest) {
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf);
-    gl.bufferData(gl.PIXEL_PACK_BUFFER, dest.byteLength, gl.STREAM_READ);
-    gl.readPixels(x, y, w, h, format, type, 0);
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-    await getBufferSubDataAsync(gl, gl.PIXEL_PACK_BUFFER, buf, 0, dest);
-    gl.deleteBuffer(buf);
-    return dest;
 }
 
 /*
@@ -28726,7 +28727,24 @@ class FragmentManager extends Component {
         this.groups = [];
         this.onFragmentsLoaded = new Event();
         this._loader = new Serializer();
+        this._cards = [];
         this._components = components;
+        const window = new FloatingWindow(components);
+        window.title = "Models";
+        window.domElement.style.left = "70px";
+        window.domElement.style.top = "100px";
+        window.domElement.style.width = "340px";
+        window.domElement.style.height = "400px";
+        components.ui.add(window);
+        window.visible = false;
+        const main = new Button(components);
+        main.tooltip = "Models";
+        main.materialIcon = "inbox";
+        main.onclick = () => {
+            window.visible = !window.visible;
+        };
+        this.uiElement = { main, window };
+        this.onFragmentsLoaded.on(() => this.updateWindow());
     }
     /** {@link Component.get} */
     get() {
@@ -28780,6 +28798,18 @@ class FragmentManager extends Component {
      */
     export(group) {
         return this._loader.export(group);
+    }
+    updateWindow() {
+        for (const card of this._cards) {
+            card.dispose();
+        }
+        for (const group of this.groups) {
+            const card = new SimpleUICard(this._components);
+            card.title = group.ifcMetadata.name;
+            card.description = group.ifcMetadata.description;
+            this.uiElement.window.addChild(card);
+            this._cards.push(card);
+        }
     }
     removeFragmentMesh(fragment) {
         const meshes = this._components.meshes;
@@ -93400,7 +93430,7 @@ class Modal extends SimpleUIComponent {
     constructor(components, title = "Tooeen Modal") {
         const template = `
     <dialog>
-      <div class="flex flex-col backdrop-blur-md w-[350px] h-fit text-white bg-ifcjs-100 rounded-md">
+      <div class="flex flex-col backdrop-blur-xl w-[350px] h-fit text-white bg-ifcjs-100 rounded-md">
         <div class="flex justify-between items-center top-0 select-none px-6 py-3 border-b-2 border-solid border-[#3A444E]">
           <h3 id="title">${title}</h3>
           <p id="description" class="text-base text-gray-400"></p>
@@ -95327,6 +95357,7 @@ class DataConverter {
         this._spatialTree = new SpatialStructure();
     }
     cleanUp() {
+        this._fragmentKey = 0;
         this._spatialTree.cleanUp();
         this._categories = {};
         this._model = new FragmentsGroup();
@@ -102800,7 +102831,7 @@ class FragmentPlans extends Component {
         floatingWindow.addChild(planList);
         const defaultText = new SimpleUIComponent(components, `<p>No plans yet.</p>`);
         floatingWindow.addChild(defaultText);
-        const commandsMenu = new SimpleUIComponent(components, `<div class="absolute bg-ifcjs-100 backdrop-blur-md rounded-md p-3 z-50"></div>`);
+        const commandsMenu = new SimpleUIComponent(components, `<div class="absolute bg-ifcjs-100 backdrop-blur-xl rounded-md p-3 z-50"></div>`);
         this.toggleCommandsMenuEvent(true);
         components.ui.add(commandsMenu);
         commandsMenu.visible = false;
