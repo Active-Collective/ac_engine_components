@@ -9825,22 +9825,27 @@ class Button extends SimpleUIComponent {
         this.domElement.classList.add(`justify-${value}`);
     }
     set materialIcon(name) {
-        this.innerElements.icon.textContent = name;
+        const icon = this.innerElements.icon;
+        icon.textContent = name;
         if (name) {
-            this.innerElements.icon.classList.remove("hidden");
+            icon.style.display = "unset";
         }
         else {
-            this.innerElements.icon.classList.add("hidden");
+            icon.style.display = "none";
         }
     }
     get materialIcon() {
         return this.innerElements.icon.textContent;
     }
+    get customIcon() {
+        return this.innerElements.customIcon.innerHTML;
+    }
     constructor(components, options) {
         var _a, _b, _c;
         const template = `
     <button class="${Button.Class.Base}">
-      <span id="icon" class="material-icons md-18"></span> 
+      <span style="display: none" id="custom-icon" class="md-18"></span> 
+      <span style="display: none" id="icon" class="material-icons md-18"></span> 
       <span id="tooltip" class="${Button.Class.Tooltip}"></span> 
       <p id="label" class="${Button.Class.Label}"></p>
     </button>
@@ -9851,6 +9856,7 @@ class Button extends SimpleUIComponent {
         this._parent = null;
         this._closeOnClick = true;
         this.innerElements = {
+            customIcon: this.getInnerElement("custom-icon"),
             icon: this.getInnerElement("icon"),
             label: this.getInnerElement("label"),
             tooltip: this.getInnerElement("tooltip"),
@@ -9919,6 +9925,17 @@ class Button extends SimpleUIComponent {
         this.menu.closeMenus();
         this.menu.visible = false;
     }
+    async setCustomIcon(url) {
+        const { customIcon } = this.innerElements;
+        if (url) {
+            const response = await fetch(url);
+            customIcon.innerHTML = await response.text();
+            customIcon.style.display = "unset";
+        }
+        else {
+            customIcon.style.display = "none";
+        }
+    }
     updateMenuPlacement() {
         var _a, _b, _c, _d, _e, _f;
         let placement = "bottom";
@@ -9945,10 +9962,10 @@ class Button extends SimpleUIComponent {
 Button.Class = {
     Base: `
     relative flex gap-x-2 items-center bg-transparent text-white rounded-[10px] 
-    h-fit p-2 hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
+    max-h-8 p-2 hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
     data-[active=true]:cursor-pointer data-[active=true]:bg-ifcjs-200 data-[active=true]:text-black
     disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400 pointer-events-auto
-    transition-all
+    transition-all 
     `,
     Label: "text-sm tracking-[1.25px] whitespace-nowrap",
     Tooltip: `
