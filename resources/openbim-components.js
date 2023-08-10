@@ -1121,7 +1121,7 @@ class ToolComponent extends Component {
      * [delta time](https://threejs.org/docs/#api/en/core/Clock) of the loop.
      */
     update(delta) {
-        const tools = Object.values(this.list);
+        const tools = this.list.values();
         for (const tool of tools) {
             if (tool.enabled && tool.isUpdateable()) {
                 tool.update(delta);
@@ -1132,7 +1132,7 @@ class ToolComponent extends Component {
      * Disposes all the memory used by all the tools.
      */
     dispose() {
-        const tools = Object.values(this.list);
+        const tools = this.list.values();
         for (const tool of tools) {
             tool.enabled = false;
             if (tool.isDisposeable()) {
