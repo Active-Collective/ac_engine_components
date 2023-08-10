@@ -12798,6 +12798,55 @@ class TextArea extends SimpleUIComponent {
     }
 }
 
+class CommandsMenu extends SimpleUIComponent {
+    get hasCommands() {
+        return Object.keys(this.commands).length !== 0;
+    }
+    constructor(components) {
+        const template = `<div id="window" class="absolute bg-ifcjs-100 backdrop-blur-xl rounded-md p-3 z-50"></div>`;
+        super(components, template);
+        this.name = "CommandsMenu";
+        this.offset = new THREE$1.Vector2(20, -10);
+        this.commands = {};
+        this.hideCommandsMenu = () => {
+            this.visible = false;
+        };
+        this.innerElements = {
+            window: this.getInnerElement("window"),
+        };
+        this.toggleWindowEvent(true);
+    }
+    update() {
+        this.dispose(true);
+        for (const name in this.commands) {
+            const command = this.commands[name];
+            const button = new Button(this._components, { name });
+            button.name = name;
+            this.addChild(button);
+            button.onclick = () => command(this.commandData);
+        }
+    }
+    popup(x, y) {
+        this.domElement.style.left = `${x + this.offset.x}px`;
+        this.domElement.style.top = `${y + this.offset.y}px`;
+        this.visible = true;
+    }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        if (!onlyChildren) {
+            this.toggleWindowEvent(false);
+        }
+    }
+    toggleWindowEvent(active) {
+        if (active) {
+            window.addEventListener("click", this.hideCommandsMenu);
+        }
+        else {
+            window.removeEventListener("click", this.hideCommandsMenu);
+        }
+    }
+}
+
 /**
  * The entry point of Open BIM Components.
  * It contains the basic items to create a BIM 3D scene based on Three.js, as
@@ -28204,36 +28253,40 @@ let FragmentsGroup$1 = class FragmentsGroup {
         const offset = this.bb.__offset(this.bb_pos, 20);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    ifcName(optionalEncoding) {
+    name(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 22);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    ifcDescription(optionalEncoding) {
+    ifcName(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 24);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    ifcSchema(optionalEncoding) {
+    ifcDescription(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 26);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    maxExpressId() {
+    ifcSchema(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 28);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    maxExpressId() {
+        const offset = this.bb.__offset(this.bb_pos, 30);
         return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
     }
     boundingBox(index) {
-        const offset = this.bb.__offset(this.bb_pos, 30);
+        const offset = this.bb.__offset(this.bb_pos, 32);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     boundingBoxLength() {
-        const offset = this.bb.__offset(this.bb_pos, 30);
+        const offset = this.bb.__offset(this.bb_pos, 32);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     boundingBoxArray() {
-        const offset = this.bb.__offset(this.bb_pos, 30);
+        const offset = this.bb.__offset(this.bb_pos, 32);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     static startFragmentsGroup(builder) {
-        builder.startObject(14);
+        builder.startObject(15);
     }
     static addItems(builder, itemsOffset) {
         builder.addFieldOffset(0, itemsOffset, 0);
@@ -28332,20 +28385,23 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static addId(builder, idOffset) {
         builder.addFieldOffset(8, idOffset, 0);
     }
+    static addName(builder, nameOffset) {
+        builder.addFieldOffset(9, nameOffset, 0);
+    }
     static addIfcName(builder, ifcNameOffset) {
-        builder.addFieldOffset(9, ifcNameOffset, 0);
+        builder.addFieldOffset(10, ifcNameOffset, 0);
     }
     static addIfcDescription(builder, ifcDescriptionOffset) {
-        builder.addFieldOffset(10, ifcDescriptionOffset, 0);
+        builder.addFieldOffset(11, ifcDescriptionOffset, 0);
     }
     static addIfcSchema(builder, ifcSchemaOffset) {
-        builder.addFieldOffset(11, ifcSchemaOffset, 0);
+        builder.addFieldOffset(12, ifcSchemaOffset, 0);
     }
     static addMaxExpressId(builder, maxExpressId) {
-        builder.addFieldInt32(12, maxExpressId, 0);
+        builder.addFieldInt32(13, maxExpressId, 0);
     }
     static addBoundingBox(builder, boundingBoxOffset) {
-        builder.addFieldOffset(13, boundingBoxOffset, 0);
+        builder.addFieldOffset(14, boundingBoxOffset, 0);
     }
     static createBoundingBoxVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -28367,7 +28423,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
         builder.finish(offset, undefined, true);
     }
-    static createFragmentsGroup(builder, itemsOffset, coordinationMatrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset, ifcNameOffset, ifcDescriptionOffset, ifcSchemaOffset, maxExpressId, boundingBoxOffset) {
+    static createFragmentsGroup(builder, itemsOffset, coordinationMatrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset, nameOffset, ifcNameOffset, ifcDescriptionOffset, ifcSchemaOffset, maxExpressId, boundingBoxOffset) {
         FragmentsGroup.startFragmentsGroup(builder);
         FragmentsGroup.addItems(builder, itemsOffset);
         FragmentsGroup.addCoordinationMatrix(builder, coordinationMatrixOffset);
@@ -28378,6 +28434,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         FragmentsGroup.addItemsRelsIndices(builder, itemsRelsIndicesOffset);
         FragmentsGroup.addFragmentKeys(builder, fragmentKeysOffset);
         FragmentsGroup.addId(builder, idOffset);
+        FragmentsGroup.addName(builder, nameOffset);
         FragmentsGroup.addIfcName(builder, ifcNameOffset);
         FragmentsGroup.addIfcDescription(builder, ifcDescriptionOffset);
         FragmentsGroup.addIfcSchema(builder, ifcSchemaOffset);
@@ -28525,6 +28582,7 @@ class Serializer {
             relsCounter += rels.length;
         }
         const groupID = builder.createString(group.uuid);
+        const groupName = builder.createString(group.name);
         const ifcName = builder.createString(group.ifcMetadata.name);
         const ifcDescription = builder.createString(group.ifcMetadata.description);
         const ifcSchema = builder.createString(group.ifcMetadata.schema);
@@ -28538,6 +28596,7 @@ class Serializer {
         const bboxVector = G.createBoundingBoxVector(builder, bbox);
         G.startFragmentsGroup(builder);
         G.addId(builder, groupID);
+        G.addName(builder, groupName);
         G.addIfcName(builder, ifcName);
         G.addIfcDescription(builder, ifcDescription);
         G.addIfcSchema(builder, ifcSchema);
@@ -28633,6 +28692,7 @@ class Serializer {
     constructFragmentGroup(group) {
         const fragmentsGroup = new FragmentsGroup();
         fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
+        fragmentsGroup.name = group.name() || "";
         fragmentsGroup.ifcMetadata = {
             name: group.ifcName() || "",
             description: group.ifcDescription() || "",
@@ -28733,6 +28793,7 @@ class FragmentManager extends Component {
         this.list = {};
         this.groups = [];
         this.onFragmentsLoaded = new Event();
+        this.commands = [];
         this._loader = new Serializer();
         this._cards = [];
         this._components = components;
@@ -28742,6 +28803,9 @@ class FragmentManager extends Component {
         window.domElement.style.top = "100px";
         window.domElement.style.width = "340px";
         window.domElement.style.height = "400px";
+        const windowContent = window.slots.content.domElement;
+        windowContent.classList.remove("overflow-auto");
+        windowContent.classList.add("overflow-x-hidden");
         components.ui.add(window);
         window.visible = false;
         const main = new Button(components);
@@ -28763,12 +28827,18 @@ class FragmentManager extends Component {
             group.dispose(true);
         }
         this.groups = [];
-        for (const fragID in this.list) {
-            const fragment = this.list[fragID];
-            this.removeFragmentMesh(fragment);
-            fragment.dispose(true);
-        }
         this.list = {};
+        this.updateWindow();
+    }
+    disposeGroup(group) {
+        for (const fragment of group.items) {
+            this.removeFragmentMesh(fragment);
+            delete this.list[fragment.id];
+        }
+        group.dispose(true);
+        const index = this.groups.indexOf(group);
+        this.groups.splice(index, 1);
+        this.updateWindow();
     }
     /** Disposes all existing fragments */
     reset() {
@@ -28812,10 +28882,21 @@ class FragmentManager extends Component {
         }
         for (const group of this.groups) {
             const card = new SimpleUICard(this._components);
-            card.title = group.ifcMetadata.name;
-            card.description = group.ifcMetadata.description;
+            // TODO: Make all cards like this?
+            card.domElement.classList.remove("bg-ifcjs-120");
+            card.domElement.classList.remove("border-transparent");
+            card.domElement.className += ` min-w-[300px] my-2 bg-ifcjs-100 border-1 border-solid border-[#3A444E] `;
+            const toolbar = new Toolbar(this._components);
+            this._components.ui.addToolbar(toolbar);
+            card.addChild(toolbar);
+            card.title = group.name;
             this.uiElement.window.addChild(card);
             this._cards.push(card);
+            const commandsButton = new Button(this._components);
+            commandsButton.materialIcon = "delete";
+            commandsButton.tooltip = "Delete model";
+            toolbar.addChild(commandsButton);
+            commandsButton.onclick = () => this.disposeGroup(group);
         }
     }
     removeFragmentMesh(fragment) {
@@ -95222,6 +95303,8 @@ class IfcFragmentSettings {
             path: "",
             absolute: false,
         };
+        /** List of categories that won't be converted to fragments. */
+        this.excludedCategories = new Set();
         /** Whether to save the absolute location of all IFC items. */
         this.saveLocations = false;
         /** Loader settings for [web-ifc](https://github.com/ifcjs/web-ifc). */
@@ -95353,7 +95436,7 @@ class FragmentBoundingBox {
 class DataConverter {
     constructor() {
         this.settings = new IfcFragmentSettings();
-        this._categories = {};
+        this.categories = {};
         this._model = new FragmentsGroup();
         this._ifcCategories = new IfcCategories();
         this._bbox = new FragmentBoundingBox();
@@ -95366,7 +95449,7 @@ class DataConverter {
     cleanUp() {
         this._fragmentKey = 0;
         this._spatialTree.cleanUp();
-        this._categories = {};
+        this.categories = {};
         this._model = new FragmentsGroup();
         this._ifcCategories = new IfcCategories();
         this._propertyExporter = new IfcJsonExporter();
@@ -95374,7 +95457,7 @@ class DataConverter {
         this._itemKeyMap = {};
     }
     saveIfcCategories(webIfc) {
-        this._categories = this._ifcCategories.getAll(webIfc, 0);
+        this.categories = this._ifcCategories.getAll(webIfc, 0);
     }
     async generate(webIfc, geometries) {
         await this._spatialTree.setUp(webIfc);
@@ -95566,7 +95649,7 @@ class DataConverter {
             const rels = [];
             const idNum = parseInt(id, 10);
             const level = this._spatialTree.itemsByFloor[idNum] || 0;
-            const category = this._categories[idNum] || 0;
+            const category = this.categories[idNum] || 0;
             rels.push(level, category);
             for (const key of this._itemKeyMap[id]) {
                 keys.push(key);
@@ -95686,7 +95769,7 @@ class FragmentIfcLoader extends Component {
         this.enabled = true;
         this.ifcLoaded = new Event();
         // For debugging purposes
-        this.isolatedItems = new Set();
+        // isolatedItems = new Set<number>();
         this.locationsSaved = new Event();
         this._webIfc = new IfcAPI2();
         this._geometry = new GeometryReader();
@@ -95715,7 +95798,7 @@ class FragmentIfcLoader extends Component {
         this._converter = null;
     }
     /** Loads the IFC file and converts it to a set of fragments. */
-    async load(data) {
+    async load(data, name) {
         if (this.settings.saveLocations) {
             this._geometry.saveLocations = true;
         }
@@ -95724,6 +95807,7 @@ class FragmentIfcLoader extends Component {
         await this.readAllGeometries();
         const items = this._geometry.items;
         const model = await this._converter.generate(this._webIfc, items);
+        model.name = name;
         if (this.settings.saveLocations) {
             this.locationsSaved.trigger(this._geometry.locations);
         }
@@ -95752,7 +95836,7 @@ class FragmentIfcLoader extends Component {
             const file = fileOpener.files[0];
             const buffer = await file.arrayBuffer();
             const data = new Uint8Array(buffer);
-            const result = await this.load(data);
+            const result = await this.load(data, file.name);
             const scene = this._components.scene.get();
             scene.add(result);
             this._toast.visible = true;
@@ -95806,7 +95890,8 @@ class FragmentIfcLoader extends Component {
         this._converter.cleanUp();
     }
     isExcluded(id) {
-        return this.isolatedItems.size && !this.isolatedItems.has(id);
+        const category = this._converter.categories[id];
+        return this.settings.excludedCategories.has(category);
     }
 }
 
@@ -102790,6 +102875,12 @@ class PlanObjects {
  * Helper to control the camera and easily define and navigate 2D floor plans.
  */
 class FragmentPlans extends Component {
+    get commands() {
+        return this.uiElement.commandsMenu.commands;
+    }
+    set commands(commands) {
+        this.uiElement.commandsMenu.commands = commands;
+    }
     constructor(components, clipper, camera) {
         super();
         this.name = "PlanNavigator";
@@ -102805,15 +102896,11 @@ class FragmentPlans extends Component {
         this.exited = new Event();
         /** The created floor plans. */
         this.storeys = [];
-        this.commands = {};
         this._plans = [];
         this._floorPlanViewCached = false;
         this._previousCamera = new THREE$1.Vector3();
         this._previousTarget = new THREE$1.Vector3();
         this._previousProjection = "Perspective";
-        this.hideCommandsMenu = () => {
-            this.uiElement.commandsMenu.visible = false;
-        };
         this._components = components;
         this._clipper = clipper;
         this._camera = camera;
@@ -102838,8 +102925,7 @@ class FragmentPlans extends Component {
         floatingWindow.addChild(planList);
         const defaultText = new SimpleUIComponent(components, `<p>No plans yet.</p>`);
         floatingWindow.addChild(defaultText);
-        const commandsMenu = new SimpleUIComponent(components, `<div class="absolute bg-ifcjs-100 backdrop-blur-xl rounded-md p-3 z-50"></div>`);
-        this.toggleCommandsMenuEvent(true);
+        const commandsMenu = new CommandsMenu(components);
         components.ui.add(commandsMenu);
         commandsMenu.visible = false;
         this.uiElement = {
@@ -102868,7 +102954,7 @@ class FragmentPlans extends Component {
         this.uiElement.floatingWindow.dispose();
         this.uiElement.main.dispose();
         this.uiElement.commandsMenu.dispose();
-        this.toggleCommandsMenuEvent(false);
+        this.uiElement.commandsMenu.dispose();
     }
     // TODO: Compute georreference matrix when generating fragmentsgroup
     // so that we can correctly add floors in georreferenced models
@@ -102967,21 +103053,8 @@ class FragmentPlans extends Component {
             return;
         }
         defaultText.visible = false;
-        commandsMenu.dispose(true);
-        const commandsCount = Object.keys(this.commands).length;
-        for (const name in this.commands) {
-            const command = this.commands[name];
-            const button = new Button(this._components, { name });
-            commandsMenu.addChild(button);
-            button.onclick = () => {
-                if (this._selectedPlanMenu) {
-                    const plan = this._plans.find((plan) => plan.id === this._selectedPlanMenu);
-                    if (plan) {
-                        command(plan);
-                    }
-                }
-            };
-        }
+        commandsMenu.update();
+        const commandsExist = commandsMenu.hasCommands;
         for (const plan of this._plans) {
             const height = Math.trunc(plan.point.y * 10) / 10;
             const description = `Height: ${height}`;
@@ -103002,15 +103075,12 @@ class FragmentPlans extends Component {
                 materialIconName: "expand_more",
             });
             extraButton.onclick = (event) => {
-                if (!event)
-                    return;
-                this._selectedPlanMenu = plan.id;
-                const { x, y } = event;
-                commandsMenu.domElement.style.left = `${x + 20}px`;
-                commandsMenu.domElement.style.top = `${y - 10}px`;
-                commandsMenu.visible = true;
+                if (event) {
+                    commandsMenu.commandData = plan;
+                    commandsMenu.popup(event.x, event.y);
+                }
             };
-            if (!commandsCount) {
+            if (!commandsExist) {
                 extraButton.enabled = false;
             }
             toolbar.addChild(extraButton);
@@ -103055,10 +103125,8 @@ class FragmentPlans extends Component {
             throw new Error("Current plan is not defined.");
         if (this.currentPlan.plane) {
             this.currentPlan.plane.enabled = true;
-            if (this.currentPlan.plane instanceof EdgesPlane) {
-                this.currentPlan.plane.edges.fillNeedsUpdate = true;
-                this.currentPlan.plane.edges.visible = true;
-            }
+            this.currentPlan.plane.edges.fillNeedsUpdate = true;
+            this.currentPlan.plane.edges.visible = true;
         }
         this._camera.setNavigationMode("Plan");
         const projection = this.currentPlan.ortho ? "Orthographic" : "Perspective";
@@ -103106,14 +103174,6 @@ class FragmentPlans extends Component {
             }
             this.goTo(id);
         });
-    }
-    toggleCommandsMenuEvent(active) {
-        if (active) {
-            window.addEventListener("click", this.hideCommandsMenu);
-        }
-        else {
-            window.removeEventListener("click", this.hideCommandsMenu);
-        }
     }
     getAbsoluteFloorHeight(placementID, properties, height) {
         const placementRef = properties[placementID];
@@ -108670,4 +108730,4 @@ class DXFExporter {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
