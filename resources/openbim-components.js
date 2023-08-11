@@ -12628,7 +12628,8 @@ class RangeInput extends SimpleUIComponent {
 class Canvas extends SimpleUIComponent {
     constructor(components) {
         const template = `
-    <canvas class="absolute w-80 h-40 right-3 bottom-3 bg-ifcjs-120 border-transparent border border-solid"></canvas> 
+        <canvas class="absolute w-80 h-40 right-8 bottom-8 bg-ifcjs-120 
+        border-transparent border border-solid rounded-lg"></canvas> 
     `;
         super(components, template);
         this.name = "SimpleUICard";
@@ -102671,13 +102672,21 @@ class MiniMap extends Component {
         this._camera.zoom = value;
         this._camera.updateProjectionMatrix();
     }
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(active) {
+        this._enabled = active;
+        this.uiElement.canvas.visible = active;
+    }
     constructor(components) {
         super();
         this.name = "MiniMap";
-        this.enabled = true;
         this.afterUpdate = new Event();
         this.beforeUpdate = new Event();
         this.overrideMaterial = new THREE$1.MeshDepthMaterial();
+        this.backgroundColor = new THREE$1.Color(0x06080a);
+        this._enabled = true;
         this._lockRotation = true;
         this._size = new THREE$1.Vector2(320, 160);
         this._tempPosition = new THREE$1.Vector3();
@@ -102710,6 +102719,8 @@ class MiniMap extends Component {
         return this._camera;
     }
     update() {
+        if (!this.enabled)
+            return;
         this.beforeUpdate.trigger();
         const scene = this._components.scene.get();
         const cameraComponent = this._components.camera;
@@ -102723,7 +102734,10 @@ class MiniMap extends Component {
             this._camera.rotation.z = angle + Math.PI;
         }
         this._plane.set(this.down, this._tempPosition.y);
+        const previousBackground = scene.background;
+        scene.background = this.backgroundColor;
         this._renderer.render(scene, this._camera);
+        scene.background = previousBackground;
         this.afterUpdate.trigger();
     }
     getSize() {
