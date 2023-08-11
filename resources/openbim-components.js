@@ -1111,8 +1111,16 @@ class ToolComponent extends Component {
     async use(token, id) {
         const { base, path } = this._urls;
         const url = base + id + path + token;
-        const imported = await import(url);
-        return imported.get();
+        const fetched = await fetch(url);
+        const code = await fetched.text();
+        const script = document.createElement("script");
+        script.textContent = code;
+        document.body.appendChild(script);
+        const win = window;
+        const tool = win.ThatOpenTool();
+        win.ThatOpenTool = undefined;
+        script.remove();
+        return tool;
     }
     /**
      * Updates all the registered tool components. Only the components where the
@@ -9965,7 +9973,7 @@ Button.Class = {
     max-h-8 p-2 hover:cursor-pointer hover:bg-ifcjs-200 hover:text-black
     data-[active=true]:cursor-pointer data-[active=true]:bg-ifcjs-200 data-[active=true]:text-black
     disabled:cursor-default disabled:bg-gray-600 disabled:text-gray-400 pointer-events-auto
-    transition-all 
+    transition-all fill-white hover:fill-black
     `,
     Label: "text-sm tracking-[1.25px] whitespace-nowrap",
     Tooltip: `
