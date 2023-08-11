@@ -102411,6 +102411,9 @@ class ViewpointsManager extends Component {
 }
 
 class CubeMap extends Component {
+    get visible() {
+        return this._visible;
+    }
     set visible(value) {
         this._visible = value;
         if (this._visible) {
