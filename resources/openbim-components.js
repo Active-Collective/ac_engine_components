@@ -12184,6 +12184,7 @@ class FloatingWindow extends SimpleUIComponent {
     setMovableListeners() {
         // For node.js
         try {
+            // eslint-disable-next-line no-unused-expressions
             this._components.renderer;
         }
         catch (_e) {
@@ -12515,7 +12516,8 @@ class CheckboxInput extends SimpleUIComponent {
     constructor(components) {
         const template = `
     <div class="w-full flex gap-x-2 items-center">
-        <input id="input" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-ifcjs-200 focus:ring-ifcjs-200">
+        <input id="input" type="checkbox" 
+            class="h-4 w-4 rounded border-gray-300 accent-ifcjs-300 text-ifcjs-300 focus:ring-ifcjs-300">
         <label id="label" class="${UIManager.Class.Label}"></label>
     </div>
     `;
@@ -12526,6 +12528,9 @@ class CheckboxInput extends SimpleUIComponent {
             label: this.getInnerElement("label"),
             input: this.getInnerElement("input"),
         };
+        this.innerElements.input.addEventListener("change", () => {
+            this.onChange.trigger(this.value);
+        });
         this.label = "Tooeen Checkbox";
     }
 }
@@ -94715,7 +94720,8 @@ class AttributeQueryUI extends SimpleUIComponent {
         const value = attribute === "type"
             ? this.getTypeConstant(this.ifcTypes.value)
             : this.value.value;
-        const query = { attribute, condition, value };
+        const negateResult = this.negate.value === "NOT A";
+        const query = { attribute, condition, value, negateResult };
         if (this.operator.visible)
             query.operator = this.operator.value;
         return query;
@@ -94743,6 +94749,10 @@ class AttributeQueryUI extends SimpleUIComponent {
     }
     constructor(components) {
         super(components, `<div class="flex gap-x-2"></div>`);
+        this.negate = new Dropdown(components);
+        this.negate.label = "Sign";
+        this.negate.addOption("A", "NOT A");
+        this.negate.value = "A";
         this.operator = new Dropdown(components);
         this.operator.visible = false;
         this.operator.label = "Operator";
@@ -94779,7 +94789,7 @@ class AttributeQueryUI extends SimpleUIComponent {
                 this.parent.removeChild(this);
             this.dispose();
         };
-        this.addChild(this.operator, this.attribute, this.condition, this.value, this.ifcTypes, this.removeBtn);
+        this.addChild(this.operator, this.attribute, this.condition, this.negate, this.value, this.ifcTypes, this.removeBtn);
         this.attribute.value = "Name";
     }
 }
@@ -94938,12 +94948,13 @@ class IfcPropertiesFinder extends Component {
         this._noHandleAttributes = ["type"];
         this.onFound = new Event();
         this._components = components;
-        this._fragmentManager = fragmentManager;
+        this._fragments = fragmentManager;
         this.uiElement = {
             main: new Button(components, {
                 materialIconName: "manage_search",
             }),
             queryWindow: new FloatingWindow(components),
+            query: new QueryBuilder(components),
         };
         this.setUI();
         this._conditionFunctions = {
@@ -94965,12 +94976,17 @@ class IfcPropertiesFinder extends Component {
             },
         };
     }
+    dispose() {
+        this._indexedModels = {};
+        this.uiElement.main.dispose();
+        this.uiElement.queryWindow.dispose();
+    }
     setUI() {
         const mainButton = this.uiElement.main;
         this.uiElement.queryWindow = new FloatingWindow(this._components);
         this._components.ui.add(this.uiElement.queryWindow);
         this.uiElement.queryWindow.get().classList.add("overflow-visible");
-        this.uiElement.queryWindow.get().style.width = "500px";
+        this.uiElement.queryWindow.get().style.width = "700px";
         this.uiElement.queryWindow.visible = false;
         this.uiElement.queryWindow.resizeable = false;
         this.uiElement.queryWindow.title = "Model Queries";
@@ -94978,9 +94994,9 @@ class IfcPropertiesFinder extends Component {
             !this.uiElement.queryWindow.visible);
         this.uiElement.queryWindow.onVisible.on(() => (mainButton.active = true));
         this.uiElement.queryWindow.onHidden.on(() => (mainButton.active = false));
-        const query = new QueryBuilder(this._components);
+        const { query } = this.uiElement;
         query.findButton.onClicked.on((query) => {
-            const model = this._fragmentManager.groups[0];
+            const model = this._fragments.groups[0];
             if (!model)
                 return;
             this.find(query);
@@ -95030,7 +95046,7 @@ class IfcPropertiesFinder extends Component {
         this._indexedModels[model.uuid] = map;
         return map;
     }
-    find(queryGroups, models = this._fragmentManager.groups) {
+    find(queryGroups, models = this._fragments.groups) {
         const result = {};
         for (const model of models) {
             let map = this._indexedModels[model.uuid];
@@ -95038,13 +95054,19 @@ class IfcPropertiesFinder extends Component {
                 map = this.indexEntityRelations(model);
             let relations = [];
             for (const [index, group] of queryGroups.entries()) {
-                const groupResult = this.simpleQuery(model, group);
+                const excludedItems = new Set();
+                const groupResult = this.simpleQuery(model, group, excludedItems);
                 const groupRelations = [];
                 for (const expressID of groupResult) {
                     const relations = map[expressID];
                     if (!relations)
                         continue;
-                    groupRelations.push(...relations, expressID);
+                    groupRelations.push(expressID);
+                    for (const id of relations) {
+                        if (!excludedItems.has(id)) {
+                            groupRelations.push();
+                        }
+                    }
                 }
                 relations =
                     group.operator === "AND" && index > 0
@@ -95067,10 +95089,33 @@ class IfcPropertiesFinder extends Component {
             }
             result[model.uuid] = { modelEntities, otherEntities };
         }
-        this.onFound.trigger(result);
-        return result;
+        const fragments = this.toFragmentMap(result);
+        this.onFound.trigger(fragments);
+        return fragments;
     }
-    simpleQuery(model, queryGroup) {
+    toFragmentMap(data) {
+        const fragmentMap = {};
+        for (const modelID in data) {
+            const model = this._fragments.groups.find((m) => m.uuid === modelID);
+            if (!model)
+                continue;
+            const matchingEntities = data[modelID].modelEntities;
+            for (const expressID of matchingEntities) {
+                const data = model.data[expressID];
+                if (!data)
+                    continue;
+                for (const key of data[0]) {
+                    const fragmentID = model.keyFragments[key];
+                    if (!fragmentMap[fragmentID]) {
+                        fragmentMap[fragmentID] = new Set();
+                    }
+                    fragmentMap[fragmentID].add(String(expressID));
+                }
+            }
+        }
+        return fragmentMap;
+    }
+    simpleQuery(model, queryGroup, excludedItems) {
         var _a;
         const properties = model.properties;
         if (!properties)
@@ -95083,12 +95128,14 @@ class IfcPropertiesFinder extends Component {
             const workingProps = query.operator === "AND" ? filteredProps : properties;
             const isAttributeQuery = query.condition; // Is there a better way?
             if (isAttributeQuery) {
-                const matchingResult = this.getMatchingEntities(workingProps, query);
+                const matchingResult = this.getMatchingEntities(workingProps, query, excludedItems);
                 queryResult = matchingResult.expressIDs;
                 filteredProps = { ...filteredProps, ...matchingResult.entities };
             }
             else {
-                queryResult = [...this.simpleQuery(model, query)];
+                queryResult = [
+                    ...this.simpleQuery(model, query, excludedItems),
+                ];
             }
             matchingEntities =
                 iterations === 0
@@ -95099,7 +95146,7 @@ class IfcPropertiesFinder extends Component {
         }
         return new Set(matchingEntities);
     }
-    getMatchingEntities(entities, query) {
+    getMatchingEntities(entities, query, excludedItems) {
         const { attribute: attributeName, condition, value } = query;
         const handleAttribute = !this._noHandleAttributes.includes(attributeName);
         const expressIDs = [];
@@ -95111,14 +95158,17 @@ class IfcPropertiesFinder extends Component {
             if (attributeValue === undefined || attributeValue === null)
                 continue;
             let conditionMatches = this._conditionFunctions[condition](attributeValue, value);
-            if (query.negateResult)
+            if (query.negateResult) {
                 conditionMatches = !conditionMatches;
-            if (!conditionMatches)
+            }
+            if (!conditionMatches) {
+                excludedItems.add(entity.expressID);
                 continue;
+            }
             expressIDs.push(entity.expressID);
             matchingEntities.push(entity);
         }
-        return { expressIDs, entities: matchingEntities };
+        return { expressIDs, entities: matchingEntities, excludedItems };
     }
     combineArrays(arrA, arrB, operator) {
         if (!operator)
@@ -96432,12 +96482,36 @@ class FragmentClassifier extends Component {
 }
 
 class FragmentHider extends Component {
-    constructor(fragments, culler) {
+    constructor(components, fragments, culler) {
         super();
         this.name = "FragmentHider";
         this.enabled = true;
+        this._filterCards = {};
+        this._components = components;
         this._fragments = fragments;
         this._culler = culler;
+        const mainWindow = new FloatingWindow(components);
+        mainWindow.title = "Filters";
+        mainWindow.visible = false;
+        components.ui.add(mainWindow);
+        mainWindow.domElement.style.width = "530px";
+        mainWindow.domElement.style.height = "400px";
+        const mainButton = new Button(components, {
+            materialIconName: "filter_alt",
+            tooltip: "Visibility filters",
+        });
+        mainButton.onclick = () => {
+            mainWindow.visible = !mainWindow.visible;
+        };
+        const topButtonContainerHtml = `<div class="flex"></div>`;
+        const topButtonContainer = new SimpleUIComponent(components, topButtonContainerHtml);
+        const createButton = new Button(components, {
+            materialIconName: "add",
+        });
+        createButton.onclick = () => this.createStyleCard();
+        topButtonContainer.addChild(createButton);
+        mainWindow.addChild(topButtonContainer);
+        this.uiElement = { window: mainWindow, main: mainButton };
     }
     dispose() {
         this._fragments = null;
@@ -96471,6 +96545,112 @@ class FragmentHider extends Component {
             const culled = this._culler.colorMeshes.get(fragment.id);
             if (culled) {
                 culled.count = fragment.mesh.count;
+            }
+        }
+    }
+    createStyleCard(config) {
+        const styleCard = new SimpleUIComponent(this._components);
+        const { id } = styleCard;
+        styleCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col gap-4 
+      bg-ifcjs-100
+    `;
+        styleCard.domElement.innerHTML = `
+        <div id="top-container-${id}" class="flex">
+        </div>
+        <div id="bottom-container-${id}" class="flex gap-4 items-center">
+        </div>
+    `;
+        const deleteButton = new Button(this._components, {
+            materialIconName: "close",
+        });
+        deleteButton.domElement.classList.add("self-end");
+        deleteButton.onclick = () => this.deleteStyleCard(id);
+        const topContainer = styleCard.getInnerElement("top-container");
+        if (topContainer) {
+            topContainer.appendChild(deleteButton.domElement);
+        }
+        const bottomContainer = styleCard.getInnerElement("bottom-container");
+        if (!bottomContainer) {
+            throw new Error("Error creating UI elements!");
+        }
+        const name = new TextInput(this._components);
+        name.label = "Name";
+        if (config) {
+            name.value = config.name;
+        }
+        bottomContainer.append(name.domElement);
+        const visible = new CheckboxInput(this._components);
+        visible.value = true;
+        visible.label = "Visible";
+        visible.onChange.on(() => this.update());
+        const enabled = new CheckboxInput(this._components);
+        enabled.value = true;
+        enabled.label = "Enabled";
+        enabled.onChange.on(() => this.update());
+        const checkBoxContainer = new SimpleUIComponent(this._components);
+        checkBoxContainer.domElement.classList.remove("w-full");
+        checkBoxContainer.addChild(visible);
+        checkBoxContainer.addChild(enabled);
+        bottomContainer.append(checkBoxContainer.domElement);
+        const finder = new IfcPropertiesFinder(this._components, this._fragments);
+        finder.uiElement.query.findButton.label = "Apply";
+        bottomContainer.append(finder.uiElement.main.domElement);
+        const window = finder.uiElement.queryWindow;
+        window.onVisible.on(() => {
+            this.hideAllFinders(window.id);
+            const rect = finder.uiElement.main.domElement.getBoundingClientRect();
+            window.domElement.style.left = `${rect.x + 90}px`;
+            window.domElement.style.top = `${rect.y - 120}px`;
+        });
+        finder.onFound.on((data) => {
+            finder.uiElement.main.domElement.click();
+            this._filterCards[id].fragments = data;
+            this.update();
+        });
+        const fragments = {};
+        this._filterCards[id] = {
+            styleCard,
+            fragments,
+            name,
+            finder,
+            deleteButton,
+            visible,
+            enabled,
+        };
+        this.uiElement.window.addChild(styleCard);
+        // this.cacheStyles();
+    }
+    update() {
+        this.set(true);
+        for (const id in this._filterCards) {
+            const { enabled, visible, fragments } = this._filterCards[id];
+            if (enabled.value) {
+                this.set(visible.value, fragments);
+            }
+        }
+    }
+    deleteStyleCard(id) {
+        const found = this._filterCards[id];
+        if (found) {
+            found.styleCard.dispose();
+            found.deleteButton.dispose();
+            found.name.dispose();
+            found.finder.dispose();
+            found.visible.dispose();
+            found.enabled.dispose();
+        }
+        delete this._filterCards[id];
+        // this.cacheStyles();
+    }
+    hideAllFinders(excludeID) {
+        for (const id in this._filterCards) {
+            const { finder } = this._filterCards[id];
+            const window = finder.uiElement.queryWindow;
+            if (window.id === excludeID) {
+                continue;
+            }
+            if (finder.uiElement.queryWindow.visible) {
+                finder.uiElement.main.domElement.click();
             }
         }
     }
