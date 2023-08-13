@@ -94731,9 +94731,13 @@ class AttributeQueryUI extends SimpleUIComponent {
             this.operator.value = value.operator;
         this.attribute.value = value.attribute;
         this.condition.value = value.condition;
+        this.negate.value = value.negateResult ? "NOT A" : "A";
         if (value.attribute === "type") {
+            if (typeof value.value !== "number") {
+                throw new Error("Corrupted IfcPropertiesFinder cached data!");
+            }
             this.value.value = "";
-            this.ifcTypes.value = value.value.toString();
+            this.ifcTypes.value = IfcCategoryMap[value.value];
         }
         else {
             this.ifcTypes.value = null;
@@ -94816,6 +94820,7 @@ class QueryGroupUI extends SimpleUIComponent {
             this.removeChild(child);
             child.dispose();
         }
+        let first = true;
         for (const [index, query] of value.queries.entries()) {
             // @ts-ignore
             if (!query.condition)
@@ -94826,6 +94831,12 @@ class QueryGroupUI extends SimpleUIComponent {
             const attributeQueryUI = new AttributeQueryUI(this._components);
             attributeQueryUI.query = attributeQuery;
             this.addChild(attributeQueryUI);
+            if (first) {
+                first = false;
+            }
+            else {
+                attributeQueryUI.removeBtn.visible = true;
+            }
         }
     }
     constructor(components) {
@@ -94874,18 +94885,26 @@ class QueryBuilder extends SimpleUIComponent {
     }
     set query(value) {
         for (const child of this.children) {
-            if (!(child instanceof QueryGroupUI))
-                continue;
-            this.removeChild(child);
-            child.dispose();
+            if (child instanceof QueryGroupUI) {
+                this.removeChild(child);
+                child.dispose();
+            }
         }
+        let first = true;
         for (const [index, group] of value.entries()) {
-            if (index === 0 && group.operator)
+            if (index === 0 && group.operator) {
                 delete group.operator;
+            }
             const attributeQueryUI = new QueryGroupUI(this._components);
+            attributeQueryUI.removeBtn.visible = true;
             attributeQueryUI.query = group;
             this.addChild(attributeQueryUI);
+            if (first) {
+                first = false;
+                attributeQueryUI.removeBtn.visible = false;
+            }
         }
+        this.get().append(this.findButton.get());
         this.onQuerySet.trigger(value);
     }
     constructor(components) {
@@ -94944,6 +94963,7 @@ class IfcPropertiesFinder extends Component {
         super();
         this.name = "IfcPropertiesFinder";
         this.enabled = true;
+        this._localStorageID = "FragmentHiderCache";
         this._indexedModels = {};
         this._noHandleAttributes = ["type"];
         this.onFound = new Event();
@@ -94980,6 +95000,16 @@ class IfcPropertiesFinder extends Component {
         this._indexedModels = {};
         this.uiElement.main.dispose();
         this.uiElement.queryWindow.dispose();
+    }
+    loadCached(id) {
+        if (id) {
+            this._localStorageID = `FragmentHiderCache-${id}`;
+        }
+        const serialized = localStorage.getItem(this._localStorageID);
+        if (!serialized)
+            return;
+        const groups = JSON.parse(serialized);
+        this.uiElement.query.query = groups;
     }
     setUI() {
         const mainButton = this.uiElement.main;
@@ -95046,8 +95076,9 @@ class IfcPropertiesFinder extends Component {
         this._indexedModels[model.uuid] = map;
         return map;
     }
-    find(queryGroups, models = this._fragments.groups) {
+    find(queryGroups = this.uiElement.query.query, models = this._fragments.groups) {
         const result = {};
+        this.cache();
         for (const model of models) {
             let map = this._indexedModels[model.uuid];
             if (!map)
@@ -95203,6 +95234,11 @@ class IfcPropertiesFinder extends Component {
     }
     arrayUnion(arrA, arrB) {
         return [...arrA, ...arrB];
+    }
+    cache() {
+        const query = this.uiElement.query.query;
+        const serialized = JSON.stringify(query);
+        localStorage.setItem(this._localStorageID, serialized);
     }
     get() {
         throw new Error("Method not implemented.");
@@ -96487,6 +96523,7 @@ class FragmentHider extends Component {
         this.name = "FragmentHider";
         this.enabled = true;
         this._localStorageID = "FragmentHiderCache";
+        this._updateVisibilityOnFound = true;
         this._filterCards = {};
         this._components = components;
         this._fragments = fragments;
@@ -96601,7 +96638,7 @@ class FragmentHider extends Component {
         checkBoxContainer.addChild(enabled);
         bottomContainer.append(checkBoxContainer.domElement);
         const finder = new IfcPropertiesFinder(this._components, this._fragments);
-        // finder.loadCached(id);
+        finder.loadCached(id);
         finder.uiElement.query.findButton.label = "Apply";
         bottomContainer.append(finder.uiElement.main.domElement);
         const window = finder.uiElement.queryWindow;
@@ -96612,9 +96649,15 @@ class FragmentHider extends Component {
             window.domElement.style.top = `${rect.y - 120}px`;
         });
         finder.onFound.on((data) => {
-            finder.uiElement.main.domElement.click();
+            const { queryWindow, main } = finder.uiElement;
+            queryWindow.visible = false;
+            main.active = false;
+            finder.uiElement.main.active = false;
             this._filterCards[id].fragments = data;
-            this.update();
+            this.cache();
+            if (this._updateVisibilityOnFound) {
+                this.update();
+            }
         });
         const fragments = {};
         this._filterCards[id] = {
@@ -96672,7 +96715,7 @@ class FragmentHider extends Component {
         for (const filter of filters) {
             this.createStyleCard(filter);
         }
-        this.update();
+        this.updateAllQueries();
     }
     cache() {
         const filters = [];
@@ -96688,6 +96731,15 @@ class FragmentHider extends Component {
         }
         const serialized = JSON.stringify(filters);
         localStorage.setItem(this._localStorageID, serialized);
+    }
+    updateAllQueries() {
+        this._updateVisibilityOnFound = false;
+        for (const id in this._filterCards) {
+            const { finder } = this._filterCards[id];
+            finder.find();
+        }
+        this._updateVisibilityOnFound = true;
+        this.update();
     }
 }
 
