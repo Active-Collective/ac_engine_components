@@ -94754,6 +94754,9 @@ class AttributeQueryUI extends SimpleUIComponent {
     constructor(components) {
         super(components, `<div class="flex gap-x-2"></div>`);
         this.negate = new Dropdown(components);
+        const negateClass = this.negate.domElement.classList;
+        negateClass.remove("w-full");
+        negateClass.add("min-w-[4.5rem]");
         this.negate.label = "Sign";
         this.negate.addOption("A", "NOT A");
         this.negate.value = "A";
@@ -94840,7 +94843,7 @@ class QueryGroupUI extends SimpleUIComponent {
         }
     }
     constructor(components) {
-        super(components, `<div class="flex flex-col gap-y-3 p-3 border border-solid border-ifcjs-120 rounded-md"></div>`);
+        super(components, `<div class="flex flex-col gap-y-3 p-3 border border-solid border-ifcjs-120 bg-ifcjs-100 rounded-md"></div>`);
         this.operator = new Dropdown(components);
         this.operator.visible = false;
         this.operator.label = null;
@@ -95010,6 +95013,9 @@ class IfcPropertiesFinder extends Component {
             return;
         const groups = JSON.parse(serialized);
         this.uiElement.query.query = groups;
+    }
+    deleteCache() {
+        localStorage.removeItem(this._localStorageID);
     }
     setUI() {
         const mainButton = this.uiElement.main;
@@ -96539,6 +96545,7 @@ class FragmentHider extends Component {
             tooltip: "Visibility filters",
         });
         mainButton.onclick = () => {
+            this.hideAllFinders();
             mainWindow.visible = !mainWindow.visible;
         };
         const topButtonContainerHtml = `<div class="flex"></div>`;
@@ -96688,6 +96695,7 @@ class FragmentHider extends Component {
             found.styleCard.dispose();
             found.deleteButton.dispose();
             found.name.dispose();
+            found.finder.deleteCache();
             found.finder.dispose();
             found.visible.dispose();
             found.enabled.dispose();
