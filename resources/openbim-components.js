@@ -12641,7 +12641,7 @@ class RangeInput extends SimpleUIComponent {
 class Canvas extends SimpleUIComponent {
     constructor(components) {
         const template = `
-        <canvas class="absolute w-80 h-40 right-8 bottom-8 bg-ifcjs-120 
+        <canvas class="absolute w-80 h-40 right-8 bottom-4 bg-ifcjs-120 
         border-transparent border border-solid rounded-lg"></canvas> 
     `;
         super(components, template);
@@ -102901,6 +102901,9 @@ class SelectionHandler extends Component {
         super();
         this.name = "SelectionHandler";
         this.enabled = true;
+        this.highlightEnabled = true;
+        this.selectEnabled = true;
+        this.multiple = "none";
         this._config = {
             selectionName: (_a = config === null || config === void 0 ? void 0 : config.selectionName) !== null && _a !== void 0 ? _a : "select",
             selectionMaterial: (_b = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _b !== void 0 ? _b : new THREE$1.MeshBasicMaterial({
@@ -102948,17 +102951,22 @@ class SelectionHandler extends Component {
                 return;
             }
             mouseMoved = false;
-            this._fragmentHighlighter.highlight(this._config.selectionName, !e.ctrlKey);
+            if (this.selectEnabled) {
+                const mult = this.multiple === "none" ? true : !e[this.multiple];
+                this._fragmentHighlighter.highlight(this._config.selectionName, mult);
+            }
         });
         this._viewerContainer.addEventListener("mousemove", () => {
             if (mouseMoved) {
                 this._fragmentHighlighter.clear(this._config.highlightName);
                 return;
             }
-            this._fragmentHighlighter.highlight(this._config.highlightName);
             mouseMoved = true;
             if (!mouseDown) {
                 mouseMoved = false;
+            }
+            if (this.highlightEnabled) {
+                this._fragmentHighlighter.highlight(this._config.highlightName);
             }
         });
     }
