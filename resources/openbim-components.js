@@ -12057,7 +12057,7 @@ class SimpleUICard extends SimpleUIComponent {
     }
     constructor(components, id) {
         const template = `
-    <div class="bg-ifcjs-120 p-2 text-white flex items-center rounded-lg border-transparent border border-solid">
+    <div class="p-2 text-white flex items-center rounded-lg border-transparent border border-solid">
       <div class="mr-auto">
         <p id="title" class="text-base"></p>
         <p id="description" class="text-sm text-gray-400"></p>
@@ -28916,7 +28916,7 @@ class FragmentManager extends Component {
             // TODO: Make all cards like this?
             card.domElement.classList.remove("bg-ifcjs-120");
             card.domElement.classList.remove("border-transparent");
-            card.domElement.className += ` min-w-[300px] my-2 bg-ifcjs-100 border-1 border-solid border-[#3A444E] `;
+            card.domElement.className += ` min-w-[300px] my-2 border-1 border-solid border-[#3A444E] `;
             const toolbar = new Toolbar(this._components);
             this._components.ui.addToolbar(toolbar);
             card.addChild(toolbar);
@@ -93402,6 +93402,9 @@ class IfcPropertiesUtils {
         const result = {};
         for (const expressID in properties) {
             const prop = properties[expressID];
+            if (prop === undefined) {
+                continue;
+            }
             const isRelation = prop.type === relationType;
             const relatingKey = Object.keys(prop).find((key) => key.startsWith("Relating"));
             const relatedKey = Object.keys(prop).find((key) => key.startsWith("Related"));
@@ -93409,6 +93412,9 @@ class IfcPropertiesUtils {
                 continue;
             const relating = properties[(_a = prop[relatingKey]) === null || _a === void 0 ? void 0 : _a.value];
             const related = prop[relatedKey];
+            if (relating === undefined || related === undefined) {
+                continue;
+            }
             if (!(related && Array.isArray(related)))
                 continue;
             const elements = related.map((el) => {
@@ -93475,7 +93481,16 @@ class IfcPropertiesUtils {
         var _a;
         const quantity = properties[quantityID];
         const key = (_a = Object.keys(quantity).find((key) => key.endsWith("Value"))) !== null && _a !== void 0 ? _a : null;
-        const value = key ? quantity[key].value : null;
+        let value;
+        if (key === null) {
+            value = null;
+        }
+        else if (quantity[key] === undefined || quantity[key] === null) {
+            value = null;
+        }
+        else {
+            value = quantity[key].value;
+        }
         return { key, value };
     }
     static isRel(expressID) {
@@ -94470,6 +94485,7 @@ class IfcPropertiesProcessor extends Component {
         this._components.ui.add(this.uiElement.propertiesWindow);
         this.uiElement.propertiesWindow.title = "Element Properties";
         this.uiElement.propertiesWindow.addChild(this._propsList);
+        this.uiElement.main.tooltip = "Properties";
         this.uiElement.main.onclick = () => {
             this.uiElement.propertiesWindow.visible =
                 !this.uiElement.propertiesWindow.visible;
@@ -94843,7 +94859,7 @@ class QueryGroupUI extends SimpleUIComponent {
         }
     }
     constructor(components) {
-        super(components, `<div class="flex flex-col gap-y-3 p-3 border border-solid border-ifcjs-120 bg-ifcjs-100 rounded-md"></div>`);
+        super(components, `<div class="flex flex-col gap-y-3 p-3 border border-solid border-ifcjs-120 rounded-md"></div>`);
         this.operator = new Dropdown(components);
         this.operator.visible = false;
         this.operator.label = null;
@@ -94966,7 +94982,7 @@ class IfcPropertiesFinder extends Component {
         super();
         this.name = "IfcPropertiesFinder";
         this.enabled = true;
-        this._localStorageID = "FragmentHiderCache";
+        this._localStorageID = "IfcPropertiesFinder";
         this._indexedModels = {};
         this._noHandleAttributes = ["type"];
         this.onFound = new Event();
@@ -95006,7 +95022,7 @@ class IfcPropertiesFinder extends Component {
     }
     loadCached(id) {
         if (id) {
-            this._localStorageID = `FragmentHiderCache-${id}`;
+            this._localStorageID = `IfcPropertiesFinder-${id}`;
         }
         const serialized = localStorage.getItem(this._localStorageID);
         if (!serialized)
@@ -95101,7 +95117,7 @@ class IfcPropertiesFinder extends Component {
                     groupRelations.push(expressID);
                     for (const id of relations) {
                         if (!excludedItems.has(id)) {
-                            groupRelations.push();
+                            groupRelations.push(id);
                         }
                     }
                 }
@@ -95184,22 +95200,37 @@ class IfcPropertiesFinder extends Component {
         return new Set(matchingEntities);
     }
     getMatchingEntities(entities, query, excludedItems) {
-        const { attribute: attributeName, condition, value } = query;
+        const { attribute: attributeName, condition } = query;
+        let { value } = query;
         const handleAttribute = !this._noHandleAttributes.includes(attributeName);
         const expressIDs = [];
         const matchingEntities = [];
         for (const expressID in entities) {
             const entity = entities[expressID];
+            if (entity === undefined) {
+                continue;
+            }
             const attribute = entity[attributeName];
-            const attributeValue = handleAttribute ? attribute === null || attribute === void 0 ? void 0 : attribute.value : attribute;
+            let attributeValue = handleAttribute ? attribute === null || attribute === void 0 ? void 0 : attribute.value : attribute;
             if (attributeValue === undefined || attributeValue === null)
                 continue;
+            // TODO: Maybe the user can specify the value type in the finder menu, so we don't need this
+            const type1 = typeof value;
+            const type2 = typeof attributeValue;
+            if (type1 === "number" && type2 === "string") {
+                value = value.toString();
+            }
+            else if (type1 === "string" && type2 === "number") {
+                attributeValue = attributeValue.toString();
+            }
             let conditionMatches = this._conditionFunctions[condition](attributeValue, value);
             if (query.negateResult) {
                 conditionMatches = !conditionMatches;
             }
             if (!conditionMatches) {
-                excludedItems.add(entity.expressID);
+                if (query.negateResult) {
+                    excludedItems.add(entity.expressID);
+                }
                 continue;
             }
             expressIDs.push(entity.expressID);
@@ -96600,9 +96631,7 @@ class FragmentHider extends Component {
             filterCard.id = config.id;
         }
         const { id } = filterCard;
-        filterCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col 
-      bg-ifcjs-100
-    `;
+        filterCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col`;
         filterCard.domElement.innerHTML = `
         <div id="top-container-${id}" class="flex">
         </div>
@@ -103126,7 +103155,7 @@ class PlanObjects {
         };
         const { domElement } = button;
         domElement.classList.remove("bg-transparent");
-        domElement.className += " bg-ifcjs-100 transition-none rounded-full";
+        domElement.className += " transition-none rounded-full";
         // element.className = this.pointClass;
         const marker = new CSS2DObject(domElement);
         root.add(marker);
@@ -103381,6 +103410,7 @@ class FragmentPlans extends Component {
             const toolbar = new Toolbar(this._components);
             this._components.ui.addToolbar(toolbar);
             simpleCard.addChild(toolbar);
+            toolbar.domElement.classList.remove("shadow-md", "backdrop-blur-xl", "bg-ifcjs-100");
             const planButton = new Button(this._components, {
                 materialIconName: "arrow_outward",
             });
@@ -103403,7 +103433,7 @@ class FragmentPlans extends Component {
             toolbar.addChild(extraButton);
             simpleCard.domElement.classList.remove("bg-ifcjs-120");
             simpleCard.domElement.classList.remove("border-transparent");
-            simpleCard.domElement.className += ` min-w-[300px] my-2 bg-ifcjs-100 border-1 border-solid border-[#3A444E] `;
+            simpleCard.domElement.className += ` min-w-[300px] my-2 border-1 border-solid border-[#3A444E] `;
             planList.addChild(simpleCard);
         }
     }
@@ -103771,9 +103801,7 @@ class FragmentClipStyler {
         const styleCard = new SimpleUIComponent(this._components);
         const { id } = styleCard;
         const styleRowClass = `flex gap-4`;
-        styleCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col gap-4 
-      bg-ifcjs-100
-    `;
+        styleCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col gap-4`;
         styleCard.domElement.innerHTML = `
         <div id="first-row-${id}" class="${styleRowClass}">
         </div>
