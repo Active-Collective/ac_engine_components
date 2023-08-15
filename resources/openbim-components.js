@@ -95513,6 +95513,16 @@ class FragmentBoundingBox {
         const max = this._absoluteMax.clone();
         return new THREE$1.Box3(min, max);
     }
+    getSphere() {
+        const min = this._absoluteMin.clone();
+        const max = this._absoluteMax.clone();
+        const dx = Math.abs((max.x - min.x) / 2);
+        const dy = Math.abs((max.y - min.y) / 2);
+        const dz = Math.abs((max.z - min.z) / 2);
+        const center = new THREE$1.Vector3(min.x + dx, min.y + dy, min.z + dz);
+        const radius = center.distanceTo(min);
+        return new THREE$1.Sphere(center, radius);
+    }
     getMesh() {
         const bbox = new THREE$1.Box3(this._absoluteMin, this._absoluteMax);
         const dimensions = FragmentBoundingBox.getDimensions(bbox);
@@ -95523,8 +95533,8 @@ class FragmentBoundingBox {
         return mesh;
     }
     reset() {
-        this._absoluteMin = FragmentBoundingBox.newBound(false);
-        this._absoluteMax = FragmentBoundingBox.newBound(true);
+        this._absoluteMin = FragmentBoundingBox.newBound(true);
+        this._absoluteMax = FragmentBoundingBox.newBound(false);
     }
     add(group) {
         for (const frag of group.items) {
@@ -95546,12 +95556,24 @@ class FragmentBoundingBox {
                 this._absoluteMin.y = min.y;
             if (min.z < this._absoluteMin.z)
                 this._absoluteMin.z = min.z;
+            if (min.x > this._absoluteMax.x)
+                this._absoluteMax.x = min.x;
+            if (min.y > this._absoluteMax.y)
+                this._absoluteMax.y = min.y;
+            if (min.z > this._absoluteMax.z)
+                this._absoluteMax.z = min.z;
             if (max.x > this._absoluteMax.x)
                 this._absoluteMax.x = max.x;
             if (max.y > this._absoluteMax.y)
                 this._absoluteMax.y = max.y;
             if (max.z > this._absoluteMax.z)
                 this._absoluteMax.z = max.z;
+            if (max.x < this._absoluteMin.x)
+                this._absoluteMin.x = max.x;
+            if (max.y < this._absoluteMin.y)
+                this._absoluteMin.y = max.y;
+            if (max.z < this._absoluteMin.z)
+                this._absoluteMin.z = max.z;
         }
     }
     static getFragmentBounds(fragment) {
@@ -95963,6 +95985,7 @@ class FragmentIfcLoader extends Component {
         this.cleanUp();
         this._fragments.groups.push(model);
         for (const fragment of model.items) {
+            fragment.group = model;
             this._fragments.list[fragment.id] = fragment;
             this._components.meshes.push(fragment.mesh);
         }
@@ -96335,7 +96358,7 @@ class FragmentTree extends Component {
         for (const name in systemGroups) {
             // name is N00, N01, N02...
             // { storeys: "N00" }, { storeys: "N01" }...
-            const filter = { ...result, [currentSystemName]: name };
+            const filter = { ...result, [currentSystemName]: [name] };
             const found = this._classifier.find(filter);
             const hasElements = Object.keys(found).length > 0;
             if (hasElements) {
@@ -100474,6 +100497,8 @@ class CustomEffectsPass extends Pass {
         return this._glossEnabled;
     }
     set glossEnabled(active) {
+        if (active === this._glossEnabled)
+            return;
         this._glossEnabled = active;
         const material = this.fsQuad.material;
         material.uniforms.glossEnabled.value = active ? 1 : 0;
@@ -100951,6 +100976,18 @@ class Postproduction {
         this.excludedItems.clear();
     }
     setPasses(settings) {
+        // This check can prevent some bugs
+        let settingsChanged = false;
+        for (const name in settings) {
+            const key = name;
+            if (this.settings[key] !== settings[key]) {
+                settingsChanged = true;
+                break;
+            }
+        }
+        if (!settingsChanged) {
+            return;
+        }
         for (const name in settings) {
             const key = name;
             if (this._settings[key] !== undefined) {
@@ -102896,7 +102933,7 @@ class CubeMap extends Component {
 }
 
 class SelectionHandler extends Component {
-    constructor(components, fragmentHighlighter, config) {
+    constructor(components, fragments, fragmentHighlighter, config) {
         var _a, _b, _c, _d;
         super();
         this.name = "SelectionHandler";
@@ -102904,6 +102941,12 @@ class SelectionHandler extends Component {
         this.highlightEnabled = true;
         this.selectEnabled = true;
         this.multiple = "none";
+        this.zoomToSelection = false;
+        this.zoomFactor = 1.5;
+        this._bbox = new FragmentBoundingBox();
+        this._components = components;
+        this._fragments = fragments;
+        this._fragmentHighlighter = fragmentHighlighter;
         this._config = {
             selectionName: (_a = config === null || config === void 0 ? void 0 : config.selectionName) !== null && _a !== void 0 ? _a : "select",
             selectionMaterial: (_b = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _b !== void 0 ? _b : new THREE$1.MeshBasicMaterial({
@@ -102921,12 +102964,10 @@ class SelectionHandler extends Component {
             }),
             ...config,
         };
-        this.components = components;
-        this._fragmentHighlighter = fragmentHighlighter;
         this.setup();
     }
     get _viewerContainer() {
-        const renderer = this.components.renderer.get();
+        const renderer = this._components.renderer.get();
         return renderer.domElement.parentElement;
     }
     setup() {
@@ -102943,7 +102984,7 @@ class SelectionHandler extends Component {
             mouseDown = true;
         });
         this._viewerContainer.addEventListener("mouseup", (e) => {
-            if (e.target !== this.components.renderer.get().domElement)
+            if (e.target !== this._components.renderer.get().domElement)
                 return;
             mouseDown = false;
             if (mouseMoved || e.button !== 0) {
@@ -102954,6 +102995,9 @@ class SelectionHandler extends Component {
             if (this.selectEnabled) {
                 const mult = this.multiple === "none" ? true : !e[this.multiple];
                 this._fragmentHighlighter.highlight(this._config.selectionName, mult);
+            }
+            if (this.zoomToSelection) {
+                this.zoomSelection();
             }
         });
         this._viewerContainer.addEventListener("mousemove", () => {
@@ -102969,6 +103013,25 @@ class SelectionHandler extends Component {
                 this._fragmentHighlighter.highlight(this._config.highlightName);
             }
         });
+    }
+    zoomSelection() {
+        this._bbox.reset();
+        const name = this._config.highlightName;
+        const higlight = this._fragmentHighlighter.selection[name];
+        if (!Object.keys(higlight).length) {
+            return;
+        }
+        for (const fragID in higlight) {
+            const fragment = this._fragments.list[fragID];
+            const highlight = fragment.fragments[name];
+            if (highlight) {
+                this._bbox.addFragment(highlight);
+            }
+        }
+        const sphere = this._bbox.getSphere();
+        sphere.radius *= this.zoomFactor;
+        const camera = this._components.camera;
+        camera.controls.fitToSphere(sphere, true);
     }
     get() {
         return this._fragmentHighlighter.selection.select;
