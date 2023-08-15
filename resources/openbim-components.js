@@ -96074,8 +96074,10 @@ class FragmentHighlighter extends Component {
         this.enabled = true;
         this.highlightMats = {};
         this.events = {};
+        this.zoomFactor = 1.5;
         this.tempMatrix = new THREE$1.Matrix4();
         this.selection = {};
+        this._bbox = new FragmentBoundingBox();
         this._components = components;
         this._fragments = fragments;
     }
@@ -96109,7 +96111,7 @@ class FragmentHighlighter extends Component {
             this.addHighlightToFragment(fragment);
         }
     }
-    highlight(name, removePrevious = true) {
+    highlight(name, removePrevious = true, zoomToSelection = false) {
         var _a;
         if (!this.enabled)
             return null;
@@ -96159,9 +96161,12 @@ class FragmentHighlighter extends Component {
                 this.updateFragmentHighlight(name, fragID);
             }
         }
+        if (zoomToSelection) {
+            this.zoomSelection(name);
+        }
         return { id: itemID, fragments };
     }
-    highlightByID(name, ids, removePrevious = true) {
+    highlightByID(name, ids, removePrevious = true, zoomToSelection = false) {
         if (!this.enabled)
             return;
         if (removePrevious) {
@@ -96183,6 +96188,9 @@ class FragmentHighlighter extends Component {
             }
             this.updateFragmentHighlight(name, fragID);
         }
+        if (zoomToSelection) {
+            this.zoomSelection(name);
+        }
     }
     /**
      * Clears any selection previously made by calling {@link highlight}.
@@ -96192,6 +96200,24 @@ class FragmentHighlighter extends Component {
         for (const name of names) {
             this.clearStyle(name);
         }
+    }
+    zoomSelection(name) {
+        this._bbox.reset();
+        const higlight = this.selection[name];
+        if (!Object.keys(higlight).length) {
+            return;
+        }
+        for (const fragID in higlight) {
+            const fragment = this._fragments.list[fragID];
+            const highlight = fragment.fragments[name];
+            if (highlight) {
+                this._bbox.addFragment(highlight);
+            }
+        }
+        const sphere = this._bbox.getSphere();
+        sphere.radius *= this.zoomFactor;
+        const camera = this._components.camera;
+        camera.controls.fitToSphere(sphere, true);
     }
     addComposites(mesh, itemID, name) {
         const composites = mesh.fragment.composites[itemID];
@@ -102747,8 +102773,7 @@ class ViewpointsManager extends Component {
         // Select elements in the viewpoint
         const selection = {};
         for (const fragmentID in viewpoint.selection) {
-            const idSet = viewpoint.selection[fragmentID];
-            selection[fragmentID] = [...idSet];
+            selection[fragmentID] = viewpoint.selection[fragmentID];
         }
         this._fragmentHighlighter.highlightByID(this.selectionHighlighter, selection, true);
         // #region Recover camera position & target
@@ -102933,7 +102958,7 @@ class CubeMap extends Component {
 }
 
 class SelectionHandler extends Component {
-    constructor(components, fragments, fragmentHighlighter, config) {
+    constructor(components, fragmentHighlighter, config) {
         var _a, _b, _c, _d;
         super();
         this.name = "SelectionHandler";
@@ -102942,10 +102967,7 @@ class SelectionHandler extends Component {
         this.selectEnabled = true;
         this.multiple = "none";
         this.zoomToSelection = false;
-        this.zoomFactor = 1.5;
-        this._bbox = new FragmentBoundingBox();
         this._components = components;
-        this._fragments = fragments;
         this._fragmentHighlighter = fragmentHighlighter;
         this._config = {
             selectionName: (_a = config === null || config === void 0 ? void 0 : config.selectionName) !== null && _a !== void 0 ? _a : "select",
@@ -102994,10 +103016,7 @@ class SelectionHandler extends Component {
             mouseMoved = false;
             if (this.selectEnabled) {
                 const mult = this.multiple === "none" ? true : !e[this.multiple];
-                this._fragmentHighlighter.highlight(this._config.selectionName, mult);
-            }
-            if (this.zoomToSelection) {
-                this.zoomSelection();
+                this._fragmentHighlighter.highlight(this._config.selectionName, mult, this.zoomToSelection);
             }
         });
         this._viewerContainer.addEventListener("mousemove", () => {
@@ -103013,25 +103032,6 @@ class SelectionHandler extends Component {
                 this._fragmentHighlighter.highlight(this._config.highlightName);
             }
         });
-    }
-    zoomSelection() {
-        this._bbox.reset();
-        const name = this._config.highlightName;
-        const higlight = this._fragmentHighlighter.selection[name];
-        if (!Object.keys(higlight).length) {
-            return;
-        }
-        for (const fragID in higlight) {
-            const fragment = this._fragments.list[fragID];
-            const highlight = fragment.fragments[name];
-            if (highlight) {
-                this._bbox.addFragment(highlight);
-            }
-        }
-        const sphere = this._bbox.getSphere();
-        sphere.radius *= this.zoomFactor;
-        const camera = this._components.camera;
-        camera.controls.fitToSphere(sphere, true);
     }
     get() {
         return this._fragmentHighlighter.selection.select;
