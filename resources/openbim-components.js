@@ -96067,1063 +96067,6 @@ class FragmentIfcLoader extends Component {
     }
 }
 
-class FragmentHighlighter extends Component {
-    constructor(components, fragments) {
-        super();
-        this.name = "FragmentHighlighter";
-        this.enabled = true;
-        this.highlightMats = {};
-        this.events = {};
-        this.zoomFactor = 1.5;
-        this.tempMatrix = new THREE$1.Matrix4();
-        this.selection = {};
-        this._bbox = new FragmentBoundingBox();
-        this._components = components;
-        this._fragments = fragments;
-    }
-    get() {
-        return this.highlightMats;
-    }
-    dispose() {
-        for (const matID in this.highlightMats) {
-            const mats = this.highlightMats[matID] || [];
-            for (const mat of mats) {
-                mat.dispose();
-            }
-        }
-        this.highlightMats = {};
-    }
-    add(name, material) {
-        if (this.highlightMats[name]) {
-            throw new Error("A highlight with this name already exists.");
-        }
-        this.highlightMats[name] = material;
-        this.selection[name] = {};
-        this.events[name] = {
-            onHighlight: new Event(),
-            onClear: new Event(),
-        };
-        this.update();
-    }
-    update() {
-        for (const fragmentID in this._fragments.list) {
-            const fragment = this._fragments.list[fragmentID];
-            this.addHighlightToFragment(fragment);
-        }
-    }
-    highlight(name, removePrevious = true, zoomToSelection = false) {
-        var _a;
-        if (!this.enabled)
-            return null;
-        this.checkSelection(name);
-        const fragments = [];
-        const meshes = this._fragments.meshes;
-        const result = this._components.raycaster.castRay(meshes);
-        if (!result) {
-            this.clear(name);
-            return null;
-        }
-        const mesh = result.object;
-        const geometry = mesh.geometry;
-        const index = (_a = result.face) === null || _a === void 0 ? void 0 : _a.a;
-        const instanceID = result.instanceId;
-        if (!geometry || index === undefined || instanceID === undefined) {
-            return null;
-        }
-        if (removePrevious) {
-            this.clear(name);
-        }
-        if (!this.selection[name][mesh.uuid]) {
-            this.selection[name][mesh.uuid] = new Set();
-        }
-        fragments.push(mesh.fragment);
-        const blockID = mesh.fragment.getVertexBlockID(geometry, index);
-        const itemID = mesh.fragment
-            .getItemID(instanceID, blockID)
-            .replace(/\..*/, "");
-        const idNum = parseInt(itemID, 10);
-        this.selection[name][mesh.uuid].add(itemID);
-        this.addComposites(mesh, idNum, name);
-        this.updateFragmentHighlight(name, mesh.uuid);
-        const group = mesh.fragment.group;
-        if (group) {
-            const keys = group.data[idNum][0];
-            for (let i = 0; i < keys.length; i++) {
-                const fragKey = keys[i];
-                const fragID = group.keyFragments[fragKey];
-                const fragment = this._fragments.list[fragID];
-                fragments.push(fragment);
-                if (!this.selection[name][fragID]) {
-                    this.selection[name][fragID] = new Set();
-                }
-                this.selection[name][fragID].add(itemID);
-                this.addComposites(fragment.mesh, idNum, name);
-                this.updateFragmentHighlight(name, fragID);
-            }
-        }
-        if (zoomToSelection) {
-            this.zoomSelection(name);
-        }
-        return { id: itemID, fragments };
-    }
-    highlightByID(name, ids, removePrevious = true, zoomToSelection = false) {
-        if (!this.enabled)
-            return;
-        if (removePrevious) {
-            this.clear(name);
-        }
-        const styles = this.selection[name];
-        for (const fragID in ids) {
-            if (!styles[fragID]) {
-                styles[fragID] = new Set();
-            }
-            const fragment = this._fragments.list[fragID];
-            const idsNum = new Set();
-            for (const id of ids[fragID]) {
-                styles[fragID].add(id);
-                idsNum.add(parseInt(id, 10));
-            }
-            for (const id of idsNum) {
-                this.addComposites(fragment.mesh, id, name);
-            }
-            this.updateFragmentHighlight(name, fragID);
-        }
-        if (zoomToSelection) {
-            this.zoomSelection(name);
-        }
-    }
-    /**
-     * Clears any selection previously made by calling {@link highlight}.
-     */
-    clear(name) {
-        const names = name ? [name] : Object.keys(this.selection);
-        for (const name of names) {
-            this.clearStyle(name);
-        }
-    }
-    zoomSelection(name) {
-        this._bbox.reset();
-        const higlight = this.selection[name];
-        if (!Object.keys(higlight).length) {
-            return;
-        }
-        for (const fragID in higlight) {
-            const fragment = this._fragments.list[fragID];
-            const highlight = fragment.fragments[name];
-            if (highlight) {
-                this._bbox.addFragment(highlight);
-            }
-        }
-        const sphere = this._bbox.getSphere();
-        sphere.radius *= this.zoomFactor;
-        const camera = this._components.camera;
-        camera.controls.fitToSphere(sphere, true);
-    }
-    addComposites(mesh, itemID, name) {
-        const composites = mesh.fragment.composites[itemID];
-        if (composites) {
-            for (let i = 1; i < composites; i++) {
-                const compositeID = toCompositeID(itemID, i);
-                this.selection[name][mesh.uuid].add(compositeID);
-            }
-        }
-    }
-    clearStyle(name) {
-        for (const fragID in this.selection[name]) {
-            const fragment = this._fragments.list[fragID];
-            if (!fragment)
-                continue;
-            const selection = fragment.fragments[name];
-            if (selection) {
-                selection.mesh.removeFromParent();
-            }
-        }
-        this.events[name].onClear.trigger(null);
-        this.selection[name] = {};
-    }
-    updateFragmentHighlight(name, fragmentID) {
-        const ids = this.selection[name][fragmentID];
-        const fragment = this._fragments.list[fragmentID];
-        if (!fragment)
-            return;
-        const selection = fragment.fragments[name];
-        if (!selection)
-            return;
-        // #region Old child/parent code
-        // const scene = this._components.scene.get();
-        // scene.add(selection.mesh); //If we add selection.mesh directly to the scene, it won't be coordinated unless we do so manually.
-        // #endregion
-        // #region New child/parent code
-        const fragmentParent = fragment.mesh.parent;
-        if (!fragmentParent)
-            return;
-        fragmentParent.add(selection.mesh);
-        // #endregion
-        const isBlockFragment = selection.blocks.count > 1;
-        if (isBlockFragment) {
-            const blockIDs = [];
-            for (const id of ids) {
-                const { blockID } = fragment.getInstanceAndBlockID(id);
-                if (fragment.blocks.visibleIds.has(blockID)) {
-                    blockIDs.push(blockID);
-                }
-            }
-            fragment.getInstance(0, this.tempMatrix);
-            selection.setInstance(0, {
-                ids: Array.from(ids),
-                transform: this.tempMatrix,
-            });
-            selection.blocks.add(blockIDs, true);
-        }
-        else {
-            let i = 0;
-            for (const id of ids) {
-                selection.mesh.count = i + 1;
-                const { instanceID } = fragment.getInstanceAndBlockID(id);
-                fragment.getInstance(instanceID, this.tempMatrix);
-                selection.setInstance(i, { ids: [id], transform: this.tempMatrix });
-                i++;
-            }
-        }
-        this.events[name].onHighlight.trigger(this.selection[name]);
-    }
-    checkSelection(name) {
-        if (!this.selection[name]) {
-            throw new Error(`Selection ${name} does not exist.`);
-        }
-    }
-    addHighlightToFragment(fragment) {
-        for (const name in this.highlightMats) {
-            if (!fragment.fragments[name]) {
-                const material = this.highlightMats[name];
-                const subFragment = fragment.addFragment(name, material);
-                subFragment.mesh.renderOrder = 2;
-                subFragment.mesh.frustumCulled = false;
-            }
-        }
-    }
-}
-
-class FragmentTreeItem extends Component {
-    get children() {
-        return this._children;
-    }
-    set children(children) {
-        this._children = children;
-        children.forEach((child) => this.uiElement.tree.addChild(child.uiElement.tree));
-    }
-    constructor(components, classifier, content) {
-        super();
-        this.name = "FragmentTreeItem";
-        this.enabled = true;
-        this.filter = {};
-        this.selected = new Event();
-        this.hovered = new Event();
-        this._children = [];
-        this.components = components;
-        this.uiElement = {
-            main: new Button(components),
-            tree: new TreeView(components, content),
-        };
-        this.uiElement.tree.onclick = () => {
-            const found = classifier.find(this.filter);
-            this.selected.trigger(found);
-        };
-        this.uiElement.tree.get().onmouseenter = () => {
-            const found = classifier.find(this.filter);
-            this.hovered.trigger(found);
-        };
-    }
-    dispose() {
-        this.uiElement.tree.dispose();
-        this.selected.reset();
-        this.hovered.reset();
-        for (const child of this.children) {
-            child.dispose();
-        }
-    }
-    get() {
-        return { name: this.name, filter: this.filter, children: this.children };
-    }
-}
-
-class FragmentTree extends Component {
-    get uiElement() {
-        return this._tree.uiElement;
-    }
-    constructor(components, classifier) {
-        super();
-        this.name = "FragmentTree";
-        this.title = "Model Tree";
-        this.enabled = true;
-        this.selected = new Event();
-        this.hovered = new Event();
-        this._components = components;
-        this._classifier = classifier;
-        this._tree = new FragmentTreeItem(this._components, classifier, this.title);
-    }
-    get() {
-        return this._tree;
-    }
-    update(groupSystems) {
-        if (this._tree.children.length) {
-            this._tree.dispose();
-            this._tree = new FragmentTreeItem(this._components, this._classifier, this.title);
-        }
-        this._tree.children = this.regenerate(groupSystems);
-        return this.get();
-    }
-    regenerate(groupSystemNames, result = {}) {
-        const groups = [];
-        const currentSystemName = groupSystemNames[0]; // storeys
-        const systems = this._classifier.get();
-        const systemGroups = systems[currentSystemName];
-        if (!currentSystemName || !systemGroups) {
-            return groups;
-        }
-        for (const name in systemGroups) {
-            // name is N00, N01, N02...
-            // { storeys: "N00" }, { storeys: "N01" }...
-            const filter = { ...result, [currentSystemName]: [name] };
-            const found = this._classifier.find(filter);
-            const hasElements = Object.keys(found).length > 0;
-            if (hasElements) {
-                const firstLetter = currentSystemName[0].toUpperCase();
-                const treeItemName = firstLetter + currentSystemName.slice(1); // Storeys
-                const treeItem = new FragmentTreeItem(this._components, this._classifier, `${treeItemName}: ${name}`);
-                treeItem.hovered.on((result) => this.hovered.trigger(result));
-                treeItem.selected.on((result) => this.selected.trigger(result));
-                treeItem.filter = filter;
-                groups.push(treeItem);
-                treeItem.children = this.regenerate(groupSystemNames.slice(1), filter);
-            }
-        }
-        return groups;
-    }
-}
-
-class FragmentClassifier extends Component {
-    constructor(fragmentManager) {
-        super();
-        /** {@link Component.name} */
-        this.name = "FragmentClassifier";
-        /** {@link Component.enabled} */
-        this.enabled = true;
-        this._groupSystems = {};
-        this._fragments = fragmentManager;
-    }
-    /** {@link Component.get} */
-    get() {
-        return this._groupSystems;
-    }
-    dispose() {
-        this._groupSystems = {};
-    }
-    remove(guid) {
-        for (const systemName in this._groupSystems) {
-            const system = this._groupSystems[systemName];
-            for (const groupName in system) {
-                const group = system[groupName];
-                delete group[guid];
-            }
-        }
-    }
-    find(filter) {
-        if (!filter) {
-            const result = {};
-            const fragments = this._fragments.list;
-            for (const id in fragments) {
-                const fragment = fragments[id];
-                const items = fragment.items;
-                const hidden = Object.keys(fragment.hiddenInstances);
-                result[id] = [...items, ...hidden];
-            }
-            return result;
-        }
-        const size = Object.keys(filter).length;
-        const models = {};
-        for (const name in filter) {
-            const values = filter[name];
-            if (!this._groupSystems[name]) {
-                console.warn(`Classification ${name} does not exist.`);
-                continue;
-            }
-            for (const value of values) {
-                const found = this._groupSystems[name][value];
-                if (found) {
-                    for (const guid in found) {
-                        if (!models[guid]) {
-                            models[guid] = {};
-                        }
-                        for (const id of found[guid]) {
-                            if (!models[guid][id]) {
-                                models[guid][id] = 1;
-                            }
-                            else {
-                                models[guid][id]++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        const result = {};
-        for (const guid in models) {
-            const model = models[guid];
-            for (const id in model) {
-                const numberOfMatches = model[id];
-                if (numberOfMatches === size) {
-                    if (!result[guid]) {
-                        result[guid] = [];
-                    }
-                    result[guid].push(id);
-                    const fragment = this._fragments.list[guid];
-                    const composites = fragment.composites[id];
-                    if (composites) {
-                        const idNum = parseInt(id, 10);
-                        for (let i = 1; i < composites; i++) {
-                            const compositeID = toCompositeID(idNum, i);
-                            result[guid].push(compositeID);
-                        }
-                    }
-                }
-            }
-        }
-        return result;
-    }
-    byModel(modelID, group) {
-        if (!this._groupSystems.model) {
-            this._groupSystems.model = {};
-        }
-        const modelsClassification = this._groupSystems.model;
-        if (!modelsClassification[modelID]) {
-            modelsClassification[modelID] = {};
-        }
-        const currentModel = modelsClassification[modelID];
-        for (const expressID in group.data) {
-            const keys = group.data[expressID][0];
-            for (const key of keys) {
-                const fragID = group.keyFragments[key];
-                if (!currentModel[fragID]) {
-                    currentModel[fragID] = new Set();
-                }
-                currentModel[fragID].add(expressID);
-            }
-        }
-    }
-    byPredefinedType(group) {
-        var _a;
-        if (!group.properties) {
-            throw new Error("To group by predefined type, properties are needed");
-        }
-        if (!this._groupSystems.predefinedTypes) {
-            this._groupSystems.predefinedTypes = {};
-        }
-        const currentTypes = this._groupSystems.predefinedTypes;
-        for (const expressID in group.data) {
-            const entity = group.properties[expressID];
-            if (!entity)
-                continue;
-            const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
-            if (!currentTypes[predefinedType]) {
-                currentTypes[predefinedType] = {};
-            }
-            const currentType = currentTypes[predefinedType];
-            for (const expressID in group.data) {
-                const keys = group.data[expressID][0];
-                for (const key of keys) {
-                    const fragmentID = group.keyFragments[key];
-                    if (!currentType[fragmentID]) {
-                        currentType[fragmentID] = new Set();
-                    }
-                    const currentFragment = currentType[fragmentID];
-                    currentFragment.add(entity.expressID);
-                }
-            }
-        }
-    }
-    byEntity(group) {
-        if (!this._groupSystems.entities) {
-            this._groupSystems.entities = {};
-        }
-        for (const expressID in group.data) {
-            const rels = group.data[expressID][1];
-            const type = rels[1];
-            const entity = IfcCategoryMap[type];
-            this.saveItem(group, "entities", entity, expressID);
-        }
-    }
-    byStorey(group) {
-        if (!group.properties) {
-            throw new Error("To group by storey, properties are needed");
-        }
-        for (const expressID in group.data) {
-            const rels = group.data[expressID][1];
-            const storeyID = rels[0];
-            const storey = group.properties[storeyID];
-            if (storey === undefined)
-                continue;
-            const storeyName = group.properties[storeyID].Name.value;
-            this.saveItem(group, "storeys", storeyName, expressID);
-        }
-    }
-    byIfcRel(group, ifcRel, systemName) {
-        const properties = group.properties;
-        if (!properties)
-            throw new Error("To group by IFC Rel, properties are needed");
-        if (!IfcPropertiesUtils.isRel(ifcRel))
-            return;
-        IfcPropertiesUtils.getRelationMap(properties, ifcRel, (relatingID, relatedIDs) => {
-            const { name: relatingName } = IfcPropertiesUtils.getEntityName(properties, relatingID);
-            for (const expressID of relatedIDs) {
-                this.saveItem(group, systemName, relatingName !== null && relatingName !== void 0 ? relatingName : "NO REL NAME", String(expressID));
-            }
-        });
-    }
-    saveItem(group, systemName, className, expressID) {
-        if (!this._groupSystems[systemName]) {
-            this._groupSystems[systemName] = {};
-        }
-        const keys = group.data[expressID];
-        if (!keys)
-            return;
-        for (const key of keys[0]) {
-            const fragmentID = group.keyFragments[key];
-            if (fragmentID) {
-                const system = this._groupSystems[systemName];
-                if (!system[className]) {
-                    system[className] = {};
-                }
-                if (!system[className][fragmentID]) {
-                    system[className][fragmentID] = new Set();
-                }
-                system[className][fragmentID].add(expressID);
-            }
-        }
-    }
-}
-
-class FragmentHider extends Component {
-    constructor(components, fragments, culler) {
-        super();
-        this.name = "FragmentHider";
-        this.enabled = true;
-        this._localStorageID = "FragmentHiderCache";
-        this._updateVisibilityOnFound = true;
-        this._filterCards = {};
-        this._components = components;
-        this._fragments = fragments;
-        this._culler = culler;
-        const mainWindow = new FloatingWindow(components);
-        mainWindow.title = "Filters";
-        mainWindow.visible = false;
-        components.ui.add(mainWindow);
-        mainWindow.domElement.style.width = "530px";
-        mainWindow.domElement.style.height = "400px";
-        const mainButton = new Button(components, {
-            materialIconName: "filter_alt",
-            tooltip: "Visibility filters",
-        });
-        mainButton.onclick = () => {
-            this.hideAllFinders();
-            mainWindow.visible = !mainWindow.visible;
-        };
-        const topButtonContainerHtml = `<div class="flex"></div>`;
-        const topButtonContainer = new SimpleUIComponent(components, topButtonContainerHtml);
-        const createButton = new Button(components, {
-            materialIconName: "add",
-        });
-        createButton.onclick = () => this.createStyleCard();
-        topButtonContainer.addChild(createButton);
-        mainWindow.addChild(topButtonContainer);
-        this.uiElement = { window: mainWindow, main: mainButton };
-        this.loadCached();
-    }
-    dispose() {
-        this._fragments = null;
-        this._culler = null;
-    }
-    set(visible, items) {
-        if (!items) {
-            for (const id in this._fragments.list) {
-                const fragment = this._fragments.list[id];
-                if (fragment) {
-                    fragment.setVisibility(visible);
-                    this.updateCulledVisibility(fragment);
-                }
-            }
-            return;
-        }
-        for (const fragID in items) {
-            const ids = items[fragID];
-            const fragment = this._fragments.list[fragID];
-            fragment.setVisibility(visible, ids);
-            this.updateCulledVisibility(fragment);
-        }
-    }
-    isolate(items) {
-        this.set(false);
-        this.set(true, items);
-    }
-    get() { }
-    updateCulledVisibility(fragment) {
-        if (this._culler) {
-            const culled = this._culler.colorMeshes.get(fragment.id);
-            if (culled) {
-                culled.count = fragment.mesh.count;
-            }
-        }
-    }
-    createStyleCard(config) {
-        const filterCard = new SimpleUIComponent(this._components);
-        if (config && config.id.length) {
-            filterCard.id = config.id;
-        }
-        const { id } = filterCard;
-        filterCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col`;
-        filterCard.domElement.innerHTML = `
-        <div id="top-container-${id}" class="flex">
-        </div>
-        <div id="bottom-container-${id}" class="flex gap-4 items-center">
-        </div>
-    `;
-        const deleteButton = new Button(this._components, {
-            materialIconName: "close",
-        });
-        deleteButton.domElement.classList.add("self-end");
-        deleteButton.onclick = () => this.deleteStyleCard(id);
-        const topContainer = filterCard.getInnerElement("top-container");
-        if (topContainer) {
-            topContainer.appendChild(deleteButton.domElement);
-        }
-        const bottomContainer = filterCard.getInnerElement("bottom-container");
-        if (!bottomContainer) {
-            throw new Error("Error creating UI elements!");
-        }
-        const name = new TextInput(this._components);
-        name.label = "Name";
-        name.domElement.addEventListener("focusout", () => {
-            this.cache();
-        });
-        if (config) {
-            name.value = config.name;
-        }
-        bottomContainer.append(name.domElement);
-        const visible = new CheckboxInput(this._components);
-        visible.value = config ? config.visible : true;
-        visible.label = "Visible";
-        visible.onChange.on(() => this.update());
-        const enabled = new CheckboxInput(this._components);
-        enabled.value = config ? config.enabled : true;
-        enabled.label = "Enabled";
-        enabled.onChange.on(() => this.update());
-        const checkBoxContainer = new SimpleUIComponent(this._components);
-        checkBoxContainer.domElement.classList.remove("w-full");
-        checkBoxContainer.addChild(visible);
-        checkBoxContainer.addChild(enabled);
-        bottomContainer.append(checkBoxContainer.domElement);
-        const finder = new IfcPropertiesFinder(this._components, this._fragments);
-        finder.loadCached(id);
-        finder.uiElement.query.findButton.label = "Apply";
-        bottomContainer.append(finder.uiElement.main.domElement);
-        const window = finder.uiElement.queryWindow;
-        window.onVisible.on(() => {
-            this.hideAllFinders(window.id);
-            const rect = finder.uiElement.main.domElement.getBoundingClientRect();
-            window.domElement.style.left = `${rect.x + 90}px`;
-            window.domElement.style.top = `${rect.y - 120}px`;
-        });
-        finder.onFound.on((data) => {
-            const { queryWindow, main } = finder.uiElement;
-            queryWindow.visible = false;
-            main.active = false;
-            finder.uiElement.main.active = false;
-            this._filterCards[id].fragments = data;
-            this.cache();
-            if (this._updateVisibilityOnFound) {
-                this.update();
-            }
-        });
-        const fragments = {};
-        this._filterCards[id] = {
-            styleCard: filterCard,
-            fragments,
-            name,
-            finder,
-            deleteButton,
-            visible,
-            enabled,
-        };
-        this.uiElement.window.addChild(filterCard);
-        // this.cacheStyles();
-    }
-    update() {
-        this.set(true);
-        for (const id in this._filterCards) {
-            const { enabled, visible, fragments } = this._filterCards[id];
-            if (enabled.value) {
-                this.set(visible.value, fragments);
-            }
-        }
-        this.cache();
-    }
-    deleteStyleCard(id) {
-        const found = this._filterCards[id];
-        if (found) {
-            found.styleCard.dispose();
-            found.deleteButton.dispose();
-            found.name.dispose();
-            found.finder.deleteCache();
-            found.finder.dispose();
-            found.visible.dispose();
-            found.enabled.dispose();
-        }
-        delete this._filterCards[id];
-        this.update();
-    }
-    hideAllFinders(excludeID) {
-        for (const id in this._filterCards) {
-            const { finder } = this._filterCards[id];
-            const window = finder.uiElement.queryWindow;
-            if (window.id === excludeID) {
-                continue;
-            }
-            if (finder.uiElement.queryWindow.visible) {
-                finder.uiElement.main.domElement.click();
-            }
-        }
-    }
-    loadCached() {
-        const serialized = localStorage.getItem(this._localStorageID);
-        if (!serialized)
-            return;
-        const filters = JSON.parse(serialized);
-        for (const filter of filters) {
-            this.createStyleCard(filter);
-        }
-        this.updateAllQueries();
-    }
-    cache() {
-        const filters = [];
-        for (const id in this._filterCards) {
-            const styleCard = this._filterCards[id];
-            const { visible, enabled, name } = styleCard;
-            filters.push({
-                visible: visible.value,
-                enabled: enabled.value,
-                name: name.value,
-                id,
-            });
-        }
-        const serialized = JSON.stringify(filters);
-        localStorage.setItem(this._localStorageID, serialized);
-    }
-    updateAllQueries() {
-        this._updateVisibilityOnFound = false;
-        for (const id in this._filterCards) {
-            const { finder } = this._filterCards[id];
-            finder.find();
-        }
-        this._updateVisibilityOnFound = true;
-        this.update();
-    }
-}
-
-// TODO: Clean up
-class FragmentCacher extends LocalCacher {
-    get fragmentsIDs() {
-        const allIDs = this.ids;
-        const fragIDs = allIDs.filter((id) => id.includes("-fragments"));
-        if (!fragIDs.length)
-            return fragIDs;
-        return fragIDs.map((id) => id.replace("-fragments", ""));
-    }
-    constructor(components, fragments) {
-        super(components);
-        this._mode = "none";
-        this._fragments = fragments;
-        this.uiElement.saveButton.onclick = () => {
-            this.floatingMenu.title = "Save items";
-            if (this.floatingMenu.visible && this._mode === "save") {
-                this.floatingMenu.visible = false;
-                return;
-            }
-            this._mode = "save";
-            for (const card of this._cards) {
-                card.dispose();
-            }
-            this._cards = [];
-            const savedIDs = this.fragmentsIDs;
-            const ids = this._fragments.groups.map((group) => group.uuid);
-            for (const id of ids) {
-                if (savedIDs.includes(id))
-                    continue;
-                const card = new SimpleUICard(this._components, id);
-                card.title = id;
-                this._cards.push(card);
-                this.floatingMenu.addChild(card);
-                const saveCardButton = new Button(this._components, {
-                    materialIconName: "save",
-                });
-                card.addChild(saveCardButton);
-                saveCardButton.onclick = async () => {
-                    const group = this._fragments.groups.find((group) => group.uuid === id);
-                    if (group) {
-                        await this.saveFragmentGroup(group);
-                        const index = this._cards.indexOf(card);
-                        this._cards.splice(index, 1);
-                        card.dispose();
-                        this.itemSaved.trigger({ id });
-                    }
-                };
-            }
-            this.floatingMenu.visible = true;
-        };
-        this.uiElement.loadButton.onclick = () => {
-            this.floatingMenu.title = "Load saved items";
-            if (this.floatingMenu.visible && this._mode === "load") {
-                this.floatingMenu.visible = false;
-                return;
-            }
-            this._mode = "load";
-            const allIDs = this.fragmentsIDs;
-            for (const card of this._cards) {
-                card.dispose();
-            }
-            this._cards = [];
-            for (const id of allIDs) {
-                const card = new SimpleUICard(this._components, id);
-                card.title = id;
-                this._cards.push(card);
-                const deleteCardButton = new Button(this._components, {
-                    materialIconName: "delete",
-                });
-                card.addChild(deleteCardButton);
-                deleteCardButton.onclick = async () => {
-                    const ids = Object.values(this.getIDs(id));
-                    await this.delete(ids);
-                    const index = this._cards.indexOf(card);
-                    this._cards.splice(index, 1);
-                    card.dispose();
-                };
-                const loadFileButton = new Button(this._components, {
-                    materialIconName: "download",
-                });
-                card.addChild(loadFileButton);
-                loadFileButton.onclick = async () => {
-                    await this.getFragmentGroup(id);
-                    this.fileLoaded.trigger({ id });
-                };
-                this.floatingMenu.addChild(card);
-            }
-            this.floatingMenu.visible = true;
-        };
-    }
-    async getFragmentGroup(id) {
-        const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
-        if (!fragmentsCacheID || !propertiesCacheID) {
-            return null;
-        }
-        const fragmentFile = await this.get(fragmentsCacheID);
-        if (fragmentFile === null) {
-            throw new Error("Loading error");
-        }
-        const fragmentsData = await fragmentFile.arrayBuffer();
-        const buffer = new Uint8Array(fragmentsData);
-        const group = this._fragments.load(buffer);
-        const propertiesFile = await this.get(propertiesCacheID);
-        if (propertiesFile !== null) {
-            const propertiesData = await propertiesFile.text();
-            group.properties = JSON.parse(propertiesData);
-        }
-        this._components.scene.get().add(group);
-        return group;
-    }
-    async saveFragmentGroup(group, id = group.uuid) {
-        const fragments = new FragmentManager(this._components);
-        const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
-        const exported = fragments.export(group);
-        const fragmentsFile = new File([new Blob([exported])], fragmentsCacheID);
-        const fragmentsUrl = URL.createObjectURL(fragmentsFile);
-        await this.save(fragmentsCacheID, fragmentsUrl);
-        if (group.properties) {
-            const json = JSON.stringify(group.properties);
-            const jsonFile = new File([new Blob([json])], propertiesCacheID);
-            const propertiesUrl = URL.createObjectURL(jsonFile);
-            await this.save(propertiesCacheID, propertiesUrl);
-        }
-    }
-    dispose() {
-        super.dispose();
-        this._fragments = null;
-    }
-    getIDs(id) {
-        return {
-            fragmentsCacheID: `${id}-fragments`,
-            propertiesCacheID: `${id}-properties`,
-        };
-    }
-}
-
-class FragmentCoordinator extends Component {
-    constructor(components) {
-        super();
-        this.name = "FragmentCoordinator";
-        this.enabled = true;
-        this._baseCoordinationMatrix = new THREE$1.Matrix4();
-        this._fragments = [];
-        this._coordinations = 0;
-        this._components = components;
-    }
-    coordinateFragments(list, originalMatrix) {
-        this._fragments.push({
-            list,
-            coordinationMatrix: originalMatrix,
-        });
-        if (this._coordinations === 0) {
-            this._baseCoordinationMatrix.copy(originalMatrix);
-        }
-        else {
-            list.forEach((fragment) => {
-                fragment.mesh.applyMatrix4(originalMatrix.clone().invert()); // Translates back the model to its original world position.
-                fragment.mesh.applyMatrix4(this._baseCoordinationMatrix); // Translates the model to be relative positioned to the first one loaded.
-            });
-        }
-        this._coordinations++;
-    }
-    /**
-     * @description Applies the base transformation matrix to a vector. This method doesn't modify the provided vector.
-     * @param vector Vector3 to be coordinated by the base transformation matrix.
-     * @returns A coordinated copy of the given vector.
-     */
-    coordinateVector(vector) {
-        return vector.clone().applyMatrix4(this._baseCoordinationMatrix);
-    }
-    get() {
-        return {
-            fragments: this._fragments,
-            baseCoordinationMatrix: this._baseCoordinationMatrix,
-        };
-    }
-}
-
-// TODO: Clean up and document
-class FragmentExploder extends Component {
-    get() {
-        return this._explodedFragments;
-    }
-    constructor(fragments, groups) {
-        super();
-        this.fragments = fragments;
-        this.groups = groups;
-        this.name = "FragmentExploder";
-        this.height = 10;
-        this.groupName = "storeys";
-        this.enabled = false;
-        this._explodedFragments = new Set();
-    }
-    dispose() {
-        this._explodedFragments.clear();
-        this.fragments = null;
-        this.groups = null;
-    }
-    explode() {
-        this.enabled = true;
-        this.update();
-    }
-    reset() {
-        this.enabled = false;
-        this.update();
-    }
-    update() {
-        const factor = this.enabled ? 1 : -1;
-        let i = 0;
-        const systems = this.groups.get();
-        const groups = systems[this.groupName];
-        const mergedIDHeightMap = {};
-        const yTransform = new THREE$1.Matrix4();
-        for (const groupName in groups) {
-            yTransform.elements[13] = i * factor * this.height;
-            for (const fragID in groups[groupName]) {
-                const fragment = this.fragments.list[fragID];
-                const customID = groupName + fragID;
-                if (!fragment) {
-                    continue;
-                }
-                if (this.enabled && this._explodedFragments.has(customID)) {
-                    continue;
-                }
-                if (!this.enabled && !this._explodedFragments.has(customID)) {
-                    continue;
-                }
-                if (this.enabled) {
-                    this._explodedFragments.add(customID);
-                }
-                else {
-                    this._explodedFragments.delete(customID);
-                }
-                if (fragment.blocks.count === 1) {
-                    // For instanced fragments
-                    const ids = groups[groupName][fragID];
-                    for (const id of ids) {
-                        const tempMatrix = new THREE$1.Matrix4();
-                        const { instanceID } = fragment.getInstanceAndBlockID(id);
-                        fragment.getInstance(instanceID, tempMatrix);
-                        tempMatrix.premultiply(yTransform);
-                        fragment.mesh.setMatrixAt(instanceID, tempMatrix);
-                        const composites = fragment.composites[id];
-                        if (composites) {
-                            for (let i = 1; i < composites; i++) {
-                                const idNum = parseInt(id, 10);
-                                const compID = toCompositeID(idNum, i);
-                                const { instanceID } = fragment.getInstanceAndBlockID(compID);
-                                fragment.getInstance(instanceID, tempMatrix);
-                                tempMatrix.premultiply(yTransform);
-                                fragment.mesh.setMatrixAt(instanceID, tempMatrix);
-                            }
-                        }
-                    }
-                    fragment.mesh.instanceMatrix.needsUpdate = true;
-                }
-                else {
-                    if (!mergedIDHeightMap[fragID]) {
-                        mergedIDHeightMap[fragID] = {};
-                    }
-                    const ids = groups[groupName][fragID];
-                    for (const id of ids) {
-                        mergedIDHeightMap[fragID][id] = i * factor * this.height;
-                    }
-                }
-            }
-            i++;
-        }
-        const v = new THREE$1.Vector3();
-        // Update merged fragments
-        for (const fragID in mergedIDHeightMap) {
-            const heights = mergedIDHeightMap[fragID];
-            const fragment = this.fragments.list[fragID];
-            const geometry = fragment.mesh.geometry;
-            const position = geometry.attributes.position;
-            for (let i = 0; i < geometry.index.count; i++) {
-                const index = geometry.index.array[i];
-                const blockID = geometry.attributes.blockID.array[index];
-                const id = fragment.getItemID(0, blockID);
-                const height = heights[id];
-                if (height === undefined)
-                    continue;
-                yTransform.elements[13] = height;
-                const x = position.array[index * 3];
-                const y = position.array[index * 3 + 1];
-                const z = position.array[index * 3 + 2];
-                v.set(x, y, z);
-                v.applyMatrix4(yTransform);
-                position.setXYZ(index, v.x, v.y, v.z);
-            }
-            position.needsUpdate = true;
-        }
-    }
-}
-
 /**
  * Object to control the {@link CameraProjection} of the {@link OrthoPerspectiveCamera}.
  */
@@ -102957,87 +101900,6 @@ class CubeMap extends Component {
     }
 }
 
-class SelectionHandler extends Component {
-    constructor(components, fragmentHighlighter, config) {
-        var _a, _b, _c, _d;
-        super();
-        this.name = "SelectionHandler";
-        this.enabled = true;
-        this.highlightEnabled = true;
-        this.selectEnabled = true;
-        this.multiple = "none";
-        this.zoomToSelection = false;
-        this._components = components;
-        this._fragmentHighlighter = fragmentHighlighter;
-        this._config = {
-            selectionName: (_a = config === null || config === void 0 ? void 0 : config.selectionName) !== null && _a !== void 0 ? _a : "select",
-            selectionMaterial: (_b = config === null || config === void 0 ? void 0 : config.selectionMaterial) !== null && _b !== void 0 ? _b : new THREE$1.MeshBasicMaterial({
-                color: "#BCF124",
-                transparent: true,
-                opacity: 0.85,
-                depthTest: true,
-            }),
-            highlightName: (_c = config === null || config === void 0 ? void 0 : config.highlightName) !== null && _c !== void 0 ? _c : "hover",
-            highlightMaterial: (_d = config === null || config === void 0 ? void 0 : config.highlightMaterial) !== null && _d !== void 0 ? _d : new THREE$1.MeshBasicMaterial({
-                color: "#6528D7",
-                transparent: true,
-                opacity: 0.2,
-                depthTest: true,
-            }),
-            ...config,
-        };
-        this.setup();
-    }
-    get _viewerContainer() {
-        const renderer = this._components.renderer.get();
-        return renderer.domElement.parentElement;
-    }
-    setup() {
-        this._fragmentHighlighter.enabled = true;
-        this._fragmentHighlighter.add(this._config.selectionName, [
-            this._config.selectionMaterial,
-        ]);
-        this._fragmentHighlighter.add(this._config.highlightName, [
-            this._config.highlightMaterial,
-        ]);
-        let mouseDown = false;
-        let mouseMoved = false;
-        this._viewerContainer.addEventListener("mousedown", () => {
-            mouseDown = true;
-        });
-        this._viewerContainer.addEventListener("mouseup", (e) => {
-            if (e.target !== this._components.renderer.get().domElement)
-                return;
-            mouseDown = false;
-            if (mouseMoved || e.button !== 0) {
-                mouseMoved = false;
-                return;
-            }
-            mouseMoved = false;
-            if (this.selectEnabled) {
-                const mult = this.multiple === "none" ? true : !e[this.multiple];
-                this._fragmentHighlighter.highlight(this._config.selectionName, mult, this.zoomToSelection);
-            }
-        });
-        this._viewerContainer.addEventListener("mousemove", () => {
-            if (mouseMoved) {
-                this._fragmentHighlighter.clear(this._config.highlightName);
-                return;
-            }
-            mouseMoved = true;
-            if (!mouseDown) {
-                mouseMoved = false;
-            }
-            if (this.highlightEnabled) {
-                this._fragmentHighlighter.highlight(this._config.highlightName);
-            }
-        });
-    }
-    get() {
-        return this._fragmentHighlighter.selection.select;
-    }
-}
-
 class MiniMap extends Component {
     get lockRotation() {
         return this._lockRotation;
@@ -103138,6 +102000,1252 @@ class MiniMap extends Component {
             this._camera.top = frustumSize / 2;
             this._camera.bottom = -frustumSize / 2;
             this._camera.updateProjectionMatrix();
+        }
+    }
+}
+
+class FragmentHighlighter extends Component {
+    get fillEnabled() {
+        return this._fillEnabled;
+    }
+    set fillEnabled(value) {
+        this._fillEnabled = value;
+        if (!value) {
+            this.clear();
+        }
+    }
+    get outlineEnabled() {
+        return this._outlineEnabled;
+    }
+    set outlineEnabled(value) {
+        this._outlineEnabled = value;
+        if (!value) {
+            delete this._postproduction.customEffects.outlinedMeshes.fragments;
+        }
+    }
+    get _postproduction() {
+        if (!(this._components.renderer instanceof PostproductionRenderer)) {
+            throw new Error("Postproduction renderer is needed for outlines!");
+        }
+        const renderer = this._components.renderer;
+        return renderer.postproduction;
+    }
+    constructor(components, fragments) {
+        super();
+        this.name = "FragmentHighlighter";
+        this.enabled = true;
+        this.highlightMats = {};
+        this.events = {};
+        this.multiple = "ctrlKey";
+        this.zoomFactor = 1.5;
+        this.zoomToSelection = false;
+        this.selection = {};
+        this.excludeOutline = new Set();
+        this.outlineMaterial = new THREE$1.MeshBasicMaterial({
+            color: "white",
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            opacity: 0.4,
+        });
+        this._fillEnabled = true;
+        this._outlineEnabled = true;
+        this._outlinedMeshes = {};
+        this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
+        this._tempMatrix = new THREE$1.Matrix4();
+        this._bbox = new FragmentBoundingBox();
+        this._components = components;
+        this._fragments = fragments;
+    }
+    get() {
+        return this.highlightMats;
+    }
+    dispose() {
+        for (const matID in this.highlightMats) {
+            const mats = this.highlightMats[matID] || [];
+            for (const mat of mats) {
+                mat.dispose();
+            }
+        }
+        for (const id in this._outlinedMeshes) {
+            const mesh = this._outlinedMeshes[id];
+            mesh.geometry.dispose();
+        }
+        this._invisibleMaterial.dispose();
+        this.highlightMats = {};
+    }
+    add(name, material) {
+        if (this.highlightMats[name]) {
+            throw new Error("A highlight with this name already exists.");
+        }
+        this.highlightMats[name] = material;
+        this.selection[name] = {};
+        this.events[name] = {
+            onHighlight: new Event(),
+            onClear: new Event(),
+        };
+        this.update();
+    }
+    update() {
+        if (!this._fillEnabled) {
+            return;
+        }
+        for (const fragmentID in this._fragments.list) {
+            const fragment = this._fragments.list[fragmentID];
+            this.addHighlightToFragment(fragment);
+        }
+    }
+    highlight(name, removePrevious = true, zoomToSelection = this.zoomToSelection) {
+        var _a;
+        if (!this.enabled)
+            return null;
+        this.checkSelection(name);
+        const fragments = [];
+        const meshes = this._fragments.meshes;
+        const result = this._components.raycaster.castRay(meshes);
+        if (!result) {
+            this.clear(name);
+            return null;
+        }
+        const mesh = result.object;
+        const geometry = mesh.geometry;
+        const index = (_a = result.face) === null || _a === void 0 ? void 0 : _a.a;
+        const instanceID = result.instanceId;
+        if (!geometry || index === undefined || instanceID === undefined) {
+            return null;
+        }
+        if (removePrevious) {
+            this.clear(name);
+        }
+        if (!this.selection[name][mesh.uuid]) {
+            this.selection[name][mesh.uuid] = new Set();
+        }
+        fragments.push(mesh.fragment);
+        const blockID = mesh.fragment.getVertexBlockID(geometry, index);
+        const itemID = mesh.fragment
+            .getItemID(instanceID, blockID)
+            .replace(/\..*/, "");
+        const idNum = parseInt(itemID, 10);
+        this.selection[name][mesh.uuid].add(itemID);
+        this.addComposites(mesh, idNum, name);
+        this.regenerate(name, mesh.uuid);
+        const group = mesh.fragment.group;
+        if (group) {
+            const keys = group.data[idNum][0];
+            for (let i = 0; i < keys.length; i++) {
+                const fragKey = keys[i];
+                const fragID = group.keyFragments[fragKey];
+                const fragment = this._fragments.list[fragID];
+                fragments.push(fragment);
+                if (!this.selection[name][fragID]) {
+                    this.selection[name][fragID] = new Set();
+                }
+                this.selection[name][fragID].add(itemID);
+                this.addComposites(fragment.mesh, idNum, name);
+                this.regenerate(name, fragID);
+            }
+        }
+        if (zoomToSelection) {
+            this.zoomSelection(name);
+        }
+        return { id: itemID, fragments };
+    }
+    highlightByID(name, ids, removePrevious = true, zoomToSelection = this.zoomToSelection) {
+        if (!this.enabled)
+            return;
+        if (removePrevious) {
+            this.clear(name);
+        }
+        const styles = this.selection[name];
+        for (const fragID in ids) {
+            if (!styles[fragID]) {
+                styles[fragID] = new Set();
+            }
+            const fragment = this._fragments.list[fragID];
+            const idsNum = new Set();
+            for (const id of ids[fragID]) {
+                styles[fragID].add(id);
+                idsNum.add(parseInt(id, 10));
+            }
+            for (const id of idsNum) {
+                this.addComposites(fragment.mesh, id, name);
+            }
+            this.regenerate(name, fragID);
+        }
+        if (zoomToSelection) {
+            this.zoomSelection(name);
+        }
+    }
+    /**
+     * Clears any selection previously made by calling {@link highlight}.
+     */
+    clear(name) {
+        this.clearFills(name);
+        if (!name || !this.excludeOutline.has(name)) {
+            this.clearOutlines();
+        }
+    }
+    setup() {
+        this.enabled = true;
+        this.outlineMaterial.color.set(0xf0ff7a);
+        const selectName = "select";
+        const hoverName = "hover";
+        this.excludeOutline.add(hoverName);
+        const selectionMaterial = new THREE$1.MeshBasicMaterial({
+            color: "#BCF124",
+            transparent: true,
+            opacity: 0.85,
+            depthTest: true,
+        });
+        const highlightMaterial = new THREE$1.MeshBasicMaterial({
+            color: "#6528D7",
+            transparent: true,
+            opacity: 0.2,
+            depthTest: true,
+        });
+        this.add(selectName, [selectionMaterial]);
+        this.add(hoverName, [highlightMaterial]);
+        let mouseDown = false;
+        let mouseMoved = false;
+        const container = this._components.renderer.get().domElement;
+        container.addEventListener("mousedown", () => {
+            mouseDown = true;
+        });
+        container.addEventListener("mouseup", (e) => {
+            if (e.target !== this._components.renderer.get().domElement)
+                return;
+            mouseDown = false;
+            if (mouseMoved || e.button !== 0) {
+                mouseMoved = false;
+                return;
+            }
+            mouseMoved = false;
+            const mult = this.multiple === "none" ? true : !e[this.multiple];
+            this.highlight(selectName, mult, this.zoomToSelection);
+        });
+        container.addEventListener("mousemove", () => {
+            if (mouseMoved) {
+                this.clearFills(hoverName);
+                return;
+            }
+            mouseMoved = true;
+            if (!mouseDown) {
+                mouseMoved = false;
+            }
+            this.highlight(hoverName);
+        });
+    }
+    regenerate(name, fragID) {
+        if (this._fillEnabled) {
+            this.updateFragmentFill(name, fragID);
+        }
+        if (this._outlineEnabled) {
+            this.updateFragmentOutline(name, fragID);
+        }
+    }
+    zoomSelection(name) {
+        this._bbox.reset();
+        const higlight = this.selection[name];
+        if (!Object.keys(higlight).length) {
+            return;
+        }
+        for (const fragID in higlight) {
+            const fragment = this._fragments.list[fragID];
+            const highlight = fragment.fragments[name];
+            if (highlight) {
+                this._bbox.addFragment(highlight);
+            }
+        }
+        const sphere = this._bbox.getSphere();
+        sphere.radius *= this.zoomFactor;
+        const camera = this._components.camera;
+        camera.controls.fitToSphere(sphere, true);
+    }
+    addComposites(mesh, itemID, name) {
+        const composites = mesh.fragment.composites[itemID];
+        if (composites) {
+            for (let i = 1; i < composites; i++) {
+                const compositeID = toCompositeID(itemID, i);
+                this.selection[name][mesh.uuid].add(compositeID);
+            }
+        }
+    }
+    clearStyle(name) {
+        for (const fragID in this.selection[name]) {
+            const fragment = this._fragments.list[fragID];
+            if (!fragment)
+                continue;
+            const selection = fragment.fragments[name];
+            if (selection) {
+                selection.mesh.removeFromParent();
+            }
+        }
+        this.events[name].onClear.trigger(null);
+        this.selection[name] = {};
+    }
+    updateFragmentFill(name, fragmentID) {
+        const ids = this.selection[name][fragmentID];
+        const fragment = this._fragments.list[fragmentID];
+        if (!fragment)
+            return;
+        const selection = fragment.fragments[name];
+        if (!selection)
+            return;
+        // #region Old child/parent code
+        // const scene = this._components.scene.get();
+        // scene.add(selection.mesh); //If we add selection.mesh directly to the scene, it won't be coordinated unless we do so manually.
+        // #endregion
+        // #region New child/parent code
+        const fragmentParent = fragment.mesh.parent;
+        if (!fragmentParent)
+            return;
+        fragmentParent.add(selection.mesh);
+        // #endregion
+        const isBlockFragment = selection.blocks.count > 1;
+        if (isBlockFragment) {
+            const blockIDs = [];
+            for (const id of ids) {
+                const { blockID } = fragment.getInstanceAndBlockID(id);
+                if (fragment.blocks.visibleIds.has(blockID)) {
+                    blockIDs.push(blockID);
+                }
+            }
+            fragment.getInstance(0, this._tempMatrix);
+            selection.setInstance(0, {
+                ids: Array.from(ids),
+                transform: this._tempMatrix,
+            });
+            selection.blocks.add(blockIDs, true);
+        }
+        else {
+            let i = 0;
+            for (const id of ids) {
+                selection.mesh.count = i + 1;
+                const { instanceID } = fragment.getInstanceAndBlockID(id);
+                fragment.getInstance(instanceID, this._tempMatrix);
+                selection.setInstance(i, { ids: [id], transform: this._tempMatrix });
+                i++;
+            }
+        }
+        this.events[name].onHighlight.trigger(this.selection[name]);
+    }
+    checkSelection(name) {
+        if (!this.selection[name]) {
+            throw new Error(`Selection ${name} does not exist.`);
+        }
+    }
+    addHighlightToFragment(fragment) {
+        for (const name in this.highlightMats) {
+            if (!fragment.fragments[name]) {
+                const material = this.highlightMats[name];
+                const subFragment = fragment.addFragment(name, material);
+                subFragment.mesh.renderOrder = 2;
+                subFragment.mesh.frustumCulled = false;
+            }
+        }
+    }
+    clearFills(name) {
+        const names = name ? [name] : Object.keys(this.selection);
+        for (const name of names) {
+            this.clearStyle(name);
+        }
+    }
+    clearOutlines() {
+        const effects = this._postproduction.customEffects;
+        const fragmentsOutline = effects.outlinedMeshes.fragments;
+        if (fragmentsOutline) {
+            fragmentsOutline.meshes.clear();
+        }
+        for (const fragID in this._outlinedMeshes) {
+            const fragment = this._fragments.list[fragID];
+            const isBlockFragment = fragment.blocks.count > 1;
+            const mesh = this._outlinedMeshes[fragID];
+            if (isBlockFragment) {
+                mesh.geometry.setIndex([]);
+            }
+            else {
+                mesh.count = 0;
+            }
+        }
+    }
+    updateFragmentOutline(name, fragmentID) {
+        if (!this.selection[name][fragmentID]) {
+            return;
+        }
+        if (this.excludeOutline.has(name)) {
+            return;
+        }
+        const ids = this.selection[name][fragmentID];
+        const fragment = this._fragments.list[fragmentID];
+        if (!fragment)
+            return;
+        const geometry = fragment.mesh.geometry;
+        const customEffects = this._postproduction.customEffects;
+        if (!customEffects.outlinedMeshes.fragments) {
+            customEffects.outlinedMeshes.fragments = {
+                meshes: new Set(),
+                material: this.outlineMaterial,
+            };
+        }
+        const outlineEffect = customEffects.outlinedMeshes.fragments;
+        // Create a copy of the original fragment mesh for outline
+        if (!this._outlinedMeshes[fragmentID]) {
+            const newGeometry = new THREE$1.BufferGeometry();
+            newGeometry.attributes = geometry.attributes;
+            const newMesh = new THREE$1.InstancedMesh(newGeometry, this._invisibleMaterial, fragment.capacity);
+            newMesh.frustumCulled = false;
+            newMesh.renderOrder = 999;
+            this._outlinedMeshes[fragmentID] = newMesh;
+            const scene = this._components.scene.get();
+            scene.add(newMesh);
+        }
+        const outlineMesh = this._outlinedMeshes[fragmentID];
+        outlineEffect.meshes.add(outlineMesh);
+        const isBlockFragment = fragment.blocks.count > 1;
+        if (isBlockFragment) {
+            const indices = fragment.mesh.geometry.index.array;
+            const newIndex = [];
+            const idsSet = new Set(ids);
+            for (let i = 0; i < indices.length - 2; i += 3) {
+                const index = indices[i];
+                const blockID = fragment.mesh.geometry.attributes.blockID.array;
+                const block = blockID[index];
+                const itemID = fragment.mesh.fragment.getItemID(0, block);
+                if (idsSet.has(itemID)) {
+                    newIndex.push(indices[i], indices[i + 1], indices[i + 2]);
+                }
+            }
+            outlineMesh.geometry.setIndex(newIndex);
+        }
+        else {
+            let counter = 0;
+            for (const id of ids) {
+                const { instanceID } = fragment.getInstanceAndBlockID(id);
+                fragment.mesh.getMatrixAt(instanceID, this._tempMatrix);
+                outlineMesh.setMatrixAt(counter++, this._tempMatrix);
+            }
+            outlineMesh.count = counter;
+            outlineMesh.instanceMatrix.needsUpdate = true;
+        }
+    }
+}
+
+class FragmentTreeItem extends Component {
+    get children() {
+        return this._children;
+    }
+    set children(children) {
+        this._children = children;
+        children.forEach((child) => this.uiElement.tree.addChild(child.uiElement.tree));
+    }
+    constructor(components, classifier, content) {
+        super();
+        this.name = "FragmentTreeItem";
+        this.enabled = true;
+        this.filter = {};
+        this.selected = new Event();
+        this.hovered = new Event();
+        this._children = [];
+        this.components = components;
+        this.uiElement = {
+            main: new Button(components),
+            tree: new TreeView(components, content),
+        };
+        this.uiElement.tree.onclick = () => {
+            const found = classifier.find(this.filter);
+            this.selected.trigger(found);
+        };
+        this.uiElement.tree.get().onmouseenter = () => {
+            const found = classifier.find(this.filter);
+            this.hovered.trigger(found);
+        };
+    }
+    dispose() {
+        this.uiElement.tree.dispose();
+        this.selected.reset();
+        this.hovered.reset();
+        for (const child of this.children) {
+            child.dispose();
+        }
+    }
+    get() {
+        return { name: this.name, filter: this.filter, children: this.children };
+    }
+}
+
+class FragmentTree extends Component {
+    get uiElement() {
+        return this._tree.uiElement;
+    }
+    constructor(components, classifier) {
+        super();
+        this.name = "FragmentTree";
+        this.title = "Model Tree";
+        this.enabled = true;
+        this.selected = new Event();
+        this.hovered = new Event();
+        this._components = components;
+        this._classifier = classifier;
+        this._tree = new FragmentTreeItem(this._components, classifier, this.title);
+    }
+    get() {
+        return this._tree;
+    }
+    update(groupSystems) {
+        if (this._tree.children.length) {
+            this._tree.dispose();
+            this._tree = new FragmentTreeItem(this._components, this._classifier, this.title);
+        }
+        this._tree.children = this.regenerate(groupSystems);
+        return this.get();
+    }
+    regenerate(groupSystemNames, result = {}) {
+        const groups = [];
+        const currentSystemName = groupSystemNames[0]; // storeys
+        const systems = this._classifier.get();
+        const systemGroups = systems[currentSystemName];
+        if (!currentSystemName || !systemGroups) {
+            return groups;
+        }
+        for (const name in systemGroups) {
+            // name is N00, N01, N02...
+            // { storeys: "N00" }, { storeys: "N01" }...
+            const filter = { ...result, [currentSystemName]: [name] };
+            const found = this._classifier.find(filter);
+            const hasElements = Object.keys(found).length > 0;
+            if (hasElements) {
+                const firstLetter = currentSystemName[0].toUpperCase();
+                const treeItemName = firstLetter + currentSystemName.slice(1); // Storeys
+                const treeItem = new FragmentTreeItem(this._components, this._classifier, `${treeItemName}: ${name}`);
+                treeItem.hovered.on((result) => this.hovered.trigger(result));
+                treeItem.selected.on((result) => this.selected.trigger(result));
+                treeItem.filter = filter;
+                groups.push(treeItem);
+                treeItem.children = this.regenerate(groupSystemNames.slice(1), filter);
+            }
+        }
+        return groups;
+    }
+}
+
+class FragmentClassifier extends Component {
+    constructor(fragmentManager) {
+        super();
+        /** {@link Component.name} */
+        this.name = "FragmentClassifier";
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        this._groupSystems = {};
+        this._fragments = fragmentManager;
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._groupSystems;
+    }
+    dispose() {
+        this._groupSystems = {};
+    }
+    remove(guid) {
+        for (const systemName in this._groupSystems) {
+            const system = this._groupSystems[systemName];
+            for (const groupName in system) {
+                const group = system[groupName];
+                delete group[guid];
+            }
+        }
+    }
+    find(filter) {
+        if (!filter) {
+            const result = {};
+            const fragments = this._fragments.list;
+            for (const id in fragments) {
+                const fragment = fragments[id];
+                const items = fragment.items;
+                const hidden = Object.keys(fragment.hiddenInstances);
+                result[id] = [...items, ...hidden];
+            }
+            return result;
+        }
+        const size = Object.keys(filter).length;
+        const models = {};
+        for (const name in filter) {
+            const values = filter[name];
+            if (!this._groupSystems[name]) {
+                console.warn(`Classification ${name} does not exist.`);
+                continue;
+            }
+            for (const value of values) {
+                const found = this._groupSystems[name][value];
+                if (found) {
+                    for (const guid in found) {
+                        if (!models[guid]) {
+                            models[guid] = {};
+                        }
+                        for (const id of found[guid]) {
+                            if (!models[guid][id]) {
+                                models[guid][id] = 1;
+                            }
+                            else {
+                                models[guid][id]++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        const result = {};
+        for (const guid in models) {
+            const model = models[guid];
+            for (const id in model) {
+                const numberOfMatches = model[id];
+                if (numberOfMatches === size) {
+                    if (!result[guid]) {
+                        result[guid] = [];
+                    }
+                    result[guid].push(id);
+                    const fragment = this._fragments.list[guid];
+                    const composites = fragment.composites[id];
+                    if (composites) {
+                        const idNum = parseInt(id, 10);
+                        for (let i = 1; i < composites; i++) {
+                            const compositeID = toCompositeID(idNum, i);
+                            result[guid].push(compositeID);
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+    byModel(modelID, group) {
+        if (!this._groupSystems.model) {
+            this._groupSystems.model = {};
+        }
+        const modelsClassification = this._groupSystems.model;
+        if (!modelsClassification[modelID]) {
+            modelsClassification[modelID] = {};
+        }
+        const currentModel = modelsClassification[modelID];
+        for (const expressID in group.data) {
+            const keys = group.data[expressID][0];
+            for (const key of keys) {
+                const fragID = group.keyFragments[key];
+                if (!currentModel[fragID]) {
+                    currentModel[fragID] = new Set();
+                }
+                currentModel[fragID].add(expressID);
+            }
+        }
+    }
+    byPredefinedType(group) {
+        var _a;
+        if (!group.properties) {
+            throw new Error("To group by predefined type, properties are needed");
+        }
+        if (!this._groupSystems.predefinedTypes) {
+            this._groupSystems.predefinedTypes = {};
+        }
+        const currentTypes = this._groupSystems.predefinedTypes;
+        for (const expressID in group.data) {
+            const entity = group.properties[expressID];
+            if (!entity)
+                continue;
+            const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
+            if (!currentTypes[predefinedType]) {
+                currentTypes[predefinedType] = {};
+            }
+            const currentType = currentTypes[predefinedType];
+            for (const expressID in group.data) {
+                const keys = group.data[expressID][0];
+                for (const key of keys) {
+                    const fragmentID = group.keyFragments[key];
+                    if (!currentType[fragmentID]) {
+                        currentType[fragmentID] = new Set();
+                    }
+                    const currentFragment = currentType[fragmentID];
+                    currentFragment.add(entity.expressID);
+                }
+            }
+        }
+    }
+    byEntity(group) {
+        if (!this._groupSystems.entities) {
+            this._groupSystems.entities = {};
+        }
+        for (const expressID in group.data) {
+            const rels = group.data[expressID][1];
+            const type = rels[1];
+            const entity = IfcCategoryMap[type];
+            this.saveItem(group, "entities", entity, expressID);
+        }
+    }
+    byStorey(group) {
+        if (!group.properties) {
+            throw new Error("To group by storey, properties are needed");
+        }
+        for (const expressID in group.data) {
+            const rels = group.data[expressID][1];
+            const storeyID = rels[0];
+            const storey = group.properties[storeyID];
+            if (storey === undefined)
+                continue;
+            const storeyName = group.properties[storeyID].Name.value;
+            this.saveItem(group, "storeys", storeyName, expressID);
+        }
+    }
+    byIfcRel(group, ifcRel, systemName) {
+        const properties = group.properties;
+        if (!properties)
+            throw new Error("To group by IFC Rel, properties are needed");
+        if (!IfcPropertiesUtils.isRel(ifcRel))
+            return;
+        IfcPropertiesUtils.getRelationMap(properties, ifcRel, (relatingID, relatedIDs) => {
+            const { name: relatingName } = IfcPropertiesUtils.getEntityName(properties, relatingID);
+            for (const expressID of relatedIDs) {
+                this.saveItem(group, systemName, relatingName !== null && relatingName !== void 0 ? relatingName : "NO REL NAME", String(expressID));
+            }
+        });
+    }
+    saveItem(group, systemName, className, expressID) {
+        if (!this._groupSystems[systemName]) {
+            this._groupSystems[systemName] = {};
+        }
+        const keys = group.data[expressID];
+        if (!keys)
+            return;
+        for (const key of keys[0]) {
+            const fragmentID = group.keyFragments[key];
+            if (fragmentID) {
+                const system = this._groupSystems[systemName];
+                if (!system[className]) {
+                    system[className] = {};
+                }
+                if (!system[className][fragmentID]) {
+                    system[className][fragmentID] = new Set();
+                }
+                system[className][fragmentID].add(expressID);
+            }
+        }
+    }
+}
+
+class FragmentHider extends Component {
+    constructor(components, fragments, culler) {
+        super();
+        this.name = "FragmentHider";
+        this.enabled = true;
+        this._localStorageID = "FragmentHiderCache";
+        this._updateVisibilityOnFound = true;
+        this._filterCards = {};
+        this._components = components;
+        this._fragments = fragments;
+        this._culler = culler;
+        const mainWindow = new FloatingWindow(components);
+        mainWindow.title = "Filters";
+        mainWindow.visible = false;
+        components.ui.add(mainWindow);
+        mainWindow.domElement.style.width = "530px";
+        mainWindow.domElement.style.height = "400px";
+        const mainButton = new Button(components, {
+            materialIconName: "filter_alt",
+            tooltip: "Visibility filters",
+        });
+        mainButton.onclick = () => {
+            this.hideAllFinders();
+            mainWindow.visible = !mainWindow.visible;
+        };
+        const topButtonContainerHtml = `<div class="flex"></div>`;
+        const topButtonContainer = new SimpleUIComponent(components, topButtonContainerHtml);
+        const createButton = new Button(components, {
+            materialIconName: "add",
+        });
+        createButton.onclick = () => this.createStyleCard();
+        topButtonContainer.addChild(createButton);
+        mainWindow.addChild(topButtonContainer);
+        this.uiElement = { window: mainWindow, main: mainButton };
+        this.loadCached();
+    }
+    dispose() {
+        this._fragments = null;
+        this._culler = null;
+    }
+    set(visible, items) {
+        if (!items) {
+            for (const id in this._fragments.list) {
+                const fragment = this._fragments.list[id];
+                if (fragment) {
+                    fragment.setVisibility(visible);
+                    this.updateCulledVisibility(fragment);
+                }
+            }
+            return;
+        }
+        for (const fragID in items) {
+            const ids = items[fragID];
+            const fragment = this._fragments.list[fragID];
+            fragment.setVisibility(visible, ids);
+            this.updateCulledVisibility(fragment);
+        }
+    }
+    isolate(items) {
+        this.set(false);
+        this.set(true, items);
+    }
+    get() { }
+    updateCulledVisibility(fragment) {
+        if (this._culler) {
+            const culled = this._culler.colorMeshes.get(fragment.id);
+            if (culled) {
+                culled.count = fragment.mesh.count;
+            }
+        }
+    }
+    createStyleCard(config) {
+        const filterCard = new SimpleUIComponent(this._components);
+        if (config && config.id.length) {
+            filterCard.id = config.id;
+        }
+        const { id } = filterCard;
+        filterCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col`;
+        filterCard.domElement.innerHTML = `
+        <div id="top-container-${id}" class="flex">
+        </div>
+        <div id="bottom-container-${id}" class="flex gap-4 items-center">
+        </div>
+    `;
+        const deleteButton = new Button(this._components, {
+            materialIconName: "close",
+        });
+        deleteButton.domElement.classList.add("self-end");
+        deleteButton.onclick = () => this.deleteStyleCard(id);
+        const topContainer = filterCard.getInnerElement("top-container");
+        if (topContainer) {
+            topContainer.appendChild(deleteButton.domElement);
+        }
+        const bottomContainer = filterCard.getInnerElement("bottom-container");
+        if (!bottomContainer) {
+            throw new Error("Error creating UI elements!");
+        }
+        const name = new TextInput(this._components);
+        name.label = "Name";
+        name.domElement.addEventListener("focusout", () => {
+            this.cache();
+        });
+        if (config) {
+            name.value = config.name;
+        }
+        bottomContainer.append(name.domElement);
+        const visible = new CheckboxInput(this._components);
+        visible.value = config ? config.visible : true;
+        visible.label = "Visible";
+        visible.onChange.on(() => this.update());
+        const enabled = new CheckboxInput(this._components);
+        enabled.value = config ? config.enabled : true;
+        enabled.label = "Enabled";
+        enabled.onChange.on(() => this.update());
+        const checkBoxContainer = new SimpleUIComponent(this._components);
+        checkBoxContainer.domElement.classList.remove("w-full");
+        checkBoxContainer.addChild(visible);
+        checkBoxContainer.addChild(enabled);
+        bottomContainer.append(checkBoxContainer.domElement);
+        const finder = new IfcPropertiesFinder(this._components, this._fragments);
+        finder.loadCached(id);
+        finder.uiElement.query.findButton.label = "Apply";
+        bottomContainer.append(finder.uiElement.main.domElement);
+        const window = finder.uiElement.queryWindow;
+        window.onVisible.on(() => {
+            this.hideAllFinders(window.id);
+            const rect = finder.uiElement.main.domElement.getBoundingClientRect();
+            window.domElement.style.left = `${rect.x + 90}px`;
+            window.domElement.style.top = `${rect.y - 120}px`;
+        });
+        finder.onFound.on((data) => {
+            const { queryWindow, main } = finder.uiElement;
+            queryWindow.visible = false;
+            main.active = false;
+            finder.uiElement.main.active = false;
+            this._filterCards[id].fragments = data;
+            this.cache();
+            if (this._updateVisibilityOnFound) {
+                this.update();
+            }
+        });
+        const fragments = {};
+        this._filterCards[id] = {
+            styleCard: filterCard,
+            fragments,
+            name,
+            finder,
+            deleteButton,
+            visible,
+            enabled,
+        };
+        this.uiElement.window.addChild(filterCard);
+        // this.cacheStyles();
+    }
+    update() {
+        this.set(true);
+        for (const id in this._filterCards) {
+            const { enabled, visible, fragments } = this._filterCards[id];
+            if (enabled.value) {
+                this.set(visible.value, fragments);
+            }
+        }
+        this.cache();
+    }
+    deleteStyleCard(id) {
+        const found = this._filterCards[id];
+        if (found) {
+            found.styleCard.dispose();
+            found.deleteButton.dispose();
+            found.name.dispose();
+            found.finder.deleteCache();
+            found.finder.dispose();
+            found.visible.dispose();
+            found.enabled.dispose();
+        }
+        delete this._filterCards[id];
+        this.update();
+    }
+    hideAllFinders(excludeID) {
+        for (const id in this._filterCards) {
+            const { finder } = this._filterCards[id];
+            const window = finder.uiElement.queryWindow;
+            if (window.id === excludeID) {
+                continue;
+            }
+            if (finder.uiElement.queryWindow.visible) {
+                finder.uiElement.main.domElement.click();
+            }
+        }
+    }
+    loadCached() {
+        const serialized = localStorage.getItem(this._localStorageID);
+        if (!serialized)
+            return;
+        const filters = JSON.parse(serialized);
+        for (const filter of filters) {
+            this.createStyleCard(filter);
+        }
+        this.updateAllQueries();
+    }
+    cache() {
+        const filters = [];
+        for (const id in this._filterCards) {
+            const styleCard = this._filterCards[id];
+            const { visible, enabled, name } = styleCard;
+            filters.push({
+                visible: visible.value,
+                enabled: enabled.value,
+                name: name.value,
+                id,
+            });
+        }
+        const serialized = JSON.stringify(filters);
+        localStorage.setItem(this._localStorageID, serialized);
+    }
+    updateAllQueries() {
+        this._updateVisibilityOnFound = false;
+        for (const id in this._filterCards) {
+            const { finder } = this._filterCards[id];
+            finder.find();
+        }
+        this._updateVisibilityOnFound = true;
+        this.update();
+    }
+}
+
+// TODO: Clean up
+class FragmentCacher extends LocalCacher {
+    get fragmentsIDs() {
+        const allIDs = this.ids;
+        const fragIDs = allIDs.filter((id) => id.includes("-fragments"));
+        if (!fragIDs.length)
+            return fragIDs;
+        return fragIDs.map((id) => id.replace("-fragments", ""));
+    }
+    constructor(components, fragments) {
+        super(components);
+        this._mode = "none";
+        this._fragments = fragments;
+        this.uiElement.saveButton.onclick = () => {
+            this.floatingMenu.title = "Save items";
+            if (this.floatingMenu.visible && this._mode === "save") {
+                this.floatingMenu.visible = false;
+                return;
+            }
+            this._mode = "save";
+            for (const card of this._cards) {
+                card.dispose();
+            }
+            this._cards = [];
+            const savedIDs = this.fragmentsIDs;
+            const ids = this._fragments.groups.map((group) => group.uuid);
+            for (const id of ids) {
+                if (savedIDs.includes(id))
+                    continue;
+                const card = new SimpleUICard(this._components, id);
+                card.title = id;
+                this._cards.push(card);
+                this.floatingMenu.addChild(card);
+                const saveCardButton = new Button(this._components, {
+                    materialIconName: "save",
+                });
+                card.addChild(saveCardButton);
+                saveCardButton.onclick = async () => {
+                    const group = this._fragments.groups.find((group) => group.uuid === id);
+                    if (group) {
+                        await this.saveFragmentGroup(group);
+                        const index = this._cards.indexOf(card);
+                        this._cards.splice(index, 1);
+                        card.dispose();
+                        this.itemSaved.trigger({ id });
+                    }
+                };
+            }
+            this.floatingMenu.visible = true;
+        };
+        this.uiElement.loadButton.onclick = () => {
+            this.floatingMenu.title = "Load saved items";
+            if (this.floatingMenu.visible && this._mode === "load") {
+                this.floatingMenu.visible = false;
+                return;
+            }
+            this._mode = "load";
+            const allIDs = this.fragmentsIDs;
+            for (const card of this._cards) {
+                card.dispose();
+            }
+            this._cards = [];
+            for (const id of allIDs) {
+                const card = new SimpleUICard(this._components, id);
+                card.title = id;
+                this._cards.push(card);
+                const deleteCardButton = new Button(this._components, {
+                    materialIconName: "delete",
+                });
+                card.addChild(deleteCardButton);
+                deleteCardButton.onclick = async () => {
+                    const ids = Object.values(this.getIDs(id));
+                    await this.delete(ids);
+                    const index = this._cards.indexOf(card);
+                    this._cards.splice(index, 1);
+                    card.dispose();
+                };
+                const loadFileButton = new Button(this._components, {
+                    materialIconName: "download",
+                });
+                card.addChild(loadFileButton);
+                loadFileButton.onclick = async () => {
+                    await this.getFragmentGroup(id);
+                    this.fileLoaded.trigger({ id });
+                };
+                this.floatingMenu.addChild(card);
+            }
+            this.floatingMenu.visible = true;
+        };
+    }
+    async getFragmentGroup(id) {
+        const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
+        if (!fragmentsCacheID || !propertiesCacheID) {
+            return null;
+        }
+        const fragmentFile = await this.get(fragmentsCacheID);
+        if (fragmentFile === null) {
+            throw new Error("Loading error");
+        }
+        const fragmentsData = await fragmentFile.arrayBuffer();
+        const buffer = new Uint8Array(fragmentsData);
+        const group = this._fragments.load(buffer);
+        const propertiesFile = await this.get(propertiesCacheID);
+        if (propertiesFile !== null) {
+            const propertiesData = await propertiesFile.text();
+            group.properties = JSON.parse(propertiesData);
+        }
+        this._components.scene.get().add(group);
+        return group;
+    }
+    async saveFragmentGroup(group, id = group.uuid) {
+        const fragments = new FragmentManager(this._components);
+        const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
+        const exported = fragments.export(group);
+        const fragmentsFile = new File([new Blob([exported])], fragmentsCacheID);
+        const fragmentsUrl = URL.createObjectURL(fragmentsFile);
+        await this.save(fragmentsCacheID, fragmentsUrl);
+        if (group.properties) {
+            const json = JSON.stringify(group.properties);
+            const jsonFile = new File([new Blob([json])], propertiesCacheID);
+            const propertiesUrl = URL.createObjectURL(jsonFile);
+            await this.save(propertiesCacheID, propertiesUrl);
+        }
+    }
+    dispose() {
+        super.dispose();
+        this._fragments = null;
+    }
+    getIDs(id) {
+        return {
+            fragmentsCacheID: `${id}-fragments`,
+            propertiesCacheID: `${id}-properties`,
+        };
+    }
+}
+
+class FragmentCoordinator extends Component {
+    constructor(components) {
+        super();
+        this.name = "FragmentCoordinator";
+        this.enabled = true;
+        this._baseCoordinationMatrix = new THREE$1.Matrix4();
+        this._fragments = [];
+        this._coordinations = 0;
+        this._components = components;
+    }
+    coordinateFragments(list, originalMatrix) {
+        this._fragments.push({
+            list,
+            coordinationMatrix: originalMatrix,
+        });
+        if (this._coordinations === 0) {
+            this._baseCoordinationMatrix.copy(originalMatrix);
+        }
+        else {
+            list.forEach((fragment) => {
+                fragment.mesh.applyMatrix4(originalMatrix.clone().invert()); // Translates back the model to its original world position.
+                fragment.mesh.applyMatrix4(this._baseCoordinationMatrix); // Translates the model to be relative positioned to the first one loaded.
+            });
+        }
+        this._coordinations++;
+    }
+    /**
+     * @description Applies the base transformation matrix to a vector. This method doesn't modify the provided vector.
+     * @param vector Vector3 to be coordinated by the base transformation matrix.
+     * @returns A coordinated copy of the given vector.
+     */
+    coordinateVector(vector) {
+        return vector.clone().applyMatrix4(this._baseCoordinationMatrix);
+    }
+    get() {
+        return {
+            fragments: this._fragments,
+            baseCoordinationMatrix: this._baseCoordinationMatrix,
+        };
+    }
+}
+
+// TODO: Clean up and document
+class FragmentExploder extends Component {
+    get() {
+        return this._explodedFragments;
+    }
+    constructor(fragments, groups) {
+        super();
+        this.fragments = fragments;
+        this.groups = groups;
+        this.name = "FragmentExploder";
+        this.height = 10;
+        this.groupName = "storeys";
+        this.enabled = false;
+        this._explodedFragments = new Set();
+    }
+    dispose() {
+        this._explodedFragments.clear();
+        this.fragments = null;
+        this.groups = null;
+    }
+    explode() {
+        this.enabled = true;
+        this.update();
+    }
+    reset() {
+        this.enabled = false;
+        this.update();
+    }
+    update() {
+        const factor = this.enabled ? 1 : -1;
+        let i = 0;
+        const systems = this.groups.get();
+        const groups = systems[this.groupName];
+        const mergedIDHeightMap = {};
+        const yTransform = new THREE$1.Matrix4();
+        for (const groupName in groups) {
+            yTransform.elements[13] = i * factor * this.height;
+            for (const fragID in groups[groupName]) {
+                const fragment = this.fragments.list[fragID];
+                const customID = groupName + fragID;
+                if (!fragment) {
+                    continue;
+                }
+                if (this.enabled && this._explodedFragments.has(customID)) {
+                    continue;
+                }
+                if (!this.enabled && !this._explodedFragments.has(customID)) {
+                    continue;
+                }
+                if (this.enabled) {
+                    this._explodedFragments.add(customID);
+                }
+                else {
+                    this._explodedFragments.delete(customID);
+                }
+                if (fragment.blocks.count === 1) {
+                    // For instanced fragments
+                    const ids = groups[groupName][fragID];
+                    for (const id of ids) {
+                        const tempMatrix = new THREE$1.Matrix4();
+                        const { instanceID } = fragment.getInstanceAndBlockID(id);
+                        fragment.getInstance(instanceID, tempMatrix);
+                        tempMatrix.premultiply(yTransform);
+                        fragment.mesh.setMatrixAt(instanceID, tempMatrix);
+                        const composites = fragment.composites[id];
+                        if (composites) {
+                            for (let i = 1; i < composites; i++) {
+                                const idNum = parseInt(id, 10);
+                                const compID = toCompositeID(idNum, i);
+                                const { instanceID } = fragment.getInstanceAndBlockID(compID);
+                                fragment.getInstance(instanceID, tempMatrix);
+                                tempMatrix.premultiply(yTransform);
+                                fragment.mesh.setMatrixAt(instanceID, tempMatrix);
+                            }
+                        }
+                    }
+                    fragment.mesh.instanceMatrix.needsUpdate = true;
+                }
+                else {
+                    if (!mergedIDHeightMap[fragID]) {
+                        mergedIDHeightMap[fragID] = {};
+                    }
+                    const ids = groups[groupName][fragID];
+                    for (const id of ids) {
+                        mergedIDHeightMap[fragID][id] = i * factor * this.height;
+                    }
+                }
+            }
+            i++;
+        }
+        const v = new THREE$1.Vector3();
+        // Update merged fragments
+        for (const fragID in mergedIDHeightMap) {
+            const heights = mergedIDHeightMap[fragID];
+            const fragment = this.fragments.list[fragID];
+            const geometry = fragment.mesh.geometry;
+            const position = geometry.attributes.position;
+            for (let i = 0; i < geometry.index.count; i++) {
+                const index = geometry.index.array[i];
+                const blockID = geometry.attributes.blockID.array[index];
+                const id = fragment.getItemID(0, blockID);
+                const height = heights[id];
+                if (height === undefined)
+                    continue;
+                yTransform.elements[13] = height;
+                const x = position.array[index * 3];
+                const y = position.array[index * 3 + 1];
+                const z = position.array[index * 3 + 2];
+                v.set(x, y, z);
+                v.applyMatrix4(yTransform);
+                position.setXYZ(index, v.x, v.y, v.z);
+            }
+            position.needsUpdate = true;
         }
     }
 }
@@ -103602,195 +103710,6 @@ class FragmentPlans extends Component {
         const parentRef = placementRef.PlacementRelTo;
         if (parentRef && parentRef.value !== null) {
             this.getAbsoluteFloorHeight(parentRef.value, properties, height);
-        }
-    }
-}
-
-// TODO: Clean up and document
-// TODO: Deduplicate logic with highlighter
-class FragmentOutliner extends Component {
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(state) {
-        this._enabled = state;
-        delete this._renderer.postproduction.customEffects.outlinedMeshes.fragments;
-    }
-    constructor(components, fragments, renderer) {
-        super();
-        this.name = "FragmentOutliner";
-        this._enabled = true;
-        this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
-        this._selection = {};
-        this._outlinedMeshes = {};
-        this.outlineMaterial = new THREE$1.MeshBasicMaterial({
-            color: "white",
-            transparent: true,
-            depthTest: false,
-            depthWrite: false,
-        });
-        this._tempMatrix = new THREE$1.Matrix4();
-        this._components = components;
-        this._fragments = fragments;
-        this._renderer = renderer;
-        this.enabled = true;
-    }
-    get() {
-        return this._selection;
-    }
-    dispose() {
-        this._selection = {};
-        for (const id in this._outlinedMeshes) {
-            const mesh = this._outlinedMeshes[id];
-            mesh.geometry.dispose();
-        }
-        this._invisibleMaterial.dispose();
-        this._fragments = null;
-        this._components = null;
-        this._renderer = null;
-    }
-    outline(removePrevious = true) {
-        var _a;
-        if (!this.enabled)
-            return null;
-        const fragments = [];
-        const meshes = this._fragments.meshes;
-        const result = this._components.raycaster.castRay(meshes);
-        if (!result) {
-            this.clear();
-            return null;
-        }
-        const mesh = result.object;
-        const geometry = mesh.geometry;
-        const index = (_a = result.face) === null || _a === void 0 ? void 0 : _a.a;
-        const instanceID = result.instanceId;
-        if (!geometry || index === undefined || instanceID === undefined) {
-            this.clear();
-            return null;
-        }
-        if (removePrevious) {
-            this._selection = {};
-            this.clear();
-        }
-        if (!this._selection[mesh.uuid]) {
-            this._selection[mesh.uuid] = new Set();
-        }
-        fragments.push(mesh.fragment);
-        const blockID = mesh.fragment.getVertexBlockID(geometry, index);
-        const itemID = mesh.fragment.getItemID(instanceID, blockID);
-        this._selection[mesh.uuid].add(itemID);
-        this.updateOutline(mesh.uuid);
-        const group = mesh.fragment.group;
-        if (group) {
-            const idNum = parseInt(itemID, 10);
-            const keys = group.data[idNum][0];
-            for (let i = 0; i < keys.length; i++) {
-                const fragKey = keys[i];
-                const fragID = group.keyFragments[fragKey];
-                fragments.push(this._fragments.list[fragID]);
-                if (!this._selection[fragID]) {
-                    this._selection[fragID] = new Set();
-                }
-                this._selection[fragID].add(itemID);
-                this.updateOutline(fragID);
-            }
-        }
-        return { id: itemID, fragments };
-    }
-    // highlightByID(
-    //   name: string,
-    //   ids: { [fragmentID: string]: Set<string> | string[] },
-    //   removePrevious = true
-    // ) {
-    //   if (!this.enabled) return;
-    //   if (removePrevious) {
-    //     this.clear(name);
-    //   }
-    //   const styles = this.selection[name];
-    //   for (const fragID in ids) {
-    //     if (!styles[fragID]) {
-    //       styles[fragID] = new Set<string>();
-    //     }
-    //     for (const id of ids[fragID]) {
-    //       styles[fragID].add(id);
-    //     }
-    //     this.updateFragmentHighlight(name, fragID);
-    //   }
-    // }
-    clear() {
-        this._selection = {};
-        const customEffects = this._renderer.postproduction.customEffects;
-        const fragmentsOutline = customEffects.outlinedMeshes.fragments;
-        if (fragmentsOutline) {
-            fragmentsOutline.meshes.clear();
-        }
-        for (const fragID in this._outlinedMeshes) {
-            const fragment = this._fragments.list[fragID];
-            const isBlockFragment = fragment.blocks.count > 1;
-            const mesh = this._outlinedMeshes[fragID];
-            if (isBlockFragment) {
-                mesh.geometry.setIndex([]);
-            }
-            else {
-                mesh.count = 0;
-            }
-        }
-    }
-    updateOutline(fragmentID) {
-        if (!this._selection[fragmentID]) {
-            return;
-        }
-        const ids = this._selection[fragmentID];
-        const fragment = this._fragments.list[fragmentID];
-        if (!fragment)
-            return;
-        const geometry = fragment.mesh.geometry;
-        const customEffects = this._renderer.postproduction.customEffects;
-        if (!customEffects.outlinedMeshes.fragments) {
-            customEffects.outlinedMeshes.fragments = {
-                meshes: new Set(),
-                material: this.outlineMaterial,
-            };
-        }
-        const outlineEffect = customEffects.outlinedMeshes.fragments;
-        // Create a copy of the original fragment mesh for outline
-        if (!this._outlinedMeshes[fragmentID]) {
-            const newGeometry = new THREE$1.BufferGeometry();
-            newGeometry.attributes = geometry.attributes;
-            const newMesh = new THREE$1.InstancedMesh(newGeometry, this._invisibleMaterial, fragment.capacity);
-            newMesh.frustumCulled = false;
-            newMesh.renderOrder = 999;
-            this._outlinedMeshes[fragmentID] = newMesh;
-            const scene = this._components.scene.get();
-            scene.add(newMesh);
-        }
-        const outlineMesh = this._outlinedMeshes[fragmentID];
-        outlineEffect.meshes.add(outlineMesh);
-        const isBlockFragment = fragment.blocks.count > 1;
-        if (isBlockFragment) {
-            const indices = fragment.mesh.geometry.index.array;
-            const newIndex = [];
-            const idsSet = new Set(ids);
-            for (let i = 0; i < indices.length - 2; i += 3) {
-                const index = indices[i];
-                const blockID = fragment.mesh.geometry.attributes.blockID.array;
-                const block = blockID[index];
-                const itemID = fragment.mesh.fragment.getItemID(0, block);
-                if (idsSet.has(itemID)) {
-                    newIndex.push(indices[i], indices[i + 1], indices[i + 2]);
-                }
-            }
-            outlineMesh.geometry.setIndex(newIndex);
-        }
-        else {
-            let counter = 0;
-            for (const id of ids) {
-                const { instanceID } = fragment.getInstanceAndBlockID(id);
-                fragment.mesh.getMatrixAt(instanceID, this._tempMatrix);
-                outlineMesh.setMatrixAt(counter++, this._tempMatrix);
-            }
-            outlineMesh.count = counter;
-            outlineMesh.instanceMatrix.needsUpdate = true;
         }
     }
 }
@@ -109146,4 +109065,4 @@ class DXFExporter {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentOutliner, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, SelectionHandler, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
