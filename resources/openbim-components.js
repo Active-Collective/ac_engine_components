@@ -99501,6 +99501,8 @@ class CustomEffectsPass extends Pass {
         return this._outlineEnabled;
     }
     set outlineEnabled(active) {
+        if (active === this._outlineEnabled)
+            return;
         this._outlineEnabled = active;
         const material = this.fsQuad.material;
         material.uniforms.outlineEnabled.value = active ? 1 : 0;
@@ -102232,7 +102234,7 @@ class FragmentHighlighter extends Component {
             if (!mouseDown) {
                 mouseMoved = false;
             }
-            this.highlight(hoverName);
+            this.highlight(hoverName, true, false);
         });
     }
     regenerate(name, fragID) {
