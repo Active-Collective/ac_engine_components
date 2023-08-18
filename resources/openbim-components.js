@@ -1173,7 +1173,7 @@ class SimpleRenderer extends BaseRenderer {
         this._renderer = new THREE$1.WebGLRenderer({
             antialias: true,
             alpha: true,
-            ...parameters
+            ...parameters,
         });
         this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.setupRenderers();
@@ -1201,6 +1201,7 @@ class SimpleRenderer extends BaseRenderer {
         this.enabled = false;
         this._renderer.domElement.remove();
         this._renderer.dispose();
+        this._renderer2D.domElement.remove();
         this.afterUpdate.reset();
         this.beforeUpdate.reset();
     }
@@ -102603,7 +102604,7 @@ class FragmentClassifier extends Component {
                 const fragment = fragments[id];
                 const items = fragment.items;
                 const hidden = Object.keys(fragment.hiddenInstances);
-                result[id] = [...items, ...hidden];
+                result[id] = new Set(...items, ...hidden);
             }
             return result;
         }
@@ -102641,16 +102642,16 @@ class FragmentClassifier extends Component {
                 const numberOfMatches = model[id];
                 if (numberOfMatches === size) {
                     if (!result[guid]) {
-                        result[guid] = [];
+                        result[guid] = new Set();
                     }
-                    result[guid].push(id);
+                    result[guid].add(id);
                     const fragment = this._fragments.list[guid];
                     const composites = fragment.composites[id];
                     if (composites) {
                         const idNum = parseInt(id, 10);
                         for (let i = 1; i < composites; i++) {
                             const compositeID = toCompositeID(idNum, i);
-                            result[guid].push(compositeID);
+                            result[guid].add(compositeID);
                         }
                     }
                 }
