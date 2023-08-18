@@ -28823,6 +28823,7 @@ class FragmentManager extends Component {
         /** All the created [fragments](https://github.com/ifcjs/fragment). */
         this.list = {};
         this.groups = [];
+        this.baseCoordinationModel = "";
         this.onFragmentsLoaded = new Event();
         this.commands = [];
         this._loader = new Serializer();
@@ -28928,6 +28929,24 @@ class FragmentManager extends Component {
             commandsButton.tooltip = "Delete model";
             toolbar.addChild(commandsButton);
             commandsButton.onclick = () => this.disposeGroup(group);
+        }
+    }
+    coordinate(models = this.groups) {
+        const baseModel = this.groups.find((group) => group.uuid === this.baseCoordinationModel);
+        if (!baseModel) {
+            console.log("No base model found for coordination!");
+            return;
+        }
+        for (const model of models) {
+            if (model === baseModel) {
+                continue;
+            }
+            model.position.set(0, 0, 0);
+            model.rotation.set(0, 0, 0);
+            model.scale.set(1, 1, 1);
+            model.updateMatrix();
+            model.applyMatrix4(model.coordinationMatrix.clone().invert());
+            model.applyMatrix4(baseModel.coordinationMatrix);
         }
     }
     removeFragmentMesh(fragment) {
@@ -95310,11 +95329,19 @@ class Units {
     }
     getLengthUnits(webIfc) {
         try {
-            const allUnits = webIfc.GetLineIDsWithType(0, IFCUNITASSIGNMENT);
-            const units = allUnits.get(0);
-            const unitsProps = webIfc.GetLine(0, units);
-            const lengthUnitsID = unitsProps.Units[0].value;
-            return webIfc.GetLine(0, lengthUnitsID);
+            const allUnitsAssigns = webIfc.GetLineIDsWithType(0, IFCUNITASSIGNMENT);
+            const unitsAssign = allUnitsAssigns.get(0);
+            const unitsAssignProps = webIfc.GetLine(0, unitsAssign);
+            for (const units of unitsAssignProps.Units) {
+                if (!units || units.value === null || units.value === undefined) {
+                    continue;
+                }
+                const unitsProps = webIfc.GetLine(0, units.value);
+                if (unitsProps.UnitType && unitsProps.UnitType.value === "LENGTHUNIT") {
+                    return unitsProps;
+                }
+            }
+            return null;
         }
         catch (e) {
             console.log("Could not get units");
@@ -95447,6 +95474,8 @@ class IfcFragmentSettings {
          * like IFCSPACE.
          */
         this.optionalCategories = [IFCSPACE];
+        /** Whether to use the coordination data coming from the IFC files. */
+        this.coordinate = true;
         /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
         this.wasm = {
             path: "",
@@ -95982,6 +96011,15 @@ class FragmentIfcLoader extends Component {
         if (this.settings.saveLocations) {
             this.locationsSaved.trigger(this._geometry.locations);
         }
+        if (this.settings.coordinate) {
+            const isFirstModel = this._fragments.groups.length === 0;
+            if (isFirstModel) {
+                this._fragments.baseCoordinationModel = model.uuid;
+            }
+            else {
+                this._fragments.coordinate([model]);
+            }
+        }
         this.cleanUp();
         this._fragments.groups.push(model);
         for (const fragment of model.items) {
@@ -96008,11 +96046,12 @@ class FragmentIfcLoader extends Component {
             const file = fileOpener.files[0];
             const buffer = await file.arrayBuffer();
             const data = new Uint8Array(buffer);
-            const result = await this.load(data, file.name);
+            const model = await this.load(data, file.name);
             const scene = this._components.scene.get();
-            scene.add(result);
+            scene.add(model);
             this._toast.visible = true;
-            button.onClicked.trigger(result);
+            button.onClicked.trigger(model);
+            this._fragments.updateWindow();
         };
         button.onclick = () => fileOpener.click();
         return button;
@@ -103093,48 +103132,6 @@ class FragmentCacher extends LocalCacher {
     }
 }
 
-class FragmentCoordinator extends Component {
-    constructor(components) {
-        super();
-        this.name = "FragmentCoordinator";
-        this.enabled = true;
-        this._baseCoordinationMatrix = new THREE$1.Matrix4();
-        this._fragments = [];
-        this._coordinations = 0;
-        this._components = components;
-    }
-    coordinateFragments(list, originalMatrix) {
-        this._fragments.push({
-            list,
-            coordinationMatrix: originalMatrix,
-        });
-        if (this._coordinations === 0) {
-            this._baseCoordinationMatrix.copy(originalMatrix);
-        }
-        else {
-            list.forEach((fragment) => {
-                fragment.mesh.applyMatrix4(originalMatrix.clone().invert()); // Translates back the model to its original world position.
-                fragment.mesh.applyMatrix4(this._baseCoordinationMatrix); // Translates the model to be relative positioned to the first one loaded.
-            });
-        }
-        this._coordinations++;
-    }
-    /**
-     * @description Applies the base transformation matrix to a vector. This method doesn't modify the provided vector.
-     * @param vector Vector3 to be coordinated by the base transformation matrix.
-     * @returns A coordinated copy of the given vector.
-     */
-    coordinateVector(vector) {
-        return vector.clone().applyMatrix4(this._baseCoordinationMatrix);
-    }
-    get() {
-        return {
-            fragments: this._fragments,
-            baseCoordinationMatrix: this._baseCoordinationMatrix,
-        };
-    }
-}
-
 // TODO: Clean up and document
 class FragmentExploder extends Component {
     get() {
@@ -109067,4 +109064,4 @@ class DXFExporter {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentCoordinator, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, InfoCard, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
