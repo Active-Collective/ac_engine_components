@@ -9647,6 +9647,10 @@ class SimpleUIComponent extends Component {
         return this.domElement;
     }
     dispose(onlyChildren = false) {
+        for (const slotName in this.slots) {
+            const slot = this.slots[slotName];
+            slot.dispose();
+        }
         this.children.forEach((child) => {
             child.dispose();
             this.removeChild(child);
@@ -11904,8 +11908,9 @@ var createPopper = /*#__PURE__*/popperGenerator({
  * A component that handles all UI components.
  */
 class UIManager extends Component {
-    get() {
-        return this.toolbars;
+    get viewerContainer() {
+        return this._components.renderer.get().domElement
+            .parentElement;
     }
     constructor(components) {
         super();
@@ -11913,24 +11918,70 @@ class UIManager extends Component {
         this.enabled = true;
         this.toolbars = [];
         this.tooltipsEnabled = true;
-        this.containers = {
+        this.children = [];
+        this._mouseMoved = false;
+        this._mouseDown = false;
+        this._containers = {
             top: document.createElement("div"),
             right: document.createElement("div"),
             bottom: document.createElement("div"),
             left: document.createElement("div"),
         };
+        this.onMouseUp = (_event) => {
+            this._mouseDown = false;
+        };
+        this.onMouseMoved = (_event) => {
+            if (this._mouseDown) {
+                this._mouseMoved = true;
+            }
+        };
+        this.onMouseDown = (event) => {
+            this._mouseDown = true;
+            const canvas = this._components.renderer.get().domElement;
+            if (event.target === canvas) {
+                this.closeMenus();
+                this.contextMenu.visible = false;
+            }
+        };
+        this.onContextMenu = (event) => {
+            if (this._mouseMoved) {
+                this._mouseMoved = false;
+                return;
+            }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            this.closeMenus();
+            this._contextMenuContainer.style.left = `${event.offsetX}px`;
+            this._contextMenuContainer.style.top = `${event.offsetY}px`;
+            this.contextMenu.visible = true;
+            this._popperInstance.update();
+        };
+        this._components = components;
         this.contextMenu = new Toolbar(components);
         this.contextMenu.setDirection("vertical");
         this.contextMenu.position = "left";
-        this.components = components;
+        this._contextMenuContainer = document.createElement("div");
+        this._contextMenuContainer.style.position = "absolute";
+        this._contextMenuContainer.append(this.contextMenu.domElement);
+        this._popperInstance = createPopper(this._contextMenuContainer, this.contextMenu.domElement, {
+            placement: "bottom-start",
+            modifiers: [
+                {
+                    name: "preventOverflow",
+                    options: {
+                        boundary: Object.values(this._containers),
+                    },
+                },
+            ],
+        });
         const containerClasses = {
             top: ["top-0", "pt-4"],
             right: ["top-0", "right-0", "pr-4"],
             bottom: ["bottom-0", "pb-4"],
             left: ["top-0", "left-0", "pl-4"],
         };
-        for (const id in this.containers) {
-            const container = this.containers[id];
+        for (const id in this._containers) {
+            const container = this._containers[id];
             container.className =
                 "absolute flex gap-y-3 gap-x-3 pointer-events-none p-4";
             container.classList.add(...containerClasses[id]);
@@ -11939,71 +11990,47 @@ class UIManager extends Component {
         }
         const hContainerClass = ["flex-row", "w-full"];
         const vContainerClass = ["flex-column", "h-full"];
-        this.containers.top.classList.add(...hContainerClass);
-        this.containers.right.classList.add(...vContainerClass);
-        this.containers.bottom.classList.add(...hContainerClass);
-        this.containers.left.classList.add(...vContainerClass);
+        this._containers.top.classList.add(...hContainerClass);
+        this._containers.right.classList.add(...vContainerClass);
+        this._containers.bottom.classList.add(...hContainerClass);
+        this._containers.left.classList.add(...vContainerClass);
+        this._events = {
+            mousedown: this.onMouseDown,
+            mouseup: this.onMouseUp,
+            mousemove: this.onMouseMoved,
+            contextmenu: this.onContextMenu,
+        };
     }
-    setup() {
-        this.viewerContainer = this.components.renderer.get().domElement
-            .parentElement;
-        // #region Context menu
-        const contextParent = document.createElement("div");
-        contextParent.style.position = "absolute";
-        contextParent.append(this.contextMenu.domElement);
-        const popperInstance = createPopper(contextParent, this.contextMenu.domElement, {
-            placement: "bottom-start",
-            modifiers: [
-                {
-                    name: "preventOverflow",
-                    options: {
-                        boundary: Object.values(this.containers),
-                    },
-                },
-            ],
-        });
-        /* detectOverflow(popperInstance.state, {
-          boundary: Object.values(this.containers),
-        }); */
-        let mouseMoved = false;
-        let mouseDown = false;
-        this.viewerContainer.addEventListener("contextmenu", (e) => {
-            if (mouseMoved) {
-                mouseMoved = false;
-                return;
-            }
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            this.closeMenus();
-            contextParent.style.left = `${e.offsetX}px`;
-            contextParent.style.top = `${e.offsetY}px`;
-            this.contextMenu.visible = true;
-            popperInstance.update();
-        });
-        this.viewerContainer.addEventListener("mousedown", (e) => {
-            mouseDown = true;
-            const canvas = this.components.renderer.get().domElement;
-            if (e.target === canvas) {
-                this.closeMenus();
-                this.contextMenu.visible = false;
-            }
-        });
-        this.viewerContainer.addEventListener("mousemove", () => {
-            if (mouseDown) {
-                mouseMoved = true;
-            }
-        });
-        this.viewerContainer.addEventListener("mouseup", () => {
-            mouseDown = false;
-        });
-        // #endregion
-        this.viewerContainer.append(this.containers.top, this.containers.right, this.containers.bottom, this.containers.left, contextParent);
+    get() {
+        return this.toolbars;
+    }
+    dispose() {
+        this.setupEvents(false);
+        for (const name in this._containers) {
+            const element = this._containers[name];
+            element.remove();
+        }
+        for (const toolbar of this.toolbars) {
+            toolbar.dispose();
+        }
+        for (const child of this.children) {
+            child.dispose();
+        }
+        this.children = [];
+        this.contextMenu.dispose();
+        this._containers = {};
+        this._contextMenuContainer.remove();
+        this._components = null;
+        this.contextMenu = null;
+        this._contextMenuContainer = null;
+    }
+    init() {
+        this.setupEvents(true);
+        this.viewerContainer.append(this._containers.top, this._containers.right, this._containers.bottom, this._containers.left, this._contextMenuContainer);
     }
     add(...uiComponents) {
-        // TODO: Is this necessary?
-        if (!this.viewerContainer)
-            return;
         for (const component of uiComponents) {
+            this.children.push(component);
             this.viewerContainer.append(component.domElement);
         }
     }
@@ -12012,12 +12039,12 @@ class UIManager extends Component {
         this.contextMenu.closeMenus();
     }
     setContainerAlignment(container, alingment) {
-        this.containers[container].style.justifyContent = alingment;
-        this.containers[container].style.alignItems = alingment;
+        this._containers[container].style.justifyContent = alingment;
+        this._containers[container].style.alignItems = alingment;
     }
     addToolbar(...toolbar) {
         toolbar.forEach((tlbr) => {
-            const container = this.containers[tlbr.position];
+            const container = this._containers[tlbr.position];
             if (!container) {
                 return;
             }
@@ -12038,7 +12065,19 @@ class UIManager extends Component {
             }
         });
     }
+    setupEvents(active) {
+        for (const name in this._events) {
+            const event = this._events[name];
+            if (active) {
+                this.viewerContainer.addEventListener(name, event);
+            }
+            else {
+                this.viewerContainer.removeEventListener(name, event);
+            }
+        }
+    }
 }
+// TODO: Does this need to be here?
 UIManager.Class = {
     Label: "block leading-6 text-gray-400 text-sm",
 };
@@ -12987,7 +13026,7 @@ class Components {
     init() {
         this._enabled = true;
         this._clock.start();
-        this.ui.setup();
+        this.ui.init();
         this.update();
         this.onInitialized.trigger(this);
     }
@@ -13009,6 +13048,7 @@ class Components {
     dispose() {
         this._enabled = false;
         this.tools.dispose();
+        this.ui.dispose();
         if (this.renderer.isDisposeable())
             this.renderer.dispose();
         if (this.scene.isDisposeable())
