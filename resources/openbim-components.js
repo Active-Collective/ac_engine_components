@@ -9564,6 +9564,18 @@ var createPopper$1 = /*#__PURE__*/popperGenerator$1({
 }); // eslint-disable-next-line import/no-unused-modules
 
 class SimpleUIComponent extends Component {
+    get domElement() {
+        if (!this._domElement) {
+            throw new Error("Dom element not initialized!");
+        }
+        return this._domElement;
+    }
+    set domElement(ele) {
+        if (this._domElement) {
+            this._domElement.remove();
+        }
+        this._domElement = ele;
+    }
     set parent(value) {
         this._parent = value;
     }
@@ -9590,7 +9602,6 @@ class SimpleUIComponent extends Component {
             this.domElement.classList.add("hidden");
             this.onHidden.trigger(this.get());
         }
-        // this.onVisibilityChanged.trigger(value);
     }
     get enabled() {
         return this._enabled;
@@ -9610,16 +9621,17 @@ class SimpleUIComponent extends Component {
     }
     set template(value) {
         const regex = /id="([^"]+)"/g;
-        const template = value.replace(regex, `id="$1-${this.id}"`);
-        this.domElement.innerHTML = template;
-        const el = this.domElement.firstElementChild;
-        el.id = this.id;
-        // @ts-ignore
-        this.domElement = el;
+        const temp = document.createElement("div");
+        temp.innerHTML = value.replace(regex, `id="$1-${this.id}"`);
+        const newElement = temp.firstElementChild;
+        newElement.id = this.id;
+        this.domElement = newElement;
+        temp.remove();
     }
     constructor(components, template, id) {
         super();
         this.name = "SimpleUIComponent";
+        // TODO: Remove children and leave only slots?
         this.children = [];
         this.data = {};
         // Slots are other UIComponents that inherits all the logic from SimpleUIComponent
@@ -9636,8 +9648,6 @@ class SimpleUIComponent extends Component {
         this._active = false;
         this._components = components;
         this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
-        // @ts-ignore
-        this.domElement = document.createElement("div");
         this.template = template !== null && template !== void 0 ? template : "<div></div>";
     }
     cleanData() {
@@ -9647,16 +9657,28 @@ class SimpleUIComponent extends Component {
         return this.domElement;
     }
     dispose(onlyChildren = false) {
-        for (const slotName in this.slots) {
-            const slot = this.slots[slotName];
+        for (const name in this.slots) {
+            const slot = this.slots[name];
             slot.dispose();
         }
-        this.children.forEach((child) => {
+        for (const child of this.children) {
             child.dispose();
             this.removeChild(child);
-        });
-        if (!onlyChildren)
-            this.domElement.remove();
+        }
+        if (!onlyChildren) {
+            if (this._domElement) {
+                this._domElement.remove();
+            }
+            this.onVisible.reset();
+            this.onHidden.reset();
+            this.onEnabled.reset();
+            this.onDisabled.reset();
+            this.innerElements = {};
+            this.children = [];
+            this.slots = {};
+            this.parent = null;
+            this._components = null;
+        }
     }
     addChild(...items) {
         for (const item of items) {
@@ -10028,6 +10050,7 @@ class TreeView extends SimpleUIComponent {
             this.materialIcon = "arrow_right";
         }
     }
+    // TODO: Unify all events so that they are of type Event
     set onclick(listener) {
         this.domElement.onclick = (e) => {
             e.stopImmediatePropagation();
@@ -10074,6 +10097,13 @@ class TreeView extends SimpleUIComponent {
         this.setSlots();
         this.title = title !== null && title !== void 0 ? title : null;
         this.collapse();
+    }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        if (!onlyChildren) {
+            this.onExpand.reset();
+            this.onCollapse.reset();
+        }
     }
     toggle(deep = false) {
         if (deep) {
@@ -12016,10 +12046,12 @@ class UIManager extends Component {
         for (const child of this.children) {
             child.dispose();
         }
+        this._popperInstance.destroy();
         this.children = [];
         this.contextMenu.dispose();
         this._containers = {};
         this._contextMenuContainer.remove();
+        this._popperInstance = null;
         this._components = null;
         this.contextMenu = null;
         this._contextMenuContainer = null;
