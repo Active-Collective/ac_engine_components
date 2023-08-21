@@ -92021,6 +92021,15 @@ class EntityActionsUI extends SimpleUIComponent {
         this.modal.onCancel.on(() => (this.modal.visible = false));
         addPsetUI.addChild(this._nameInput, this._descriptionInput);
     }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.data = {};
+        this.onNewPset.reset();
+        this.addPsetBtn.dispose();
+        this.modal.dispose();
+        this._nameInput.dispose();
+        this._descriptionInput.dispose();
+    }
 }
 
 class PsetActionsUI extends SimpleUIComponent {
@@ -92053,6 +92062,18 @@ class PsetActionsUI extends SimpleUIComponent {
             "overflow-auto text-white bg-ifcjs-100 rounded-md w-[350px]";
         this._modalWindow.onHidden.on(() => this._modal.get().close());
         this._modal.addChild(this._modalWindow);
+    }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.editPsetBtn.dispose();
+        this.removePsetBtn.dispose();
+        this.addPropBtn.dispose();
+        this._modal.dispose();
+        this._modalWindow.dispose();
+        this.onEditPset.reset();
+        this.onRemovePset.reset();
+        this.onNewProp.reset();
+        this.data = {};
     }
     setEditUI() {
         const editUI = new SimpleUIComponent(this._components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`);
@@ -92227,6 +92248,15 @@ class PropActionsUI extends SimpleUIComponent {
         this._modalWindow.onHidden.on(() => this._modal.get().close());
         this._modal.addChild(this._modalWindow);
     }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.onRemoveProp.reset();
+        this.editPropBtn.dispose();
+        this.removePropBtn.dispose();
+        this._modal.dispose();
+        this._modalWindow.dispose();
+        this.data = {};
+    }
     setEditUI() {
         const editUI = new SimpleUIComponent(this._components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`);
         const nameInput = new TextInput(this._components);
@@ -92343,9 +92373,9 @@ class IfcPropertiesManager extends Component {
         this.onPropToPset = new Event();
         this.onPsetRemoved = new Event();
         this.onDataChanged = new Event();
-        this._components = components;
+        this.wasmPath = "/";
         this._ifcApi = ifcApi !== null && ifcApi !== void 0 ? ifcApi : new IfcAPI2();
-        this._ifcApi.SetWasmPath("/", true);
+        this._ifcApi.SetWasmPath(this.wasmPath, true);
         this._ifcApi.Init();
         this.uiElement = {
             entityActions: new EntityActionsUI(components),
@@ -92353,6 +92383,18 @@ class IfcPropertiesManager extends Component {
             propActions: new PropActionsUI(components),
         };
         this.setUIEvents();
+    }
+    dispose() {
+        this._ifcApi = null;
+        this.attributeListeners = {};
+        this._changeMap = {};
+        this.onElementToPset.reset();
+        this.onPropToPset.reset();
+        this.onPsetRemoved.reset();
+        this.onDataChanged.reset();
+        this.uiElement.entityActions.dispose();
+        this.uiElement.psetActions.dispose();
+        this.uiElement.propActions.dispose();
     }
     setUIEvents() {
         this.uiElement.entityActions.onNewPset.on(({ model, elementIDs, name, description }) => {
@@ -92572,6 +92614,10 @@ class IfcPropertiesManager extends Component {
         }
         const modifiedIFC = this._ifcApi.SaveModel(modelID);
         this._ifcApi.CloseModel(modelID);
+        this._ifcApi = null;
+        this._ifcApi = new IfcAPI2();
+        this._ifcApi.SetWasmPath(this.wasmPath, true);
+        this._ifcApi.Init();
         return modifiedIFC;
     }
     setAttributeListener(model, expressID, attributeName) {
@@ -92652,6 +92698,13 @@ class PropertyTag extends SimpleUIComponent {
         this.setInitialValues();
         this.setListeners();
     }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.model = null;
+        this._propertiesProcessor = null;
+        this.innerElements.value.remove();
+        this.innerElements.label.remove();
+    }
     setListeners() {
         const propertiesManager = this._propertiesProcessor.propertiesManager;
         if (!propertiesManager)
@@ -92695,6 +92748,10 @@ class AttributeTag extends PropertyTag {
         this._propertiesProcessor = propertiesProcessor;
         this.setInitialValues();
         this.setListeners();
+    }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.model = null;
     }
     setListeners() {
         const propertiesManager = this._propertiesProcessor.propertiesManager;
@@ -92754,6 +92811,13 @@ class AttributeSet extends TreeView {
         this.expressID = expressID;
         this._propertiesProcessor = propertiesProcessor;
         this.onExpand.on(() => this.generate());
+    }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.model = null;
+        this.attributesToIgnore = [];
+        this._attributes = [];
+        this._propertiesProcessor = null;
     }
     generate() {
         const properties = this.model.properties;
@@ -92862,6 +92926,20 @@ class IfcPropertiesProcessor extends Component {
             [IFCPROPERTYSET]: (model, expressID) => this.newPsetUI(model, expressID),
             [IFCELEMENTQUANTITY]: (model, expressID) => this.newQsetUI(model, expressID),
         };
+    }
+    dispose() {
+        this.uiElement.main.dispose();
+        this.uiElement.propertiesWindow.dispose();
+        this._components = null;
+        this._propsList.dispose();
+        this._indexMap = {};
+        this.propertiesManager = null;
+        this._components = null;
+        for (const id in this._currentUI) {
+            this._currentUI[id].dispose();
+        }
+        this._currentUI = {};
+        this.onPropertiesManagerSet.reset();
     }
     setUI() {
         this._components.ui.add(this.uiElement.propertiesWindow);
@@ -93197,6 +93275,16 @@ class AttributeQueryUI extends SimpleUIComponent {
         this.addChild(this.operator, this.attribute, this.condition, this.negate, this.value, this.ifcTypes, this.removeBtn);
         this.attribute.value = "Name";
     }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.operator.dispose();
+        this.attribute.dispose();
+        this.condition.dispose();
+        this.value.dispose();
+        this.ifcTypes.dispose();
+        this.removeBtn.dispose();
+        this.negate.dispose();
+    }
 }
 
 class QueryGroupUI extends SimpleUIComponent {
@@ -93271,6 +93359,11 @@ class QueryGroupUI extends SimpleUIComponent {
         topContainer.addChild(newRuleBtn, this.removeBtn);
         const propertyQuery = new AttributeQueryUI(components);
         this.addChild(topContainer, this.operator, propertyQuery);
+    }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.operator.dispose();
+        this.removeBtn.dispose();
     }
 }
 
@@ -93357,6 +93450,11 @@ class QueryBuilder extends SimpleUIComponent {
         //   },
         // ];
     }
+    dispose(onlyChildren = false) {
+        super.dispose(onlyChildren);
+        this.findButton.dispose();
+        this.onQuerySet.reset();
+    }
 }
 
 class IfcPropertiesFinder extends Component {
@@ -93399,8 +93497,12 @@ class IfcPropertiesFinder extends Component {
     }
     dispose() {
         this._indexedModels = {};
+        this.onFound.reset();
         this.uiElement.main.dispose();
         this.uiElement.queryWindow.dispose();
+        this.uiElement.query.dispose();
+        this._fragments = null;
+        this._components = null;
     }
     loadCached(id) {
         if (id) {
