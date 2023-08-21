@@ -187,71 +187,12 @@ function generateExpressIDFragmentIDMap(fragmentsList) {
 }
 // Would need to review this!
 function generateIfcGUID() {
+    // prettier-ignore
     const base64Chars = [
-        "0",
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H",
-        "I",
-        "J",
-        "K",
-        "L",
-        "M",
-        "N",
-        "O",
-        "P",
-        "Q",
-        "R",
-        "S",
-        "T",
-        "U",
-        "V",
-        "W",
-        "X",
-        "Y",
-        "Z",
-        "a",
-        "b",
-        "c",
-        "d",
-        "e",
-        "f",
-        "g",
-        "h",
-        "i",
-        "j",
-        "k",
-        "l",
-        "m",
-        "n",
-        "o",
-        "p",
-        "q",
-        "r",
-        "s",
-        "t",
-        "u",
-        "v",
-        "w",
-        "x",
-        "y",
-        "z",
-        "_",
-        "$",
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H",
+        "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r",
+        "s", "t", "u", "v", "w", "x", "y", "z", "_", "$",
     ];
     const guid = THREE$1.MathUtils.generateUUID();
     const tailBytes = ((guid) => {
@@ -287,8 +228,12 @@ function generateIfcGUID() {
         }
         return result;
     };
-    const toUInt16 = (bytes, index) => parseInt(bytes.slice(index, index + 2).reduce((str, v) => str + v, ""), 16) >>> 0;
-    const toUInt32 = (bytes, index) => parseInt(bytes.slice(index, index + 4).reduce((str, v) => str + v, ""), 16) >>> 0;
+    const toUInt16 = (bytes, index) => 
+    // eslint-disable-next-line no-bitwise
+    parseInt(bytes.slice(index, index + 2).reduce((str, v) => str + v, ""), 16) >>> 0;
+    const toUInt32 = (bytes, index) => 
+    // eslint-disable-next-line no-bitwise
+    parseInt(bytes.slice(index, index + 4).reduce((str, v) => str + v, ""), 16) >>> 0;
     const num = [];
     let str = [];
     let i;
@@ -296,13 +241,17 @@ function generateIfcGUID() {
     let pos = 0;
     num[0] = toUInt32(headBytes, 0) / 16777216;
     num[1] = toUInt32(headBytes, 0) % 16777216;
+    // eslint-disable-next-line no-bitwise
     num[2] = (toUInt16(headBytes, 4) * 256 + toUInt16(headBytes, 6) / 256) >>> 0;
     num[3] =
+        // eslint-disable-next-line no-bitwise
         ((toUInt16(headBytes, 6) % 256) * 65536 +
             tailBytes[8] * 256 +
             tailBytes[9]) >>>
             0;
+    // eslint-disable-next-line no-bitwise
     num[4] = (tailBytes[10] * 65536 + tailBytes[11] * 256 + tailBytes[12]) >>> 0;
+    // eslint-disable-next-line no-bitwise
     num[5] = (tailBytes[13] * 65536 + tailBytes[14] * 256 + tailBytes[15]) >>> 0;
     for (i = 0; i < 6; i++) {
         str = cvTo64(num[i], str, pos, n);
@@ -568,6 +517,12 @@ class LineIntersectionPicker extends Component {
     get enabled() {
         return this._enabled;
     }
+    get config() {
+        return this._config;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
     constructor(components, config) {
         super();
         this.name = "LineIntersectionPicker";
@@ -592,11 +547,11 @@ class LineIntersectionPicker extends Component {
         this._components.scene.get().add(this._marker);
         this.enabled = false;
     }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
+    dispose() {
+        this.afterUpdate.reset();
+        this.beforeUpdate.reset();
+        this._marker.removeFromParent();
+        this._marker.element.remove();
     }
     /** {@link Updateable.update} */
     update() {
@@ -838,6 +793,9 @@ class VertexPicker extends Component {
     }
     dispose() {
         this._marker.dispose();
+        this.afterUpdate.reset();
+        this.beforeUpdate.reset();
+        this._components = null;
     }
     get() {
         return this._pickedPoint;
@@ -869,8 +827,10 @@ class GeometryVerticesMarker extends Component {
         }
     }
     dispose() {
-        for (const marker of this._markers)
+        for (const marker of this._markers) {
             marker.dispose();
+        }
+        this._markers = [];
     }
     get() {
         return this._markers;
@@ -98058,6 +98018,8 @@ class CustomEffectsPass extends Pass {
         this.normalOverrideMaterial.dispose();
         this.glossOverrideMaterial.dispose();
         this.fsQuad.dispose();
+        this.excludedMeshes = [];
+        this._outlineScene.children = [];
         for (const name in this.outlinedMeshes) {
             const style = this.outlinedMeshes[name];
             for (const mesh of style.meshes) {
@@ -99510,10 +99472,12 @@ class ShadowDropper extends Component {
     }
     /** {@link Disposable.dispose} */
     dispose() {
-        const shadowIDs = Object.keys(this.shadows);
-        shadowIDs.forEach((shadowID) => this.deleteShadow(shadowID));
+        for (const id in this.shadows) {
+            this.deleteShadow(id);
+        }
         this.tempMaterial.dispose();
         this.depthMaterial.dispose();
+        this.components = null;
     }
     /**
      * Creates a blurred dropped shadow of the given mesh.
@@ -99789,13 +99753,15 @@ class SimpleDimensionLine {
         this.visible = false;
         this._disposer.dispose(this._root);
         this._disposer.dispose(this._line);
-        for (const marker of this._endpoints)
+        for (const marker of this._endpoints) {
             marker.dispose();
+        }
         this._endpoints.length = 0;
         this.label.dispose();
         if (this.boundingBox) {
             this._disposer.dispose(this.boundingBox);
         }
+        this._components = null;
     }
     createBoundingBox() {
         this.boundingBox.geometry = new THREE$1.BoxGeometry(1, 1, this._length);
@@ -99971,7 +99937,22 @@ class LengthMeasurement extends Component {
     /** {@link Disposable.dispose} */
     dispose() {
         this.enabled = false;
-        this._measurements.forEach((dim) => dim.dispose());
+        this.beforeUpdate.reset();
+        this.afterUpdate.reset();
+        this.beforeCreate.reset();
+        this.afterCreate.reset();
+        this.beforeDelete.reset();
+        this.afterDelete.reset();
+        this.beforeCancel.reset();
+        this.afterCancel.reset();
+        this.uiElement.main.dispose();
+        if (this.previewElement) {
+            this.previewElement.remove();
+        }
+        for (const measure of this._measurements) {
+            measure.dispose();
+        }
+        this._lineMaterial.dispose();
         this._measurements = [];
         this._vertexPicker.dispose();
     }
@@ -100338,6 +100319,13 @@ class CubeMap extends Component {
         (_a = this._viewerContainer) === null || _a === void 0 ? void 0 : _a.append(this._cubeWrapper);
         this.visible = true;
     }
+    dispose() {
+        this.afterUpdate.reset();
+        this.beforeUpdate.reset();
+        this._cube.remove();
+        this._cubeWrapper.remove();
+        this._components = null;
+    }
     setSize(value = "350") {
         this._cubeWrapper.style.perspective = `${value}px`;
     }
@@ -100477,6 +100465,16 @@ class MiniMap extends Component {
         this._camera.rotation.x = -Math.PI / 2;
         this._plane = new THREE$1.Plane(this.down, 200);
         this._renderer.clippingPlanes = [this._plane];
+    }
+    dispose() {
+        this.enabled = false;
+        this.uiElement.main.dispose();
+        this.uiElement.canvas.dispose();
+        this.beforeUpdate.reset();
+        this.afterUpdate.reset();
+        this.overrideMaterial.dispose();
+        this._renderer.dispose();
+        this._components = null;
     }
     get() {
         return this._camera;
@@ -103569,6 +103567,33 @@ class MapboxWindow {
 }
 
 class AreaMeasureElement extends Component {
+    constructor(components, points) {
+        super();
+        this.name = "AreaShape";
+        this.enabled = true;
+        this.visible = true;
+        this.points = [];
+        this.workingPlane = null;
+        this._rotationMatrix = null;
+        this._dimensionLines = [];
+        this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
+        this.onAreaComputed = new Event();
+        this.onWorkingPlaneComputed = new Event();
+        this.onPointAdded = new Event();
+        this.onPointRemoved = new Event();
+        this._components = components;
+        const htmlText = document.createElement("div");
+        htmlText.className = DimensionLabelClassName;
+        this.labelMarker = new Simple2DMarker(components, htmlText);
+        this.labelMarker.visible = false;
+        this.onPointAdded.on((point) => {
+            if (this.points.length === 3 && !this._dimensionLines[2]) {
+                this.addDimensionLine(point, this.points[0]);
+                this.labelMarker.visible = true;
+            }
+        });
+        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
+    }
     setPoint(point, index) {
         let _index;
         if (!index) {
@@ -103605,33 +103630,6 @@ class AreaMeasureElement extends Component {
         nextLine === null || nextLine === void 0 ? void 0 : nextLine.dispose();
         this._dimensionLines.splice(index, 1);
         this.onPointRemoved.trigger();
-    }
-    constructor(components, points) {
-        super();
-        this.name = "AreaShape";
-        this.enabled = true;
-        this.visible = true;
-        this.points = [];
-        this.workingPlane = null;
-        this._rotationMatrix = null;
-        this._dimensionLines = [];
-        this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
-        this.onAreaComputed = new Event();
-        this.onWorkingPlaneComputed = new Event();
-        this.onPointAdded = new Event();
-        this.onPointRemoved = new Event();
-        this._components = components;
-        const htmlText = document.createElement("div");
-        htmlText.className = DimensionLabelClassName;
-        this.labelMarker = new Simple2DMarker(components, htmlText);
-        this.labelMarker.visible = false;
-        this.onPointAdded.on((point) => {
-            if (this.points.length === 3 && !this._dimensionLines[2]) {
-                this.addDimensionLine(point, this.points[0]);
-                this.labelMarker.visible = true;
-            }
-        });
-        points === null || points === void 0 ? void 0 : points.forEach((point) => this.setPoint(point));
     }
     toggleLabel() {
         this.labelMarker.toggleVisibility();
@@ -103695,14 +103693,20 @@ class AreaMeasureElement extends Component {
         return area;
     }
     dispose() {
-        for (const line of this._dimensionLines)
+        this.onAreaComputed.reset();
+        this.onWorkingPlaneComputed.reset();
+        this.onPointAdded.reset();
+        this.onPointRemoved.reset();
+        for (const line of this._dimensionLines) {
             line.dispose();
+        }
         this.labelMarker.dispose();
         this._dimensionLines = [];
         this.points = [];
         this._rotationMatrix = null;
         this.workingPlane = null;
         this._defaultLineMaterial.dispose();
+        this._components = null;
     }
     get() {
         return {
@@ -103743,24 +103747,17 @@ class AreaMeasurement extends Component {
         this.afterCancel = new Event();
         this.beforeDelete = new Event();
         this.afterDelete = new Event();
-        this._components = components;
-        this._vertexPicker = new VertexPicker(components);
-        this.uiElement = { main: new Button(components) };
-        this.uiElement.main.materialIcon = "check_box_outline_blank";
-        this.setUI();
-        this.enabled = false;
-    }
-    setUI() {
-        const viewerContainer = this._components.ui.viewerContainer;
-        const createMeasurement = () => this.create();
-        const mouseMove = () => {
+        this.onCreateMeasurement = () => {
+            this.create();
+        };
+        this.onMouseMove = () => {
             const point = this._vertexPicker.get();
             if (!(point && this._currentAreaElement))
                 return;
             this._currentAreaElement.setPoint(point, this._clickCount);
             this._currentAreaElement.computeArea();
         };
-        const keydown = (e) => {
+        this.onKeydown = (e) => {
             if (!this.enabled)
                 return;
             if (e.key === "z" && e.ctrlKey && this._currentAreaElement)
@@ -103776,20 +103773,42 @@ class AreaMeasurement extends Component {
                 }
             }
         };
+        this._components = components;
+        this._vertexPicker = new VertexPicker(components);
+        this.uiElement = { main: new Button(components) };
+        this.uiElement.main.materialIcon = "check_box_outline_blank";
+        this.setUI();
+        this.enabled = false;
+    }
+    dispose() {
+        this.setupEvents(false);
+        this.beforeCreate.reset();
+        this.afterCreate.reset();
+        this.beforeCancel.reset();
+        this.afterCancel.reset();
+        this.beforeDelete.reset();
+        this.afterDelete.reset();
+        this.uiElement.main.dispose();
+        this._vertexPicker.dispose();
+        if (this._currentAreaElement) {
+            this._currentAreaElement.dispose();
+        }
+        for (const measure of this._measurements) {
+            measure.dispose();
+        }
+        this._components = null;
+    }
+    setUI() {
         this.uiElement.main.onclick = () => {
             if (!this.enabled) {
-                viewerContainer.addEventListener("click", createMeasurement);
-                viewerContainer.addEventListener("mousemove", mouseMove);
-                window.addEventListener("keydown", keydown);
+                this.setupEvents(true);
                 this.uiElement.main.active = true;
                 this.enabled = true;
             }
             else {
                 this.enabled = false;
                 this.uiElement.main.active = false;
-                viewerContainer.removeEventListener("click", createMeasurement);
-                viewerContainer.removeEventListener("mousemove", mouseMove);
-                window.removeEventListener("keydown", keydown);
+                this.setupEvents(false);
             }
         };
     }
@@ -103836,6 +103855,19 @@ class AreaMeasurement extends Component {
     }
     get() {
         return this._measurements;
+    }
+    setupEvents(active) {
+        const viewerContainer = this._components.ui.viewerContainer;
+        if (active) {
+            viewerContainer.addEventListener("click", this.onCreateMeasurement);
+            viewerContainer.addEventListener("mousemove", this.onMouseMove);
+            window.addEventListener("keydown", this.onKeydown);
+        }
+        else {
+            viewerContainer.removeEventListener("click", this.onCreateMeasurement);
+            viewerContainer.removeEventListener("mousemove", this.onMouseMove);
+            window.removeEventListener("keydown", this.onKeydown);
+        }
     }
 }
 
@@ -105286,9 +105318,13 @@ class AngleMeasureElement extends Component {
     dispose() {
         this.points = [];
         this.labelMarker.dispose();
+        this.onAngleComputed.reset();
+        this.onPointAdded.reset();
+        this.labelMarker.dispose();
         this._line.removeFromParent();
         this._lineMaterial.dispose();
         this._lineGeometry.dispose();
+        this._components = null;
     }
     get() {
         return {
@@ -105346,6 +105382,24 @@ class AngleMeasurement extends Component {
         this.uiElement.main.materialIcon = "square_foot";
         this.setUI();
         this.enabled = false;
+    }
+    dispose() {
+        this.beforeCreate.reset();
+        this.afterCreate.reset();
+        this.beforeCancel.reset();
+        this.afterCancel.reset();
+        this.beforeDelete.reset();
+        this.afterDelete.reset();
+        this.uiElement.main.dispose();
+        this._lineMaterial.dispose();
+        this._vertexPicker.dispose();
+        for (const measure of this._measurements) {
+            measure.dispose();
+        }
+        if (this._currentAngleElement) {
+            this._currentAngleElement.dispose();
+        }
+        this._components = null;
     }
     setUI() {
         const viewerContainer = this._components.ui.viewerContainer;
