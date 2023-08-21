@@ -101658,20 +101658,33 @@ class FragmentExploder extends Component {
     get() {
         return this._explodedFragments;
     }
-    constructor(fragments, groups) {
+    constructor(components, fragments, groups) {
         super();
-        this.fragments = fragments;
-        this.groups = groups;
         this.name = "FragmentExploder";
         this.height = 10;
         this.groupName = "storeys";
         this.enabled = false;
         this._explodedFragments = new Set();
+        this._fragments = fragments;
+        this._groups = groups;
+        const main = new Button(components);
+        this.uiElement = { main };
+        main.tooltip = "Explode";
+        main.materialIcon = "splitscreen";
+        main.onclick = () => {
+            if (this.enabled) {
+                this.reset();
+            }
+            else {
+                this.explode();
+            }
+        };
     }
     dispose() {
         this._explodedFragments.clear();
-        this.fragments = null;
-        this.groups = null;
+        this.uiElement.main.dispose();
+        this._fragments = null;
+        this._groups = null;
     }
     explode() {
         this.enabled = true;
@@ -101684,14 +101697,14 @@ class FragmentExploder extends Component {
     update() {
         const factor = this.enabled ? 1 : -1;
         let i = 0;
-        const systems = this.groups.get();
+        const systems = this._groups.get();
         const groups = systems[this.groupName];
         const mergedIDHeightMap = {};
         const yTransform = new THREE$1.Matrix4();
         for (const groupName in groups) {
             yTransform.elements[13] = i * factor * this.height;
             for (const fragID in groups[groupName]) {
-                const fragment = this.fragments.list[fragID];
+                const fragment = this._fragments.list[fragID];
                 const customID = groupName + fragID;
                 if (!fragment) {
                     continue;
@@ -101747,7 +101760,7 @@ class FragmentExploder extends Component {
         // Update merged fragments
         for (const fragID in mergedIDHeightMap) {
             const heights = mergedIDHeightMap[fragID];
-            const fragment = this.fragments.list[fragID];
+            const fragment = this._fragments.list[fragID];
             const geometry = fragment.mesh.geometry;
             const position = geometry.attributes.position;
             for (let i = 0; i < geometry.index.count; i++) {
