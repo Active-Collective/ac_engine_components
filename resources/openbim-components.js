@@ -103470,6 +103470,7 @@ class MapboxWindow {
         const label = this._labels[id];
         delete this._labels[id];
         label.removeFromParent();
+        label.element = undefined;
         const found = this._buildings.find((building) => building.id === id);
         if (found) {
             const index = this._buildings.indexOf(found);
@@ -103492,6 +103493,7 @@ class MapboxWindow {
     dispose() {
         this._components.dispose();
         this._components = null;
+        this._map.remove();
         this._map = null;
         for (const id in this._labels) {
             const label = this._labels[id];
@@ -107407,6 +107409,10 @@ class EdgeProjector {
         this.projectedEdges = [];
     }
     dispose() {
+        this.disposeGeometry();
+        this._defaultMaterial.dispose();
+    }
+    disposeGeometry() {
         this.projectedEdges.forEach((edge) => {
             edge.geometry.dispose();
             if (Array.isArray(edge.material))
@@ -107568,13 +107574,23 @@ class EdgeProjector {
     }
 }
 
-class DXFExporter {
-    constructor(fragments, plans, clipper) {
+class DXFExporter extends Component {
+    constructor(fragments, plans) {
+        super();
+        this.enabled = true;
+        this.name = "DXFExporter";
         this.precission = 0.001;
         this._projector = new EdgeProjector();
         this._fragments = fragments;
         this._plans = plans;
-        this._clipper = clipper;
+    }
+    get() {
+        return this._projector;
+    }
+    dispose() {
+        this._fragments = null;
+        this._plans.dispose();
+        this._projector.dispose();
     }
     async export(name) {
         const drawing = new Drawing();
