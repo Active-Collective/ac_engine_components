@@ -1,102 +1,6 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, Raycaster, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, UniformsLib, ShaderLib, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
-var OBC = /*#__PURE__*/Object.freeze({
-    __proto__: null,
-    get AngleMeasureElement () { return AngleMeasureElement; },
-    get AngleMeasurement () { return AngleMeasurement; },
-    get AreaMeasureElement () { return AreaMeasureElement; },
-    get AreaMeasurement () { return AreaMeasurement; },
-    get ArrowAnnotation () { return ArrowAnnotation; },
-    get AttributeSet () { return AttributeSet; },
-    get BaseRenderer () { return BaseRenderer; },
-    get BaseSVGAnnotation () { return BaseSVGAnnotation; },
-    get Button () { return Button; },
-    get Canvas () { return Canvas; },
-    get CheckboxInput () { return CheckboxInput; },
-    get CircleAnnotation () { return CircleAnnotation; },
-    get CloudProcessor () { return CloudProcessor; },
-    get ColorInput () { return ColorInput; },
-    get CommandsMenu () { return CommandsMenu; },
-    get Component () { return Component; },
-    get Components () { return Components; },
-    get CubeMap () { return CubeMap; },
-    get DXFExporter () { return DXFExporter; },
-    get DimensionLabelClassName () { return DimensionLabelClassName; },
-    get DimensionPreviewClassName () { return DimensionPreviewClassName; },
-    get Disposer () { return Disposer; },
-    get DragAndDropInput () { return DragAndDropInput; },
-    get DrawManager () { return DrawManager; },
-    get Dropdown () { return Dropdown; },
-    get EdgesClipper () { return EdgesClipper; },
-    get EdgesPlane () { return EdgesPlane; },
-    get Event () { return Event; },
-    get FloatingWindow () { return FloatingWindow; },
-    get FragmentBoundingBox () { return FragmentBoundingBox; },
-    get FragmentCacher () { return FragmentCacher; },
-    get FragmentClassifier () { return FragmentClassifier; },
-    get FragmentClipStyler () { return FragmentClipStyler; },
-    get FragmentExploder () { return FragmentExploder; },
-    get FragmentHider () { return FragmentHider; },
-    get FragmentHighlighter () { return FragmentHighlighter; },
-    get FragmentIfcLoader () { return FragmentIfcLoader; },
-    get FragmentManager () { return FragmentManager; },
-    get FragmentPlans () { return FragmentPlans; },
-    get FragmentTree () { return FragmentTree; },
-    get GeometryVerticesMarker () { return GeometryVerticesMarker; },
-    get IfcCategories () { return IfcCategories; },
-    get IfcCategoryMap () { return IfcCategoryMap; },
-    get IfcElements () { return IfcElements; },
-    get IfcJsonExporter () { return IfcJsonExporter; },
-    get IfcPropertiesFinder () { return IfcPropertiesFinder; },
-    get IfcPropertiesManager () { return IfcPropertiesManager; },
-    get IfcPropertiesProcessor () { return IfcPropertiesProcessor; },
-    get IfcPropertiesUtils () { return IfcPropertiesUtils; },
-    get LengthMeasurement () { return LengthMeasurement; },
-    get LineIntersectionPicker () { return LineIntersectionPicker; },
-    get LocalCacher () { return LocalCacher; },
-    get MapboxWindow () { return MapboxWindow; },
-    get MaterialManager () { return MaterialManager; },
-    get MiniMap () { return MiniMap; },
-    get Mouse () { return Mouse; },
-    get OrthoPerspectiveCamera () { return OrthoPerspectiveCamera; },
-    get PostproductionRenderer () { return PostproductionRenderer; },
-    get PropertyTag () { return PropertyTag; },
-    get RangeInput () { return RangeInput; },
-    get RectangleAnnotation () { return RectangleAnnotation; },
-    get ScreenCuller () { return ScreenCuller; },
-    get ShadowDropper () { return ShadowDropper; },
-    get Simple2DMarker () { return Simple2DMarker; },
-    get SimpleCamera () { return SimpleCamera; },
-    get SimpleClipper () { return SimpleClipper; },
-    get SimpleDimensionLine () { return SimpleDimensionLine; },
-    get SimpleGrid () { return SimpleGrid; },
-    get SimplePlane () { return SimplePlane; },
-    get SimpleRaycaster () { return SimpleRaycaster; },
-    get SimpleRenderer () { return SimpleRenderer; },
-    get SimpleSVGViewport () { return SimpleSVGViewport; },
-    get SimpleScene () { return SimpleScene; },
-    get SimpleUICard () { return SimpleUICard; },
-    get SimpleUIComponent () { return SimpleUIComponent; },
-    get Spinner () { return Spinner; },
-    get TextAnnotation () { return TextAnnotation; },
-    get TextArea () { return TextArea; },
-    get TextInput () { return TextInput; },
-    get ToastNotification () { return ToastNotification; },
-    get ToolComponent () { return ToolComponent; },
-    get Toolbar () { return Toolbar; },
-    get TreeView () { return TreeView; },
-    get UIManager () { return UIManager; },
-    get VertexPicker () { return VertexPicker; },
-    get ViewpointsManager () { return ViewpointsManager; },
-    get bufferGeometryToIndexed () { return bufferGeometryToIndexed; },
-    get generateExpressIDFragmentIDMap () { return generateExpressIDFragmentIDMap; },
-    get generateIfcGUID () { return generateIfcGUID; },
-    get numberOfDigits () { return numberOfDigits; },
-    get toCompositeID () { return toCompositeID; },
-    get tooeenRandomId () { return tooeenRandomId; }
-});
-
 /**
  * Components are the building blocks of this library. Everything is a
  * component: tools, scenes, objects, cameras, etc.
@@ -216,7 +120,7 @@ class Mouse {
         this.updateMouseInfo = (event) => {
             this._event = event;
         };
-        this.setupMousePositionUpdate();
+        this.setupEvents(true);
     }
     /**
      * The real position of the mouse of the Three.js canvas.
@@ -231,7 +135,7 @@ class Mouse {
     }
     /** {@link Disposable.dispose} */
     dispose() {
-        this.dom.removeEventListener("mousemove", this.updateMouseInfo);
+        this.setupEvents(false);
     }
     getPositionY(bound, event) {
         return -((event.clientY - bound.top) / (bound.bottom - bound.top)) * 2 + 1;
@@ -239,8 +143,13 @@ class Mouse {
     getPositionX(bound, event) {
         return ((event.clientX - bound.left) / (bound.right - bound.left)) * 2 - 1;
     }
-    setupMousePositionUpdate() {
-        this.dom.addEventListener("mousemove", this.updateMouseInfo);
+    setupEvents(active) {
+        if (active) {
+            this.dom.addEventListener("mousemove", this.updateMouseInfo);
+        }
+        else {
+            this.dom.removeEventListener("mousemove", this.updateMouseInfo);
+        }
     }
 }
 
@@ -1218,8 +1127,9 @@ class ToolComponent extends Component {
      * for the component.
      * @param token The authentication token to authorise this request.
      * @param id The ID of the tool you want to get
+     * @param OBC The whole components library (import * as OBC from "openbim-components")
      */
-    async use(token, id) {
+    async use(token, id, OBC) {
         const { base, path } = this._urls;
         const url = base + id + path + token;
         const fetched = await fetch(url);
@@ -1309,6 +1219,8 @@ class SimpleRenderer extends BaseRenderer {
     /** {@link Updateable.update} */
     update(_delta) {
         var _a, _b;
+        if (!this.enabled)
+            return;
         this.beforeUpdate.trigger(this);
         const scene = (_a = this.components.scene) === null || _a === void 0 ? void 0 : _a.get();
         const camera = (_b = this.components.camera) === null || _b === void 0 ? void 0 : _b.get();
@@ -1320,8 +1232,8 @@ class SimpleRenderer extends BaseRenderer {
     }
     /** {@link Disposable.dispose} */
     dispose() {
-        this.setupEvents(false);
         this.enabled = false;
+        this.setupEvents(false);
         this._renderer.domElement.remove();
         this._renderer.dispose();
         this._renderer2D.domElement.remove();
@@ -3519,12 +3431,25 @@ class SimpleCamera extends Component {
         this.beforeUpdate = new Event();
         /** {@link Updateable.afterUpdate} */
         this.afterUpdate = new Event();
+        this.aspectUpdated = new Event();
+        /**
+         * Updates the aspect of the camera to match the size of the
+         * {@link Components.renderer}.
+         */
+        this.updateAspect = () => {
+            if (this.components.renderer.isResizeable()) {
+                const size = this.components.renderer.getSize();
+                this._perspectiveCamera.aspect = size.width / size.height;
+                this._perspectiveCamera.updateProjectionMatrix();
+                this.aspectUpdated.trigger();
+            }
+        };
         this._perspectiveCamera = this.setupCamera();
         this.activeCamera = this._perspectiveCamera;
         this.controls = this.setupCameraControls();
         const scene = components.scene.get();
         scene.add(this._perspectiveCamera);
-        this.setupEvents();
+        this.setupEvents(true);
     }
     /** {@link Component.get} */
     get() {
@@ -3532,7 +3457,9 @@ class SimpleCamera extends Component {
     }
     /** {@link Disposable.dispose} */
     dispose() {
+        this.setupEvents(false);
         this.enabled = false;
+        this.aspectUpdated.reset();
         this.beforeUpdate.reset();
         this.afterUpdate.reset();
         this._perspectiveCamera.removeFromParent();
@@ -3544,17 +3471,6 @@ class SimpleCamera extends Component {
             this.beforeUpdate.trigger(this);
             this.controls.update(_delta);
             this.afterUpdate.trigger(this);
-        }
-    }
-    /**
-     * Updates the aspect of the camera to match the size of the
-     * {@link Components.renderer}.
-     */
-    updateAspect() {
-        if (this.components.renderer.isResizeable()) {
-            const size = this.components.renderer.getSize();
-            this._perspectiveCamera.aspect = size.width / size.height;
-            this._perspectiveCamera.updateProjectionMatrix();
         }
     }
     setupCamera() {
@@ -3574,10 +3490,13 @@ class SimpleCamera extends Component {
         controls.setTarget(0, 0, 0);
         return controls;
     }
-    setupEvents() {
-        window.addEventListener("resize", () => {
-            this.updateAspect();
-        });
+    setupEvents(active) {
+        if (active) {
+            window.addEventListener("resize", this.updateAspect);
+        }
+        else {
+            window.removeEventListener("resize", this.updateAspect);
+        }
     }
     static getSubsetOfThree() {
         return {
@@ -27285,12 +27204,20 @@ class FragmentManager extends Component {
     }
     /** {@link Component.get} */
     dispose() {
+        this.onFragmentsLoaded.reset();
+        this.uiElement.main.dispose();
+        this.uiElement.window.dispose();
         for (const group of this.groups) {
             group.dispose(true);
         }
+        for (const command of this.commands) {
+            command.dispose();
+        }
+        for (const card of this._cards) {
+            card.dispose();
+        }
         this.groups = [];
         this.list = {};
-        this.updateWindow();
     }
     disposeGroup(group) {
         for (const fragment of group.items) {
@@ -27354,6 +27281,7 @@ class FragmentManager extends Component {
             card.title = group.name;
             this.uiElement.window.addChild(card);
             this._cards.push(card);
+            // TODO: Use command list just like in fragment plans
             const commandsButton = new Button(this._components);
             commandsButton.materialIcon = "delete";
             commandsButton.tooltip = "Delete model";
@@ -93933,10 +93861,13 @@ class IfcFragmentSettings {
  * A simple implementation of bounding box that works for fragments. The resulting bbox is not 100% precise, but
  * it's fast, and should suffice for general use cases such as camera zooming.
  */
-class FragmentBoundingBox {
+class FragmentBoundingBox extends Component {
     constructor() {
+        super();
         this.name = "FragmentBoundingBox";
         this.enabled = true;
+        this._disposer = new Disposer();
+        this._meshes = [];
         this._absoluteMin = FragmentBoundingBox.newBound(true);
         this._absoluteMax = FragmentBoundingBox.newBound(false);
     }
@@ -93972,6 +93903,12 @@ class FragmentBoundingBox {
         }
         return new THREE$1.Box3(min, max);
     }
+    dispose() {
+        for (const mesh of this._meshes) {
+            this._disposer.dispose(mesh);
+        }
+        this._meshes = [];
+    }
     get() {
         const min = this._absoluteMin.clone();
         const max = this._absoluteMax.clone();
@@ -93993,6 +93930,7 @@ class FragmentBoundingBox {
         const { width, height, depth, center } = dimensions;
         const box = new THREE$1.BoxGeometry(width, height, depth);
         const mesh = new THREE$1.Mesh(box);
+        this._meshes.push(mesh);
         mesh.position.copy(center);
         return mesh;
     }
@@ -94428,6 +94366,10 @@ class FragmentIfcLoader extends Component {
     dispose() {
         this._geometry.cleanUp();
         this._converter.cleanUp();
+        this.ifcLoaded.reset();
+        this.locationsSaved.reset();
+        this._toast.dispose();
+        this.uiElement.main.dispose();
         this._webIfc = null;
         this._geometry = null;
         this._converter = null;
@@ -94780,6 +94722,7 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         this.toggleEvents(true);
         this._projectionManager = new ProjectionManager(components, this);
         this.uiElement = this.setUI();
+        this.aspectUpdated.on(() => this.setOrthoCameraAspect());
     }
     setUI() {
         const mainButton = new Button(this.components);
@@ -94891,11 +94834,6 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         }
         this.currentMode = this._navigationModes.get(mode);
         this.currentMode.toggle(true);
-    }
-    /** Updates the aspect ratio of the camera to match the Renderer's aspect ratio. */
-    updateAspect() {
-        super.updateAspect();
-        this.setOrthoCameraAspect();
     }
     /**
      * Make the camera view fit all the specified meshes.
@@ -98551,6 +98489,8 @@ class PostproductionRenderer extends SimpleRenderer {
     /** {@link Updateable.update} */
     update(_delta) {
         var _a, _b;
+        if (!this.enabled)
+            return;
         this.beforeUpdate.trigger(this);
         const scene = (_a = this.components.scene) === null || _a === void 0 ? void 0 : _a.get();
         const camera = (_b = this.components.camera) === null || _b === void 0 ? void 0 : _b.get();
@@ -100547,8 +100487,18 @@ class FragmentHighlighter extends Component {
             const mesh = this._outlinedMeshes[id];
             mesh.geometry.dispose();
         }
+        this.outlineMaterial.dispose();
+        this._bbox.dispose();
         this._invisibleMaterial.dispose();
         this.highlightMats = {};
+        this.selection = {};
+        for (const name in this.events) {
+            this.events[name].onClear.reset();
+            this.events[name].onHighlight.reset();
+        }
+        this.events = {};
+        this._components = null;
+        this._fragments = null;
     }
     add(name, material) {
         if (this.highlightMats[name]) {
@@ -100922,7 +100872,7 @@ class FragmentTreeItem extends Component {
         this.selected = new Event();
         this.hovered = new Event();
         this._children = [];
-        this.components = components;
+        this._components = components;
         this.uiElement = {
             main: new Button(components),
             tree: new TreeView(components, content),
@@ -100937,12 +100887,14 @@ class FragmentTreeItem extends Component {
         };
     }
     dispose() {
+        this.uiElement.main.dispose();
         this.uiElement.tree.dispose();
         this.selected.reset();
         this.hovered.reset();
         for (const child of this.children) {
             child.dispose();
         }
+        this._components = null;
     }
     get() {
         return { name: this.name, filter: this.filter, children: this.children };
@@ -100966,6 +100918,13 @@ class FragmentTree extends Component {
     }
     get() {
         return this._tree;
+    }
+    dispose() {
+        this.selected.reset();
+        this.hovered.reset();
+        this._tree.dispose();
+        this._components = null;
+        this._classifier = null;
     }
     update(groupSystems) {
         if (this._tree.children.length) {
@@ -101020,6 +100979,7 @@ class FragmentClassifier extends Component {
     }
     dispose() {
         this._groupSystems = {};
+        this._fragments = null;
     }
     remove(guid) {
         for (const systemName in this._groupSystems) {
@@ -101242,6 +101202,9 @@ class FragmentHider extends Component {
         this.loadCached();
     }
     dispose() {
+        this.uiElement.main.dispose();
+        this.uiElement.window.dispose();
+        this._components = null;
         this._fragments = null;
         this._culler = null;
     }
@@ -101737,15 +101700,27 @@ class PlanObjects {
         this.uiElement = { main: button };
     }
     dispose() {
+        this.planClicked.reset();
         this.visible = false;
         for (const id in this._objects) {
-            const { marker } = this._objects[id];
+            const { marker, button, outline, root, plane } = this._objects[id];
+            button.dispose();
+            outline.removeFromParent();
+            outline.geometry = null;
+            outline.material = [];
+            root.removeFromParent();
+            root.children = [];
+            plane.removeFromParent();
+            plane.material = [];
+            plane.geometry = null;
             marker.element.remove();
         }
         this._objects = {};
         this._planeGeometry.dispose();
         this._material.dispose();
         this.uiElement.main.dispose();
+        this.lineMaterial.dispose();
+        this._material.dispose();
         this._components = null;
     }
     add(config) {
@@ -101905,15 +101880,21 @@ class FragmentPlans extends Component {
     }
     /** {@link Disposable.dispose} */
     dispose() {
+        this.exited.reset();
+        this.navigated.reset();
         this.storeys = [];
         this._plans = [];
         this._clipper.dispose();
         this.objects.dispose();
-        this.uiElement.planList.dispose();
         this.uiElement.floatingWindow.dispose();
         this.uiElement.main.dispose();
+        this.uiElement.planList.dispose();
+        this.uiElement.defaultText.dispose();
+        this.uiElement.exitButton.dispose();
         this.uiElement.commandsMenu.dispose();
-        this.uiElement.commandsMenu.dispose();
+        this._components = null;
+        this._clipper = null;
+        this._camera = null;
     }
     // TODO: Compute georreference matrix when generating fragmentsgroup
     // so that we can correctly add floors in georreferenced models
@@ -102180,6 +102161,17 @@ class FragmentClipStyler {
         this.uiElement = { mainWindow, mainButton };
         this.loadCachedStyles();
     }
+    dispose() {
+        for (const id in this._styleCards) {
+            this.deleteStyleCard(id, false);
+        }
+        this.uiElement.mainWindow.dispose();
+        this.uiElement.mainButton.dispose();
+        this._clipper = null;
+        this._classifier = null;
+        this._components = null;
+        this._fragments = null;
+    }
     loadCachedStyles() {
         const savedData = localStorage.getItem(this._localStorageID);
         if (savedData) {
@@ -102205,7 +102197,7 @@ class FragmentClipStyler {
         const serialized = JSON.stringify(styles);
         localStorage.setItem(this._localStorageID, serialized);
     }
-    deleteStyleCard(id) {
+    deleteStyleCard(id, updateCache = true) {
         const found = this._styleCards[id];
         this._clipper.styles.deleteStyle(id, true);
         if (found) {
@@ -102219,7 +102211,9 @@ class FragmentClipStyler {
         }
         delete this._styleCards[id];
         this._clipper.updateEdges(true);
-        this.cacheStyles();
+        if (updateCache) {
+            this.cacheStyles();
+        }
     }
     createStyleCard(config) {
         const styleCard = new SimpleUIComponent(this._components);
