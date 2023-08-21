@@ -9675,7 +9675,9 @@ class SimpleUIComponent extends Component {
         }
         for (const name in this.innerElements) {
             const element = this.innerElements[name];
-            element.remove();
+            if (element) {
+                element.remove();
+            }
         }
         if (!onlyChildren) {
             if (this._domElement) {
@@ -9689,7 +9691,6 @@ class SimpleUIComponent extends Component {
             this.children = [];
             this.slots = {};
             this.parent = null;
-            this._components = null;
         }
     }
     addChild(...items) {
@@ -10539,12 +10540,16 @@ class FloatingWindow extends SimpleUIComponent {
         const title = this.innerElements.titleContainer;
         const container = this.viewerContainer;
         if (active) {
-            title.addEventListener("mousedown", this.onMOuseDown);
+            if (title) {
+                title.addEventListener("mousedown", this.onMOuseDown);
+            }
             container.addEventListener("mousemove", this.onMouseMove);
             container.addEventListener("mouseup", this.onMouseUp);
         }
         else {
-            title.removeEventListener("mousedown", this.onMOuseDown);
+            if (title) {
+                title.removeEventListener("mousedown", this.onMOuseDown);
+            }
             container.removeEventListener("mousemove", this.onMouseMove);
             container.removeEventListener("mouseup", this.onMouseUp);
         }
@@ -100570,6 +100575,50 @@ class FragmentHighlighter extends Component {
         this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
         this._tempMatrix = new THREE$1.Matrix4();
         this._bbox = new FragmentBoundingBox();
+        this._default = {
+            selectName: "select",
+            hoverName: "hover",
+            mouseDown: false,
+            mouseMoved: false,
+            selectionMaterial: new THREE$1.MeshBasicMaterial({
+                color: "#BCF124",
+                transparent: true,
+                opacity: 0.85,
+                depthTest: true,
+            }),
+            highlightMaterial: new THREE$1.MeshBasicMaterial({
+                color: "#6528D7",
+                transparent: true,
+                opacity: 0.2,
+                depthTest: true,
+            }),
+        };
+        this.onMouseDown = () => {
+            this._default.mouseDown = true;
+        };
+        this.onMouseUp = (event) => {
+            if (event.target !== this._components.renderer.get().domElement)
+                return;
+            this._default.mouseDown = false;
+            if (this._default.mouseMoved || event.button !== 0) {
+                this._default.mouseMoved = false;
+                return;
+            }
+            this._default.mouseMoved = false;
+            const mult = this.multiple === "none" ? true : !event[this.multiple];
+            this.highlight(this._default.selectName, mult, this.zoomToSelection);
+        };
+        this.onMouseMove = () => {
+            if (this._default.mouseMoved) {
+                this.clearFills(this._default.hoverName);
+                return;
+            }
+            this._default.mouseMoved = true;
+            if (!this._default.mouseDown) {
+                this._default.mouseMoved = false;
+            }
+            this.highlight(this._default.hoverName, true, false);
+        };
         this._components = components;
         this._fragments = fragments;
     }
@@ -100577,6 +100626,9 @@ class FragmentHighlighter extends Component {
         return this.highlightMats;
     }
     dispose() {
+        this.setupEvents(false);
+        this._default.highlightMaterial.dispose();
+        this._default.selectionMaterial.dispose();
         for (const matID in this.highlightMats) {
             const mats = this.highlightMats[matID] || [];
             for (const mat of mats) {
@@ -100714,52 +100766,10 @@ class FragmentHighlighter extends Component {
     setup() {
         this.enabled = true;
         this.outlineMaterial.color.set(0xf0ff7a);
-        const selectName = "select";
-        const hoverName = "hover";
-        this.excludeOutline.add(hoverName);
-        const selectionMaterial = new THREE$1.MeshBasicMaterial({
-            color: "#BCF124",
-            transparent: true,
-            opacity: 0.85,
-            depthTest: true,
-        });
-        const highlightMaterial = new THREE$1.MeshBasicMaterial({
-            color: "#6528D7",
-            transparent: true,
-            opacity: 0.2,
-            depthTest: true,
-        });
-        this.add(selectName, [selectionMaterial]);
-        this.add(hoverName, [highlightMaterial]);
-        let mouseDown = false;
-        let mouseMoved = false;
-        const container = this._components.renderer.get().domElement;
-        container.addEventListener("mousedown", () => {
-            mouseDown = true;
-        });
-        container.addEventListener("mouseup", (e) => {
-            if (e.target !== this._components.renderer.get().domElement)
-                return;
-            mouseDown = false;
-            if (mouseMoved || e.button !== 0) {
-                mouseMoved = false;
-                return;
-            }
-            mouseMoved = false;
-            const mult = this.multiple === "none" ? true : !e[this.multiple];
-            this.highlight(selectName, mult, this.zoomToSelection);
-        });
-        container.addEventListener("mousemove", () => {
-            if (mouseMoved) {
-                this.clearFills(hoverName);
-                return;
-            }
-            mouseMoved = true;
-            if (!mouseDown) {
-                mouseMoved = false;
-            }
-            this.highlight(hoverName, true, false);
-        });
+        this.excludeOutline.add(this._default.hoverName);
+        this.add(this._default.selectName, [this._default.selectionMaterial]);
+        this.add(this._default.hoverName, [this._default.highlightMaterial]);
+        this.setupEvents(true);
     }
     regenerate(name, fragID) {
         if (this._fillEnabled) {
@@ -100952,6 +100962,19 @@ class FragmentHighlighter extends Component {
             }
             outlineMesh.count = counter;
             outlineMesh.instanceMatrix.needsUpdate = true;
+        }
+    }
+    setupEvents(active) {
+        const container = this._components.renderer.get().domElement;
+        if (active) {
+            container.addEventListener("mousedown", this.onMouseDown);
+            container.addEventListener("mouseup", this.onMouseUp);
+            container.addEventListener("mousemove", this.onMouseMove);
+        }
+        else {
+            container.removeEventListener("mousedown", this.onMouseDown);
+            container.removeEventListener("mouseup", this.onMouseUp);
+            container.removeEventListener("mousemove", this.onMouseMove);
         }
     }
 }
