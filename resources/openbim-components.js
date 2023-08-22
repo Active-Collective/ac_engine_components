@@ -102265,8 +102265,11 @@ class FragmentPlans extends Component {
     }
 }
 
-class FragmentClipStyler {
+class FragmentClipStyler extends Component {
     constructor(components, fragments, classifier, clipper) {
+        super();
+        this.name = "FragmentClipStyler";
+        this.enabled = true;
         this._localStorageID = "FragmentClipStyler";
         this._styleCards = {};
         this._components = components;
@@ -102296,6 +102299,14 @@ class FragmentClipStyler {
         mainWindow.addChild(topButtonContainer);
         this.uiElement = { mainWindow, mainButton };
         this.loadCachedStyles();
+    }
+    get() {
+        const saved = localStorage.getItem(this._localStorageID);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return Object.values(parsed);
+        }
+        return [];
     }
     dispose() {
         for (const id in this._styleCards) {
