@@ -103525,10 +103525,6 @@ class MapboxWindow {
      * will be created.
      */
     dispose() {
-        this._components.dispose();
-        this._components = null;
-        this._map.remove();
-        this._map = null;
         for (const id in this._labels) {
             const label = this._labels[id];
             label.removeFromParent();
@@ -103536,6 +103532,9 @@ class MapboxWindow {
         }
         this._buildings = [];
         this._labels = {};
+        this._components.dispose();
+        this._map = null;
+        this._components = null;
     }
     centerMapToBuildings() {
         let maxLng = -Number.MAX_VALUE;
@@ -103588,7 +103587,10 @@ class MapboxWindow {
         this._components.camera = new MapboxCamera();
         const renderer = new MapboxRenderer(this._components, this._map, coords);
         this._components.renderer = renderer;
-        renderer.initialized.on(() => this._components.init());
+        renderer.initialized.on(() => {
+            this._components.raycaster = new SimpleRaycaster(this._components);
+            this._components.init();
+        });
     }
     setupScene() {
         const scene = this._components.scene.get();
