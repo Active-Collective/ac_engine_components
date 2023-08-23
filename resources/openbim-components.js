@@ -3598,6 +3598,10 @@ class SimpleGrid extends Component {
         this.enabled = true;
         this._disposer = new Disposer();
         this._fade = 3;
+        this.updateZoom = () => {
+            const camera = this._components.camera;
+            this.material.uniforms.uZoom.value = camera.get().zoom;
+        };
         this._components = components;
         // Source: https://github.com/dkaraush/THREE.InfiniteGridHelper/blob/master/InfiniteGridHelper.ts
         // Author: Fyrestar https://mevedia.com (https://github.com/Fyrestar/THREE.InfiniteGridHelper)
@@ -3619,6 +3623,9 @@ class SimpleGrid extends Component {
                 },
                 uFade: {
                     value: this._fade,
+                },
+                uZoom: {
+                    value: 1,
                 },
             },
             transparent: true,
@@ -3643,6 +3650,7 @@ class SimpleGrid extends Component {
             
             varying vec3 worldPosition;
             
+            uniform float uZoom;
             uniform float uFade;
             uniform float uSize1;
             uniform float uSize2;
@@ -3671,9 +3679,12 @@ class SimpleGrid extends Component {
                     float g1 = getGrid(uSize1);
                     float g2 = getGrid(uSize2);
                     
+                    // Ortho camera fades the grid away when zooming out
+                    float minZoom = step(0.2, uZoom);
+                    float zoomFactor = pow(min(uZoom, 1.), 2.) * minZoom;
                     
                     gl_FragColor = vec4(uColor.rgb, mix(g2, g1, g1) * pow(d, uFade));
-                    gl_FragColor.a = mix(0.5 * gl_FragColor.a, gl_FragColor.a, g2);
+                    gl_FragColor.a = mix(0.5 * gl_FragColor.a, gl_FragColor.a, g2) * zoomFactor;
                     
                     if ( gl_FragColor.a <= 0.0 ) discard;
                     
@@ -3689,6 +3700,7 @@ class SimpleGrid extends Component {
         this._grid.frustumCulled = false;
         const scene = components.scene.get();
         scene.add(this._grid);
+        this.setupEvents(true);
     }
     /** {@link Component.get} */
     get() {
@@ -3696,8 +3708,19 @@ class SimpleGrid extends Component {
     }
     /** {@link Disposable.dispose} */
     dispose() {
+        this.setupEvents(false);
         this._disposer.dispose(this._grid);
         this._components = null;
+    }
+    setupEvents(active) {
+        const camera = this._components.camera;
+        const controls = camera.controls;
+        if (active) {
+            controls.addEventListener("update", this.updateZoom);
+        }
+        else {
+            controls.removeEventListener("update", this.updateZoom);
+        }
     }
 }
 
