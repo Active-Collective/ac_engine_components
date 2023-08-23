@@ -99292,7 +99292,9 @@ class EdgesPlane extends SimplePlane {
         this.updateFill = () => {
             this.edges.fillNeedsUpdate = true;
             this.edges.update();
-            this.edges.fillVisible = true;
+            if (this._visible) {
+                this.edges.fillVisible = true;
+            }
         };
         /** {@link Updateable.update} */
         this.update = () => {
