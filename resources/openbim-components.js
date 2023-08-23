@@ -102283,6 +102283,24 @@ class FragmentClipStyler extends Component {
         this.enabled = true;
         this._localStorageID = "FragmentClipStyler";
         this._styleCards = {};
+        this._defaultStyles = `
+     {
+        "B0ebxzZQvZ": {
+            "name": "thick",
+            "lineColor": "#36593e",
+            "lineThickness": 0.5,
+            "fillColor": "#ccdb9a",
+            "categories": "IFCWALLSTANDARDCASE, IFCWALL,IFCSLAB, IFCROOF"
+        },
+        "kG9B1Ojv08": {
+            "name": "thin",
+            "lineColor": "#92a59b",
+            "lineThickness": 0.25,
+            "fillColor": "#e6ffdb",
+            "categories": "IFCWINDOW, IFCDOOR"
+        }
+    }
+  `;
         this._components = components;
         this._fragments = fragments;
         this._clipper = clipper;
@@ -102310,6 +102328,13 @@ class FragmentClipStyler extends Component {
         mainWindow.addChild(topButtonContainer);
         this.uiElement = { mainWindow, mainButton };
         this.loadCachedStyles();
+    }
+    setup(force = false) {
+        const noCards = Object.keys(this._styleCards).length === 0;
+        if (force || noCards) {
+            localStorage.setItem(this._localStorageID, this._defaultStyles);
+            this.loadCachedStyles();
+        }
     }
     get() {
         const saved = localStorage.getItem(this._localStorageID);
@@ -102435,6 +102460,7 @@ class FragmentClipStyler extends Component {
         if (name) {
             name.append(nameInput.domElement);
         }
+        nameInput.domElement.addEventListener("focusout", () => this.cacheStyles());
         const lineColor = new ColorInput(this._components);
         lineColor.label = "Line color";
         const lineColorContainer = styleCard.getInnerElement("line-color");
