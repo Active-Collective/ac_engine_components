@@ -689,8 +689,10 @@ class VertexPicker extends Component {
     get enabled() {
         return this._enabled;
     }
+    get _raycaster() {
+        return this._components.raycaster;
+    }
     constructor(components, config) {
-        var _a;
         super();
         this.name = "VertexPicker";
         this.afterUpdate = new Event();
@@ -698,6 +700,37 @@ class VertexPicker extends Component {
         this._pickedPoint = null;
         this._enabled = false;
         this._workingPlane = null;
+        this.update = () => {
+            if (!this.enabled)
+                return;
+            this.beforeUpdate.trigger(this);
+            const intersects = this._raycaster.castRay();
+            if (!intersects) {
+                this._marker.visible = false;
+                this._pickedPoint = null;
+                return;
+            }
+            const point = this.getClosestVertex(intersects);
+            if (!point) {
+                this._marker.visible = false;
+                this._pickedPoint = null;
+                return;
+            }
+            const isOnPlane = !this.workingPlane
+                ? true
+                : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
+            if (!isOnPlane) {
+                this._marker.visible = false;
+                this._pickedPoint = null;
+                return;
+            }
+            this._pickedPoint = point;
+            this._marker.visible = true;
+            this._marker
+                .get()
+                .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
+            this.afterUpdate.trigger(this);
+        };
         this._components = components;
         this.config = {
             snapDistance: 0.25,
@@ -706,7 +739,7 @@ class VertexPicker extends Component {
         };
         this._marker = new Simple2DMarker(components, this.config.previewElement);
         this._marker.visible = false;
-        (_a = components.ui.viewerContainer) === null || _a === void 0 ? void 0 : _a.addEventListener("mousemove", () => this.update());
+        this.setupEvents(true);
         this.enabled = false;
     }
     set workingPlane(plane) {
@@ -721,39 +754,15 @@ class VertexPicker extends Component {
     get config() {
         return this._config;
     }
-    get _raycaster() {
-        return this._components.raycaster;
+    dispose() {
+        this.setupEvents(false);
+        this._marker.dispose();
+        this.afterUpdate.reset();
+        this.beforeUpdate.reset();
+        this._components = null;
     }
-    update() {
-        if (!this.enabled)
-            return;
-        this.beforeUpdate.trigger(this);
-        const intersects = this._raycaster.castRay();
-        if (!intersects) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        const point = this.getClosestVertex(intersects);
-        if (!point) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        const isOnPlane = !this.workingPlane
-            ? true
-            : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
-        if (!isOnPlane) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-            return;
-        }
-        this._pickedPoint = point;
-        this._marker.visible = true;
-        this._marker
-            .get()
-            .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
-        this.afterUpdate.trigger(this);
+    get() {
+        return this._pickedPoint;
     }
     getClosestVertex(intersects) {
         let closestVertex = new THREE$1.Vector3();
@@ -791,14 +800,14 @@ class VertexPicker extends Component {
         const vertices = geom.attributes.position;
         return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
     }
-    dispose() {
-        this._marker.dispose();
-        this.afterUpdate.reset();
-        this.beforeUpdate.reset();
-        this._components = null;
-    }
-    get() {
-        return this._pickedPoint;
+    setupEvents(active) {
+        const container = this._components.ui.viewerContainer;
+        if (active) {
+            container.addEventListener("mousemove", this.update);
+        }
+        else {
+            container.addEventListener("mousemove", this.update);
+        }
     }
 }
 
@@ -11117,7 +11126,7 @@ class CommandsMenu extends SimpleUIComponent {
         this.innerElements = {
             window: this.getInnerElement("window"),
         };
-        this.toggleWindowEvent(true);
+        this.setupEvents(true);
     }
     update() {
         this.dispose(true);
@@ -11137,12 +11146,12 @@ class CommandsMenu extends SimpleUIComponent {
     dispose(onlyChildren = false) {
         super.dispose(onlyChildren);
         if (!onlyChildren) {
-            this.toggleWindowEvent(false);
+            this.setupEvents(false);
             this.commands = {};
             this.commandData = null;
         }
     }
-    toggleWindowEvent(active) {
+    setupEvents(active) {
         if (active) {
             window.addEventListener("click", this.hideCommandsMenu);
         }
@@ -99903,21 +99912,24 @@ class LengthMeasurement extends Component {
             end: new THREE$1.Vector3(),
             dimension: undefined,
         };
-        this._raycaster = new SimpleRaycaster(this._components);
-        this._vertexPicker = new VertexPicker(_components, {
-            previewElement: this.newEndpoint(),
-            snapDistance: this.snapDistance,
-        });
-        this.uiElement = { main: new Button(this._components) };
-        this.uiElement.main.materialIcon = "straighten";
-        this.setUI();
-        this.enabled = false;
-    }
-    setUI() {
-        const viewerContainer = this._components.renderer.get().domElement
-            .parentElement;
-        const createDimension = () => this.create();
-        const keydown = (e) => {
+        /**
+         * Starts or finishes drawing a new dimension line.
+         *
+         * @param data - forces the dimension to be drawn on a plane. Use this if you are drawing
+         * dimensions in floor plan navigation.
+         */
+        this.create = (data) => {
+            const plane = data instanceof THREE$1.Object3D ? data : undefined;
+            if (!this._enabled)
+                return;
+            this.beforeCreate.trigger(this);
+            if (!this._temp.isDragging) {
+                this.drawStart(plane);
+                return;
+            }
+            this.endCreation();
+        };
+        this.onKeyDown = (e) => {
             if (!this.enabled)
                 return;
             if (e.key === "Escape") {
@@ -99929,18 +99941,27 @@ class LengthMeasurement extends Component {
                 }
             }
         };
+        this._raycaster = new SimpleRaycaster(this._components);
+        this._vertexPicker = new VertexPicker(_components, {
+            previewElement: this.newEndpoint(),
+            snapDistance: this.snapDistance,
+        });
+        this.uiElement = { main: new Button(this._components) };
+        this.uiElement.main.materialIcon = "straighten";
+        this.setUI();
+        this.enabled = false;
+    }
+    setUI() {
         this.uiElement.main.onclick = () => {
             if (!this.enabled) {
-                viewerContainer.addEventListener("click", createDimension);
-                window.addEventListener("keydown", keydown);
+                this.setupEvents(true);
                 this.uiElement.main.active = true;
                 this.enabled = true;
             }
             else {
                 this.enabled = false;
                 this.uiElement.main.active = false;
-                viewerContainer.removeEventListener("click", createDimension);
-                window.removeEventListener("keydown", keydown);
+                this.setupEvents(false);
             }
         };
     }
@@ -99950,6 +99971,7 @@ class LengthMeasurement extends Component {
     }
     /** {@link Disposable.dispose} */
     dispose() {
+        this.setupEvents(false);
         this.enabled = false;
         this.beforeUpdate.reset();
         this.afterUpdate.reset();
@@ -99979,22 +100001,6 @@ class LengthMeasurement extends Component {
             }
             this.afterUpdate.trigger(this);
         }
-    }
-    /**
-     * Starts or finishes drawing a new dimension line.
-     *
-     * @param plane - forces the dimension to be drawn on a plane. Use this if you are drawing
-     * dimensions in floor plan navigation.
-     */
-    create(plane) {
-        if (!this._enabled)
-            return;
-        this.beforeCreate.trigger(this);
-        if (!this._temp.isDragging) {
-            this.drawStart(plane);
-            return;
-        }
-        this.endCreation();
     }
     /** Deletes the dimension that the user is hovering over with the mouse or touch event. */
     delete() {
@@ -100077,6 +100083,17 @@ class LengthMeasurement extends Component {
         return this._measurements
             .map((dim) => dim.boundingBox)
             .filter((box) => box !== undefined);
+    }
+    setupEvents(active) {
+        const viewerContainer = this._components.ui.viewerContainer;
+        if (active) {
+            viewerContainer.addEventListener("click", this.create);
+            window.addEventListener("keydown", this.onKeyDown);
+        }
+        else {
+            viewerContainer.removeEventListener("click", this.create);
+            window.removeEventListener("keydown", this.onKeyDown);
+        }
     }
 }
 
@@ -103359,7 +103376,7 @@ class MapboxRenderer extends BaseRenderer {
     dispose() {
         this.initialized.reset();
         this.enabled = false;
-        window.removeEventListener("resize", this.updateLabelRendererSize);
+        this.setupEvents(false);
         this._renderer.dispose();
         this._map.remove();
         this._map = null;
@@ -103431,7 +103448,7 @@ class MapboxRenderer extends BaseRenderer {
     initializeLabelRenderer() {
         var _a, _b;
         this.updateLabelRendererSize();
-        window.addEventListener("resize", this.updateLabelRendererSize);
+        this.setupEvents(true);
         this._labelRenderer.domElement.style.position = "absolute";
         this._labelRenderer.domElement.style.top = "0px";
         const dom = this._labelRenderer.domElement;
@@ -103476,6 +103493,14 @@ class MapboxRenderer extends BaseRenderer {
                 },
             }, labelLayerId);
         });
+    }
+    setupEvents(active) {
+        if (active) {
+            window.addEventListener("resize", this.updateLabelRendererSize);
+        }
+        else {
+            window.removeEventListener("resize", this.updateLabelRendererSize);
+        }
     }
 }
 
@@ -103841,8 +103866,26 @@ class AreaMeasurement extends Component {
         this.afterCancel = new Event();
         this.beforeDelete = new Event();
         this.afterDelete = new Event();
-        this.onCreateMeasurement = () => {
-            this.create();
+        this.create = () => {
+            if (!this.enabled)
+                return;
+            const point = this._vertexPicker.get();
+            if (!point)
+                return;
+            if (!this._currentAreaElement) {
+                const areaShape = new AreaMeasureElement(this._components);
+                areaShape.onPointAdded.on(() => {
+                    if (this._clickCount === 3 && !areaShape.workingPlane) {
+                        areaShape.computeWorkingPlane();
+                        this._vertexPicker.workingPlane = areaShape.workingPlane;
+                    }
+                });
+                areaShape.onPointRemoved.on(() => this._clickCount--);
+                this._currentAreaElement = areaShape;
+            }
+            this._currentAreaElement.setPoint(point, this._clickCount);
+            this._currentAreaElement.computeArea();
+            this._clickCount++;
         };
         this.onMouseMove = () => {
             const point = this._vertexPicker.get();
@@ -103906,27 +103949,6 @@ class AreaMeasurement extends Component {
             }
         };
     }
-    create() {
-        if (!this.enabled)
-            return;
-        const point = this._vertexPicker.get();
-        if (!point)
-            return;
-        if (!this._currentAreaElement) {
-            const areaShape = new AreaMeasureElement(this._components);
-            areaShape.onPointAdded.on(() => {
-                if (this._clickCount === 3 && !areaShape.workingPlane) {
-                    areaShape.computeWorkingPlane();
-                    this._vertexPicker.workingPlane = areaShape.workingPlane;
-                }
-            });
-            areaShape.onPointRemoved.on(() => this._clickCount--);
-            this._currentAreaElement = areaShape;
-        }
-        this._currentAreaElement.setPoint(point, this._clickCount);
-        this._currentAreaElement.computeArea();
-        this._clickCount++;
-    }
     delete() { }
     endCreation() {
         if (this._currentAreaElement) {
@@ -103953,12 +103975,12 @@ class AreaMeasurement extends Component {
     setupEvents(active) {
         const viewerContainer = this._components.ui.viewerContainer;
         if (active) {
-            viewerContainer.addEventListener("click", this.onCreateMeasurement);
+            viewerContainer.addEventListener("click", this.create);
             viewerContainer.addEventListener("mousemove", this.onMouseMove);
             window.addEventListener("keydown", this.onKeydown);
         }
         else {
-            viewerContainer.removeEventListener("click", this.onCreateMeasurement);
+            viewerContainer.removeEventListener("click", this.create);
             viewerContainer.removeEventListener("mousemove", this.onMouseMove);
             window.removeEventListener("keydown", this.onKeydown);
         }
@@ -105466,6 +105488,46 @@ class AngleMeasurement extends Component {
         this.afterCancel = new Event();
         this.beforeDelete = new Event();
         this.afterDelete = new Event();
+        this.create = () => {
+            if (!this.enabled)
+                return;
+            const point = this._vertexPicker.get();
+            if (!point)
+                return;
+            if (!this._currentAngleElement) {
+                const angleElement = new AngleMeasureElement(this._components);
+                angleElement.lineMaterial = this.lineMaterial;
+                // angleElement.onPointRemoved.on(() => this._clickCount--);
+                this._currentAngleElement = angleElement;
+            }
+            this._currentAngleElement.setPoint(point, this._clickCount);
+            this._currentAngleElement.setPoint(point, (this._clickCount + 1));
+            this._currentAngleElement.setPoint(point, (this._clickCount + 2));
+            this._currentAngleElement.computeAngle();
+            this._clickCount++;
+            if (this._clickCount === 3)
+                this.endCreation();
+        };
+        this.onMouseMove = () => {
+            const point = this._vertexPicker.get();
+            if (!(point && this._currentAngleElement))
+                return;
+            this._currentAngleElement.setPoint(point, this._clickCount);
+            this._currentAngleElement.computeAngle();
+        };
+        this.onKeyDown = (e) => {
+            if (!this.enabled)
+                return;
+            if (e.key === "z" && e.ctrlKey && this._currentAngleElement) ;
+            if (e.key === "Escape") {
+                if (this._clickCount === 0 && !this._currentAngleElement) {
+                    this.enabled = false;
+                }
+                else {
+                    this.cancelCreation();
+                }
+            }
+        };
         this._components = components;
         this._lineMaterial = new LineMaterial({
             color: 0x6528d7,
@@ -105478,6 +105540,7 @@ class AngleMeasurement extends Component {
         this.enabled = false;
     }
     dispose() {
+        this.setupEvents(false);
         this.beforeCreate.reset();
         this.afterCreate.reset();
         this.beforeCancel.reset();
@@ -105496,64 +105559,18 @@ class AngleMeasurement extends Component {
         this._components = null;
     }
     setUI() {
-        const viewerContainer = this._components.ui.viewerContainer;
-        const createMeasurement = () => this.create();
-        const mouseMove = () => {
-            const point = this._vertexPicker.get();
-            if (!(point && this._currentAngleElement))
-                return;
-            this._currentAngleElement.setPoint(point, this._clickCount);
-            this._currentAngleElement.computeAngle();
-        };
-        const keydown = (e) => {
-            if (!this.enabled)
-                return;
-            if (e.key === "z" && e.ctrlKey && this._currentAngleElement) ;
-            if (e.key === "Escape") {
-                if (this._clickCount === 0 && !this._currentAngleElement) {
-                    this.enabled = false;
-                }
-                else {
-                    this.cancelCreation();
-                }
-            }
-        };
         this.uiElement.main.onclick = () => {
             if (!this.enabled) {
-                viewerContainer.addEventListener("click", createMeasurement);
-                viewerContainer.addEventListener("mousemove", mouseMove);
-                window.addEventListener("keydown", keydown);
+                this.setupEvents(true);
                 this.uiElement.main.active = true;
                 this.enabled = true;
             }
             else {
                 this.enabled = false;
                 this.uiElement.main.active = false;
-                viewerContainer.removeEventListener("click", createMeasurement);
-                viewerContainer.removeEventListener("mousemove", mouseMove);
-                window.removeEventListener("keydown", keydown);
+                this.setupEvents(false);
             }
         };
-    }
-    create() {
-        if (!this.enabled)
-            return;
-        const point = this._vertexPicker.get();
-        if (!point)
-            return;
-        if (!this._currentAngleElement) {
-            const angleElement = new AngleMeasureElement(this._components);
-            angleElement.lineMaterial = this.lineMaterial;
-            // angleElement.onPointRemoved.on(() => this._clickCount--);
-            this._currentAngleElement = angleElement;
-        }
-        this._currentAngleElement.setPoint(point, this._clickCount);
-        this._currentAngleElement.setPoint(point, (this._clickCount + 1));
-        this._currentAngleElement.setPoint(point, (this._clickCount + 2));
-        this._currentAngleElement.computeAngle();
-        this._clickCount++;
-        if (this._clickCount === 3)
-            this.endCreation();
     }
     delete() { }
     endCreation() {
@@ -105573,6 +105590,20 @@ class AngleMeasurement extends Component {
     }
     get() {
         return this._measurements;
+    }
+    setupEvents(active) {
+        const viewerContainer = this._components.ui.viewerContainer;
+        if (active) {
+            viewerContainer.addEventListener("click", this.create);
+            viewerContainer.addEventListener("mousemove", this.onMouseMove);
+            window.addEventListener("keydown", this.onKeyDown);
+        }
+        else {
+            this.uiElement.main.active = false;
+            viewerContainer.removeEventListener("click", this.create);
+            viewerContainer.removeEventListener("mousemove", this.onMouseMove);
+            window.removeEventListener("keydown", this.onKeyDown);
+        }
     }
 }
 
