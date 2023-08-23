@@ -92667,8 +92667,10 @@ class PropertyTag extends SimpleUIComponent {
         super.dispose(onlyChildren);
         this.model = null;
         this._propertiesProcessor = null;
-        this.innerElements.value.remove();
-        this.innerElements.label.remove();
+        if (Object.keys(this.innerElements).length) {
+            this.innerElements.value.remove();
+            this.innerElements.label.remove();
+        }
     }
     setListeners() {
         const propertiesManager = this._propertiesProcessor.propertiesManager;
@@ -98640,6 +98642,10 @@ class ClippingFills {
         this.visible = true;
     }
     dispose() {
+        const style = this.getStyle();
+        if (style) {
+            style.meshes.delete(this.mesh);
+        }
         this.mesh.geometry.dispose();
         this.mesh.removeFromParent();
         this.mesh.geometry = null;
@@ -99210,16 +99216,19 @@ class ClippingEdges extends Component {
         }
     }
     updateDeletedEdges(styles) {
-        const renderer = this._components.renderer;
         const names = Object.keys(this._edges);
         for (const name of names) {
             if (styles[name] === undefined) {
                 this.disposeEdge(name);
-                if (renderer instanceof PostproductionRenderer) {
-                    const outlines = renderer.postproduction.customEffects.outlinedMeshes;
-                    delete outlines[name];
-                }
+                this.disposeOutline(name);
             }
+        }
+    }
+    disposeOutline(name) {
+        const renderer = this._components.renderer;
+        if (renderer instanceof PostproductionRenderer) {
+            const outlines = renderer.postproduction.customEffects.outlinedMeshes;
+            delete outlines[name];
         }
     }
     disposeEdge(name) {
@@ -101289,7 +101298,7 @@ class FragmentClassifier extends Component {
 }
 
 class FragmentHider extends Component {
-    constructor(components, fragments, culler) {
+    constructor(components, fragments, culler, loadCached = true) {
         super();
         this.name = "FragmentHider";
         this.enabled = true;
@@ -101322,7 +101331,9 @@ class FragmentHider extends Component {
         topButtonContainer.addChild(createButton);
         mainWindow.addChild(topButtonContainer);
         this.uiElement = { window: mainWindow, main: mainButton };
-        this.loadCached();
+        if (loadCached) {
+            this.loadCached();
+        }
     }
     dispose() {
         this.uiElement.main.dispose();
@@ -102504,7 +102515,6 @@ class FragmentClipStyler extends Component {
         categories.domElement.addEventListener("focusout", () => this.update([id]));
         if (config) {
             categories.value = config.categories;
-            this.update([id]);
         }
         this.cacheStyles();
     }
