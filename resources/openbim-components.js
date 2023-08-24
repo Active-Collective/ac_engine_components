@@ -91770,6 +91770,8 @@ class IfcPropertiesUtils {
         const found = [];
         for (const id in properties) {
             const property = properties[id];
+            if (!property)
+                continue;
             if (property.type === type) {
                 found.push(property);
             }
@@ -93199,18 +93201,27 @@ class AttributeQueryUI extends SimpleUIComponent {
     get query() {
         const attribute = this.attribute.value;
         const condition = this.condition.value;
+        const operator = this.operator.value || null;
         const value = attribute === "type"
             ? this.getTypeConstant(this.ifcTypes.value)
             : this.value.value;
         const negateResult = this.negate.value === "NOT A";
-        const query = { attribute, condition, value, negateResult };
+        const query = {
+            attribute,
+            condition,
+            value,
+            negateResult,
+            operator,
+        };
         if (this.operator.visible)
             query.operator = this.operator.value;
         return query;
     }
     set query(value) {
-        if (value.operator)
+        if (value.operator) {
             this.operator.value = value.operator;
+            this.operator.visible = true;
+        }
         this.attribute.value = value.attribute;
         this.condition.value = value.condition;
         this.negate.value = value.negateResult ? "NOT A" : "A";
@@ -93321,8 +93332,9 @@ class QueryGroupUI extends SimpleUIComponent {
             if (!query.condition)
                 continue;
             const attributeQuery = query;
-            if (index === 0 && attributeQuery.operator)
+            if (index === 0 && attributeQuery.operator) {
                 delete attributeQuery.operator;
+            }
             const attributeQueryUI = new AttributeQueryUI(this._components);
             attributeQueryUI.query = attributeQuery;
             this.addChild(attributeQueryUI);
@@ -101105,9 +101117,6 @@ class FragmentTreeItem extends Component {
 }
 
 class FragmentTree extends Component {
-    get uiElement() {
-        return this._tree.uiElement;
-    }
     constructor(components, classifier) {
         super();
         this.name = "FragmentTree";
@@ -101118,6 +101127,18 @@ class FragmentTree extends Component {
         this._components = components;
         this._classifier = classifier;
         this._tree = new FragmentTreeItem(this._components, classifier, this.title);
+        const window = new FloatingWindow(components);
+        window.addChild(this._tree.uiElement.tree);
+        window.title = "Model tree";
+        components.ui.add(window);
+        window.visible = false;
+        const main = new Button(components);
+        main.materialIcon = "account_tree";
+        main.tooltip = "Model tree";
+        main.onclick = () => {
+            window.visible = !window.visible;
+        };
+        this.uiElement = { main, window };
     }
     get() {
         return this._tree;
@@ -102336,6 +102357,8 @@ class FragmentPlans extends Component {
     }
     getAbsoluteFloorHeight(placementID, properties, height) {
         const placementRef = properties[placementID];
+        if (!placementRef)
+            return;
         const placement = properties[placementRef.RelativePlacement.value];
         const location = properties[placement.Location.value];
         const currentHeight = location.Coordinates[2].value;
