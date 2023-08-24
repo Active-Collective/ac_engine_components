@@ -82,11 +82,15 @@ class Event {
 class BaseRenderer extends Component {
     constructor() {
         super(...arguments);
+        this.onClippingPlanesUpdated = new Event();
         /**
          * The list of [clipping planes](https://threejs.org/docs/#api/en/renderers/WebGLRenderer.clippingPlanes) used by this
          * instance of the renderer.
          */
         this.clippingPlanes = [];
+    }
+    updateClippingPlanes() {
+        this.onClippingPlanesUpdated.trigger();
     }
     /**
      * Adds or removes a
@@ -13064,7 +13068,7 @@ class SimpleClipper extends Component {
         for (const plane of this._planes) {
             plane.enabled = state;
         }
-        this.updateMaterials();
+        this.updateMaterialsAndPlanes();
     }
     /** {@link Hideable.visible } */
     get visible() {
@@ -13196,7 +13200,7 @@ class SimpleClipper extends Component {
      */
     createFromNormalAndCoplanarPoint(normal, point) {
         const plane = this.newPlane(point, normal);
-        this.updateMaterials();
+        this.updateMaterialsAndPlanes();
         return plane;
     }
     /**
@@ -13226,7 +13230,7 @@ class SimpleClipper extends Component {
             this._planes.splice(index, 1);
             this.components.renderer.togglePlane(false, plane.get());
             plane.dispose();
-            this.updateMaterials();
+            this.updateMaterialsAndPlanes();
             this.afterDelete.trigger(plane);
         }
     }
@@ -13255,7 +13259,7 @@ class SimpleClipper extends Component {
         const worldNormal = this.getWorldNormal(intersect, normal);
         const plane = this.newPlane(intersect.point, worldNormal.negate());
         this.components.renderer.togglePlane(true, plane.get());
-        this.updateMaterials();
+        this.updateMaterialsAndPlanes();
     }
     getWorldNormal(intersect, normal) {
         const object = intersect.object;
@@ -13296,16 +13300,19 @@ class SimpleClipper extends Component {
     newPlaneInstance(point, normal) {
         return new this.PlaneType(this.components, point, normal, this._material);
     }
-    updateMaterials() {
+    updateMaterialsAndPlanes() {
+        this.components.renderer.updateClippingPlanes();
         const planes = this.components.renderer.clippingPlanes;
-        this.components.meshes.forEach((model) => {
+        for (const model of this.components.meshes) {
             if (Array.isArray(model.material)) {
-                model.material.forEach((mat) => (mat.clippingPlanes = planes));
+                for (const mat of model.material) {
+                    mat.clippingPlanes = planes;
+                }
             }
             else {
                 model.material.clippingPlanes = planes;
             }
-        });
+        }
     }
 }
 
@@ -100493,14 +100500,26 @@ class MiniMap extends Component {
         this.name = "MiniMap";
         this.afterUpdate = new Event();
         this.beforeUpdate = new Event();
+        // By pushing the map to the front, what the user sees on screen corresponds with what they see on the map
+        this.frontOffset = 0;
         this.overrideMaterial = new THREE$1.MeshDepthMaterial();
         this.backgroundColor = new THREE$1.Color(0x06080a);
         this._enabled = true;
         this._lockRotation = true;
         this._size = new THREE$1.Vector2(320, 160);
-        this._tempPosition = new THREE$1.Vector3();
+        this._tempVector1 = new THREE$1.Vector3();
+        this._tempVector2 = new THREE$1.Vector3();
         this._tempTarget = new THREE$1.Vector3();
         this.down = new THREE$1.Vector3(0, -1, 0);
+        this.updatePlanes = () => {
+            const planes = [];
+            const renderer = this._components.renderer.get();
+            for (const plane of renderer.clippingPlanes) {
+                planes.push(plane);
+            }
+            planes.push(this._plane);
+            this._renderer.clippingPlanes = planes;
+        };
         this.uiElement = {
             main: new Button(components),
             canvas: new Canvas(components),
@@ -100518,11 +100537,12 @@ class MiniMap extends Component {
         const frustumSize = 1;
         const aspect = this._size.x / this._size.y;
         this._camera = new THREE$1.OrthographicCamera((frustumSize * aspect) / -2, (frustumSize * aspect) / 2, frustumSize / 2, frustumSize / -2);
+        this._components.renderer.onClippingPlanesUpdated.on(this.updatePlanes);
         this._camera.position.set(0, 200, 0);
         this._camera.zoom = 0.1;
         this._camera.rotation.x = -Math.PI / 2;
         this._plane = new THREE$1.Plane(this.down, 200);
-        this._renderer.clippingPlanes = [this._plane];
+        this.updatePlanes();
     }
     dispose() {
         this.enabled = false;
@@ -100544,15 +100564,22 @@ class MiniMap extends Component {
         const scene = this._components.scene.get();
         const cameraComponent = this._components.camera;
         const controls = cameraComponent.controls;
-        controls.getPosition(this._tempPosition);
-        this._camera.position.x = this._tempPosition.x;
-        this._camera.position.z = this._tempPosition.z;
+        controls.getPosition(this._tempVector1);
+        this._camera.position.x = this._tempVector1.x;
+        this._camera.position.z = this._tempVector1.z;
+        if (this.frontOffset !== 0) {
+            controls.getTarget(this._tempVector2);
+            this._tempVector2.sub(this._tempVector1);
+            this._tempVector2.normalize().multiplyScalar(this.frontOffset);
+            this._camera.position.x += this._tempVector2.x;
+            this._camera.position.z += this._tempVector2.z;
+        }
         if (!this._lockRotation) {
             controls.getTarget(this._tempTarget);
-            const angle = Math.atan2(this._tempTarget.x - this._tempPosition.x, this._tempTarget.z - this._tempPosition.z);
+            const angle = Math.atan2(this._tempTarget.x - this._tempVector1.x, this._tempTarget.z - this._tempVector1.z);
             this._camera.rotation.z = angle + Math.PI;
         }
-        this._plane.set(this.down, this._tempPosition.y);
+        this._plane.set(this.down, this._tempVector1.y);
         const previousBackground = scene.background;
         scene.background = this.backgroundColor;
         this._renderer.render(scene, this._camera);
