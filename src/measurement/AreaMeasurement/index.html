@@ -136,7 +136,7 @@
     This may appear to be a lot of effort, but we are handling all the heavy lifting for you,
     and you only need to write a few lines for creating the Dimension Tool.💪
      */
-	const dimensions = new OBC.LengthMeasurement(components);
+	const dimensions = new OBC.AreaMeasurement(components);
 
     /*MD
     We will build dimensions by supplying the `components` to **OBC.SimpleDimensions**.
@@ -186,6 +186,7 @@
 
      */
 	container.ondblclick = () => dimensions.create();
+	container.oncontextmenu = () => dimensions.endCreation();
 
     /*MD
 
@@ -292,7 +293,7 @@
 	const actionsFolder = gui.addFolder('Actions');
 
 	actionsFolder.add(dimensions, "enabled").name("Dimensions enabled");
-	actionsFolder.add(dimensions, "visible").name("Dimensions visible");
+	// actionsFolder.add(dimensions, "visible").name("Dimensions visible");
 
 	const color = {
 		value: 0x000000

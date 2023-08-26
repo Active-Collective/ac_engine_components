@@ -24939,85 +24939,6 @@ class FragmentMesh extends InstancedMesh {
     }
 }
 
-class BlocksMap {
-    constructor(fragment) {
-        this.indices = BlocksMap.initializeBlocks(fragment);
-        this.generateGeometryIndexMap(fragment);
-    }
-    generateGeometryIndexMap(fragment) {
-        const geometry = fragment.mesh.geometry;
-        for (const group of geometry.groups) {
-            this.fillBlocksMapWithGroupInfo(group, geometry);
-        }
-    }
-    getSubsetID(modelID, material, customID = "DEFAULT") {
-        const baseID = modelID;
-        const materialID = material ? material.uuid : "DEFAULT";
-        return `${baseID} - ${materialID} - ${customID}`;
-    }
-    // Use this only for destroying the current IFCLoader instance
-    dispose() {
-        this.indices = null;
-    }
-    static initializeBlocks(fragment) {
-        const geometry = fragment.mesh.geometry;
-        const startIndices = geometry.index.array;
-        return {
-            indexCache: startIndices.slice(0, geometry.index.array.length),
-            map: new Map(),
-        };
-    }
-    fillBlocksMapWithGroupInfo(group, geometry) {
-        let prevBlockID = -1;
-        const materialIndex = group.materialIndex;
-        const materialStart = group.start;
-        const materialEnd = materialStart + group.count - 1;
-        let objectStart = -1;
-        let objectEnd = -1;
-        for (let i = materialStart; i <= materialEnd; i++) {
-            const index = geometry.index.array[i];
-            const blockID = geometry.attributes.blockID.array[index];
-            // First iteration
-            if (prevBlockID === -1) {
-                prevBlockID = blockID;
-                objectStart = i;
-            }
-            // It's the end of the material, which also means end of the object
-            const isEndOfMaterial = i === materialEnd;
-            if (isEndOfMaterial) {
-                const store = this.getMaterialStore(blockID, materialIndex);
-                store.push(objectStart, materialEnd);
-                break;
-            }
-            // Still going through the same object
-            if (prevBlockID === blockID)
-                continue;
-            // New object starts; save previous object
-            // Store previous object
-            const store = this.getMaterialStore(prevBlockID, materialIndex);
-            objectEnd = i - 1;
-            store.push(objectStart, objectEnd);
-            // Get ready to process next object
-            prevBlockID = blockID;
-            objectStart = i;
-        }
-    }
-    getMaterialStore(id, matIndex) {
-        // If this object wasn't store before, add it to the map
-        if (this.indices.map.get(id) === undefined) {
-            this.indices.map.set(id, {});
-        }
-        const storedIfcItem = this.indices.map.get(id);
-        if (storedIfcItem === undefined)
-            throw new Error("Geometry map generation error");
-        // If this material wasn't stored for this object before, add it to the object
-        if (storedIfcItem[matIndex] === undefined) {
-            storedIfcItem[matIndex] = [];
-        }
-        return storedIfcItem[matIndex];
-    }
-}
-
 /**
  * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
  * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
@@ -25025,121 +24946,69 @@ class BlocksMap {
 class Blocks {
     constructor(fragment) {
         this.fragment = fragment;
-        this.tempIndex = [];
-        this.blocksMap = new BlocksMap(fragment);
-        this.initializeSubsetGroups(fragment);
+        this._visibilityInitialized = false;
+        this._originalIndex = new Map();
+        this._idIndexIndexMap = {};
         const rawIds = fragment.mesh.geometry.attributes.blockID.array;
-        this.visibleIds = new Set(rawIds);
         this.ids = new Set(rawIds);
-        this.add(Array.from(this.ids), true);
+        this.visibleIds = new Set(this.ids);
     }
     get count() {
         return this.ids.size;
     }
-    reset() {
-        this.add(Array.from(this.ids), true);
-    }
-    add(ids, removePrevious = true) {
-        this.filterIndices(removePrevious);
-        const filtered = ids.filter((id) => !this.visibleIds.has(id));
-        this.constructSubsetByMaterial(ids);
-        filtered.forEach((id) => this.visibleIds.add(id));
-        this.fragment.mesh.geometry.setIndex(this.tempIndex);
-        this.tempIndex.length = 0;
-    }
-    remove(ids) {
-        ids.forEach((id) => this.visibleIds.has(id) && this.visibleIds.delete(id));
-        const remainingIDs = Array.from(this.visibleIds);
-        this.add(remainingIDs, true);
-    }
-    // Use this only for destroying the current Fragment instance
-    dispose() {
-        this.blocksMap.dispose();
-        this.tempIndex = [];
-        this.visibleIds.clear();
-        this.visibleIds = null;
-        this.ids.clear();
-        this.ids = null;
-    }
-    initializeSubsetGroups(fragment) {
-        const geometry = fragment.mesh.geometry;
-        geometry.groups = JSON.parse(JSON.stringify(geometry.groups));
-        this.resetGroups(geometry);
-    }
-    // Remove previous indices or filter the given ones to avoid repeating items
-    filterIndices(removePrevious) {
+    setVisibility(visible, itemIDs = new Set(this.fragment.items), isolate = false) {
         const geometry = this.fragment.mesh.geometry;
-        if (!removePrevious) {
-            this.tempIndex = Array.from(geometry.index.array);
-            return;
+        const index = geometry.index;
+        if (!this._visibilityInitialized) {
+            this.initializeVisibility(index, geometry);
         }
-        geometry.setIndex([]);
-        this.resetGroups(geometry);
-    }
-    constructSubsetByMaterial(ids) {
-        const length = this.fragment.mesh.geometry.groups.length;
-        const newIndices = { count: 0 };
-        for (let i = 0; i < length; i++) {
-            this.insertNewIndices(ids, i, newIndices);
+        if (isolate) {
+            index.array.fill(0);
         }
-    }
-    // Inserts indices in correct position and update groups
-    insertNewIndices(ids, materialIndex, newIndices) {
-        const indicesOfOneMaterial = this.getAllIndicesOfGroup(ids, materialIndex);
-        this.insertIndicesAtGroup(indicesOfOneMaterial, materialIndex, newIndices);
-    }
-    insertIndicesAtGroup(indicesByGroup, index, newIndices) {
-        const currentGroup = this.getCurrentGroup(index);
-        currentGroup.start += newIndices.count;
-        const newIndicesPosition = currentGroup.start + currentGroup.count;
-        newIndices.count += indicesByGroup.length;
-        if (indicesByGroup.length > 0) {
-            const position = newIndicesPosition;
-            const start = this.tempIndex.slice(0, position);
-            const end = this.tempIndex.slice(position);
-            this.tempIndex = Array.prototype.concat.apply([], [start, indicesByGroup, end]);
-            currentGroup.count += indicesByGroup.length;
-        }
-    }
-    getCurrentGroup(groupIndex) {
-        return this.fragment.mesh.geometry.groups[groupIndex];
-    }
-    resetGroups(geometry) {
-        geometry.groups.forEach((group) => {
-            group.start = 0;
-            group.count = 0;
-        });
-    }
-    // If flatten, all indices are in the same array; otherwise, indices are split in subarrays by material
-    getAllIndicesOfGroup(ids, materialIndex, flatten = true) {
-        const indicesByGroup = [];
-        for (const id of ids) {
-            const entry = this.blocksMap.indices.map.get(id);
-            if (!entry)
-                continue;
-            const value = entry[materialIndex];
-            if (!value)
-                continue;
-            this.getIndexChunk(value, indicesByGroup, materialIndex, flatten);
-        }
-        return indicesByGroup;
-    }
-    getIndexChunk(value, indicesByGroup, materialIndex, flatten) {
-        const pairs = value.length / 2;
-        for (let pair = 0; pair < pairs; pair++) {
-            const pairIndex = pair * 2;
-            const start = value[pairIndex];
-            const end = value[pairIndex + 1];
-            for (let j = start; j <= end; j++) {
-                if (flatten)
-                    indicesByGroup.push(this.blocksMap.indices.indexCache[j]);
-                else {
-                    if (!indicesByGroup[materialIndex])
-                        indicesByGroup[materialIndex] = [];
-                    indicesByGroup[materialIndex].push(this.blocksMap.indices.indexCache[j]);
+        for (const id of itemIDs) {
+            const indices = this._idIndexIndexMap[id];
+            for (const i of indices) {
+                const originalIndex = this._originalIndex.get(i);
+                if (originalIndex === undefined)
+                    continue;
+                const blockID = geometry.attributes.blockID.getX(originalIndex);
+                const itemID = this.fragment.items[blockID];
+                if (itemIDs.has(itemID)) {
+                    if (visible) {
+                        this.visibleIds.add(blockID);
+                    }
+                    else {
+                        this.visibleIds.delete(blockID);
+                    }
+                    const newIndex = visible ? originalIndex : 0;
+                    index.setX(i, newIndex);
                 }
             }
         }
+        index.needsUpdate = true;
+    }
+    initializeVisibility(index, geometry) {
+        for (let i = 0; i < index.count; i++) {
+            const foundIndex = index.getX(i);
+            this._originalIndex.set(i, foundIndex);
+            const blockID = geometry.attributes.blockID.getX(foundIndex);
+            const itemID = this.fragment.getItemID(0, blockID);
+            if (!this._idIndexIndexMap[itemID]) {
+                this._idIndexIndexMap[itemID] = [];
+            }
+            this._idIndexIndexMap[itemID].push(i);
+        }
+        this._visibilityInitialized = true;
+    }
+    // Use this only for destroying the current Fragment instance
+    dispose() {
+        this._idIndexIndexMap = {};
+        this.ids.clear();
+        this.visibleIds.clear();
+        this._originalIndex.clear();
+        this.ids = null;
+        this.visibleIds = null;
+        this._originalIndex = null;
     }
 }
 
@@ -25303,7 +25172,7 @@ let Fragment$1 = class Fragment {
     }
     resetVisibility() {
         if (this.blocks.count > 1) {
-            this.blocks.reset();
+            this.blocks.setVisibility(true);
         }
         else {
             const hiddenInstances = Object.keys(this.hiddenInstances);
@@ -25313,9 +25182,7 @@ let Fragment$1 = class Fragment {
     }
     setVisibility(visible, itemIDs = this.ids) {
         if (this.blocks.count > 1) {
-            this.toggleBlockVisibility(visible, itemIDs);
-            this.mesh.geometry.disposeBoundsTree();
-            BVH.apply(this.mesh.geometry);
+            this.blocks.setVisibility(visible, itemIDs);
         }
         else {
             this.toggleInstanceVisibility(visible, itemIDs);
@@ -25472,19 +25339,6 @@ let Fragment$1 = class Fragment {
             }
         }
         return result;
-    }
-    toggleBlockVisibility(visible, itemIDs) {
-        const blockIDs = [];
-        for (const id of itemIDs) {
-            const blockID = this.getInstanceAndBlockID(id).blockID;
-            blockIDs.push(blockID);
-        }
-        if (visible) {
-            this.blocks.add(blockIDs, false);
-        }
-        else {
-            this.blocks.remove(blockIDs);
-        }
     }
 };
 
@@ -93798,6 +93652,9 @@ class Units {
         var _a;
         this.factor = 1;
         const length = this.getLengthUnits(webIfc);
+        if (!length) {
+            return;
+        }
         const isLengthNull = length === undefined || length === null;
         const isValueNull = length.Name === undefined || length.Name === null;
         if (isLengthNull || isValueNull) {
@@ -98666,9 +98523,13 @@ class ClippingFills {
             }
         }
     }
+    set geometry(geometry) {
+        this._geometry = geometry;
+        this.mesh.geometry.attributes.position = geometry.attributes.position;
+    }
     constructor(components, plane, geometry, material) {
         // readonly worker: Worker;
-        this.mesh = new Mesh(new THREE$1.BufferGeometry());
+        this.mesh = new THREE$1.Mesh(new THREE$1.BufferGeometry());
         this._precission = 10000;
         this._tempVector = new THREE$1.Vector3();
         // Used to work in the 2D coordinate system of the plane
@@ -99034,7 +98895,6 @@ class ClippingEdges extends Component {
         this.enabled = true;
         this.fillNeedsUpdate = false;
         this.blockByIndex = {};
-        this.lastBlock = 0;
         this._edges = {};
         this._disposer = new Disposer();
         this._visible = true;
@@ -99181,6 +99041,7 @@ class ClippingEdges extends Component {
             const scene = this._components.scene.get();
             scene.add(edges.mesh);
             if (this.fillNeedsUpdate && edges.fill) {
+                edges.fill.geometry = edges.mesh.geometry;
                 edges.fill.update(indexes, this.blockByIndex);
             }
         }
@@ -100931,19 +100792,12 @@ class FragmentHighlighter extends Component {
         // #endregion
         const isBlockFragment = selection.blocks.count > 1;
         if (isBlockFragment) {
-            const blockIDs = [];
-            for (const id of ids) {
-                const { blockID } = fragment.getInstanceAndBlockID(id);
-                if (fragment.blocks.visibleIds.has(blockID)) {
-                    blockIDs.push(blockID);
-                }
-            }
             fragment.getInstance(0, this._tempMatrix);
             selection.setInstance(0, {
-                ids: Array.from(ids),
+                ids: Array.from(fragment.ids),
                 transform: this._tempMatrix,
             });
-            selection.blocks.add(blockIDs, true);
+            selection.blocks.setVisibility(true, ids, true);
         }
         else {
             let i = 0;
@@ -100967,6 +100821,13 @@ class FragmentHighlighter extends Component {
             if (!fragment.fragments[name]) {
                 const material = this.highlightMats[name];
                 const subFragment = fragment.addFragment(name, material);
+                if (fragment.blocks.count > 1) {
+                    subFragment.setInstance(0, {
+                        ids: Array.from(fragment.ids),
+                        transform: this._tempMatrix,
+                    });
+                    subFragment.blocks.setVisibility(false);
+                }
                 subFragment.mesh.renderOrder = 2;
                 subFragment.mesh.frustumCulled = false;
             }
@@ -101457,6 +101318,15 @@ class FragmentHider extends Component {
         this.set(true, items);
     }
     get() { }
+    update() {
+        this._updateVisibilityOnFound = false;
+        for (const id in this._filterCards) {
+            const { finder } = this._filterCards[id];
+            finder.find();
+        }
+        this._updateVisibilityOnFound = true;
+        this.updateQueries();
+    }
     updateCulledVisibility(fragment) {
         if (this._culler) {
             const culled = this._culler.colorMeshes.get(fragment.id);
@@ -101503,11 +101373,11 @@ class FragmentHider extends Component {
         const visible = new CheckboxInput(this._components);
         visible.value = config ? config.visible : true;
         visible.label = "Visible";
-        visible.onChange.on(() => this.update());
+        visible.onChange.on(() => this.updateQueries());
         const enabled = new CheckboxInput(this._components);
         enabled.value = config ? config.enabled : true;
         enabled.label = "Enabled";
-        enabled.onChange.on(() => this.update());
+        enabled.onChange.on(() => this.updateQueries());
         const checkBoxContainer = new SimpleUIComponent(this._components);
         checkBoxContainer.domElement.classList.remove("w-full");
         checkBoxContainer.addChild(visible);
@@ -101532,7 +101402,7 @@ class FragmentHider extends Component {
             this._filterCards[id].fragments = data;
             this.cache();
             if (this._updateVisibilityOnFound) {
-                this.update();
+                this.updateQueries();
             }
         });
         const fragments = {};
@@ -101548,7 +101418,7 @@ class FragmentHider extends Component {
         this.uiElement.window.addChild(filterCard);
         // this.cacheStyles();
     }
-    update() {
+    updateQueries() {
         this.set(true);
         for (const id in this._filterCards) {
             const { enabled, visible, fragments } = this._filterCards[id];
@@ -101570,7 +101440,7 @@ class FragmentHider extends Component {
             found.enabled.dispose();
         }
         delete this._filterCards[id];
-        this.update();
+        this.updateQueries();
     }
     hideAllFinders(excludeID) {
         for (const id in this._filterCards) {
@@ -101592,7 +101462,7 @@ class FragmentHider extends Component {
         for (const filter of filters) {
             this.createStyleCard(filter);
         }
-        this.updateAllQueries();
+        this.update();
     }
     cache() {
         const filters = [];
@@ -101608,15 +101478,6 @@ class FragmentHider extends Component {
         }
         const serialized = JSON.stringify(filters);
         localStorage.setItem(this._localStorageID, serialized);
-    }
-    updateAllQueries() {
-        this._updateVisibilityOnFound = false;
-        for (const id in this._filterCards) {
-            const { finder } = this._filterCards[id];
-            finder.find();
-        }
-        this._updateVisibilityOnFound = true;
-        this.update();
     }
 }
 
@@ -103918,6 +103779,7 @@ class AreaMeasurement extends Component {
         this._enabled = value;
         this._vertexPicker.enabled = value;
         this.uiElement.main.active = value;
+        this.setupEvents(value);
         if (!value)
             this.cancelCreation();
     }
@@ -104015,14 +103877,12 @@ class AreaMeasurement extends Component {
     setUI() {
         this.uiElement.main.onclick = () => {
             if (!this.enabled) {
-                this.setupEvents(true);
                 this.uiElement.main.active = true;
                 this.enabled = true;
             }
             else {
                 this.enabled = false;
                 this.uiElement.main.active = false;
-                this.setupEvents(false);
             }
         };
     }
@@ -105538,6 +105398,7 @@ class AngleMeasurement extends Component {
     }
     set enabled(value) {
         this._enabled = value;
+        this.setupEvents(value);
         this._vertexPicker.enabled = value;
         this.uiElement.main.active = value;
         if (!value)
@@ -105613,8 +105474,8 @@ class AngleMeasurement extends Component {
         this._vertexPicker = new VertexPicker(components);
         this.uiElement = { main: new Button(components) };
         this.uiElement.main.materialIcon = "square_foot";
-        this.setUI();
         this.enabled = false;
+        this.setUI();
     }
     dispose() {
         this.setupEvents(false);
@@ -105638,14 +105499,12 @@ class AngleMeasurement extends Component {
     setUI() {
         this.uiElement.main.onclick = () => {
             if (!this.enabled) {
-                this.setupEvents(true);
                 this.uiElement.main.active = true;
                 this.enabled = true;
             }
             else {
                 this.enabled = false;
                 this.uiElement.main.active = false;
-                this.setupEvents(false);
             }
         };
     }
