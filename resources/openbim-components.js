@@ -1059,8 +1059,8 @@ class ToolComponent extends Component {
         /** {@link Component.enabled} */
         this.enabled = true;
         this._urls = {
-            base: "https://2fomw59q4h.execute-api.eu-central-1.amazonaws.com/v1/tools/",
-            path: "/contents/index.js?accessToken=",
+            base: "https://dev.api.dev.platform.thatopen.com/v1/tools/",
+            path: "/download?accessToken=",
         };
     }
     /**
