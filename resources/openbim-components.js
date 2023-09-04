@@ -1043,6 +1043,8 @@ class SimpleScene extends Component {
     }
 }
 
+var n=new Int32Array(2),b=new Float32Array(n.buffer),c=new Float64Array(n.buffer),h=new Uint16Array(new Uint8Array([1,0]).buffer)[0]===1;var d;(function(s){s[s.UTF8_BYTES=1]="UTF8_BYTES",s[s.UTF16_STRING=2]="UTF16_STRING";})(d||(d={}));var l=class s{constructor(t){this.bytes_=t,this.position_=0,this.text_decoder_=new TextDecoder;}static allocate(t){return new s(new Uint8Array(t))}clear(){this.position_=0;}bytes(){return this.bytes_}position(){return this.position_}setPosition(t){this.position_=t;}capacity(){return this.bytes_.length}readInt8(t){return this.readUint8(t)<<24>>24}readUint8(t){return this.bytes_[t]}readInt16(t){return this.readUint16(t)<<16>>16}readUint16(t){return this.bytes_[t]|this.bytes_[t+1]<<8}readInt32(t){return this.bytes_[t]|this.bytes_[t+1]<<8|this.bytes_[t+2]<<16|this.bytes_[t+3]<<24}readUint32(t){return this.readInt32(t)>>>0}readInt64(t){return BigInt.asIntN(64,BigInt(this.readUint32(t))+(BigInt(this.readUint32(t+4))<<BigInt(32)))}readUint64(t){return BigInt.asUintN(64,BigInt(this.readUint32(t))+(BigInt(this.readUint32(t+4))<<BigInt(32)))}readFloat32(t){return n[0]=this.readInt32(t),b[0]}readFloat64(t){return n[h?0:1]=this.readInt32(t),n[h?1:0]=this.readInt32(t+4),c[0]}writeInt8(t,e){this.bytes_[t]=e;}writeUint8(t,e){this.bytes_[t]=e;}writeInt16(t,e){this.bytes_[t]=e,this.bytes_[t+1]=e>>8;}writeUint16(t,e){this.bytes_[t]=e,this.bytes_[t+1]=e>>8;}writeInt32(t,e){this.bytes_[t]=e,this.bytes_[t+1]=e>>8,this.bytes_[t+2]=e>>16,this.bytes_[t+3]=e>>24;}writeUint32(t,e){this.bytes_[t]=e,this.bytes_[t+1]=e>>8,this.bytes_[t+2]=e>>16,this.bytes_[t+3]=e>>24;}writeInt64(t,e){this.writeInt32(t,Number(BigInt.asIntN(32,e))),this.writeInt32(t+4,Number(BigInt.asIntN(32,e>>BigInt(32))));}writeUint64(t,e){this.writeUint32(t,Number(BigInt.asUintN(32,e))),this.writeUint32(t+4,Number(BigInt.asUintN(32,e>>BigInt(32))));}writeFloat32(t,e){b[0]=e,this.writeInt32(t,n[0]);}writeFloat64(t,e){c[0]=e,this.writeInt32(t,n[h?0:1]),this.writeInt32(t+4,n[h?1:0]);}getBufferIdentifier(){if(this.bytes_.length<this.position_+4+4)throw new Error("FlatBuffers: ByteBuffer is too short to contain an identifier.");let t="";for(let e=0;e<4;e++)t+=String.fromCharCode(this.readInt8(this.position_+4+e));return t}__offset(t,e){let i=t-this.readInt32(t);return e<this.readInt16(i)?this.readInt16(i+e):0}__union(t,e){return t.bb_pos=e+this.readInt32(e),t.bb=this,t}__string(t,e){t+=this.readInt32(t);let i=this.readInt32(t);t+=4;let r=this.bytes_.subarray(t,t+i);return e===d.UTF8_BYTES?r:this.text_decoder_.decode(r)}__union_with_string(t,e){return typeof t=="string"?this.__string(e):this.__union(t,e)}__indirect(t){return t+this.readInt32(t)}__vector(t){return t+this.readInt32(t)+4}__vector_len(t){return this.readInt32(t+this.readInt32(t))}__has_identifier(t){if(t.length!=4)throw new Error("FlatBuffers: file identifier must be length "+4);for(let e=0;e<4;e++)if(t.charCodeAt(e)!=this.readInt8(this.position()+4+e))return !1;return !0}createScalarList(t,e){let i=[];for(let r=0;r<e;++r){let a=t(r);a!==null&&i.push(a);}return i}createObjList(t,e){let i=[];for(let r=0;r<e;++r){let a=t(r);a!==null&&i.push(a.unpack());}return i}};var u=class s{constructor(){this.bb=null;this.bb_pos=0;}__init(t,e){return this.bb_pos=t,this.bb=e,this}static getRootAsToolBuffer(t,e){return (e||new s).__init(t.readInt32(t.position())+t.position(),t)}static getSizePrefixedRootAsToolBuffer(t,e){return t.setPosition(t.position()+4),(e||new s).__init(t.readInt32(t.position())+t.position(),t)}id(t){let e=this.bb.__offset(this.bb_pos,4);return e?this.bb.__string(this.bb_pos+e,t):null}js(t){let e=this.bb.__offset(this.bb_pos,6);return e?this.bb.__string(this.bb_pos+e,t):null}static startToolBuffer(t){t.startObject(2);}static addId(t,e){t.addFieldOffset(0,e,0);}static addJs(t,e){t.addFieldOffset(1,e,0);}static endToolBuffer(t){return t.endObject()}static finishToolBufferBuffer(t,e){t.finish(e);}static finishSizePrefixedToolBufferBuffer(t,e){t.finish(e,void 0,!0);}static createToolBuffer(t,e,i){return s.startToolBuffer(t),s.addId(t,e),s.addJs(t,i),s.endToolBuffer(t)}};var p=class{constructor(){}read(t){let e=new l(t),i=u.getRootAsToolBuffer(e),a=i.id(),w=i.js();return {id:a,js:w}}};
+
 /**
  * An object to easily handle all the tools used (e.g. updating them, retrieving
  * them, performing batch operations, etc). A tool is a feature that achieves
@@ -1054,6 +1056,7 @@ class ToolComponent extends Component {
         this.list = new Map();
         this.onToolAdded = new Event();
         this.onToolRemoved = new Event();
+        this._reader = new p();
         /** {@link Component.name} */
         this.name = "ToolComponent";
         /** {@link Component.enabled} */
@@ -1106,7 +1109,9 @@ class ToolComponent extends Component {
         const { base, path } = this._urls;
         const url = base + id + path + token;
         const fetched = await fetch(url);
-        const code = await fetched.text();
+        const rawBuffer = await fetched.arrayBuffer();
+        const buffer = new Uint8Array(rawBuffer);
+        const code = this._reader.read(buffer);
         const script = document.createElement("script");
         script.textContent = code;
         document.body.appendChild(script);
@@ -25126,6 +25131,10 @@ let Fragment$1 = class Fragment {
         this.checkIfInstanceExist(instanceID);
         this.mesh.setMatrixAt(instanceID, items.transform);
         this.mesh.instanceMatrix.needsUpdate = true;
+        if (items.color && this.mesh.instanceColor) {
+            this.mesh.setColorAt(instanceID, items.color);
+            this.mesh.instanceColor.needsUpdate = true;
+        }
         if (items.ids) {
             this.saveItemsInMap(items.ids, instanceID);
         }
@@ -25211,7 +25220,7 @@ let Fragment$1 = class Fragment {
         }
     }
     initializeGeometry() {
-        const newGeometry = new BufferGeometry();
+        const newGeometry = new THREE$1.BufferGeometry();
         newGeometry.setAttribute("position", this.mesh.geometry.attributes.position);
         newGeometry.setAttribute("normal", this.mesh.geometry.attributes.normal);
         newGeometry.setAttribute("blockID", this.mesh.geometry.attributes.blockID);
@@ -25278,12 +25287,19 @@ let Fragment$1 = class Fragment {
         this.mesh.count--;
         const isLastElement = index === this.mesh.count;
         const instanceId = this.getInstanceIDFromIndex(index);
-        const tempMatrix = new Matrix4();
-        const transform = new Matrix4();
+        const tempMatrix = new THREE$1.Matrix4();
+        const tempColor = new THREE$1.Color();
+        const transform = new THREE$1.Matrix4();
         this.mesh.getMatrixAt(instanceId, transform);
+        const result = { ids: [id], transform };
+        if (this.mesh.instanceColor) {
+            const color = new THREE$1.Color();
+            this.mesh.getColorAt(instanceId, color);
+            result.color = color;
+        }
         if (isLastElement) {
             this.items.pop();
-            return { ids: [id], transform };
+            return result;
         }
         const lastElement = this.mesh.count;
         this.items[index] = this.items[lastElement];
@@ -25291,7 +25307,12 @@ let Fragment$1 = class Fragment {
         this.mesh.getMatrixAt(lastElement, tempMatrix);
         this.mesh.setMatrixAt(instanceId, tempMatrix);
         this.mesh.instanceMatrix.needsUpdate = true;
-        return { ids: [id], transform };
+        if (this.mesh.instanceColor) {
+            this.mesh.getColorAt(lastElement, tempColor);
+            this.mesh.setColorAt(instanceId, tempColor);
+            this.mesh.instanceColor.needsUpdate = true;
+        }
+        return result;
     }
     getItemIndex(instanceId, blockId) {
         return instanceId * this.blocks.count + blockId;
