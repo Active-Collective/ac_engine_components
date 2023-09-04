@@ -1113,7 +1113,7 @@ class ToolComponent extends Component {
         const buffer = new Uint8Array(rawBuffer);
         const code = this._reader.read(buffer);
         const script = document.createElement("script");
-        script.textContent = code;
+        script.textContent = code.js;
         document.body.appendChild(script);
         const win = window;
         const toolClass = win.ThatOpenTool(OBC, THREE$1);
