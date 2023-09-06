@@ -92254,19 +92254,54 @@ class IfcPropertiesManager extends Component {
         this.onPropToPset = new Event();
         this.onPsetRemoved = new Event();
         this.onDataChanged = new Event();
-        this.wasmPath = "/";
+        this.wasm = {
+            path: "/",
+            absolute: false,
+        };
         this._ifcApi = ifcApi !== null && ifcApi !== void 0 ? ifcApi : new IfcAPI2();
-        this._ifcApi.SetWasmPath(this.wasmPath, true);
-        this._ifcApi.Init();
+        // TODO: Save original IFC file so that opening it again is not necessary
+        const exportButton = new Button(components);
+        exportButton.tooltip = "Export IFC";
+        exportButton.materialIcon = "exit_to_app";
+        exportButton.onclick = () => {
+            const fileOpener = document.createElement("input");
+            fileOpener.type = "file";
+            fileOpener.onchange = async () => {
+                if (!this.selectedModel ||
+                    !fileOpener.files ||
+                    !fileOpener.files.length) {
+                    return;
+                }
+                const file = fileOpener.files[0];
+                const rawBuffer = await file.arrayBuffer();
+                const fileData = new Uint8Array(rawBuffer);
+                const resultBuffer = await this.saveToIfc(this.selectedModel, fileData);
+                const resultFile = new File([new Blob([resultBuffer])], file.name);
+                const link = document.createElement("a");
+                link.download = file.name;
+                link.href = URL.createObjectURL(resultFile);
+                link.click();
+                link.remove();
+                fileOpener.remove();
+            };
+            fileOpener.click();
+        };
         this.uiElement = {
+            exportButton,
             entityActions: new EntityActionsUI(components),
             psetActions: new PsetActionsUI(components),
             propActions: new PropActionsUI(components),
         };
         this.setUIEvents();
     }
+    async init() {
+        const { path, absolute } = this.wasm;
+        this._ifcApi.SetWasmPath(path, absolute);
+        await this._ifcApi.Init();
+    }
     dispose() {
         this._ifcApi = null;
+        this.selectedModel = undefined;
         this.attributeListeners = {};
         this._changeMap = {};
         this.onElementToPset.reset();
@@ -92479,7 +92514,7 @@ class IfcPropertiesManager extends Component {
         }
         this.registerChange(model, psetID);
     }
-    saveToIfc(model, ifcToSaveOn) {
+    async saveToIfc(model, ifcToSaveOn) {
         var _a;
         const { properties } = IfcPropertiesManager.getIFCInfo(model);
         const modelID = this._ifcApi.OpenModel(ifcToSaveOn);
@@ -92497,8 +92532,9 @@ class IfcPropertiesManager extends Component {
         this._ifcApi.CloseModel(modelID);
         this._ifcApi = null;
         this._ifcApi = new IfcAPI2();
-        this._ifcApi.SetWasmPath(this.wasmPath, true);
-        this._ifcApi.Init();
+        const { path, absolute } = this.wasm;
+        this._ifcApi.SetWasmPath(path, absolute);
+        await this._ifcApi.Init();
         return modifiedIFC;
     }
     setAttributeListener(model, expressID, attributeName) {
@@ -92796,6 +92832,7 @@ class IfcPropertiesProcessor extends Component {
         this.onPropertiesManagerSet = new Event();
         this._components = components;
         // this._entityUIPool = new UIPool(this._components, TreeView);
+        this._topToolbar = new SimpleUIComponent(this._components);
         this._propsList = new SimpleUIComponent(this._components, `<div class="flex flex-col"></div>`);
         this.uiElement = {
             main: new Button(components, {
@@ -92814,6 +92851,7 @@ class IfcPropertiesProcessor extends Component {
         this.uiElement.main.dispose();
         this.uiElement.propertiesWindow.dispose();
         this._components = null;
+        this._topToolbar.dispose();
         this._propsList.dispose();
         this._indexMap = {};
         this.propertiesManager = null;
@@ -92827,7 +92865,7 @@ class IfcPropertiesProcessor extends Component {
     setUI() {
         this._components.ui.add(this.uiElement.propertiesWindow);
         this.uiElement.propertiesWindow.title = "Element Properties";
-        this.uiElement.propertiesWindow.addChild(this._propsList);
+        this.uiElement.propertiesWindow.addChild(this._topToolbar, this._propsList);
         this.uiElement.main.tooltip = "Properties";
         this.uiElement.main.onclick = () => {
             this.uiElement.propertiesWindow.visible =
@@ -92838,6 +92876,9 @@ class IfcPropertiesProcessor extends Component {
         this.uiElement.propertiesWindow.visible = false;
     }
     cleanPropertiesList() {
+        if (this._propertiesManager) {
+            this._propertiesManager.uiElement.exportButton.removeFromParent();
+        }
         this._propsList.dispose(true);
         // for (const child of this._propsList.children) {
         //   if (child instanceof TreeView) {
@@ -92880,6 +92921,11 @@ class IfcPropertiesProcessor extends Component {
         const ui = this.newEntityUI(model, expressID);
         if (!ui)
             return;
+        if (this._propertiesManager) {
+            this._propertiesManager.selectedModel = model;
+            const exporter = this._propertiesManager.uiElement.exportButton;
+            this._topToolbar.addChild(exporter);
+        }
         const { properties } = IfcPropertiesManager.getIFCInfo(model);
         const { name } = IfcPropertiesUtils.getEntityName(properties, expressID);
         this.uiElement.propertiesWindow.description = name;
@@ -99005,12 +99051,16 @@ class ClippingEdges extends Component {
         const indexes = [];
         let lastIndex = 0;
         for (const mesh of style.meshes) {
-            if (!mesh.geometry)
+            if (!mesh.geometry) {
                 continue;
+            }
             if (!mesh.geometry.boundsTree) {
                 throw new Error("Boundstree not found for clipping edges subset.");
             }
             const instanced = mesh;
+            if (instanced.count === 0) {
+                continue;
+            }
             if (instanced.count > 1) {
                 for (let i = 0; i < instanced.count; i++) {
                     // Exclude fragment instances that don't belong to this style
