@@ -30,10 +30,7 @@
 
     import * as THREE from 'three';
     import * as OBC from 'openbim-components';
-    import * as WEBIFC from 'web-ifc';
     import Stats from 'stats.js/src/Stats.js';
-    import * as dat from 'three/examples/jsm/libs/lil-gui.module.min';
-    import {downloadZip} from 'client-zip';
 
     const container = document.getElementById('container');
 
@@ -78,61 +75,24 @@
         absolute: true
     }
 
-    // Temporary until we optimize rebars
-
-    const excludedCats = [
-        WEBIFC.IFCTENDONANCHOR,
-        WEBIFC.IFCREINFORCINGBAR,
-        WEBIFC.IFCREINFORCINGELEMENT,
-    ];
-
-    for(const cat of excludedCats) {
-        fragmentIfcLoader.settings.excludedCategories.add(cat);
-    }
-
     fragmentIfcLoader.settings.webIfc.COORDINATE_TO_ORIGIN = true;
     fragmentIfcLoader.settings.webIfc.OPTIMIZE_PROFILES = true;
 
-    async function loadIfcAsFragments() {
-        const file = await fetch('../../../resources/small.ifc');
-        const data = await file.arrayBuffer();
-        const buffer = new Uint8Array(data);
-        const model = await fragmentIfcLoader.load(buffer);
-        scene.add(model);
+    // Set up road navigator
+
+    const navigator = new OBC.RoadNavigator(components);
+    window.ondblclick = () => {
+        navigator.drawPoint();
     }
+    // navigator.loadCached();
 
-    async function exportFragments() {
-        if (!fragments.groups.length) return;
-        const group = fragments.groups[0];
-        const data = fragments.export(group);
-        const blob = new Blob([data]);
-        const fragmentFile = new File([blob], 'model.frag');
-
-        const files = [];
-        files.push(fragmentFile);
-        files.push(new File([JSON.stringify(group.properties)], 'model.json'));
-        const result = await downloadZip(files).blob();
-        result.name = 'example';
-        download(result);
+    window.onkeydown = (event) => {
+        if(event.code === "KeyS") {
+            navigator.select();
+        } else if(event.code === "KeyP") {
+            navigator.delete();
+        }
     }
-
-
-    function download(file) {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(file);
-        link.download = file.name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-    }
-
-    function disposeFragments() {
-        fragments.dispose();
-        fragmentIfcLoader.dispose();
-        fragments = new OBC.FragmentManager(components);
-        fragmentIfcLoader = new OBC.FragmentIfcLoader(fragments);
-    }
-
 
     // Set up stats
 
@@ -143,46 +103,6 @@
     const renderer = components.renderer;
     renderer.beforeUpdate.on(() => stats.begin());
     renderer.afterUpdate.on(() => stats.end());
-
-
-    // Set up dat.gui menu
-
-    const settings = {
-        loadFragments: () => loadIfcAsFragments(),
-        exportFragments: () => exportFragments(),
-        disposeFragments: () => disposeFragments(),
-    };
-
-    const gui = new dat.GUI();
-
-    gui.add(settings, 'loadFragments').name('Import fragments');
-    gui.add(settings, 'exportFragments').name('Export fragments');
-    gui.add(settings, 'disposeFragments').name('Dispose fragments');
-
-    // For debugging
-
-    // fragmentIfcLoader.ifcLoaded.on((model) => {
-
-    // let sorted = [];
-    // for(const frag of model.fragments) {
-    // 	const size = frag.mesh.count;
-    // 	sorted.push({size, frag});
-    // }
-    //
-    // sorted.sort((a, b) => {
-    // 	return a.size > b.size ? 1 : -1;
-    // });
-    // let value = 0;
-    // let step = 1 / sorted.length;
-    //
-    // for(const { frag } of sorted) {
-    // 	console.log(frag.mesh.material);
-    // 	const mat = frag.mesh.material[0];
-    // 	frag.mesh.instanceColor = null;
-    // 	mat.color.setRGB(value, value, value, "srgb");
-    // 	value += step;
-    // }
-    // });
 
 
 </script>

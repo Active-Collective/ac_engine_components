@@ -1,5 +1,6 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, Raycaster, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, UniformsLib, ShaderLib, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, Raycaster, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, Camera, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, UniformsLib, ShaderLib, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import 'openbim-components';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -1196,16 +1197,21 @@ class SimpleRenderer extends BaseRenderer {
     }
     /** {@link Updateable.update} */
     update(_delta) {
-        var _a, _b;
         if (!this.enabled)
             return;
         this.beforeUpdate.trigger(this);
-        const scene = (_a = this.components.scene) === null || _a === void 0 ? void 0 : _a.get();
-        const camera = (_b = this.components.camera) === null || _b === void 0 ? void 0 : _b.get();
-        if (!scene || !camera)
-            return;
-        this._renderer.render(scene, camera);
-        this._renderer2D.render(scene, camera);
+        if (this.overrideScene && this.overrideCamera) {
+            this._renderer.render(this.overrideScene, this.overrideCamera);
+            this._renderer2D.render(this.overrideScene, this.overrideCamera);
+        }
+        else {
+            const scene = this.components.scene.get();
+            const camera = this.components.camera.get();
+            if (!scene || !camera)
+                return;
+            this._renderer.render(scene, camera);
+            this._renderer2D.render(scene, camera);
+        }
         this.afterUpdate.trigger(this);
     }
     /** {@link Disposable.dispose} */
@@ -11363,7 +11369,7 @@ const _unit = {
 	Z: new Vector3$1( 0, 0, 1 )
 };
 
-const _changeEvent = { type: 'change' };
+const _changeEvent$1 = { type: 'change' };
 const _mouseDownEvent = { type: 'mouseDown' };
 const _mouseUpEvent = { type: 'mouseUp', mode: null };
 const _objectChangeEvent = { type: 'objectChange' };
@@ -11419,7 +11425,7 @@ class TransformControls extends Object3D {
 						_gizmo[ propName ] = value;
 
 						scope.dispatchEvent( { type: propName + '-changed', value: value } );
-						scope.dispatchEvent( _changeEvent );
+						scope.dispatchEvent( _changeEvent$1 );
 
 					}
 
@@ -11848,7 +11854,7 @@ class TransformControls extends Object3D {
 
 		}
 
-		this.dispatchEvent( _changeEvent );
+		this.dispatchEvent( _changeEvent$1 );
 		this.dispatchEvent( _objectChangeEvent );
 
 	}
@@ -11916,7 +11922,7 @@ class TransformControls extends Object3D {
 			this.object.quaternion.copy( this._quaternionStart );
 			this.object.scale.copy( this._scaleStart );
 
-			this.dispatchEvent( _changeEvent );
+			this.dispatchEvent( _changeEvent$1 );
 			this.dispatchEvent( _objectChangeEvent );
 
 			this.pointStart.copy( this.pointEnd );
@@ -19177,6 +19183,1344 @@ class MaterialManager extends Component {
         for (const mesh of meshes) {
             this._list[id].meshes.add(mesh);
         }
+    }
+}
+
+// OrbitControls performs orbiting, dollying (zooming), and panning.
+// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
+//
+//    Orbit - left mouse / touch: one-finger move
+//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
+//    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
+
+const _changeEvent = { type: 'change' };
+const _startEvent = { type: 'start' };
+const _endEvent = { type: 'end' };
+
+class OrbitControls extends EventDispatcher$1 {
+
+	constructor( object, domElement ) {
+
+		super();
+
+		this.object = object;
+		this.domElement = domElement;
+		this.domElement.style.touchAction = 'none'; // disable touch scroll
+
+		// Set to false to disable this control
+		this.enabled = true;
+
+		// "target" sets the location of focus, where the object orbits around
+		this.target = new Vector3$1();
+
+		// How far you can dolly in and out ( PerspectiveCamera only )
+		this.minDistance = 0;
+		this.maxDistance = Infinity;
+
+		// How far you can zoom in and out ( OrthographicCamera only )
+		this.minZoom = 0;
+		this.maxZoom = Infinity;
+
+		// How far you can orbit vertically, upper and lower limits.
+		// Range is 0 to Math.PI radians.
+		this.minPolarAngle = 0; // radians
+		this.maxPolarAngle = Math.PI; // radians
+
+		// How far you can orbit horizontally, upper and lower limits.
+		// If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
+		this.minAzimuthAngle = - Infinity; // radians
+		this.maxAzimuthAngle = Infinity; // radians
+
+		// Set to true to enable damping (inertia)
+		// If damping is enabled, you must call controls.update() in your animation loop
+		this.enableDamping = false;
+		this.dampingFactor = 0.05;
+
+		// This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
+		// Set to false to disable zooming
+		this.enableZoom = true;
+		this.zoomSpeed = 1.0;
+
+		// Set to false to disable rotating
+		this.enableRotate = true;
+		this.rotateSpeed = 1.0;
+
+		// Set to false to disable panning
+		this.enablePan = true;
+		this.panSpeed = 1.0;
+		this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
+		this.keyPanSpeed = 7.0;	// pixels moved per arrow key push
+
+		// Set to true to automatically rotate around the target
+		// If auto-rotate is enabled, you must call controls.update() in your animation loop
+		this.autoRotate = false;
+		this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+
+		// The four arrow keys
+		this.keys = { LEFT: 'ArrowLeft', UP: 'ArrowUp', RIGHT: 'ArrowRight', BOTTOM: 'ArrowDown' };
+
+		// Mouse buttons
+		this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
+
+		// Touch fingers
+		this.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
+
+		// for reset
+		this.target0 = this.target.clone();
+		this.position0 = this.object.position.clone();
+		this.zoom0 = this.object.zoom;
+
+		// the target DOM element for key events
+		this._domElementKeyEvents = null;
+
+		//
+		// public methods
+		//
+
+		this.getPolarAngle = function () {
+
+			return spherical.phi;
+
+		};
+
+		this.getAzimuthalAngle = function () {
+
+			return spherical.theta;
+
+		};
+
+		this.getDistance = function () {
+
+			return this.object.position.distanceTo( this.target );
+
+		};
+
+		this.listenToKeyEvents = function ( domElement ) {
+
+			domElement.addEventListener( 'keydown', onKeyDown );
+			this._domElementKeyEvents = domElement;
+
+		};
+
+		this.stopListenToKeyEvents = function () {
+
+			this._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
+			this._domElementKeyEvents = null;
+
+		};
+
+		this.saveState = function () {
+
+			scope.target0.copy( scope.target );
+			scope.position0.copy( scope.object.position );
+			scope.zoom0 = scope.object.zoom;
+
+		};
+
+		this.reset = function () {
+
+			scope.target.copy( scope.target0 );
+			scope.object.position.copy( scope.position0 );
+			scope.object.zoom = scope.zoom0;
+
+			scope.object.updateProjectionMatrix();
+			scope.dispatchEvent( _changeEvent );
+
+			scope.update();
+
+			state = STATE.NONE;
+
+		};
+
+		// this method is exposed, but perhaps it would be better if we can make it private...
+		this.update = function () {
+
+			const offset = new Vector3$1();
+
+			// so camera.up is the orbit axis
+			const quat = new Quaternion$1().setFromUnitVectors( object.up, new Vector3$1( 0, 1, 0 ) );
+			const quatInverse = quat.clone().invert();
+
+			const lastPosition = new Vector3$1();
+			const lastQuaternion = new Quaternion$1();
+
+			const twoPI = 2 * Math.PI;
+
+			return function update() {
+
+				const position = scope.object.position;
+
+				offset.copy( position ).sub( scope.target );
+
+				// rotate offset to "y-axis-is-up" space
+				offset.applyQuaternion( quat );
+
+				// angle from z-axis around y-axis
+				spherical.setFromVector3( offset );
+
+				if ( scope.autoRotate && state === STATE.NONE ) {
+
+					rotateLeft( getAutoRotationAngle() );
+
+				}
+
+				if ( scope.enableDamping ) {
+
+					spherical.theta += sphericalDelta.theta * scope.dampingFactor;
+					spherical.phi += sphericalDelta.phi * scope.dampingFactor;
+
+				} else {
+
+					spherical.theta += sphericalDelta.theta;
+					spherical.phi += sphericalDelta.phi;
+
+				}
+
+				// restrict theta to be between desired limits
+
+				let min = scope.minAzimuthAngle;
+				let max = scope.maxAzimuthAngle;
+
+				if ( isFinite( min ) && isFinite( max ) ) {
+
+					if ( min < - Math.PI ) min += twoPI; else if ( min > Math.PI ) min -= twoPI;
+
+					if ( max < - Math.PI ) max += twoPI; else if ( max > Math.PI ) max -= twoPI;
+
+					if ( min <= max ) {
+
+						spherical.theta = Math.max( min, Math.min( max, spherical.theta ) );
+
+					} else {
+
+						spherical.theta = ( spherical.theta > ( min + max ) / 2 ) ?
+							Math.max( min, spherical.theta ) :
+							Math.min( max, spherical.theta );
+
+					}
+
+				}
+
+				// restrict phi to be between desired limits
+				spherical.phi = Math.max( scope.minPolarAngle, Math.min( scope.maxPolarAngle, spherical.phi ) );
+
+				spherical.makeSafe();
+
+
+				spherical.radius *= scale;
+
+				// restrict radius to be between desired limits
+				spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
+
+				// move target to panned location
+
+				if ( scope.enableDamping === true ) {
+
+					scope.target.addScaledVector( panOffset, scope.dampingFactor );
+
+				} else {
+
+					scope.target.add( panOffset );
+
+				}
+
+				offset.setFromSpherical( spherical );
+
+				// rotate offset back to "camera-up-vector-is-up" space
+				offset.applyQuaternion( quatInverse );
+
+				position.copy( scope.target ).add( offset );
+
+				scope.object.lookAt( scope.target );
+
+				if ( scope.enableDamping === true ) {
+
+					sphericalDelta.theta *= ( 1 - scope.dampingFactor );
+					sphericalDelta.phi *= ( 1 - scope.dampingFactor );
+
+					panOffset.multiplyScalar( 1 - scope.dampingFactor );
+
+				} else {
+
+					sphericalDelta.set( 0, 0, 0 );
+
+					panOffset.set( 0, 0, 0 );
+
+				}
+
+				scale = 1;
+
+				// update condition is:
+				// min(camera displacement, camera rotation in radians)^2 > EPS
+				// using small-angle approximation cos(x/2) = 1 - x^2 / 8
+
+				if ( zoomChanged ||
+					lastPosition.distanceToSquared( scope.object.position ) > EPS ||
+					8 * ( 1 - lastQuaternion.dot( scope.object.quaternion ) ) > EPS ) {
+
+					scope.dispatchEvent( _changeEvent );
+
+					lastPosition.copy( scope.object.position );
+					lastQuaternion.copy( scope.object.quaternion );
+					zoomChanged = false;
+
+					return true;
+
+				}
+
+				return false;
+
+			};
+
+		}();
+
+		this.dispose = function () {
+
+			scope.domElement.removeEventListener( 'contextmenu', onContextMenu );
+
+			scope.domElement.removeEventListener( 'pointerdown', onPointerDown );
+			scope.domElement.removeEventListener( 'pointercancel', onPointerUp );
+			scope.domElement.removeEventListener( 'wheel', onMouseWheel );
+
+			scope.domElement.removeEventListener( 'pointermove', onPointerMove );
+			scope.domElement.removeEventListener( 'pointerup', onPointerUp );
+
+
+			if ( scope._domElementKeyEvents !== null ) {
+
+				scope._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
+				scope._domElementKeyEvents = null;
+
+			}
+
+			//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
+
+		};
+
+		//
+		// internals
+		//
+
+		const scope = this;
+
+		const STATE = {
+			NONE: - 1,
+			ROTATE: 0,
+			DOLLY: 1,
+			PAN: 2,
+			TOUCH_ROTATE: 3,
+			TOUCH_PAN: 4,
+			TOUCH_DOLLY_PAN: 5,
+			TOUCH_DOLLY_ROTATE: 6
+		};
+
+		let state = STATE.NONE;
+
+		const EPS = 0.000001;
+
+		// current position in spherical coordinates
+		const spherical = new Spherical();
+		const sphericalDelta = new Spherical();
+
+		let scale = 1;
+		const panOffset = new Vector3$1();
+		let zoomChanged = false;
+
+		const rotateStart = new Vector2$1();
+		const rotateEnd = new Vector2$1();
+		const rotateDelta = new Vector2$1();
+
+		const panStart = new Vector2$1();
+		const panEnd = new Vector2$1();
+		const panDelta = new Vector2$1();
+
+		const dollyStart = new Vector2$1();
+		const dollyEnd = new Vector2$1();
+		const dollyDelta = new Vector2$1();
+
+		const pointers = [];
+		const pointerPositions = {};
+
+		function getAutoRotationAngle() {
+
+			return 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
+
+		}
+
+		function getZoomScale() {
+
+			return Math.pow( 0.95, scope.zoomSpeed );
+
+		}
+
+		function rotateLeft( angle ) {
+
+			sphericalDelta.theta -= angle;
+
+		}
+
+		function rotateUp( angle ) {
+
+			sphericalDelta.phi -= angle;
+
+		}
+
+		const panLeft = function () {
+
+			const v = new Vector3$1();
+
+			return function panLeft( distance, objectMatrix ) {
+
+				v.setFromMatrixColumn( objectMatrix, 0 ); // get X column of objectMatrix
+				v.multiplyScalar( - distance );
+
+				panOffset.add( v );
+
+			};
+
+		}();
+
+		const panUp = function () {
+
+			const v = new Vector3$1();
+
+			return function panUp( distance, objectMatrix ) {
+
+				if ( scope.screenSpacePanning === true ) {
+
+					v.setFromMatrixColumn( objectMatrix, 1 );
+
+				} else {
+
+					v.setFromMatrixColumn( objectMatrix, 0 );
+					v.crossVectors( scope.object.up, v );
+
+				}
+
+				v.multiplyScalar( distance );
+
+				panOffset.add( v );
+
+			};
+
+		}();
+
+		// deltaX and deltaY are in pixels; right and down are positive
+		const pan = function () {
+
+			const offset = new Vector3$1();
+
+			return function pan( deltaX, deltaY ) {
+
+				const element = scope.domElement;
+
+				if ( scope.object.isPerspectiveCamera ) {
+
+					// perspective
+					const position = scope.object.position;
+					offset.copy( position ).sub( scope.target );
+					let targetDistance = offset.length();
+
+					// half of the fov is center to top of screen
+					targetDistance *= Math.tan( ( scope.object.fov / 2 ) * Math.PI / 180.0 );
+
+					// we use only clientHeight here so aspect ratio does not distort speed
+					panLeft( 2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix );
+					panUp( 2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix );
+
+				} else if ( scope.object.isOrthographicCamera ) {
+
+					// orthographic
+					panLeft( deltaX * ( scope.object.right - scope.object.left ) / scope.object.zoom / element.clientWidth, scope.object.matrix );
+					panUp( deltaY * ( scope.object.top - scope.object.bottom ) / scope.object.zoom / element.clientHeight, scope.object.matrix );
+
+				} else {
+
+					// camera neither orthographic nor perspective
+					console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
+					scope.enablePan = false;
+
+				}
+
+			};
+
+		}();
+
+		function dollyOut( dollyScale ) {
+
+			if ( scope.object.isPerspectiveCamera ) {
+
+				scale /= dollyScale;
+
+			} else if ( scope.object.isOrthographicCamera ) {
+
+				scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom * dollyScale ) );
+				scope.object.updateProjectionMatrix();
+				zoomChanged = true;
+
+			} else {
+
+				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+				scope.enableZoom = false;
+
+			}
+
+		}
+
+		function dollyIn( dollyScale ) {
+
+			if ( scope.object.isPerspectiveCamera ) {
+
+				scale *= dollyScale;
+
+			} else if ( scope.object.isOrthographicCamera ) {
+
+				scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / dollyScale ) );
+				scope.object.updateProjectionMatrix();
+				zoomChanged = true;
+
+			} else {
+
+				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+				scope.enableZoom = false;
+
+			}
+
+		}
+
+		//
+		// event callbacks - update the object state
+		//
+
+		function handleMouseDownRotate( event ) {
+
+			rotateStart.set( event.clientX, event.clientY );
+
+		}
+
+		function handleMouseDownDolly( event ) {
+
+			dollyStart.set( event.clientX, event.clientY );
+
+		}
+
+		function handleMouseDownPan( event ) {
+
+			panStart.set( event.clientX, event.clientY );
+
+		}
+
+		function handleMouseMoveRotate( event ) {
+
+			rotateEnd.set( event.clientX, event.clientY );
+
+			rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
+
+			const element = scope.domElement;
+
+			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+
+			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
+
+			rotateStart.copy( rotateEnd );
+
+			scope.update();
+
+		}
+
+		function handleMouseMoveDolly( event ) {
+
+			dollyEnd.set( event.clientX, event.clientY );
+
+			dollyDelta.subVectors( dollyEnd, dollyStart );
+
+			if ( dollyDelta.y > 0 ) {
+
+				dollyOut( getZoomScale() );
+
+			} else if ( dollyDelta.y < 0 ) {
+
+				dollyIn( getZoomScale() );
+
+			}
+
+			dollyStart.copy( dollyEnd );
+
+			scope.update();
+
+		}
+
+		function handleMouseMovePan( event ) {
+
+			panEnd.set( event.clientX, event.clientY );
+
+			panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
+
+			pan( panDelta.x, panDelta.y );
+
+			panStart.copy( panEnd );
+
+			scope.update();
+
+		}
+
+		function handleMouseWheel( event ) {
+
+			if ( event.deltaY < 0 ) {
+
+				dollyIn( getZoomScale() );
+
+			} else if ( event.deltaY > 0 ) {
+
+				dollyOut( getZoomScale() );
+
+			}
+
+			scope.update();
+
+		}
+
+		function handleKeyDown( event ) {
+
+			let needsUpdate = false;
+
+			switch ( event.code ) {
+
+				case scope.keys.UP:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateUp( 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( 0, scope.keyPanSpeed );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+				case scope.keys.BOTTOM:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateUp( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( 0, - scope.keyPanSpeed );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+				case scope.keys.LEFT:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateLeft( 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( scope.keyPanSpeed, 0 );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+				case scope.keys.RIGHT:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateLeft( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( - scope.keyPanSpeed, 0 );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+			}
+
+			if ( needsUpdate ) {
+
+				// prevent the browser from scrolling on cursor keys
+				event.preventDefault();
+
+				scope.update();
+
+			}
+
+
+		}
+
+		function handleTouchStartRotate() {
+
+			if ( pointers.length === 1 ) {
+
+				rotateStart.set( pointers[ 0 ].pageX, pointers[ 0 ].pageY );
+
+			} else {
+
+				const x = 0.5 * ( pointers[ 0 ].pageX + pointers[ 1 ].pageX );
+				const y = 0.5 * ( pointers[ 0 ].pageY + pointers[ 1 ].pageY );
+
+				rotateStart.set( x, y );
+
+			}
+
+		}
+
+		function handleTouchStartPan() {
+
+			if ( pointers.length === 1 ) {
+
+				panStart.set( pointers[ 0 ].pageX, pointers[ 0 ].pageY );
+
+			} else {
+
+				const x = 0.5 * ( pointers[ 0 ].pageX + pointers[ 1 ].pageX );
+				const y = 0.5 * ( pointers[ 0 ].pageY + pointers[ 1 ].pageY );
+
+				panStart.set( x, y );
+
+			}
+
+		}
+
+		function handleTouchStartDolly() {
+
+			const dx = pointers[ 0 ].pageX - pointers[ 1 ].pageX;
+			const dy = pointers[ 0 ].pageY - pointers[ 1 ].pageY;
+
+			const distance = Math.sqrt( dx * dx + dy * dy );
+
+			dollyStart.set( 0, distance );
+
+		}
+
+		function handleTouchStartDollyPan() {
+
+			if ( scope.enableZoom ) handleTouchStartDolly();
+
+			if ( scope.enablePan ) handleTouchStartPan();
+
+		}
+
+		function handleTouchStartDollyRotate() {
+
+			if ( scope.enableZoom ) handleTouchStartDolly();
+
+			if ( scope.enableRotate ) handleTouchStartRotate();
+
+		}
+
+		function handleTouchMoveRotate( event ) {
+
+			if ( pointers.length == 1 ) {
+
+				rotateEnd.set( event.pageX, event.pageY );
+
+			} else {
+
+				const position = getSecondPointerPosition( event );
+
+				const x = 0.5 * ( event.pageX + position.x );
+				const y = 0.5 * ( event.pageY + position.y );
+
+				rotateEnd.set( x, y );
+
+			}
+
+			rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
+
+			const element = scope.domElement;
+
+			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+
+			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
+
+			rotateStart.copy( rotateEnd );
+
+		}
+
+		function handleTouchMovePan( event ) {
+
+			if ( pointers.length === 1 ) {
+
+				panEnd.set( event.pageX, event.pageY );
+
+			} else {
+
+				const position = getSecondPointerPosition( event );
+
+				const x = 0.5 * ( event.pageX + position.x );
+				const y = 0.5 * ( event.pageY + position.y );
+
+				panEnd.set( x, y );
+
+			}
+
+			panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
+
+			pan( panDelta.x, panDelta.y );
+
+			panStart.copy( panEnd );
+
+		}
+
+		function handleTouchMoveDolly( event ) {
+
+			const position = getSecondPointerPosition( event );
+
+			const dx = event.pageX - position.x;
+			const dy = event.pageY - position.y;
+
+			const distance = Math.sqrt( dx * dx + dy * dy );
+
+			dollyEnd.set( 0, distance );
+
+			dollyDelta.set( 0, Math.pow( dollyEnd.y / dollyStart.y, scope.zoomSpeed ) );
+
+			dollyOut( dollyDelta.y );
+
+			dollyStart.copy( dollyEnd );
+
+		}
+
+		function handleTouchMoveDollyPan( event ) {
+
+			if ( scope.enableZoom ) handleTouchMoveDolly( event );
+
+			if ( scope.enablePan ) handleTouchMovePan( event );
+
+		}
+
+		function handleTouchMoveDollyRotate( event ) {
+
+			if ( scope.enableZoom ) handleTouchMoveDolly( event );
+
+			if ( scope.enableRotate ) handleTouchMoveRotate( event );
+
+		}
+
+		//
+		// event handlers - FSM: listen for events and reset state
+		//
+
+		function onPointerDown( event ) {
+
+			if ( scope.enabled === false ) return;
+
+			if ( pointers.length === 0 ) {
+
+				scope.domElement.setPointerCapture( event.pointerId );
+
+				scope.domElement.addEventListener( 'pointermove', onPointerMove );
+				scope.domElement.addEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			//
+
+			addPointer( event );
+
+			if ( event.pointerType === 'touch' ) {
+
+				onTouchStart( event );
+
+			} else {
+
+				onMouseDown( event );
+
+			}
+
+		}
+
+		function onPointerMove( event ) {
+
+			if ( scope.enabled === false ) return;
+
+			if ( event.pointerType === 'touch' ) {
+
+				onTouchMove( event );
+
+			} else {
+
+				onMouseMove( event );
+
+			}
+
+		}
+
+		function onPointerUp( event ) {
+
+			removePointer( event );
+
+			if ( pointers.length === 0 ) {
+
+				scope.domElement.releasePointerCapture( event.pointerId );
+
+				scope.domElement.removeEventListener( 'pointermove', onPointerMove );
+				scope.domElement.removeEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			scope.dispatchEvent( _endEvent );
+
+			state = STATE.NONE;
+
+		}
+
+		function onMouseDown( event ) {
+
+			let mouseAction;
+
+			switch ( event.button ) {
+
+				case 0:
+
+					mouseAction = scope.mouseButtons.LEFT;
+					break;
+
+				case 1:
+
+					mouseAction = scope.mouseButtons.MIDDLE;
+					break;
+
+				case 2:
+
+					mouseAction = scope.mouseButtons.RIGHT;
+					break;
+
+				default:
+
+					mouseAction = - 1;
+
+			}
+
+			switch ( mouseAction ) {
+
+				case MOUSE.DOLLY:
+
+					if ( scope.enableZoom === false ) return;
+
+					handleMouseDownDolly( event );
+
+					state = STATE.DOLLY;
+
+					break;
+
+				case MOUSE.ROTATE:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						if ( scope.enablePan === false ) return;
+
+						handleMouseDownPan( event );
+
+						state = STATE.PAN;
+
+					} else {
+
+						if ( scope.enableRotate === false ) return;
+
+						handleMouseDownRotate( event );
+
+						state = STATE.ROTATE;
+
+					}
+
+					break;
+
+				case MOUSE.PAN:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						if ( scope.enableRotate === false ) return;
+
+						handleMouseDownRotate( event );
+
+						state = STATE.ROTATE;
+
+					} else {
+
+						if ( scope.enablePan === false ) return;
+
+						handleMouseDownPan( event );
+
+						state = STATE.PAN;
+
+					}
+
+					break;
+
+				default:
+
+					state = STATE.NONE;
+
+			}
+
+			if ( state !== STATE.NONE ) {
+
+				scope.dispatchEvent( _startEvent );
+
+			}
+
+		}
+
+		function onMouseMove( event ) {
+
+			switch ( state ) {
+
+				case STATE.ROTATE:
+
+					if ( scope.enableRotate === false ) return;
+
+					handleMouseMoveRotate( event );
+
+					break;
+
+				case STATE.DOLLY:
+
+					if ( scope.enableZoom === false ) return;
+
+					handleMouseMoveDolly( event );
+
+					break;
+
+				case STATE.PAN:
+
+					if ( scope.enablePan === false ) return;
+
+					handleMouseMovePan( event );
+
+					break;
+
+			}
+
+		}
+
+		function onMouseWheel( event ) {
+
+			if ( scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE ) return;
+
+			event.preventDefault();
+
+			scope.dispatchEvent( _startEvent );
+
+			handleMouseWheel( event );
+
+			scope.dispatchEvent( _endEvent );
+
+		}
+
+		function onKeyDown( event ) {
+
+			if ( scope.enabled === false || scope.enablePan === false ) return;
+
+			handleKeyDown( event );
+
+		}
+
+		function onTouchStart( event ) {
+
+			trackPointer( event );
+
+			switch ( pointers.length ) {
+
+				case 1:
+
+					switch ( scope.touches.ONE ) {
+
+						case TOUCH.ROTATE:
+
+							if ( scope.enableRotate === false ) return;
+
+							handleTouchStartRotate();
+
+							state = STATE.TOUCH_ROTATE;
+
+							break;
+
+						case TOUCH.PAN:
+
+							if ( scope.enablePan === false ) return;
+
+							handleTouchStartPan();
+
+							state = STATE.TOUCH_PAN;
+
+							break;
+
+						default:
+
+							state = STATE.NONE;
+
+					}
+
+					break;
+
+				case 2:
+
+					switch ( scope.touches.TWO ) {
+
+						case TOUCH.DOLLY_PAN:
+
+							if ( scope.enableZoom === false && scope.enablePan === false ) return;
+
+							handleTouchStartDollyPan();
+
+							state = STATE.TOUCH_DOLLY_PAN;
+
+							break;
+
+						case TOUCH.DOLLY_ROTATE:
+
+							if ( scope.enableZoom === false && scope.enableRotate === false ) return;
+
+							handleTouchStartDollyRotate();
+
+							state = STATE.TOUCH_DOLLY_ROTATE;
+
+							break;
+
+						default:
+
+							state = STATE.NONE;
+
+					}
+
+					break;
+
+				default:
+
+					state = STATE.NONE;
+
+			}
+
+			if ( state !== STATE.NONE ) {
+
+				scope.dispatchEvent( _startEvent );
+
+			}
+
+		}
+
+		function onTouchMove( event ) {
+
+			trackPointer( event );
+
+			switch ( state ) {
+
+				case STATE.TOUCH_ROTATE:
+
+					if ( scope.enableRotate === false ) return;
+
+					handleTouchMoveRotate( event );
+
+					scope.update();
+
+					break;
+
+				case STATE.TOUCH_PAN:
+
+					if ( scope.enablePan === false ) return;
+
+					handleTouchMovePan( event );
+
+					scope.update();
+
+					break;
+
+				case STATE.TOUCH_DOLLY_PAN:
+
+					if ( scope.enableZoom === false && scope.enablePan === false ) return;
+
+					handleTouchMoveDollyPan( event );
+
+					scope.update();
+
+					break;
+
+				case STATE.TOUCH_DOLLY_ROTATE:
+
+					if ( scope.enableZoom === false && scope.enableRotate === false ) return;
+
+					handleTouchMoveDollyRotate( event );
+
+					scope.update();
+
+					break;
+
+				default:
+
+					state = STATE.NONE;
+
+			}
+
+		}
+
+		function onContextMenu( event ) {
+
+			if ( scope.enabled === false ) return;
+
+			event.preventDefault();
+
+		}
+
+		function addPointer( event ) {
+
+			pointers.push( event );
+
+		}
+
+		function removePointer( event ) {
+
+			delete pointerPositions[ event.pointerId ];
+
+			for ( let i = 0; i < pointers.length; i ++ ) {
+
+				if ( pointers[ i ].pointerId == event.pointerId ) {
+
+					pointers.splice( i, 1 );
+					return;
+
+				}
+
+			}
+
+		}
+
+		function trackPointer( event ) {
+
+			let position = pointerPositions[ event.pointerId ];
+
+			if ( position === undefined ) {
+
+				position = new Vector2$1();
+				pointerPositions[ event.pointerId ] = position;
+
+			}
+
+			position.set( event.pageX, event.pageY );
+
+		}
+
+		function getSecondPointerPosition( event ) {
+
+			const pointer = ( event.pointerId === pointers[ 0 ].pointerId ) ? pointers[ 1 ] : pointers[ 0 ];
+
+			return pointerPositions[ pointer.pointerId ];
+
+		}
+
+		//
+
+		scope.domElement.addEventListener( 'contextmenu', onContextMenu );
+
+		scope.domElement.addEventListener( 'pointerdown', onPointerDown );
+		scope.domElement.addEventListener( 'pointercancel', onPointerUp );
+		scope.domElement.addEventListener( 'wheel', onMouseWheel, { passive: false } );
+
+		// force an update at start
+
+		this.update();
+
+	}
+
+}
+
+// MapControls performs orbiting, dollying (zooming), and panning.
+// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
+//
+//    Orbit - right mouse, or left mouse + ctrl/meta/shiftKey / touch: two-finger rotate
+//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
+//    Pan - left mouse, or arrow keys / touch: one-finger move
+
+class MapControls extends OrbitControls {
+
+	constructor( object, domElement ) {
+
+		super( object, domElement );
+
+		this.screenSpacePanning = false; // pan orthogonal to world-space direction camera.up
+
+		this.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE };
+
+		this.touches = { ONE: TOUCH.PAN, TWO: TOUCH.DOLLY_ROTATE };
+
+	}
+
+}
+
+class Simple2DScene extends Component {
+    constructor(components) {
+        super();
+        this.enabled = true;
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this.name = "Simple2DScene";
+        const container = new SimpleUIComponent(components);
+        container.domElement.className = "h-screen max-h-full max-w-full";
+        const canvas = new Canvas(components);
+        container.addChild(canvas);
+        const mainWindow = new FloatingWindow(components);
+        components.ui.add(mainWindow);
+        mainWindow.visible = false;
+        mainWindow.domElement.style.height = "20rem";
+        mainWindow.addChild(container);
+        const main = new Button(components);
+        main.materialIcon = "fact_check";
+        main.tooltip = "2D scene";
+        main.onclick = () => {
+            mainWindow.visible = !mainWindow.visible;
+        };
+        this.uiElement = { mainWindow, main, container };
+        this.scene = new THREE$1.Scene();
+        this.grid = new SimpleGrid(components);
+        const grid = this.grid.get();
+        this.scene.add(grid);
+        const size = {
+            width: mainWindow.domElement.clientWidth,
+            height: mainWindow.domElement.clientHeight,
+        };
+        // Creates the camera (point of view of the user)
+        this.camera = new THREE$1.PerspectiveCamera(75, size.width / size.height);
+        this.camera.position.z = 15;
+        this.camera.position.y = 13;
+        this.camera.position.x = 8;
+        this.renderer = new THREE$1.WebGLRenderer({ canvas: canvas.get() });
+        this.renderer.setSize(size.width, size.height);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Creates the orbit controls (to navigate the scene)
+        this.controls = new MapControls(this.camera, canvas.get());
+        this.controls.enableDamping = true;
+        this.controls.target.set(-2, 0, 0);
+        this.controls.maxPolarAngle = Math.PI / 2;
+        this.controls.minPolarAngle = Math.PI / 2;
+        mainWindow.onResized.on(() => {
+            size.width = container.domElement.clientWidth;
+            size.height = container.domElement.clientHeight;
+            this.camera.aspect = size.width / size.height;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(size.width, size.height);
+        });
+    }
+    get() { }
+    dispose() {
+        this.renderer.dispose();
+        this.grid.dispose();
+    }
+    update() {
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
     }
 }
 
@@ -92862,6 +94206,44 @@ class IfcPropertiesProcessor extends Component {
         this._currentUI = {};
         this.onPropertiesManagerSet.reset();
     }
+    getProperties(model, id) {
+        if (!model.properties)
+            return null;
+        const map = this._indexMap[model.uuid];
+        if (!map)
+            return null;
+        const indices = map[id];
+        const idNumber = parseInt(id, 10);
+        const properties = [model.properties[idNumber]];
+        if (indices) {
+            for (const index of indices) {
+                const pset = model.properties[index];
+                if (!pset)
+                    continue;
+                this.getPsetProperties(pset, model.properties);
+                this.getNestedPsets(pset, model.properties);
+                properties.push(pset);
+            }
+        }
+        return properties;
+    }
+    getNestedPsets(pset, props) {
+        if (pset.HasPropertySets) {
+            for (const subPSet of pset.HasPropertySets) {
+                const psetID = subPSet.value;
+                subPSet.value = props[psetID];
+                this.getPsetProperties(subPSet.value, props);
+            }
+        }
+    }
+    getPsetProperties(pset, props) {
+        if (pset.HasProperties) {
+            for (const property of pset.HasProperties) {
+                const psetID = property.value;
+                property.value = props[psetID];
+            }
+        }
+    }
     setUI() {
         this._components.ui.add(this.uiElement.propertiesWindow);
         this.uiElement.propertiesWindow.title = "Element Properties";
@@ -100593,6 +101975,7 @@ class FragmentHighlighter extends Component {
             depthWrite: false,
             opacity: 0.4,
         });
+        this._eventsActive = false;
         this._fillEnabled = true;
         this._outlineEnabled = true;
         this._outlinedMeshes = {};
@@ -100747,6 +102130,7 @@ class FragmentHighlighter extends Component {
                 this.regenerate(name, fragID);
             }
         }
+        this.events[name].onHighlight.trigger(this.selection[name]);
         if (zoomToSelection) {
             this.zoomSelection(name);
         }
@@ -100774,6 +102158,7 @@ class FragmentHighlighter extends Component {
             }
             this.regenerate(name, fragID);
         }
+        this.events[name].onHighlight.trigger(this.selection[name]);
         if (zoomToSelection) {
             this.zoomSelection(name);
         }
@@ -100880,7 +102265,6 @@ class FragmentHighlighter extends Component {
                 i++;
             }
         }
-        this.events[name].onHighlight.trigger(this.selection[name]);
     }
     checkSelection(name) {
         if (!this.selection[name]) {
@@ -100990,6 +102374,10 @@ class FragmentHighlighter extends Component {
     }
     setupEvents(active) {
         const container = this._components.renderer.get().domElement;
+        if (active === this._eventsActive) {
+            return;
+        }
+        this._eventsActive = active;
         if (active) {
             container.addEventListener("mousedown", this.onMouseDown);
             container.addEventListener("mouseup", this.onMouseUp);
@@ -107841,4 +109229,814 @@ class DXFExporter extends Component {
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, ShadowDropper, Simple2DMarker, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+class BufferManager {
+    /** The current size of the buffers. */
+    get size() {
+        const firstAttribute = this.attributes[0];
+        return firstAttribute.count * 3;
+    }
+    get attributes() {
+        return Object.values(this.geometry.attributes);
+    }
+    constructor(geometry) {
+        this.geometry = geometry;
+        /** Buffer increment when geometry size is exceeded, multiple of 3. */
+        this.bufferIncrease = 300;
+        /**
+         * The maximum capacity of the buffers. If exceeded by the {@link size},
+         * the buffers will be rescaled.
+         */
+        this.capacity = 0;
+    }
+    addAttribute(attribute) {
+        this.geometry.setAttribute(attribute.name, attribute);
+    }
+    resetAttributes() {
+        for (const attribute of this.attributes) {
+            this.createAttribute(attribute.name);
+        }
+        this.capacity = 0;
+    }
+    createAttribute(name) {
+        if (this.geometry.hasAttribute(name)) {
+            this.geometry.deleteAttribute(name);
+        }
+        const attribute = new THREE$1.BufferAttribute(new Float32Array(0), 3);
+        attribute.name = name;
+        this.geometry.setAttribute(name, attribute);
+    }
+    updateCount(size) {
+        for (const attribute of this.attributes) {
+            attribute.count = size;
+            attribute.needsUpdate = true;
+        }
+    }
+    resizeIfNeeded(increase) {
+        const newSize = this.size + increase * 3;
+        const difference = newSize - this.capacity;
+        if (difference >= 0) {
+            const increase = Math.max(difference, this.bufferIncrease);
+            const oldCapacity = this.capacity;
+            this.capacity += increase;
+            for (const attribute of this.attributes) {
+                this.resizeBuffers(attribute, oldCapacity);
+            }
+        }
+    }
+    resizeBuffers(attribute, oldCapacity) {
+        this.geometry.deleteAttribute(attribute.name);
+        const array = new Float32Array(this.capacity);
+        const newAttribute = new THREE$1.BufferAttribute(array, 3);
+        newAttribute.name = attribute.name;
+        newAttribute.count = attribute.count;
+        this.geometry.setAttribute(attribute.name, newAttribute);
+        for (let i = 0; i < oldCapacity; i++) {
+            const x = attribute.getX(i);
+            const y = attribute.getY(i);
+            const z = attribute.getZ(i);
+            newAttribute.setXYZ(i, x, y, z);
+        }
+    }
+}
+
+/**
+ * An object to keep track of entities and its position in a geometric buffer.
+ */
+class IdIndexMap {
+    constructor() {
+        this._idGenerator = 0;
+        this._ids = [];
+        this._indices = [];
+    }
+    /**
+     * The number of items stored in this map
+     */
+    get size() {
+        return this._ids.length;
+    }
+    /**
+     * The list of IDs inside this map. IDs are generated as increasing natural
+     * numbers starting from zero. The position of the ID in the array is
+     * the index of that entity in the geometric buffer.
+     * For instance, the ids of a map with 5 items would look like this:
+     *
+     * - [0, 1, 2, 3, 4]
+     *
+     * If the item with ID = 1 is deleted, the last item will replace the deleted
+     * one to keep the continuity of the geometric buffer, resulting in this:
+     *
+     * - [0, 4, 2, 3]
+     */
+    get ids() {
+        return this._ids;
+    }
+    /**
+     * The list of indices of the geometric buffer. The position of the index in
+     * the array is the ID of that entity. For instance, the ids of a map with 5
+     * items would look like this:
+     *
+     * - [0, 1, 2, 3, 4]
+     *
+     * If the item with ID = 1 is deleted, the last item will replace the
+     * deleted one to keep the continuity of the geometric buffer. The deleted
+     * item will remain as null inside the array:
+     *
+     * - [0, null, 2, 3, 1]
+     */
+    get indices() {
+        return this._indices;
+    }
+    /**
+     * Adds a new item to the map, creating and assigning a new ID and a new index
+     * to it. New items are assumed to be created at the end of the geometric
+     * buffer.
+     */
+    add() {
+        this._ids.push(this._idGenerator++);
+        const index = this._ids.length - 1;
+        this._indices.push(index);
+        return index;
+    }
+    /**
+     * Removes the specified item from the map and rearrange the indices to
+     * keep the continuity of the geometric buffer.
+     */
+    remove(id) {
+        const index = this.getIndex(id);
+        if (index === null || index === undefined)
+            return;
+        const lastID = this._ids.pop();
+        if (lastID === undefined) {
+            throw new Error(`Error while removing item: ${id}`);
+        }
+        this._indices[id] = null;
+        if (id === lastID)
+            return;
+        this._ids[index] = lastID;
+        this._indices[lastID] = index;
+    }
+    /**
+     * Resets this instance to the initial state.
+     */
+    reset() {
+        this._idGenerator = 0;
+        this._ids = [];
+        this._indices = [];
+    }
+    /**
+     * Gets the ID for the given index.
+     * @param index index of the entity whose ID to find out.
+     */
+    getId(index) {
+        return this._ids[index];
+    }
+    /**
+     * Gets the index for the given ID.
+     * @param id ID of the entity whose index to find out.
+     */
+    getIndex(id) {
+        return this._indices[id];
+    }
+    /**
+     * Gets the last index of the geometry buffer.
+     */
+    getLastIndex() {
+        return this.size - 1;
+    }
+    /**
+     * Gets the last ID in the geometry buffer.
+     */
+    getLastID() {
+        return this._ids[this._ids.length - 1];
+    }
+}
+
+class Selector {
+    constructor() {
+        this.data = new Set();
+    }
+    /**
+     * Select or unselects the given faces.
+     * @param active Whether to select or unselect.
+     * @param ids List of faces IDs to select or unselect. If not
+     * defined, all faces will be selected or deselected.
+     * @param allItems all the existing items.
+     */
+    select(active, ids, allItems) {
+        const all = new Set(allItems);
+        const idsToUpdate = [];
+        for (const id of ids) {
+            const exists = all.has(id);
+            if (!exists)
+                continue;
+            const isAlreadySelected = this.data.has(id);
+            if (active) {
+                if (isAlreadySelected)
+                    continue;
+                this.data.add(id);
+                idsToUpdate.push(id);
+            }
+            else {
+                if (!isAlreadySelected)
+                    continue;
+                this.data.delete(id);
+                idsToUpdate.push(id);
+            }
+        }
+        return idsToUpdate;
+    }
+    getUnselected(ids) {
+        const notSelectedIDs = [];
+        for (const id of ids) {
+            if (!this.data.has(id)) {
+                notSelectedIDs.push(id);
+            }
+        }
+        return notSelectedIDs;
+    }
+}
+
+class Primitive {
+    constructor() {
+        /**
+         * All the selected items within this primitive.
+         */
+        this.selected = new Selector();
+        this._baseColor = new THREE$1.Color(0.5, 0.5, 0.5);
+        this._selectColor = new THREE$1.Color(1, 0, 0);
+        this.list = {};
+    }
+    /**
+     * The list of ids of the {@link list} of items.
+     */
+    get ids() {
+        const ids = [];
+        for (const id in this.list) {
+            ids.push(this.list[id].id);
+        }
+        return ids;
+    }
+    /**
+     * The color of all the points.
+     */
+    get baseColor() {
+        return this._baseColor;
+    }
+    /**
+     * The color of all the points.
+     */
+    set baseColor(color) {
+        this._baseColor.copy(color);
+    }
+    /**
+     * The color of all the selected points.
+     */
+    get selectColor() {
+        return this._selectColor;
+    }
+    /**
+     * The color of all the selected points.
+     */
+    set selectColor(color) {
+        this._selectColor.copy(color);
+    }
+    get _positionBuffer() {
+        return this.mesh.geometry.attributes.position;
+    }
+    get _colorBuffer() {
+        return this.mesh.geometry.attributes.color;
+    }
+    get _normalBuffer() {
+        return this.mesh.geometry.attributes.normal;
+    }
+    get _attributes() {
+        return Object.values(this.mesh.geometry.attributes);
+    }
+}
+
+class Vertices extends Primitive {
+    /**
+     * The color of all the points.
+     */
+    set baseColor(color) {
+        super.baseColor = color;
+        const allIDs = this.idMap.ids;
+        const unselected = this.selected.getUnselected(allIDs);
+        this.updateColor(unselected);
+    }
+    /**
+     * The color of all the selected points.
+     */
+    set selectColor(color) {
+        super.selectColor = color;
+        this.updateColor(this.selected.data);
+    }
+    /**
+     * Creates a new instance of vertices
+     * @param size Visualization point size
+     */
+    constructor(size = 0.1) {
+        super();
+        /** The map between each vertex ID and its index. */
+        this.idMap = new IdIndexMap();
+        const geometry = new THREE$1.BufferGeometry();
+        const material = new THREE$1.PointsMaterial({
+            size,
+            vertexColors: true,
+        });
+        this.mesh = new THREE$1.Points(geometry, material);
+        this.mesh.frustumCulled = false;
+        this._buffers = new BufferManager(geometry);
+        this._buffers.createAttribute("position");
+        this._buffers.createAttribute("color");
+    }
+    /**
+     * Gets the coordinates of the vertex with the given ID.
+     * @param id the id of the point to retrieve.
+     */
+    get(id) {
+        const index = this.idMap.getIndex(id);
+        if (index === null)
+            return null;
+        return [
+            this._positionBuffer.getX(index),
+            this._positionBuffer.getY(index),
+            this._positionBuffer.getZ(index),
+        ];
+    }
+    /**
+     * Add new points
+     * @param ids the vertices to edit.
+     * @param coordinates the new coordinates for the vertex.
+     */
+    set(ids, coordinates) {
+        const [x, y, z] = coordinates;
+        for (const id of ids) {
+            const index = this.idMap.getIndex(id);
+            if (index === null)
+                return;
+            this._positionBuffer.setXYZ(index, x, y, z);
+        }
+        this._positionBuffer.needsUpdate = true;
+    }
+    /**
+     * Add new points
+     * @param coordinates Points to add.
+     * @returns the list of ids of the created vertices.
+     */
+    add(coordinates) {
+        this._buffers.resizeIfNeeded(coordinates.length);
+        const ids = [];
+        const { r, g, b } = this._baseColor;
+        for (let i = 0; i < coordinates.length; i++) {
+            const index = this.idMap.add();
+            const id = this.idMap.getId(index);
+            ids.push(id);
+            const [x, y, z] = coordinates[i];
+            this._positionBuffer.setXYZ(index, x, y, z);
+            this._colorBuffer.setXYZ(index, r, g, b);
+        }
+        this._buffers.updateCount(this.idMap.size);
+        this.mesh.geometry.computeBoundingSphere();
+        this.mesh.geometry.computeBoundingBox();
+        return ids;
+    }
+    /**
+     * Select or unselects the given vertices.
+     * @param active Whether to select or unselect.
+     * @param ids List of vertices IDs to select or deselect. If not
+     * defined, all vertices will be selected or deselected.
+     */
+    select(active, ids = this.idMap.ids) {
+        const idsToUpdate = this.selected.select(active, ids, this.idMap.ids);
+        this.updateColor(idsToUpdate);
+    }
+    /**
+     * Applies a transformation to the selected vertices.
+     * @param matrix Transformation matrix to apply.
+     * @param ids IDs of the vertices to transform.
+     */
+    transform(matrix, ids = this.selected.data) {
+        const vector = new THREE$1.Vector3();
+        for (const id of ids) {
+            const index = this.idMap.getIndex(id);
+            if (index === null)
+                continue;
+            const x = this._positionBuffer.getX(index);
+            const y = this._positionBuffer.getY(index);
+            const z = this._positionBuffer.getZ(index);
+            vector.set(x, y, z);
+            vector.applyMatrix4(matrix);
+            this._positionBuffer.setXYZ(index, vector.x, vector.y, vector.z);
+        }
+        this._positionBuffer.needsUpdate = true;
+    }
+    /**
+     * Quickly removes all the points and releases all the memory used.
+     */
+    clear() {
+        this._buffers.resetAttributes();
+        this.selected.data.clear();
+        this.idMap.reset();
+    }
+    /**
+     * Removes the selected points from the list
+     */
+    remove(ids = this.selected.data) {
+        for (const id of ids) {
+            for (const attribute of this._attributes) {
+                this.removeFromBuffer(id, attribute);
+            }
+            this.idMap.remove(id);
+        }
+        this.select(false, ids);
+        this._buffers.updateCount(this.idMap.size);
+    }
+    addAttribute(attribute) {
+        this._buffers.addAttribute(attribute);
+    }
+    removeFromBuffer(id, buffer) {
+        const lastIndex = this.idMap.getLastIndex();
+        const index = this.idMap.getIndex(id);
+        if (index !== null) {
+            buffer.setXYZ(index, buffer.getX(lastIndex), buffer.getY(lastIndex), buffer.getZ(lastIndex));
+        }
+    }
+    updateColor(ids = this.idMap.ids) {
+        const colorBuffer = this._colorBuffer;
+        for (const id of ids) {
+            const isSelected = this.selected.data.has(id);
+            const index = this.idMap.getIndex(id);
+            if (index === null)
+                continue;
+            const color = isSelected ? this._selectColor : this._baseColor;
+            colorBuffer.setXYZ(index, color.r, color.g, color.b);
+        }
+        colorBuffer.needsUpdate = true;
+    }
+}
+
+class Lines extends Primitive {
+    /**
+     * The color of all the points.
+     */
+    set baseColor(color) {
+        super.baseColor = color;
+        const allIDs = this.idMap.ids;
+        const unselected = this.selected.getUnselected(allIDs);
+        this.updateColor(unselected);
+        this.vertices.baseColor = color;
+    }
+    /**
+     * The color of all the selected points.
+     */
+    set selectColor(color) {
+        super.selectColor = color;
+        this.updateColor(this.selected.data);
+        this.vertices.selectColor = color;
+    }
+    constructor() {
+        super();
+        /** {@link Primitive.mesh } */
+        this.mesh = new THREE$1.LineSegments();
+        /**
+         * The list of segments.
+         */
+        this.list = {};
+        /**
+         * The geometric representation of the vertices that define this instance of lines.
+         */
+        this.vertices = new Vertices();
+        /**
+         * The map that keeps track of the segments ID and their position in the geometric buffer.
+         */
+        this.idMap = new IdIndexMap();
+        /**
+         * The list of points that define each line.
+         */
+        this.points = {};
+        const material = new THREE$1.LineBasicMaterial({ vertexColors: true });
+        const geometry = new THREE$1.BufferGeometry();
+        this.mesh = new THREE$1.LineSegments(geometry, material);
+        this._buffers = new BufferManager(geometry);
+        this.setupAttributes();
+    }
+    /**
+     * Quickly removes all the lines and releases all the memory used.
+     */
+    clear() {
+        this.selected.data.clear();
+        this.mesh.geometry.dispose();
+        this.mesh.geometry = new THREE$1.BufferGeometry();
+        this.setupAttributes();
+        this.vertices.clear();
+        this.idMap.reset();
+        this.list = {};
+        this.points = {};
+    }
+    /**
+     * Adds a segment between two {@link points}.
+     * @param ids - the IDs of the {@link points} that define the segments.
+     */
+    add(ids) {
+        const createdIDs = [];
+        const newVerticesCount = (ids.length - 1) * 2;
+        this._buffers.resizeIfNeeded(newVerticesCount);
+        const { r, g, b } = this._baseColor;
+        for (let i = 0; i < ids.length - 1; i++) {
+            const startID = ids[i];
+            const endID = ids[i + 1];
+            const start = this.vertices.get(startID);
+            const end = this.vertices.get(endID);
+            if (start === null || end === null)
+                continue;
+            const index = this.idMap.add();
+            const id = this.idMap.getId(index);
+            createdIDs.push(id);
+            const startPoint = this.points[startID];
+            const endPoint = this.points[endID];
+            startPoint.start.add(id);
+            endPoint.end.add(id);
+            this._positionBuffer.setXYZ(index * 2, start[0], start[1], start[2]);
+            this._positionBuffer.setXYZ(index * 2 + 1, end[0], end[1], end[2]);
+            this._colorBuffer.setXYZ(index * 2, r, g, b);
+            this._colorBuffer.setXYZ(index * 2 + 1, r, g, b);
+            this.list[id] = { id, start: startID, end: endID };
+        }
+        const allVerticesCount = this.idMap.size * 2;
+        this._buffers.updateCount(allVerticesCount);
+        this.mesh.geometry.computeBoundingSphere();
+        this.mesh.geometry.computeBoundingBox();
+        return createdIDs;
+    }
+    get(id) {
+        const line = this.list[id];
+        const start = this.vertices.get(line.start);
+        const end = this.vertices.get(line.end);
+        if (!start || !end)
+            return null;
+        return [start, end];
+    }
+    /**
+     * Adds the points that can be used by one or many lines.
+     * @param points the list of (x, y, z) coordinates of the points.
+     */
+    addPoints(points) {
+        const ids = this.vertices.add(points);
+        for (const id of ids) {
+            this.points[id] = { start: new Set(), end: new Set() };
+        }
+        return ids;
+    }
+    /**
+     * Select or unselects the given lines.
+     * @param active Whether to select or unselect.
+     * @param ids List of lines IDs to select or unselect. If not
+     * defined, all lines will be selected or deselected.
+     */
+    select(active, ids = this.ids) {
+        const allLines = this.idMap.ids;
+        const lineIDs = ids || allLines;
+        const idsToUpdate = this.selected.select(active, lineIDs, allLines);
+        this.updateColor(idsToUpdate);
+        const points = [];
+        for (const id of idsToUpdate) {
+            const line = this.list[id];
+            points.push(line.start);
+            points.push(line.end);
+        }
+        this.selectPoints(active, points);
+    }
+    selectPoints(active, ids) {
+        this.vertices.select(active, ids);
+    }
+    /**
+     * Removes the specified lines.
+     * @param ids List of lines to remove. If no line is specified,
+     * removes all the selected lines.
+     */
+    remove(ids = this.selected.data) {
+        const position = this._positionBuffer;
+        const color = this._colorBuffer;
+        const points = [];
+        for (const id of ids) {
+            const line = this.list[id];
+            if (line === undefined)
+                continue;
+            this.removeFromBuffer(id, position);
+            this.removeFromBuffer(id, color);
+            this.idMap.remove(id);
+            const startPoint = this.points[line.start];
+            points.push(line.start, line.end);
+            startPoint.start.delete(id);
+            const endPoint = this.points[line.end];
+            endPoint.end.delete(id);
+            delete this.list[id];
+            this.selected.data.delete(id);
+        }
+        position.needsUpdate = true;
+        color.needsUpdate = true;
+        this.selectPoints(false, points);
+    }
+    /**
+     * Removes the specified points and all lines that use them.
+     * @param ids List of points to remove. If no point is specified,
+     * removes all the selected points.
+     */
+    removePoints(ids = this.vertices.selected.data) {
+        const lines = new Set();
+        for (const id of ids) {
+            const point = this.points[id];
+            if (!point)
+                continue;
+            for (const id of point.start) {
+                lines.add(id);
+            }
+            for (const id of point.end) {
+                lines.add(id);
+            }
+        }
+        this.vertices.remove(ids);
+        this.remove(lines);
+    }
+    /**
+     * Sets a point of the line to a specific position.
+     * @param id The point whose position to set.
+     * @param coordinates The new coordinates of the point.
+     */
+    setPoint(id, coordinates) {
+        const indices = new Set();
+        this.getPointIndices(id, indices);
+        this.setLines(coordinates, indices);
+        this.vertices.set([id], coordinates);
+    }
+    transform(matrix) {
+        const indices = new Set();
+        const points = new Set();
+        for (const id of this.vertices.selected.data) {
+            points.add(id);
+            this.getPointIndices(id, indices);
+        }
+        this.transformLines(matrix, indices);
+        this.vertices.transform(matrix, points);
+    }
+    getPointIndices(id, indices) {
+        const point = this.points[id];
+        for (const id of point.start) {
+            const index = this.idMap.getIndex(id);
+            if (index === null) {
+                continue;
+            }
+            indices.add(index * 2);
+        }
+        for (const id of point.end) {
+            const index = this.idMap.getIndex(id);
+            if (index === null) {
+                continue;
+            }
+            indices.add(index * 2 + 1);
+        }
+    }
+    setupAttributes() {
+        this._buffers.createAttribute("position");
+        this._buffers.createAttribute("color");
+    }
+    removeFromBuffer(id, buffer) {
+        const index = this.idMap.getIndex(id);
+        if (index === null)
+            return;
+        const lastIndex = this.idMap.getLastIndex();
+        const indices = [index * 2, index * 2 + 1];
+        const lastIndices = [lastIndex * 2, lastIndex * 2 + 1];
+        for (let i = 0; i < 2; i++) {
+            const x = buffer.getX(lastIndices[i]);
+            const y = buffer.getY(lastIndices[i]);
+            const z = buffer.getZ(lastIndices[i]);
+            buffer.setXYZ(indices[i], x, y, z);
+        }
+        buffer.count -= 2;
+    }
+    transformLines(matrix, indices) {
+        const vector = new THREE$1.Vector3();
+        for (const index of indices) {
+            const x = this._positionBuffer.getX(index);
+            const y = this._positionBuffer.getY(index);
+            const z = this._positionBuffer.getZ(index);
+            vector.set(x, y, z);
+            vector.applyMatrix4(matrix);
+            this._positionBuffer.setXYZ(index, vector.x, vector.y, vector.z);
+        }
+        this._positionBuffer.needsUpdate = true;
+    }
+    setLines(coords, indices) {
+        const [x, y, z] = coords;
+        for (const index of indices) {
+            this._positionBuffer.setXYZ(index, x, y, z);
+        }
+        this._positionBuffer.needsUpdate = true;
+    }
+    updateColor(ids = this.ids) {
+        const colorAttribute = this._colorBuffer;
+        for (const id of ids) {
+            const line = this.list[id];
+            const isSelected = this.selected.data.has(line.id);
+            const { r, g, b } = isSelected ? this._selectColor : this._baseColor;
+            const index = this.idMap.getIndex(id);
+            if (index === null)
+                continue;
+            colorAttribute.setXYZ(index * 2, r, g, b);
+            colorAttribute.setXYZ(index * 2 + 1, r, g, b);
+        }
+        colorAttribute.needsUpdate = true;
+    }
+}
+
+class RoadNavigator {
+    constructor(components) {
+        this._lines = new Lines();
+        // TODO: this should be handled better and allow to define lines per IFC model
+        this._defaultID = "RoadNavigator";
+        this._components = components;
+        const raycaster = this._components.raycaster.get();
+        raycaster.params.Points = { threshold: 1 };
+        this._lines.baseColor = new THREE$1.Color("#6528D7");
+        const scene = components.scene.get();
+        scene.add(this._lines.mesh);
+        scene.add(this._lines.vertices.mesh);
+    }
+    drawPoint() {
+        const found = this._components.raycaster.castRay();
+        if (!found)
+            return;
+        const { x, y, z } = found.point;
+        const [id] = this._lines.addPoints([[x, y, z]]);
+        this._lines.vertices.mesh.geometry.computeBoundingSphere();
+        const selected = Array.from(this._lines.vertices.selected.data);
+        if (selected.length) {
+            const previousPoint = selected[0];
+            this._lines.add([previousPoint, id]);
+        }
+        this._lines.selectPoints(false);
+        this._lines.selectPoints(true, [id]);
+        this.cache();
+    }
+    select() {
+        this._lines.selectPoints(false);
+        // TODO: Fix cast ray type
+        const found = this._components.raycaster.castRay([
+            this._lines.vertices.mesh,
+        ]);
+        if (found && found.index !== undefined) {
+            const id = this._lines.vertices.idMap.getId(found.index);
+            this._lines.selectPoints(true, [id]);
+        }
+    }
+    delete() {
+        this._lines.removePoints();
+        // TODO: Clay bug: The selected point keeps existing in vertices
+        this._lines.vertices.selected.data.clear();
+        this._lines.vertices.mesh.geometry.computeBoundingSphere();
+        this.cache();
+    }
+    // TODO: All fragment clases should include built-in caching in dexie
+    cache(id = this._defaultID) {
+        const points = [];
+        const lines = [];
+        const newPointIDMap = new Map();
+        let pointCounter = 0;
+        for (const key in this._lines.points) {
+            const pointID = parseInt(key, 10);
+            const coords = this._lines.vertices.get(pointID);
+            if (!coords)
+                continue;
+            points.push(coords);
+            newPointIDMap.set(pointID, pointCounter);
+            pointCounter++;
+        }
+        for (const id in this._lines.list) {
+            const line = this._lines.list[id];
+            const newStart = newPointIDMap.get(line.start);
+            const newEnd = newPointIDMap.get(line.end);
+            if (newStart !== undefined && newEnd !== undefined) {
+                lines.push([newStart, newEnd]);
+            }
+        }
+        localStorage.setItem(id, JSON.stringify({ lines, points }));
+    }
+    loadCached(id = this._defaultID) {
+        const cached = localStorage.getItem(id);
+        if (!cached)
+            return;
+        const parsed = JSON.parse(cached);
+        if (parsed.points && parsed.points.length) {
+            this._lines.addPoints(parsed.points);
+        }
+        if (parsed.lines && parsed.lines.length) {
+            for (const line of parsed.lines) {
+                this._lines.add(line);
+            }
+        }
+    }
+}
+
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
