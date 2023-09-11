@@ -20437,29 +20437,6 @@ class OrbitControls extends EventDispatcher$1 {
 
 }
 
-// MapControls performs orbiting, dollying (zooming), and panning.
-// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
-//
-//    Orbit - right mouse, or left mouse + ctrl/meta/shiftKey / touch: two-finger rotate
-//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
-//    Pan - left mouse, or arrow keys / touch: one-finger move
-
-class MapControls extends OrbitControls {
-
-	constructor( object, domElement ) {
-
-		super( object, domElement );
-
-		this.screenSpacePanning = false; // pan orthogonal to world-space direction camera.up
-
-		this.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE };
-
-		this.touches = { ONE: TOUCH.PAN, TWO: TOUCH.DOLLY_ROTATE };
-
-	}
-
-}
-
 class Simple2DScene extends Component {
     constructor(components) {
         super();
@@ -20467,56 +20444,76 @@ class Simple2DScene extends Component {
         this.afterUpdate = new Event();
         this.beforeUpdate = new Event();
         this.name = "Simple2DScene";
-        const container = new SimpleUIComponent(components);
-        container.domElement.className = "h-screen max-h-full max-w-full";
+        this.frustumSize = 50;
+        this.resize = () => {
+            const parent = this.uiElement.canvas.parent;
+            if (!parent)
+                return;
+            const { clientWidth, clientHeight } = parent.domElement;
+            this.size.width = clientWidth;
+            this.size.height = clientHeight;
+            const { width, height } = this.size;
+            const aspect = width / height;
+            this.camera.left = (-this.frustumSize * aspect) / 2;
+            this.camera.right = (this.frustumSize * aspect) / 2;
+            this.camera.top = this.frustumSize / 2;
+            this.camera.bottom = -this.frustumSize / 2;
+            this.camera.updateProjectionMatrix();
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(this.size.width, this.size.height);
+        };
         const canvas = new Canvas(components);
-        container.addChild(canvas);
+        canvas.domElement.classList.remove("absolute");
         const mainWindow = new FloatingWindow(components);
         components.ui.add(mainWindow);
         mainWindow.visible = false;
         mainWindow.domElement.style.height = "20rem";
-        mainWindow.addChild(container);
+        mainWindow.addChild(canvas);
         const main = new Button(components);
         main.materialIcon = "fact_check";
         main.tooltip = "2D scene";
         main.onclick = () => {
             mainWindow.visible = !mainWindow.visible;
         };
-        this.uiElement = { mainWindow, main, container };
+        this.uiElement = { mainWindow, main, canvas };
         this.scene = new THREE$1.Scene();
-        this.grid = new SimpleGrid(components);
-        const grid = this.grid.get();
-        this.scene.add(grid);
-        const size = {
+        this.grid = new THREE$1.GridHelper(1000, 1000);
+        this.grid.rotation.x = Math.PI / 2;
+        this.scene.add(this.grid);
+        this.size = {
             width: mainWindow.domElement.clientWidth,
             height: mainWindow.domElement.clientHeight,
         };
+        const { width, height } = this.size;
         // Creates the camera (point of view of the user)
-        this.camera = new THREE$1.PerspectiveCamera(75, size.width / size.height);
-        this.camera.position.z = 15;
-        this.camera.position.y = 13;
-        this.camera.position.x = 8;
+        this.camera = new THREE$1.OrthographicCamera(75, width / height);
+        this.camera.position.z = 10;
         this.renderer = new THREE$1.WebGLRenderer({ canvas: canvas.get() });
-        this.renderer.setSize(size.width, size.height);
+        this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         // Creates the orbit controls (to navigate the scene)
-        this.controls = new MapControls(this.camera, canvas.get());
-        this.controls.enableDamping = true;
-        this.controls.target.set(-2, 0, 0);
-        this.controls.maxPolarAngle = Math.PI / 2;
-        this.controls.minPolarAngle = Math.PI / 2;
-        mainWindow.onResized.on(() => {
-            size.width = container.domElement.clientWidth;
-            size.height = container.domElement.clientHeight;
-            this.camera.aspect = size.width / size.height;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(size.width, size.height);
-        });
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.target.set(0, 0, 0);
+        this.controls.enableRotate = false;
+        this.controls.enableZoom = true;
+        const parent = this.uiElement.canvas.parent;
+        if (parent) {
+            parent.domElement.classList.remove("p-4");
+            parent.domElement.classList.remove("overflow-auto");
+            parent.domElement.classList.add("overflow-hidden");
+            parent.domElement.classList.add("h-full");
+        }
+        mainWindow.onResized.on(this.resize);
+        mainWindow.domElement.style.width = "20rem";
+        mainWindow.domElement.style.height = "20rem";
     }
     get() { }
     dispose() {
         this.renderer.dispose();
         this.grid.dispose();
+        this.uiElement.main.dispose();
+        this.uiElement.canvas.dispose();
+        this.uiElement.mainWindow.dispose();
     }
     update() {
         this.controls.update();
@@ -109951,8 +109948,11 @@ class Lines extends Primitive {
     }
 }
 
-class RoadNavigator {
+class RoadNavigator extends Component {
     constructor(components) {
+        super();
+        this.name = "RoadNavigator";
+        this.enabled = true;
         this._lines = new Lines();
         // TODO: this should be handled better and allow to define lines per IFC model
         this._defaultID = "RoadNavigator";
@@ -109963,6 +109963,12 @@ class RoadNavigator {
         const scene = components.scene.get();
         scene.add(this._lines.mesh);
         scene.add(this._lines.vertices.mesh);
+        this.longSection = new Simple2DScene(components);
+        this._longProjection = new Lines();
+        this.longSection.scene.add(this._longProjection.mesh, this._longProjection.vertices.mesh);
+    }
+    get() {
+        return this._lines;
     }
     drawPoint() {
         const found = this._components.raycaster.castRay();
@@ -109978,6 +109984,7 @@ class RoadNavigator {
         }
         this._lines.selectPoints(false);
         this._lines.selectPoints(true, [id]);
+        this.updateLongProjection();
         this.cache();
     }
     select() {
@@ -109996,6 +110003,7 @@ class RoadNavigator {
         // TODO: Clay bug: The selected point keeps existing in vertices
         this._lines.vertices.selected.data.clear();
         this._lines.vertices.mesh.geometry.computeBoundingSphere();
+        this.updateLongProjection();
         this.cache();
     }
     // TODO: All fragment clases should include built-in caching in dexie
@@ -110036,6 +110044,11 @@ class RoadNavigator {
                 this._lines.add(line);
             }
         }
+    }
+    updateLongProjection() {
+        this._longProjection.clear();
+        const geometry = this._lines.mesh.geometry;
+        console.log(geometry);
     }
 }
 
