@@ -10933,7 +10933,7 @@ class RangeInput extends SimpleUIComponent {
         const template = `
     <div>
       <label id="label" class="${UIManager.Class.Label}"></label>
-      <input id="input" type="range" class="block w-full rounded-md border-0 py-1.5 shadow-sm">
+      <input id="input" type="range" class="block w-full rounded-md border-0 py-1.5 shadow-sm accent-ifcjs-300">
     </div>
     `;
         super(components, template);
@@ -11196,6 +11196,97 @@ class CommandsMenu extends SimpleUIComponent {
         else {
             window.removeEventListener("click", this.hideCommandsMenu);
         }
+    }
+}
+
+class Drawer extends SimpleUIComponent {
+    get visible() {
+        return this._visible;
+    }
+    set visible(value) {
+        const classes = this.domElement.classList;
+        const isHorizontal = this._type === "top" || this._type === "bottom";
+        if (isHorizontal) {
+            const sign = this._type === "top" ? "-" : "";
+            if (value) {
+                classes.remove(`${sign}translate-y-full`);
+            }
+            else {
+                classes.add(`${sign}translate-y-full`);
+            }
+        }
+        else {
+            const sign = this._type === "left" ? "-" : "";
+            if (value) {
+                classes.remove(`${sign}translate-x-full`);
+            }
+            else {
+                classes.add(`${sign}translate-x-full`);
+            }
+        }
+        this._visible = value;
+    }
+    get size() {
+        return this._size;
+    }
+    set size(value) {
+        this._size = value;
+        const horizontal = this._type === "top" || this._type === "bottom";
+        const height = horizontal ? this._size : "inherit";
+        const width = horizontal ? "inherit" : this._size;
+        this.domElement.style.height = height;
+        this.domElement.style.width = width;
+    }
+    set alignment(value) {
+        const classes = this.domElement.classList;
+        this._type = value;
+        classes.remove("h-full");
+        classes.remove("w-full");
+        classes.remove("top-0");
+        classes.remove("bottom-0");
+        classes.remove("left-0");
+        classes.remove("right-0");
+        classes.remove("-translate-x-full");
+        classes.remove("-translate-y-full");
+        classes.remove("translate-x-full");
+        classes.remove("translate-y-full");
+        if (value === "top" || value === "bottom") {
+            classes.add("w-full");
+            classes.add("left-0");
+            classes.add(`${value}-0`);
+        }
+        else {
+            classes.add("h-full");
+            classes.add("top-0");
+            classes.add(`${value}-0`);
+        }
+        this.size = this._size;
+        this.visible = this._visible;
+    }
+    constructor(components) {
+        const template = `
+        <div class="fixed bg-ifcjs-100 backdrop-blur-xl shadow-md overflow-auto shadow-lg z-20 top-0 left-0 h-full transition-all duration-500 transform">
+            <div class="px-6 py-4">
+                <div data-tooeen-slot="content"></div>
+            </div>
+        </div>
+    `;
+        super(components, template);
+        this.name = "Drawer";
+        this._size = "10rem";
+        this._visible = true;
+        this._type = "left";
+        this.domElement.style.width = this._size;
+        this.slots = {
+            content: new SimpleUIComponent(components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`),
+        };
+        this.setSlots();
+    }
+    addChild(...items) {
+        const content = this.slots.content;
+        content.addChild(...items);
+        if (!content.visible)
+            content.visible = true;
     }
 }
 
@@ -110046,10 +110137,31 @@ class RoadNavigator extends Component {
         }
     }
     updateLongProjection() {
+        // Assuming that the lines of the road axis are sorted
+        // TODO: Sort them in case they are not
         this._longProjection.clear();
-        const geometry = this._lines.mesh.geometry;
-        console.log(geometry);
+        const vertices = this._lines.mesh.geometry.attributes.position;
+        console.log(vertices);
+        const v1 = new THREE$1.Vector3();
+        const v2 = new THREE$1.Vector3();
+        const points = [];
+        let accumulatedX = 0;
+        for (let i = 0; i < vertices.count * 3 - 5; i += 6) {
+            const x1 = vertices.array[i];
+            const y1 = vertices.array[i + 1];
+            const z1 = vertices.array[i + 2];
+            const x2 = vertices.array[i + 3];
+            const y2 = vertices.array[i + 4];
+            const z2 = vertices.array[i + 5];
+            v1.set(x1, y1, z1);
+            v2.set(x2, y2, z2);
+            const length = v1.distanceTo(v2);
+            accumulatedX += length;
+            points.push([accumulatedX, y2, 0]);
+        }
+        const ids = this._longProjection.addPoints(points);
+        this._longProjection.add(ids);
     }
 }
 
-export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasureElement, AngleMeasurement, AreaMeasureElement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
