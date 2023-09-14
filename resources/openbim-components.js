@@ -11199,6 +11199,7 @@ class CommandsMenu extends SimpleUIComponent {
     }
 }
 
+// TODO: Fix tooltips for buttons in drawers
 class Drawer extends SimpleUIComponent {
     get visible() {
         return this._visible;
@@ -94302,10 +94303,11 @@ class IfcPropertiesProcessor extends Component {
             return null;
         const indices = map[id];
         const idNumber = parseInt(id, 10);
-        const properties = [model.properties[idNumber]];
+        const nativeProperties = this.cloneProperty(model.properties[idNumber]);
+        const properties = [nativeProperties];
         if (indices) {
             for (const index of indices) {
-                const pset = model.properties[index];
+                const pset = this.cloneProperty(model.properties[index]);
                 if (!pset)
                     continue;
                 this.getPsetProperties(pset, model.properties);
@@ -94319,7 +94321,7 @@ class IfcPropertiesProcessor extends Component {
         if (pset.HasPropertySets) {
             for (const subPSet of pset.HasPropertySets) {
                 const psetID = subPSet.value;
-                subPSet.value = props[psetID];
+                subPSet.value = this.cloneProperty(props[psetID]);
                 this.getPsetProperties(subPSet.value, props);
             }
         }
@@ -94328,7 +94330,8 @@ class IfcPropertiesProcessor extends Component {
         if (pset.HasProperties) {
             for (const property of pset.HasProperties) {
                 const psetID = property.value;
-                property.value = props[psetID];
+                const result = this.cloneProperty(props[psetID]);
+                property.value = { ...result };
             }
         }
     }
@@ -94584,6 +94587,49 @@ class IfcPropertiesProcessor extends Component {
         };
         // #endregion ManagementUI
         return tag;
+    }
+    cloneProperty(item, result = {}) {
+        if (!item) {
+            return result;
+        }
+        for (const key in item) {
+            const value = item[key];
+            const isArray = Array.isArray(value);
+            const isObject = typeof value === "object" && !isArray && value !== null;
+            if (isArray) {
+                result[key] = [];
+                const subResult = result[key];
+                this.clonePropertyArray(value, subResult);
+            }
+            else if (isObject) {
+                result[key] = {};
+                const subResult = result[key];
+                this.cloneProperty(value, subResult);
+            }
+            else {
+                result[key] = value;
+            }
+        }
+        return result;
+    }
+    clonePropertyArray(item, result) {
+        for (const value of item) {
+            const isArray = Array.isArray(value);
+            const isObject = typeof value === "object" && !isArray && value !== null;
+            if (isArray) {
+                const subResult = [];
+                result.push(subResult);
+                this.clonePropertyArray(value, subResult);
+            }
+            else if (isObject) {
+                const subResult = {};
+                result.push(subResult);
+                this.cloneProperty(value, subResult);
+            }
+            else {
+                result.push(value);
+            }
+        }
     }
 }
 
