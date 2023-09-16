@@ -10253,7 +10253,7 @@ class UIManager extends Component {
             this.contextMenu.visible = true;
             this._popperInstance.update();
         };
-        this._components = components;
+        this.components = components;
         this.contextMenu = new Toolbar(components);
         this.contextMenu.setDirection("vertical");
         this.contextMenu.position = "left";
@@ -20533,8 +20533,8 @@ class Simple2DScene extends Component {
     constructor(components) {
         super();
         this.enabled = true;
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
+        this.onAfterUpdate = new Event();
+        this.onBeforeUpdate = new Event();
         this.name = "Simple2DScene";
         this.frustumSize = 50;
         this.resize = () => {
@@ -30563,14 +30563,14 @@ var require_web_ifc_mt = __commonJS({
           FS.createSpecialDirectories();
           FS.filesystems = { "MEMFS": MEMFS };
         }, init: (input, output, error) => {
-          FS.init.initialized = true;
+          FS.init.onInitialized = true;
           FS.ensureErrnoError();
           Module["stdin"] = input || Module["stdin"];
           Module["stdout"] = output || Module["stdout"];
           Module["stderr"] = error || Module["stderr"];
           FS.createStandardStreams();
         }, quit: () => {
-          FS.init.initialized = false;
+          FS.init.onInitialized = false;
           for (var i = 0; i < FS.streams.length; i++) {
             var stream = FS.streams[i];
             if (!stream) {
@@ -36940,14 +36940,14 @@ var require_web_ifc = __commonJS({
           FS.createSpecialDirectories();
           FS.filesystems = { "MEMFS": MEMFS };
         }, init: (input, output, error) => {
-          FS.init.initialized = true;
+          FS.init.onInitialized = true;
           FS.ensureErrnoError();
           Module["stdin"] = input || Module["stdin"];
           Module["stdout"] = output || Module["stdout"];
           Module["stderr"] = error || Module["stderr"];
           FS.createStandardStreams();
         }, quit: () => {
-          FS.init.initialized = false;
+          FS.init.onInitialized = false;
           for (var i = 0; i < FS.streams.length; i++) {
             var stream = FS.streams[i];
             if (!stream) {
@@ -92926,8 +92926,8 @@ const GeometryTypes = new Set([
  */
 class IfcJsonExporter {
     constructor() {
-        this.loadProgress = new Event();
-        this.propertiesSerialized = new Event();
+        this.onLoadProgress = new Event();
+        this.onPropertiesSerialized = new Event();
         this._progress = 0;
     }
     /**
@@ -92955,20 +92955,20 @@ class IfcJsonExporter {
                 counter++;
             }
             if (this.size !== undefined && counter > this.size) {
-                this.propertiesSerialized.trigger(properties);
+                this.onPropertiesSerialized.trigger(properties);
                 properties = null;
                 properties = {};
                 counter = 0;
             }
             if (i / linesCount > this._progress) {
-                this.loadProgress.trigger({
+                this.onLoadProgress.trigger({
                     progress: i,
                     total: linesCount,
                 });
                 this._progress += 0.1;
             }
         }
-        this.propertiesSerialized.trigger(properties);
+        this.onPropertiesSerialized.trigger(properties);
         properties = null;
     }
     async getAllGeometriesIDs(modelID, webIfc) {
@@ -94921,7 +94921,7 @@ class IfcPropertiesFinder extends Component {
         this._indexedModels = {};
         this._noHandleAttributes = ["type"];
         this.onFound = new Event();
-        this._components = components;
+        this.components = components;
         this._fragments = fragmentManager;
         this.uiElement = {
             main: new Button(components, {
@@ -95900,10 +95900,10 @@ class FragmentIfcLoader extends Component {
         super();
         this.name = "FragmentIfcLoader";
         this.enabled = true;
-        this.ifcLoaded = new Event();
+        this.onIfcLoaded = new Event();
         // For debugging purposes
         // isolatedItems = new Set<number>();
-        this.locationsSaved = new Event();
+        this.onLocationsSaved = new Event();
         this._webIfc = new IfcAPI2();
         this._geometry = new GeometryReader();
         this._converter = new DataConverter();
@@ -95926,8 +95926,8 @@ class FragmentIfcLoader extends Component {
     dispose() {
         this._geometry.cleanUp();
         this._converter.cleanUp();
-        this.ifcLoaded.reset();
-        this.locationsSaved.reset();
+        this.onIfcLoaded.reset();
+        this.onLocationsSaved.reset();
         this._toast.dispose();
         this.uiElement.main.dispose();
         this._webIfc = null;
@@ -95946,7 +95946,7 @@ class FragmentIfcLoader extends Component {
         const model = await this._converter.generate(this._webIfc, items);
         model.name = name;
         if (this.settings.saveLocations) {
-            this.locationsSaved.trigger(this._geometry.locations);
+            this.onLocationsSaved.trigger(this._geometry.locations);
         }
         if (this.settings.coordinate) {
             const isFirstModel = this._fragments.groups.length === 0;
@@ -95964,7 +95964,7 @@ class FragmentIfcLoader extends Component {
             this._fragments.list[fragment.id] = fragment;
             this._components.meshes.push(fragment.mesh);
         }
-        this.ifcLoaded.trigger(model);
+        this.onIfcLoaded.trigger(model);
         console.log(`Loading the IFC took ${performance.now() - before} ms!`);
         return model;
     }
@@ -100489,7 +100489,7 @@ class ClippingEdges extends Component {
         this.afterUpdate = new Event();
         /** {@link Updateable.beforeUpdate} */
         this.beforeUpdate = new Event();
-        this._components = components;
+        this.components = components;
         this._plane = plane;
         this._styles = styles;
     }
@@ -100530,7 +100530,7 @@ class ClippingEdges extends Component {
         const style = styles[name];
         const fillMaterial = style.fillMaterial;
         if (fillMaterial) {
-            const fills = new ClippingFills(this._components, this._plane, geometry, fillMaterial);
+            const fills = new ClippingFills(this.components, this._plane, geometry, fillMaterial);
             this.newFillOutline(name, fills, style);
             return fills;
         }
@@ -100539,7 +100539,7 @@ class ClippingEdges extends Component {
     newFillOutline(name, fills, style) {
         if (!style.outlineMaterial)
             return;
-        const renderer = this._components.renderer;
+        const renderer = this.components.renderer;
         if (renderer instanceof PostproductionRenderer) {
             const pRenderer = renderer;
             const outlines = pRenderer.postproduction.customEffects.outlinedMeshes;
@@ -100625,7 +100625,7 @@ class ClippingEdges extends Component {
         const attributes = edges.mesh.geometry.attributes;
         const position = attributes.position;
         if (!Number.isNaN(position.array[0])) {
-            const scene = this._components.scene.get();
+            const scene = this.components.scene.get();
             scene.add(edges.mesh);
             if (this.fillNeedsUpdate && edges.fill) {
                 edges.fill.geometry = edges.mesh.geometry;
@@ -100709,7 +100709,7 @@ class ClippingEdges extends Component {
         }
         edges.mesh.visible = visible;
         if (visible) {
-            const scene = this._components.scene.get();
+            const scene = this.components.scene.get();
             scene.add(edges.mesh);
         }
         else {
@@ -100726,7 +100726,7 @@ class ClippingEdges extends Component {
         }
     }
     disposeOutline(name) {
-        const renderer = this._components.renderer;
+        const renderer = this.components.renderer;
         if (renderer instanceof PostproductionRenderer) {
             const outlines = renderer.postproduction.customEffects.outlinedMeshes;
             delete outlines[name];
@@ -102541,7 +102541,7 @@ class FragmentTreeItem extends Component {
         this.selected = new Event();
         this.hovered = new Event();
         this._children = [];
-        this._components = components;
+        this.components = components;
         this.uiElement = {
             main: new Button(components),
             tree: new TreeView(components, content),
@@ -102574,13 +102574,13 @@ class FragmentTree extends Component {
     constructor(components, classifier) {
         super();
         this.name = "FragmentTree";
-        this.title = "Model Tree";
+        this._title = "Model Tree";
         this.enabled = true;
-        this.selected = new Event();
-        this.hovered = new Event();
+        this.onSelected = new Event();
+        this.onHovered = new Event();
         this._components = components;
         this._classifier = classifier;
-        this._tree = new FragmentTreeItem(this._components, classifier, this.title);
+        this._tree = new FragmentTreeItem(this._components, classifier, this._title);
         const window = new FloatingWindow(components);
         window.addChild(this._tree.uiElement.tree);
         window.title = "Model tree";
@@ -102598,8 +102598,8 @@ class FragmentTree extends Component {
         return this._tree;
     }
     dispose() {
-        this.selected.reset();
-        this.hovered.reset();
+        this.onSelected.reset();
+        this.onHovered.reset();
         this._tree.dispose();
         this._components = null;
         this._classifier = null;
@@ -102607,7 +102607,7 @@ class FragmentTree extends Component {
     update(groupSystems) {
         if (this._tree.children.length) {
             this._tree.dispose();
-            this._tree = new FragmentTreeItem(this._components, this._classifier, this.title);
+            this._tree = new FragmentTreeItem(this._components, this._classifier, this._title);
         }
         this._tree.children = this.regenerate(groupSystems);
         return this.get();
@@ -102630,8 +102630,8 @@ class FragmentTree extends Component {
                 const firstLetter = currentSystemName[0].toUpperCase();
                 const treeItemName = firstLetter + currentSystemName.slice(1); // Storeys
                 const treeItem = new FragmentTreeItem(this._components, this._classifier, `${treeItemName}: ${name}`);
-                treeItem.hovered.on((result) => this.hovered.trigger(result));
-                treeItem.selected.on((result) => this.selected.trigger(result));
+                treeItem.hovered.on((result) => this.onHovered.trigger(result));
+                treeItem.selected.on((result) => this.onSelected.trigger(result));
                 treeItem.filter = filter;
                 groups.push(treeItem);
                 treeItem.children = this.regenerate(groupSystemNames.slice(1), filter);
@@ -102851,7 +102851,7 @@ class FragmentHider extends Component {
         this._localStorageID = "FragmentHiderCache";
         this._updateVisibilityOnFound = true;
         this._filterCards = {};
-        this._components = components;
+        this.components = components;
         this._fragments = fragments;
         this._culler = culler;
         const mainWindow = new FloatingWindow(components);
@@ -103519,8 +103519,8 @@ class FragmentPlans extends Component {
         this.defaultSectionOffset = 1.5;
         /** The offset of the 2D camera to the floor plan elevation. */
         this.defaultCameraOffset = 30;
-        this.navigated = new Event();
-        this.exited = new Event();
+        this.onNavigated = new Event();
+        this.onExited = new Event();
         /** The created floor plans. */
         this.storeys = [];
         this._plans = [];
@@ -103528,7 +103528,7 @@ class FragmentPlans extends Component {
         this._previousCamera = new THREE$1.Vector3();
         this._previousTarget = new THREE$1.Vector3();
         this._previousProjection = "Perspective";
-        this._components = components;
+        this.components = components;
         this._clipper = clipper;
         this._camera = camera;
         this.objects = new PlanObjects(components);
@@ -103573,8 +103573,8 @@ class FragmentPlans extends Component {
     }
     /** {@link Disposable.dispose} */
     dispose() {
-        this.exited.reset();
-        this.navigated.reset();
+        this.onExited.reset();
+        this.onNavigated.reset();
         this.storeys = [];
         this._plans = [];
         this._clipper.dispose();
@@ -103644,7 +103644,7 @@ class FragmentPlans extends Component {
             return;
         }
         this.objects.visible = false;
-        this.navigated.trigger({ id });
+        this.onNavigated.trigger({ id });
         this.storeCameraPosition();
         this.hidePreviousClippingPlane();
         this.updateCurrentPlan(id);
@@ -103664,7 +103664,7 @@ class FragmentPlans extends Component {
         if (!this.enabled)
             return;
         this.enabled = false;
-        this.exited.trigger();
+        this.onExited.trigger();
         this.cacheFloorplanView();
         this._camera.setNavigationMode("Orbit");
         await this._camera.setProjection(this._previousProjection);
@@ -103849,7 +103849,7 @@ class FragmentClipStyler extends Component {
         }
     }
   `;
-        this._components = components;
+        this.components = components;
         this._fragments = fragments;
         this._clipper = clipper;
         this._classifier = classifier;
@@ -104866,15 +104866,15 @@ class MapboxRenderer extends BaseRenderer {
         /** {@link Component.enabled} */
         this.enabled = true;
         /** {@link Updateable.beforeUpdate} */
-        this.beforeUpdate = new Event();
+        this.onBeforeUpdate = new Event();
         /** {@link Updateable.afterUpdate} */
-        this.afterUpdate = new Event();
+        this.onAfterUpdate = new Event();
         /**
          * The renderer can only be initialized once Mapbox' map has been loaded. This
          * method triggers when that happens, so any initial logic that depends on the
          * renderer has to subscribe to this.
          */
-        this.initialized = new Event();
+        this.onInitialized = new Event();
         this._labelRenderer = new CSS2DRenderer();
         this._renderer = new THREE$1.WebGLRenderer();
         this._initError = "Mapbox scene isn't initialized yet!";
@@ -104905,7 +104905,7 @@ class MapboxRenderer extends BaseRenderer {
     resize() { }
     /** {@link Disposable.dispose} */
     dispose() {
-        this.initialized.reset();
+        this.onInitialized.reset();
         this.enabled = false;
         this.setupEvents(false);
         this._renderer.dispose();
@@ -104922,7 +104922,7 @@ class MapboxRenderer extends BaseRenderer {
         this._renderer = renderer;
         this._renderer.autoClear = false;
         this.initializeLabelRenderer();
-        this.initialized.trigger(renderer);
+        this.onInitialized.trigger(renderer);
     }
     setupMap(map) {
         const scene = this._components.scene.get();
@@ -104957,7 +104957,7 @@ class MapboxRenderer extends BaseRenderer {
     render(scene, matrix) {
         if (!this._renderer || !this.enabled)
             return;
-        this.beforeUpdate.trigger(this);
+        this.onBeforeUpdate.trigger(this);
         const rotationX = new THREE$1.Matrix4().makeRotationAxis(new THREE$1.Vector3(1, 0, 0), this._modelTransform.rotateX);
         const rotationY = new THREE$1.Matrix4().makeRotationAxis(new THREE$1.Vector3(0, 1, 0), this._modelTransform.rotateY);
         const rotationZ = new THREE$1.Matrix4().makeRotationAxis(new THREE$1.Vector3(0, 0, 1), this._modelTransform.rotateZ);
@@ -104974,7 +104974,7 @@ class MapboxRenderer extends BaseRenderer {
         this._renderer.render(scene, camera);
         this._labelRenderer.render(scene, camera);
         this._map.triggerRepaint();
-        this.afterUpdate.trigger(this);
+        this.onAfterUpdate.trigger(this);
     }
     initializeLabelRenderer() {
         var _a, _b;
@@ -110093,7 +110093,7 @@ class RoadNavigator extends Component {
         this._lines = new Lines();
         // TODO: this should be handled better and allow to define lines per IFC model
         this._defaultID = "RoadNavigator";
-        this._components = components;
+        this.components = components;
         const raycaster = this._components.raycaster.get();
         raycaster.params.Points = { threshold: 1 };
         this._lines.baseColor = new THREE$1.Color("#6528D7");
