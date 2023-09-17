@@ -1165,10 +1165,13 @@ class ToolComponent extends Component {
         script.textContent = code.js;
         document.body.appendChild(script);
         const win = window;
-        const toolClass = win.ThatOpenTool(OBC, THREE$1);
+        if (!win.ThatOpenTool) {
+            throw new Error(`There was a problem fetching the tool ${id}.`);
+        }
+        const ToolClass = win.ThatOpenTool(OBC, THREE$1);
         win.ThatOpenTool = undefined;
         script.remove();
-        return toolClass;
+        return new ToolClass(this.components);
     }
 }
 /** The list of UUIDs of all the components in this library. */
