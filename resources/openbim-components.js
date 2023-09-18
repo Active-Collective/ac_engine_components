@@ -142,9 +142,7 @@ class Component {
  */
 class Event {
     constructor() {
-        /**
-         * Triggers all the callbacks assigned to this event.
-         */
+        /** Triggers all the callbacks assigned to this event. */
         this.trigger = async (data) => {
             const handlers = this.handlers.slice(0);
             for (const handler of handlers) {
@@ -167,9 +165,7 @@ class Event {
     remove(handler) {
         this.handlers = this.handlers.filter((h) => h !== handler);
     }
-    /**
-     * Gets rid of all the suscribed events.
-     */
+    /** Gets rid of all the suscribed events. */
     reset() {
         this.handlers.length = 0;
     }
@@ -185,6 +181,10 @@ class BaseRenderer extends Component {
         super(...arguments);
         /** {@link Resizeable.onResize} */
         this.onResize = new Event();
+        /**
+         * Event that fires when there has been a change to the list of clipping
+         * planes used by the active renderer.
+         */
         this.onClippingPlanesUpdated = new Event();
         /**
          * The list of [clipping planes](https://threejs.org/docs/#api/en/renderers/WebGLRenderer.clippingPlanes) used by this
@@ -192,8 +192,12 @@ class BaseRenderer extends Component {
          */
         this.clippingPlanes = [];
     }
-    updateClippingPlanes() {
-        this.onClippingPlanesUpdated.trigger();
+    /**
+     * Forces the update of the clipping planes and all components that depend
+     * on them that are subscribed to `onClippingPlanesUpdated`.
+     */
+    async updateClippingPlanes() {
+        await this.onClippingPlanesUpdated.trigger();
     }
     /**
      * Adds or removes a
@@ -1047,28 +1051,44 @@ class BaseSVGAnnotation extends Component {
 }
 
 /**
- * A simple object to handle UI components.
+ * A simple object to handle UI components. You can use the generic constructor
+ * to specify the types of your UI components.
  */
 class UIElement {
     constructor() {
         this._data = null;
         this.initError = "UI Components not initialized.";
     }
+    /**
+     * Gets the UI Component with the given name. If it doesn't exist, it will
+     * throw an error.
+     *
+     * @param name the identifier of the UI component.
+     */
     get(name) {
         if (!this._data) {
             throw new Error(this.initError);
         }
         return this._data[name];
     }
+    /**
+     * Sets all the UI components of this instance.
+     *
+     * @param data all the UI components sorted by name in an object.
+     */
     set(data) {
         this._data = data;
     }
-    dispose() {
+    /**
+     * Release all the memory used by this instance deleting all the UI components
+     * inside.
+     */
+    async dispose() {
         if (!this._data)
             return;
         for (const name in this._data) {
             const uiComponent = this._data[name];
-            uiComponent.dispose();
+            await uiComponent.dispose();
         }
         this._data = null;
     }
@@ -1143,7 +1163,7 @@ class ToolComponent extends Component {
         }
     }
     /**
-     * Disposes all the memory used by all the tools.
+     * Disposes all the MEMORY used by all the tools.
      */
     async dispose() {
         const tools = this.list.values();
@@ -1178,7 +1198,7 @@ class ToolComponent extends Component {
 ToolComponent.libraryUUIDs = new Set();
 
 /**
- * A class to safely remove meshes and geometries from memory to
+ * A tool to safely remove meshes and geometries from memory to
  * [prevent memory leaks](https://threejs.org/docs/#manual/en/introduction/How-to-dispose-of-objects).
  */
 class Disposer extends Component {
@@ -11513,7 +11533,8 @@ class Components {
          */
         this.meshes = [];
         /**
-         * Event that fires when this instance has been fully initialized and is ready to work.
+         * Event that fires when this instance has been fully initialized and is
+         * ready to work (scene, camera and renderer are ready).
          */
         this.onInitialized = new Event();
         this._enabled = false;
@@ -11566,7 +11587,7 @@ class Components {
         const disposer = await this.tools.get(Disposer);
         this._enabled = false;
         await this.tools.dispose();
-        this.ui.dispose();
+        await this.ui.dispose();
         this.onInitialized.reset();
         this._clock.stop();
         for (const mesh of this.meshes) {
@@ -13621,8 +13642,11 @@ async function readPixelsAsync(gl, x, y, w, h, format, type, dest) {
     return dest;
 }
 
-// TODO: Clean up and document
-// TODO: Work at the instance level instead of the mesh level
+// TODO: Work at the instance level instead of the mesh level?
+/**
+ * A tool to handle big scenes efficiently by automatically hiding the objects
+ * that are not visible to the camera.
+ */
 class ScreenCuller extends Component {
     constructor(components, updateInterval = 1000, rtWidth = 512, rtHeight = 512, autoUpdate = true) {
         super(components);
@@ -13630,17 +13654,26 @@ class ScreenCuller extends Component {
         this.rtWidth = rtWidth;
         this.rtHeight = rtHeight;
         this.autoUpdate = autoUpdate;
+        /** Fires after hiding the objects that were not visible to the camera. */
+        this.onViewUpdated = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
-        this.onViewUpdated = new Event();
+        /**
+         * Needs to check whether there are objects that need to be hidden or shown.
+         * You can bind this to the camera movement, to a certain interval, etc.
+         */
         this.needsUpdate = false;
-        this.meshColorMap = new Map();
+        /**
+         * Render the internal scene used to determine the object visibility. Used
+         * for debugging purposes.
+         */
         this.renderDebugFrame = false;
-        this.visibleMeshes = [];
-        this.colorMeshes = new Map();
-        this.meshes = new Map();
-        this.currentVisibleMeshes = new Set();
-        this.recentlyHiddenMeshes = new Set();
+        this._meshColorMap = new Map();
+        this._visibleMeshes = [];
+        this._colorMeshes = new Map();
+        this._meshes = new Map();
+        this._currentVisibleMeshes = new Set();
+        this._recentlyHiddenMeshes = new Set();
         this._transparentMat = new THREE$1.MeshBasicMaterial({
             transparent: true,
             opacity: 0,
@@ -13648,6 +13681,12 @@ class ScreenCuller extends Component {
         this._colors = { r: 0, g: 0, b: 0, i: 0 };
         // Alternative scene and meshes to make the visibility check
         this._scene = new THREE$1.Scene();
+        /**
+         * The function that the culler uses to reprocess the scene. Generally it's
+         * better to call needsUpdate, but you can also call this to force it.
+         * @param force if true, it will refresh the scene even if needsUpdate is
+         * not true.
+         */
         this.updateVisibility = async (force) => {
             if (!this.enabled)
                 return;
@@ -13671,22 +13710,22 @@ class ScreenCuller extends Component {
         };
         this.handleWorkerMessage = async (event) => {
             const colors = event.data.colors;
-            this.recentlyHiddenMeshes = new Set(this.currentVisibleMeshes);
-            this.currentVisibleMeshes.clear();
-            this.visibleMeshes = [];
+            this._recentlyHiddenMeshes = new Set(this._currentVisibleMeshes);
+            this._currentVisibleMeshes.clear();
+            this._visibleMeshes = [];
             // Make found meshes visible
             for (const code of colors.values()) {
-                const mesh = this.meshColorMap.get(code);
+                const mesh = this._meshColorMap.get(code);
                 if (mesh) {
-                    this.visibleMeshes.push(mesh);
+                    this._visibleMeshes.push(mesh);
                     mesh.visible = true;
-                    this.currentVisibleMeshes.add(mesh.uuid);
-                    this.recentlyHiddenMeshes.delete(mesh.uuid);
+                    this._currentVisibleMeshes.add(mesh.uuid);
+                    this._recentlyHiddenMeshes.delete(mesh.uuid);
                 }
             }
             // Hide meshes that were visible before but not anymore
-            for (const uuid of this.recentlyHiddenMeshes) {
-                const mesh = this.meshes.get(uuid);
+            for (const uuid of this._recentlyHiddenMeshes) {
+                const mesh = this._meshes.get(uuid);
                 if (mesh === undefined)
                     continue;
                 mesh.visible = false;
@@ -13721,13 +13760,18 @@ class ScreenCuller extends Component {
         if (autoUpdate)
             window.setInterval(this.updateVisibility, updateInterval);
     }
+    /**
+     * {@link Component.get}.
+     * @returns the map of internal meshes used to determine visibility.
+     */
     get() {
-        return this.renderTarget;
+        return this._colorMeshes;
     }
+    /** {@link Disposable.dispose} */
     async dispose() {
         this.enabled = false;
-        this.currentVisibleMeshes.clear();
-        this.recentlyHiddenMeshes.clear();
+        this._currentVisibleMeshes.clear();
+        this._recentlyHiddenMeshes.clear();
         this._scene.children.length = 0;
         this.onViewUpdated.reset();
         this.worker.terminate();
@@ -13735,8 +13779,8 @@ class ScreenCuller extends Component {
         this.renderTarget.dispose();
         this._buffer = null;
         this._transparentMat.dispose();
-        this.meshColorMap.clear();
-        this.visibleMeshes = [];
+        this._meshColorMap.clear();
+        this._visibleMeshes = [];
         for (const id in this.materialCache) {
             const material = this.materialCache.get(id);
             if (material) {
@@ -13744,15 +13788,19 @@ class ScreenCuller extends Component {
             }
         }
         const disposer = await this.components.tools.get(Disposer);
-        for (const id in this.colorMeshes) {
-            const mesh = this.colorMeshes.get(id);
+        for (const id in this._colorMeshes) {
+            const mesh = this._colorMeshes.get(id);
             if (mesh) {
                 disposer.destroy(mesh);
             }
         }
-        this.colorMeshes.clear();
-        this.meshes.clear();
+        this._colorMeshes.clear();
+        this._meshes.clear();
     }
+    /**
+     * Adds a new mesh to be processed and managed by the culler.
+     * @mesh the mesh or instanced mesh to add.
+     */
     add(mesh) {
         if (!this.enabled)
             return;
@@ -13788,7 +13836,7 @@ class ScreenCuller extends Component {
         else {
             newMaterial = colorMaterial;
         }
-        this.meshColorMap.set(code, mesh);
+        this._meshColorMap.set(code, mesh);
         const count = isInstanced ? mesh.count : 1;
         const colorMesh = new THREE$1.InstancedMesh(geometry, newMaterial, count);
         if (isInstanced) {
@@ -13801,8 +13849,8 @@ class ScreenCuller extends Component {
         colorMesh.applyMatrix4(mesh.matrix);
         colorMesh.updateMatrix();
         this._scene.add(colorMesh);
-        this.colorMeshes.set(mesh.uuid, colorMesh);
-        this.meshes.set(mesh.uuid, mesh);
+        this._colorMeshes.set(mesh.uuid, colorMesh);
+        this._meshes.set(mesh.uuid, mesh);
     }
     getMaterial(r, g, b) {
         const colorEnabled = THREE$1.ColorManagement.enabled;
@@ -18973,6 +19021,11 @@ class ModelDatabase extends Dexie$1 {
 }
 
 // TODO: Implement UI elements (this is probably just for 3d scans)
+/**
+ * A tool to cache files using the browser's IndexedDB API. This might
+ * save loading time and infrastructure costs for files that need to be
+ * fetched from the cloud.
+ */
 class LocalCacher extends Component {
     /** The IDs of all the stored files. */
     get ids() {
@@ -18981,12 +19034,14 @@ class LocalCacher extends Component {
     }
     constructor(components) {
         super(components);
+        /** Fires when a file has been loaded from cache. */
+        this.onFileLoaded = new Event();
+        /** Fires when a file has been saved into cache. */
+        this.onItemSaved = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
         /** {@link UI.uiElement} */
         this.uiElement = new UIElement();
-        this.onFileLoaded = new Event();
-        this.onItemSaved = new Event();
         this.cards = [];
         this._storedModels = "open-bim-components-stored-files";
         components.tools.add(LocalCacher.uuid, this);
@@ -18995,7 +19050,10 @@ class LocalCacher extends Component {
             this.setUI(components);
         }
     }
-    /** {@link Component.get} */
+    /**
+     * {@link Component.get}.
+     * @param id the ID of the file to fetch.
+     */
     async get(id) {
         if (this.exists(id)) {
             await this._db.open();
@@ -19005,6 +19063,11 @@ class LocalCacher extends Component {
         }
         return null;
     }
+    /**
+     * Saves the file with the given ID.
+     * @param id the ID to assign to the file.
+     * @param url the URL where the file is located.
+     */
     async save(id, url) {
         this.addStoredID(id);
         const rawData = await fetch(url);
@@ -19016,10 +19079,18 @@ class LocalCacher extends Component {
         });
         this._db.close();
     }
+    /**
+     * Checks if there's a file stored with the given ID.
+     * @param id to check.
+     */
     exists(id) {
         const stored = localStorage.getItem(id);
         return stored !== null;
     }
+    /**
+     * Deletes the files stored in the given ids.
+     * @param ids the identifiers of the files to delete.
+     */
     async delete(ids) {
         await this._db.open();
         for (const id of ids) {
@@ -19030,6 +19101,7 @@ class LocalCacher extends Component {
         }
         this._db.close();
     }
+    /** Deletes all the stored files. */
     async deleteAll() {
         await this._db.open();
         this.clearStoredIDs();
@@ -19037,6 +19109,7 @@ class LocalCacher extends Component {
         this._db = new ModelDatabase();
         this._db.close();
     }
+    /** {@link Disposable.dispose} */
     async dispose() {
         this.onFileLoaded.reset();
         this.onItemSaved.reset();
@@ -19044,7 +19117,7 @@ class LocalCacher extends Component {
             await card.dispose();
         }
         this.cards = [];
-        this.uiElement.dispose();
+        await this.uiElement.dispose();
         this._db = null;
     }
     setUI(components) {
@@ -19361,6 +19434,10 @@ class SimpleSVGViewport extends Component {
 
 // TODO: Clean up and document
 // TODO: Disable / enable instance color for instance meshes
+/**
+ * A tool to easily handle the materials of massive amounts of
+ * objects and scene background easily.
+ */
 class MaterialManager extends Component {
     constructor(components) {
         super(components);
@@ -19378,6 +19455,12 @@ class MaterialManager extends Component {
     get() {
         return Object.keys(this._list);
     }
+    /**
+     * Turns the specified material styles on or off.
+     *
+     * @param active whether to turn it on or off.
+     * @param ids the ids of the style to turn on or off.
+     */
     set(active, ids = Object.keys(this._list)) {
         for (const id of ids) {
             const { material, meshes } = this._list[id];
@@ -19404,6 +19487,7 @@ class MaterialManager extends Component {
             }
         }
     }
+    /** {@link Disposable.dispose} */
     async dispose() {
         for (const id in this._list) {
             const { material } = this._list[id];
@@ -19412,6 +19496,11 @@ class MaterialManager extends Component {
         this._list = {};
         this._originals = {};
     }
+    /**
+     * Sets the color of the background of the scene.
+     *
+     * @param color: the color to apply.
+     */
     setBackgroundColor(color) {
         const scene = this.components.scene.get();
         if (!this._originalBackground) {
@@ -19421,18 +19510,32 @@ class MaterialManager extends Component {
             scene.background = color;
         }
     }
+    /**
+     * Resets the scene background to the color that was being used
+     * before applying the material manager.
+     */
     resetBackgroundColor() {
         const scene = this.components.scene.get();
         if (this._originalBackground) {
             scene.background = this._originalBackground;
         }
     }
+    /**
+     * Creates a new material style.
+     * @param id the identifier of the style to create.
+     * @param material the material of the style.
+     */
     addMaterial(id, material) {
         if (this._list[id]) {
             throw new Error("This ID already exists!");
         }
         this._list[id] = { material, meshes: new Set() };
     }
+    /**
+     * Assign meshes to a certain style.
+     * @param id the identifier of the style.
+     * @param meshes the meshes to assign to the style.
+     */
     addMeshes(id, meshes) {
         if (!this._list[id]) {
             throw new Error("This ID doesn't exists!");
@@ -106049,7 +106152,8 @@ class FragmentHider extends Component {
     }
     async updateCulledVisibility(fragment) {
         const culler = await this.components.tools.get(ScreenCuller);
-        const culled = culler.colorMeshes.get(fragment.id);
+        const colorMeshes = culler.get();
+        const culled = colorMeshes.get(fragment.id);
         if (culled) {
             culled.count = fragment.mesh.count;
         }
