@@ -1290,8 +1290,6 @@ class SimpleScene extends Component {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
-        /** {@link Component.name} */
-        this.name = "SimpleScene";
         this._scene = new THREE$1.Scene();
         this._scene.background = new THREE$1.Color(0x202932);
     }
