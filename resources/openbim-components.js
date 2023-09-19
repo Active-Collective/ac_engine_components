@@ -10124,7 +10124,9 @@ class Button extends SimpleUIComponent {
                     if (!this.parent.parent) {
                         this._components.ui.closeMenus();
                     }
-                    this.parent.closeMenus();
+                    if (this.parent.closeMenus) {
+                        this.parent.closeMenus();
+                    }
                 }
             }
         };
@@ -10706,6 +10708,8 @@ class FloatingWindow extends SimpleUIComponent {
             bottom: new Vector2$1(),
             bottomRight: new Vector2$1(),
         };
+        this.domElement.style.width = "400px";
+        this.domElement.style.height = "250px";
     }
     async dispose(onlyChildren = false) {
         await super.dispose(onlyChildren);
@@ -20799,17 +20803,26 @@ class OrbitControls extends EventDispatcher$1 {
 
 }
 
-// TODO: Decouple from UI components and make 2 variants: floating (this one) and drawer
+// TODO: Decouple from floating window so it can be used anywhere (eg. on drawers)
+/**
+ * A simple floating 2D scene that you can use to easily draw 2D graphics
+ * with all the power of Three.js.
+ */
 class Simple2DScene extends Component {
     constructor(components) {
         super(components);
+        /** {@link Updateable.onAfterUpdate} */
         this.onAfterUpdate = new Event();
+        /** {@link Updateable.onBeforeUpdate} */
         this.onBeforeUpdate = new Event();
+        /** {@link Resizeable.onResize} */
+        this.onResize = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
         /** {@link UI.uiElement} */
         this.uiElement = new UIElement();
         this._frustumSize = 50;
+        /** {@link Resizeable.resize} */
         this.resize = () => {
             const parent = this.uiElement.get("canvas").parent;
             if (!parent)
@@ -20845,9 +20858,6 @@ class Simple2DScene extends Component {
         });
         this.uiElement.set({ mainWindow, main, canvas });
         this._scene = new THREE$1.Scene();
-        this._grid = new THREE$1.GridHelper(1000, 1000);
-        this._grid.rotation.x = Math.PI / 2;
-        this._scene.add(this._grid);
         this._size = {
             width: mainWindow.domElement.clientWidth,
             height: mainWindow.domElement.clientHeight,
@@ -20875,18 +20885,28 @@ class Simple2DScene extends Component {
         mainWindow.domElement.style.width = "20rem";
         mainWindow.domElement.style.height = "20rem";
     }
-    /** {@link Component.get} */
+    /**
+     * {@link Component.get}
+     * @returns the 2D scene.
+     */
     get() {
         return this._scene;
     }
+    /** {@link Disposable.dispose} */
     async dispose() {
         this._renderer.dispose();
-        this._grid.dispose();
-        this.uiElement.dispose();
+        await this.uiElement.dispose();
     }
-    update() {
+    /** {@link Updateable.update} */
+    async update() {
+        await this.onBeforeUpdate.trigger();
         this.controls.update();
         this._renderer.render(this._scene, this._camera);
+        await this.onAfterUpdate.trigger();
+    }
+    /** {@link Resizeable.getSize} */
+    getSize() {
+        return new THREE$1.Vector2(this._size.width, this._size.height);
     }
 }
 Simple2DScene.uuid = "b48b7194-0f9a-43a4-a718-270b1522595f";
@@ -28852,17 +28872,15 @@ class FragmentManager extends Component {
             card.domElement.classList.remove("bg-ifcjs-120");
             card.domElement.classList.remove("border-transparent");
             card.domElement.className += ` min-w-[300px] my-2 border-1 border-solid border-[#3A444E] `;
-            const toolbar = new Toolbar(this.components);
-            this.components.ui.addToolbar(toolbar);
-            card.addChild(toolbar);
+            const buttonContainer = new SimpleUIComponent(this.components);
+            card.addChild(buttonContainer);
             card.title = group.name;
             this.uiElement.get("window").addChild(card);
             this._cards.push(card);
             // TODO: Use command list just like in fragment plans
             const commandsButton = new Button(this.components);
             commandsButton.materialIcon = "delete";
-            commandsButton.tooltip = "Delete model";
-            toolbar.addChild(commandsButton);
+            buttonContainer.addChild(commandsButton);
             commandsButton.onClick.add(() => this.disposeGroup(group));
         }
     }
@@ -98113,6 +98131,7 @@ class IfcPropertiesFinder extends Component {
         const fragments = await this.components.tools.get(FragmentManager);
         queryWindow.get().classList.add("overflow-visible");
         queryWindow.get().style.width = "700px";
+        queryWindow.get().style.height = "420px";
         queryWindow.visible = false;
         queryWindow.resizeable = false;
         queryWindow.title = "Model Queries";
