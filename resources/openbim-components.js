@@ -1115,7 +1115,8 @@ class ToolComponent extends Component {
         this.enabled = true;
         this._reader = new p();
         this._urls = {
-            base: "https://dev.api.dev.platform.thatopen.com/v1/tools/",
+            base: "https://api.platform.thatopen.com/v1/tools/",
+            baseDev: "https://dev.api.dev.platform.thatopen.com/v1/tools/",
             path: "/download?accessToken=",
         };
     }
@@ -1176,8 +1177,12 @@ class ToolComponent extends Component {
         }
     }
     async getPlatformComponent(id) {
-        const { base, path } = this._urls;
-        const url = base + id + path + this.token;
+        const { base, baseDev, path } = this._urls;
+        const currentUrl = window.location.href;
+        const devPattern = /(https:\/\/qa.)|(localhost)/;
+        const isDev = currentUrl.match(devPattern);
+        const baseUrl = isDev ? baseDev : base;
+        const url = baseUrl + id + path + this.token;
         const fetched = await fetch(url);
         const rawBuffer = await fetched.arrayBuffer();
         const buffer = new Uint8Array(rawBuffer);
