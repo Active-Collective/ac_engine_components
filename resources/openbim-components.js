@@ -96828,6 +96828,8 @@ class PropActionsUI extends SimpleUIComponent {
 class IfcPropertiesManager extends Component {
     constructor(components) {
         super(components);
+        this.onRequestFile = new Event();
+        this.ifcToExport = null;
         this.onElementToPset = new Event();
         this.onPropToPset = new Event();
         this.onPsetRemoved = new Event();
@@ -96865,34 +96867,25 @@ class IfcPropertiesManager extends Component {
         this.onPropToPset.reset();
         this.onPsetRemoved.reset();
         this.onDataChanged.reset();
-        this.uiElement.dispose();
+        await this.uiElement.dispose();
     }
     setUI(components) {
         const exportButton = new Button(components);
         exportButton.tooltip = "Export IFC";
         exportButton.materialIcon = "exit_to_app";
-        exportButton.onClick.add(() => {
-            const fileOpener = document.createElement("input");
-            fileOpener.type = "file";
-            fileOpener.onchange = async () => {
-                if (!this.selectedModel ||
-                    !fileOpener.files ||
-                    !fileOpener.files.length) {
-                    return;
-                }
-                const file = fileOpener.files[0];
-                const rawBuffer = await file.arrayBuffer();
-                const fileData = new Uint8Array(rawBuffer);
-                const resultBuffer = await this.saveToIfc(this.selectedModel, fileData);
-                const resultFile = new File([new Blob([resultBuffer])], file.name);
-                const link = document.createElement("a");
-                link.download = file.name;
-                link.href = URL.createObjectURL(resultFile);
-                link.click();
-                link.remove();
-                fileOpener.remove();
-            };
-            fileOpener.click();
+        exportButton.onClick.add(async () => {
+            await this.onRequestFile.trigger();
+            if (!this.ifcToExport || !this.selectedModel)
+                return;
+            const fileData = new Uint8Array(this.ifcToExport);
+            const name = this.selectedModel.name;
+            const resultBuffer = await this.saveToIfc(this.selectedModel, fileData);
+            const resultFile = new File([new Blob([resultBuffer])], name);
+            const link = document.createElement("a");
+            link.download = name;
+            link.href = URL.createObjectURL(resultFile);
+            link.click();
+            link.remove();
         });
         this.uiElement.set({
             exportButton,
@@ -105348,9 +105341,13 @@ class FragmentHighlighter extends Component {
             }),
         };
         this.onMouseDown = () => {
+            if (!this.enabled)
+                return;
             this._default.mouseDown = true;
         };
         this.onMouseUp = async (event) => {
+            if (!this.enabled)
+                return;
             if (event.target !== this.components.renderer.get().domElement)
                 return;
             this._default.mouseDown = false;
@@ -105363,6 +105360,8 @@ class FragmentHighlighter extends Component {
             await this.highlight(this._default.selectName, mult, this.zoomToSelection);
         };
         this.onMouseMove = async () => {
+            if (!this.enabled)
+                return;
             if (this._default.mouseMoved) {
                 await this.clearFills(this._default.hoverName);
                 return;
@@ -105419,6 +105418,11 @@ class FragmentHighlighter extends Component {
         for (const fragmentID in fragments.list) {
             const fragment = fragments.list[fragmentID];
             this.addHighlightToFragment(fragment);
+            const outlinedMesh = this._outlinedMeshes[fragmentID];
+            if (outlinedMesh) {
+                fragment.mesh.updateMatrixWorld(true);
+                outlinedMesh.applyMatrix4(fragment.mesh.matrixWorld);
+            }
         }
     }
     async highlight(name, removePrevious = true, zoomToSelection = this.zoomToSelection) {
