@@ -57,6 +57,7 @@ var OBC = /*#__PURE__*/Object.freeze({
     get MapboxWindow () { return MapboxWindow; },
     get MaterialManager () { return MaterialManager; },
     get MiniMap () { return MiniMap; },
+    get Modal () { return Modal; },
     get Mouse () { return Mouse; },
     get OrthoPerspectiveCamera () { return OrthoPerspectiveCamera; },
     get PostproductionRenderer () { return PostproductionRenderer; },
@@ -11160,20 +11161,19 @@ class DragAndDropInput extends SimpleUIComponent {
         const input = this.get().querySelector("input");
         if (!input)
             throw new Error("Input not found!");
-        const onFilesLoaded = () => {
+        const onFilesLoaded = async () => {
             if (input.files === null)
                 return;
-            this.onFilesLoaded.trigger(input.files);
-            this.visible = false;
+            await this.onFilesLoaded.trigger(input.files);
         };
         input.onchange = () => onFilesLoaded();
         const allowDragDrop = (event) => event.preventDefault();
         this.get().ondragover = allowDragDrop;
         this.get().ondragenter = allowDragDrop;
-        this.get().ondrop = (event) => {
+        this.get().ondrop = async (event) => {
             event.preventDefault();
             input.files = event.dataTransfer.files;
-            onFilesLoaded();
+            await onFilesLoaded();
         };
     }
     async dispose(onlyChildren = false) {
@@ -11451,6 +11451,93 @@ class Drawer extends SimpleUIComponent {
         content.addChild(...items);
         if (!content.visible)
             content.visible = true;
+    }
+}
+
+class Modal extends SimpleUIComponent {
+    set description(value) {
+        const element = this.innerElements.description;
+        element.textContent = value;
+        if (value) {
+            element.classList.remove("hidden");
+        }
+        else {
+            element === null || element === void 0 ? void 0 : element.classList.add("hidden");
+        }
+    }
+    get description() {
+        return this.innerElements.description.textContent;
+    }
+    set title(value) {
+        const element = this.innerElements.title;
+        element.textContent = value;
+        if (value) {
+            element.classList.remove("hidden");
+        }
+        else {
+            element.classList.add("hidden");
+        }
+    }
+    get title() {
+        return this.innerElements.title.textContent;
+    }
+    set visible(value) {
+        this._visible = value;
+        if (value) {
+            this.get().showModal();
+            this.onVisible.trigger();
+        }
+        else {
+            this.get().close();
+            this.onHidden.trigger();
+        }
+    }
+    get visible() {
+        return this._visible;
+    }
+    constructor(components, title = "Tooeen Modal") {
+        const template = `
+    <dialog>
+      <div class="flex flex-col backdrop-blur-xl w-[350px] h-fit text-white bg-ifcjs-100 rounded-md">
+        <div class="flex justify-between items-center top-0 select-none px-6 py-3 border-b-2 border-solid border-[#3A444E]">
+          <h3 id="title">${title}</h3>
+          <p id="description" class="text-base text-gray-400"></p>
+        </div>
+        <div data-tooeen-slot="content"></div>
+        <div data-tooeen-slot="actionButtons"></div>
+      </div>
+    </dialog> 
+    `;
+        super(components, template);
+        this.onAccept = new Event();
+        this.onCancel = new Event();
+        this.innerElements = {
+            title: this.getInnerElement("title"),
+            description: this.getInnerElement("description"),
+        };
+        this.slots = {
+            content: new SimpleUIComponent(components),
+            actionButtons: new SimpleUIComponent(components, `<div class="flex gap-x-2 justify-end p-4"></div>`),
+        };
+        this.setSlots();
+        const acceptBtn = new Button(this._components);
+        acceptBtn.materialIcon = "check";
+        acceptBtn.label = "Accept";
+        acceptBtn.get().classList.remove("hover:bg-ifcjs-200");
+        acceptBtn.get().classList.add("hover:bg-success");
+        acceptBtn.onClick.add(() => this.onAccept.trigger());
+        const cancelBtn = new Button(this._components);
+        cancelBtn.materialIcon = "close";
+        cancelBtn.label = "Cancel";
+        cancelBtn.get().classList.remove("hover:bg-ifcjs-200");
+        cancelBtn.get().classList.add("hover:bg-error");
+        cancelBtn.onClick.add(() => this.onCancel.trigger());
+        this.slots.actionButtons.addChild(cancelBtn, acceptBtn);
+    }
+    async dispose(onlyChildren = false) {
+        await super.dispose(onlyChildren);
+        this.onCancel.reset();
+        this.onAccept.reset();
     }
 }
 
@@ -96361,93 +96448,6 @@ class IfcPropertiesUtils {
     }
 }
 
-class Modal extends SimpleUIComponent {
-    set description(value) {
-        const element = this.innerElements.description;
-        element.textContent = value;
-        if (value) {
-            element.classList.remove("hidden");
-        }
-        else {
-            element === null || element === void 0 ? void 0 : element.classList.add("hidden");
-        }
-    }
-    get description() {
-        return this.innerElements.description.textContent;
-    }
-    set title(value) {
-        const element = this.innerElements.title;
-        element.textContent = value;
-        if (value) {
-            element.classList.remove("hidden");
-        }
-        else {
-            element.classList.add("hidden");
-        }
-    }
-    get title() {
-        return this.innerElements.title.textContent;
-    }
-    set visible(value) {
-        this._visible = value;
-        if (value) {
-            this.get().showModal();
-            this.onVisible.trigger();
-        }
-        else {
-            this.get().close();
-            this.onHidden.trigger();
-        }
-    }
-    get visible() {
-        return this._visible;
-    }
-    constructor(components, title = "Tooeen Modal") {
-        const template = `
-    <dialog>
-      <div class="flex flex-col backdrop-blur-xl w-[350px] h-fit text-white bg-ifcjs-100 rounded-md">
-        <div class="flex justify-between items-center top-0 select-none px-6 py-3 border-b-2 border-solid border-[#3A444E]">
-          <h3 id="title">${title}</h3>
-          <p id="description" class="text-base text-gray-400"></p>
-        </div>
-        <div data-tooeen-slot="content"></div>
-        <div data-tooeen-slot="actionButtons"></div>
-      </div>
-    </dialog> 
-    `;
-        super(components, template);
-        this.onAccept = new Event();
-        this.onCancel = new Event();
-        this.innerElements = {
-            title: this.getInnerElement("title"),
-            description: this.getInnerElement("description"),
-        };
-        this.slots = {
-            content: new SimpleUIComponent(components),
-            actionButtons: new SimpleUIComponent(components, `<div class="flex gap-x-2 justify-end p-4"></div>`),
-        };
-        this.setSlots();
-        const acceptBtn = new Button(this._components);
-        acceptBtn.materialIcon = "check";
-        acceptBtn.label = "Accept";
-        acceptBtn.get().classList.remove("hover:bg-ifcjs-200");
-        acceptBtn.get().classList.add("hover:bg-success");
-        acceptBtn.onClick.add(() => this.onAccept.trigger());
-        const cancelBtn = new Button(this._components);
-        cancelBtn.materialIcon = "close";
-        cancelBtn.label = "Cancel";
-        cancelBtn.get().classList.remove("hover:bg-ifcjs-200");
-        cancelBtn.get().classList.add("hover:bg-error");
-        cancelBtn.onClick.add(() => this.onCancel.trigger());
-        this.slots.actionButtons.addChild(cancelBtn, acceptBtn);
-    }
-    async dispose(onlyChildren = false) {
-        await super.dispose(onlyChildren);
-        this.onCancel.reset();
-        this.onAccept.reset();
-    }
-}
-
 class EntityActionsUI extends SimpleUIComponent {
     constructor(components) {
         super(components, `<div class="flex"></div>`);
@@ -105281,7 +105281,7 @@ class MiniMap extends Component {
         }
     }
 }
-MiniMap.uuid = "d1e814d5-b81c-4452-87a2-f039375e0489";
+MiniMap.uuid = "39ad6aad-84c8-4adf-a1e0-7f25313a9e7f";
 ToolComponent.libraryUUIDs.add(MiniMap.uuid);
 
 class FragmentHighlighter extends Component {
@@ -105692,6 +105692,8 @@ class FragmentHighlighter extends Component {
             const newMesh = new THREE$1.InstancedMesh(newGeometry, this._invisibleMaterial, fragment.capacity);
             newMesh.frustumCulled = false;
             newMesh.renderOrder = 999;
+            fragment.mesh.updateMatrixWorld(true);
+            newMesh.applyMatrix4(fragment.mesh.matrixWorld);
             this._outlinedMeshes[fragmentID] = newMesh;
             const scene = this.components.scene.get();
             scene.add(newMesh);
@@ -106374,6 +106376,10 @@ class FragmentCacher extends LocalCacher {
             const propertiesUrl = URL.createObjectURL(jsonFile);
             await this.save(propertiesCacheID, propertiesUrl);
         }
+    }
+    existsFragmentGroup(id) {
+        const { fragmentsCacheID } = this.getIDs(id);
+        return this.exists(fragmentsCacheID);
     }
     async onLoadButtonClicked() {
         const floatingMenu = this.uiElement.get("floatingMenu");
@@ -164061,4 +164067,4 @@ class RoadNavigator extends Component {
 RoadNavigator.uuid = "85f2c89c-4c6b-4c7d-bc20-5b675874b228";
 ToolComponent.libraryUUIDs.add(RoadNavigator.uuid);
 
-export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
