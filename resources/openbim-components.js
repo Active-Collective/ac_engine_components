@@ -112674,14 +112674,6 @@ DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
 class BufferManager {
-    /** The current size of the buffers. */
-    get size() {
-        const firstAttribute = this.attributes[0];
-        return firstAttribute.count * 3;
-    }
-    get attributes() {
-        return Object.values(this.geometry.attributes);
-    }
     constructor(geometry) {
         this.geometry = geometry;
         /** Buffer increment when geometry size is exceeded, multiple of 3. */
@@ -112691,6 +112683,14 @@ class BufferManager {
          * the buffers will be rescaled.
          */
         this.capacity = 0;
+    }
+    /** The current size of the buffers. */
+    get size() {
+        const firstAttribute = this.attributes[0];
+        return firstAttribute.count * 3;
+    }
+    get attributes() {
+        return Object.values(this.geometry.attributes);
     }
     addAttribute(attribute) {
         this.geometry.setAttribute(attribute.name, attribute);
@@ -163513,22 +163513,6 @@ class Primitive {
 
 class Vertices extends Primitive {
     /**
-     * The color of all the points.
-     */
-    set baseColor(color) {
-        super.baseColor = color;
-        const allIDs = this.idMap.ids;
-        const unselected = this.selected.getUnselected(allIDs);
-        this.updateColor(unselected);
-    }
-    /**
-     * The color of all the selected points.
-     */
-    set selectColor(color) {
-        super.selectColor = color;
-        this.updateColor(this.selected.data);
-    }
-    /**
      * Creates a new instance of vertices
      * @param size Visualization point size
      */
@@ -163546,6 +163530,22 @@ class Vertices extends Primitive {
         this._buffers = new BufferManager(geometry);
         this._buffers.createAttribute("position");
         this._buffers.createAttribute("color");
+    }
+    /**
+     * The color of all the points.
+     */
+    set baseColor(color) {
+        super.baseColor = color;
+        const allIDs = this.idMap.ids;
+        const unselected = this.selected.getUnselected(allIDs);
+        this.updateColor(unselected);
+    }
+    /**
+     * The color of all the selected points.
+     */
+    set selectColor(color) {
+        super.selectColor = color;
+        this.updateColor(this.selected.data);
     }
     /**
      * Gets the coordinates of the vertex with the given ID.
@@ -163674,24 +163674,6 @@ class Vertices extends Primitive {
 }
 
 class Lines extends Primitive {
-    /**
-     * The color of all the points.
-     */
-    set baseColor(color) {
-        super.baseColor = color;
-        const allIDs = this.idMap.ids;
-        const unselected = this.selected.getUnselected(allIDs);
-        this.updateColor(unselected);
-        this.vertices.baseColor = color;
-    }
-    /**
-     * The color of all the selected points.
-     */
-    set selectColor(color) {
-        super.selectColor = color;
-        this.updateColor(this.selected.data);
-        this.vertices.selectColor = color;
-    }
     constructor() {
         super();
         /** {@link Primitive.mesh } */
@@ -163717,6 +163699,24 @@ class Lines extends Primitive {
         this.mesh = new THREE$1.LineSegments(geometry, material);
         this._buffers = new BufferManager(geometry);
         this.setupAttributes();
+    }
+    /**
+     * The color of all the points.
+     */
+    set baseColor(color) {
+        super.baseColor = color;
+        const allIDs = this.idMap.ids;
+        const unselected = this.selected.getUnselected(allIDs);
+        this.updateColor(unselected);
+        this.vertices.baseColor = color;
+    }
+    /**
+     * The color of all the selected points.
+     */
+    set selectColor(color) {
+        super.selectColor = color;
+        this.updateColor(this.selected.data);
+        this.vertices.selectColor = color;
     }
     /**
      * Quickly removes all the lines and releases all the memory used.
