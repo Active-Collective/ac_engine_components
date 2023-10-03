@@ -104950,6 +104950,10 @@ class ViewpointsManager extends Component {
     }
 }
 
+/**
+ * A simple navigation cube to zoom the scene to its basic views (top, bottom,
+ * left, right, back and front).
+ */
 class CubeMap extends Component {
     get visible() {
         return this._visible;
@@ -104966,10 +104970,13 @@ class CubeMap extends Component {
     constructor(components) {
         var _a;
         super(components);
-        this.name = "CubeMap";
+        /** {@link Component.enabled} */
         this.enabled = true;
+        /** {@link Updateable.onAfterUpdate} */
         this.onAfterUpdate = new Event();
+        /** {@link Updateable.onBeforeUpdate} */
         this.onBeforeUpdate = new Event();
+        /** The minimum zoom distance to the scene. */
         this.offset = 1;
         this._cubeFaceClass = "flex justify-center font-bold hover:bg-ifcjs-200 hover:text-ifcjs-100 text-white select-none text-xl items-center cursor-pointer text-center text-ifcjs-100 absolute w-[60px] h-[60px] border-solid border-ifcjs-120";
         this._cyan = "bg-[#3CE6FEDD]";
