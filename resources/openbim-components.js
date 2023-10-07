@@ -1352,6 +1352,13 @@ class SimpleRenderer extends BaseRenderer {
             this._renderer2D.setSize(width, height);
             this.onResize.trigger();
         };
+        this.onContextLost = (event) => {
+            event.preventDefault();
+            this.components.enabled = false;
+        };
+        this.onContextBack = () => {
+            this.components.enabled = true;
+        };
         this.container = container;
         this._renderer = new THREE$1.WebGLRenderer({
             antialias: true,
@@ -1362,6 +1369,10 @@ class SimpleRenderer extends BaseRenderer {
         this.setupRenderers();
         this.setupEvents(true);
         this.resize();
+        const context = this._renderer.getContext();
+        const { canvas } = context;
+        canvas.addEventListener("webglcontextlost", this.onContextLost, false);
+        canvas.addEventListener("webglcontextrestored", this.onContextBack, false);
     }
     /** {@link Component.get} */
     get() {
@@ -3687,8 +3698,8 @@ class SimpleRaycaster extends BaseRaycaster {
         /** {@link Component.enabled} */
         this.enabled = true;
         this._raycaster = new THREE$1.Raycaster();
-        const scene = components.renderer.get();
-        const dom = scene.domElement;
+        const renderer = components.renderer.get();
+        const dom = renderer.domElement;
         this.mouse = new Mouse(dom);
     }
     /** {@link Component.get} */
@@ -11631,9 +11642,9 @@ class Components {
          * ready to work (scene, camera and renderer are ready).
          */
         this.onInitialized = new Event();
-        this._enabled = false;
+        this.enabled = false;
         this.update = async () => {
-            if (!this._enabled)
+            if (!this.enabled)
                 return;
             const delta = this._clock.getDelta();
             await Components.update(this.scene, delta);
@@ -11656,7 +11667,7 @@ class Components {
      * used, the {@link raycaster} will need to be initialized.
      */
     init() {
-        this._enabled = true;
+        this.enabled = true;
         this._clock.start();
         this.ui.init();
         this.update();
@@ -11679,7 +11690,7 @@ class Components {
      */
     async dispose() {
         const disposer = await this.tools.get(Disposer);
-        this._enabled = false;
+        this.enabled = false;
         await this.tools.dispose();
         await this.ui.dispose();
         this.onInitialized.reset();
@@ -108775,6 +108786,14 @@ class AreaMeasurement extends Component {
         this.uiElement.set({ main });
     }
     delete() { }
+    /** Deletes all the dimensions that have been previously created. */
+    async deleteAll() {
+        for (const dim of this._measurements) {
+            await dim.dispose();
+            await this.onAfterDelete.trigger(this);
+        }
+        this._measurements = [];
+    }
     endCreation() {
         if (this._currentAreaElement) {
             this._measurements.push(this._currentAreaElement);
@@ -110390,6 +110409,14 @@ class AngleMeasurement extends Component {
         this.components = null;
     }
     delete() { }
+    /** Deletes all the dimensions that have been previously created. */
+    async deleteAll() {
+        for (const dim of this._measurements) {
+            await dim.dispose();
+            await this.onAfterDelete.trigger(this);
+        }
+        this._measurements = [];
+    }
     endCreation() {
         if (this._currentAngleElement) {
             this._measurements.push(this._currentAngleElement);
