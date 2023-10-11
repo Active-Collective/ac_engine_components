@@ -931,9 +931,18 @@ class SimpleRenderer extends BaseRenderer {
             this.components.enabled = false;
         };
         this.onContextBack = () => {
+            this._renderer.setRenderTarget(null);
+            this._renderer.dispose();
+            this._renderer = new THREE$1.WebGLRenderer({
+                canvas: this._canvas,
+                antialias: true,
+                alpha: true,
+                ...this._parameters,
+            });
             this.components.enabled = true;
         };
         this.container = container;
+        this._parameters = parameters;
         this._renderer = new THREE$1.WebGLRenderer({
             antialias: true,
             alpha: true,
@@ -943,6 +952,7 @@ class SimpleRenderer extends BaseRenderer {
         this.setupRenderers();
         this.setupEvents(true);
         this.resize();
+        this._canvas = this._renderer.domElement;
         const context = this._renderer.getContext();
         const { canvas } = context;
         canvas.addEventListener("webglcontextlost", this.onContextLost, false);
@@ -10506,6 +10516,13 @@ class SimpleUICard extends SimpleUIComponent {
 }
 
 class FloatingWindow extends SimpleUIComponent {
+    get containerSize() {
+        const baseHeight = this.domElement.clientHeight;
+        const titleHeight = this.innerElements.titleContainer.clientHeight;
+        const height = baseHeight - titleHeight;
+        const width = this.domElement.clientWidth;
+        return { height, width };
+    }
     get viewerContainer() {
         return this._components.renderer.get().domElement
             .parentElement;
@@ -20835,13 +20852,7 @@ class Simple2DScene extends Component {
         this._frustumSize = 50;
         /** {@link Resizeable.resize} */
         this.resize = () => {
-            const parent = this.uiElement.get("canvas").parent;
-            if (!parent)
-                return;
-            const { clientWidth, clientHeight } = parent.domElement;
-            this._size.width = clientWidth;
-            this._size.height = clientHeight;
-            const { width, height } = this._size;
+            const { height, width } = this._size;
             const aspect = width / height;
             this._camera.left = (-this._frustumSize * aspect) / 2;
             this._camera.right = (this._frustumSize * aspect) / 2;
@@ -20856,22 +20867,11 @@ class Simple2DScene extends Component {
         }
         const canvas = new Canvas(components);
         canvas.domElement.classList.remove("absolute");
-        const mainWindow = new FloatingWindow(components);
-        components.ui.add(mainWindow);
-        mainWindow.visible = false;
-        mainWindow.domElement.style.height = "20rem";
-        mainWindow.addChild(canvas);
-        const main = new Button(components);
-        main.materialIcon = "fact_check";
-        main.tooltip = "2D scene";
-        main.onClick.add(() => {
-            mainWindow.visible = !mainWindow.visible;
-        });
-        this.uiElement.set({ mainWindow, main, canvas });
+        this.uiElement.set({ canvas });
         this._scene = new THREE$1.Scene();
         this._size = {
-            width: mainWindow.domElement.clientWidth,
-            height: mainWindow.domElement.clientHeight,
+            width: window.innerWidth,
+            height: window.innerHeight,
         };
         const { width, height } = this._size;
         // Creates the camera (point of view of the user)
@@ -20892,9 +20892,6 @@ class Simple2DScene extends Component {
             parent.domElement.classList.add("overflow-hidden");
             parent.domElement.classList.add("h-full");
         }
-        mainWindow.onResized.add(this.resize);
-        mainWindow.domElement.style.width = "20rem";
-        mainWindow.domElement.style.height = "20rem";
     }
     /**
      * {@link Component.get}
@@ -20918,6 +20915,11 @@ class Simple2DScene extends Component {
     /** {@link Resizeable.getSize} */
     getSize() {
         return new THREE$1.Vector2(this._size.width, this._size.height);
+    }
+    setSize(height, width) {
+        this._size.width = width;
+        this._size.height = height;
+        this.resize();
     }
 }
 Simple2DScene.uuid = "b48b7194-0f9a-43a4-a718-270b1522595f";
@@ -113337,6 +113339,7 @@ class RoadNavigator extends Component {
     constructor(components) {
         super(components);
         this.enabled = true;
+        this.uiElement = new UIElement();
         this._lines = new Lines();
         // TODO: this should be handled better and allow to define lines per IFC model
         this._defaultID = "RoadNavigator";
@@ -113372,8 +113375,10 @@ class RoadNavigator extends Component {
         this.updateLongProjection();
         this.cache();
     }
-    select() {
-        this._lines.selectPoints(false);
+    select(removePrevious = true) {
+        if (removePrevious) {
+            this._lines.selectPoints(false);
+        }
         // TODO: Fix cast ray type
         const found = this.components.raycaster.castRay([
             this._lines.vertices.mesh,
@@ -113430,10 +113435,15 @@ class RoadNavigator extends Component {
             }
         }
     }
+    // private setupUI() {
+    //   const main = new Drawer(this.components);
+    //   this.uiElement.set({});
+    // }
     updateLongProjection() {
         // Assuming that the lines of the road axis are sorted
         // TODO: Sort them in case they are not
         this._longProjection.clear();
+        this._longProjection = new Lines();
         const vertices = this._lines.mesh.geometry.attributes.position;
         console.log(vertices);
         const v1 = new THREE$1.Vector3();
