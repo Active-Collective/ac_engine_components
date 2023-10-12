@@ -594,22 +594,24 @@ class Disposer extends Component {
      * using any of these in other parts of the application, make sure that you
      * remove them from the mesh before disposing it.
      *
-     * @param mesh - the [mesh](https://threejs.org/docs/#api/en/objects/Mesh)
+     * @param object - the [object](https://threejs.org/docs/#api/en/core/Object3D)
      * to remove.
      *
      * @param materials - whether to dispose the materials of the mesh.
      *
      * @param recursive - whether to recursively dispose the children of the mesh.
      */
-    destroy(mesh, materials = true, recursive = true) {
-        mesh.removeFromParent();
-        this.disposeGeometryAndMaterials(mesh, materials);
-        if (recursive && mesh.children.length) {
-            this.disposeChildren(mesh);
+    destroy(object, materials = true, recursive = true) {
+        object.removeFromParent();
+        const item = object;
+        if (item.dispose) {
+            item.dispose();
         }
-        mesh.material = [];
-        mesh.geometry = null;
-        mesh.children.length = 0;
+        this.disposeGeometryAndMaterials(object, materials);
+        if (recursive && item.children && item.children.length) {
+            this.disposeChildren(item);
+        }
+        object.children.length = 0;
     }
     /**
      * Disposes a geometry from memory.
@@ -625,12 +627,15 @@ class Disposer extends Component {
         geometry.dispose();
     }
     disposeGeometryAndMaterials(mesh, materials) {
-        if (mesh.geometry) {
-            this.disposeGeometry(mesh.geometry);
+        const item = mesh;
+        if (item.geometry) {
+            this.disposeGeometry(item.geometry);
         }
-        if (materials) {
-            Disposer.disposeMaterial(mesh);
+        if (materials && item.material) {
+            Disposer.disposeMaterial(item);
         }
+        item.material = [];
+        item.geometry = null;
     }
     disposeChildren(mesh) {
         for (const child of mesh.children) {
@@ -11373,13 +11378,11 @@ class Drawer extends SimpleUIComponent {
     constructor(components) {
         const template = `
         <div class="fixed bg-ifcjs-100 backdrop-blur-xl shadow-md overflow-auto shadow-lg z-20 top-0 left-0 h-full transition-all duration-500 transform">
-            <div class="px-6 py-4">
-                <div data-tooeen-slot="content"></div>
-            </div>
+            <div data-tooeen-slot="content"></div>
         </div>
     `;
         super(components, template);
-        this.name = "Drawer";
+        this.onResized = new Event();
         this._size = "10rem";
         this._visible = true;
         this._type = "left";
@@ -11388,6 +11391,8 @@ class Drawer extends SimpleUIComponent {
             content: new SimpleUIComponent(components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`),
         };
         this.setSlots();
+        const observer = new ResizeObserver(() => this.onResized.trigger());
+        observer.observe(this.get());
     }
     addChild(...items) {
         const content = this.slots.content;
@@ -20831,7 +20836,7 @@ class OrbitControls extends EventDispatcher$1 {
 
 }
 
-// TODO: Decouple from floating window so it can be used anywhere (eg. on drawers)
+// TODO: Make a scene manager as a Tool (so that it as an UUID)
 /**
  * A simple floating 2D scene that you can use to easily draw 2D graphics
  * with all the power of Three.js.
@@ -20854,12 +20859,12 @@ class Simple2DScene extends Component {
         this.resize = () => {
             const { height, width } = this._size;
             const aspect = width / height;
-            this._camera.left = (-this._frustumSize * aspect) / 2;
-            this._camera.right = (this._frustumSize * aspect) / 2;
-            this._camera.top = this._frustumSize / 2;
-            this._camera.bottom = -this._frustumSize / 2;
-            this._camera.updateProjectionMatrix();
-            this._camera.updateProjectionMatrix();
+            this.camera.left = (-this._frustumSize * aspect) / 2;
+            this.camera.right = (this._frustumSize * aspect) / 2;
+            this.camera.top = this._frustumSize / 2;
+            this.camera.bottom = -this._frustumSize / 2;
+            this.camera.updateProjectionMatrix();
+            this.camera.updateProjectionMatrix();
             this._renderer.setSize(this._size.width, this._size.height);
         };
         if (!components.ui.enabled) {
@@ -20875,13 +20880,14 @@ class Simple2DScene extends Component {
         };
         const { width, height } = this._size;
         // Creates the camera (point of view of the user)
-        this._camera = new THREE$1.OrthographicCamera(75, width / height);
-        this._camera.position.z = 10;
+        this.camera = new THREE$1.OrthographicCamera(75, width / height);
+        this._scene.add(this.camera);
+        this.camera.position.z = 10;
         this._renderer = new THREE$1.WebGLRenderer({ canvas: canvas.get() });
         this._renderer.setSize(width, height);
         this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         // Creates the orbit controls (to navigate the scene)
-        this.controls = new OrbitControls(this._camera, this._renderer.domElement);
+        this.controls = new OrbitControls(this.camera, this._renderer.domElement);
         this.controls.target.set(0, 0, 0);
         this.controls.enableRotate = false;
         this.controls.enableZoom = true;
@@ -20902,6 +20908,13 @@ class Simple2DScene extends Component {
     }
     /** {@link Disposable.dispose} */
     async dispose() {
+        const disposer = await this.components.tools.get(Disposer);
+        for (const child of this._scene.children) {
+            const item = child;
+            if (item instanceof THREE$1.Object3D) {
+                disposer.destroy(item);
+            }
+        }
         this._renderer.dispose();
         await this.uiElement.dispose();
     }
@@ -20909,7 +20922,7 @@ class Simple2DScene extends Component {
     async update() {
         await this.onBeforeUpdate.trigger();
         this.controls.update();
-        this._renderer.render(this._scene, this._camera);
+        this._renderer.render(this._scene, this.camera);
         await this.onAfterUpdate.trigger();
     }
     /** {@link Resizeable.getSize} */
@@ -113354,9 +113367,18 @@ class RoadNavigator extends Component {
         this._longProjection = new Lines();
         const longSection = this.longSection.get();
         longSection.add(this._longProjection.mesh, this._longProjection.vertices.mesh);
+        if (components.ui.enabled) {
+            this.setupUI();
+        }
     }
     get() {
         return this._lines;
+    }
+    async dispose() {
+        if (this._scene2d) {
+            await this._scene2d.dispose();
+        }
+        await this.uiElement.dispose();
     }
     drawPoint() {
         const found = this.components.raycaster.castRay();
@@ -113435,21 +113457,89 @@ class RoadNavigator extends Component {
             }
         }
     }
-    // private setupUI() {
-    //   const main = new Drawer(this.components);
-    //   this.uiElement.set({});
-    // }
+    setupUI() {
+        const main = new Button(this.components);
+        main.materialIcon = "edit_road";
+        main.tooltip = "Road navigator";
+        const drawer = new Drawer(this.components);
+        this.components.ui.add(drawer);
+        drawer.alignment = "top";
+        const scene2d = new Simple2DScene(this.components);
+        drawer.addChild(scene2d.uiElement.get("canvas"));
+        const { clientHeight, clientWidth } = drawer.domElement;
+        const windowStyle = drawer.slots.content.domElement.style;
+        windowStyle.padding = "0";
+        windowStyle.overflow = "hidden";
+        scene2d.setSize(clientHeight, clientWidth);
+        drawer.onResized.add(() => {
+            const { clientHeight, clientWidth } = drawer.domElement;
+            scene2d.setSize(clientHeight, clientWidth);
+        });
+        this._scene2d = scene2d;
+        this._scene2d.camera.zoom = 3;
+        const renderer = this.components.renderer;
+        renderer.onAfterUpdate.add(async () => {
+            if (drawer.visible) {
+                await scene2d.update();
+            }
+        });
+        // TODO: Make sure all this is disposed
+        const mouse = new THREE$1.Vector2();
+        const canvas = scene2d.uiElement.get("canvas").domElement;
+        const raycaster = new THREE$1.Raycaster();
+        const plane = new THREE$1.Mesh(new THREE$1.PlaneGeometry(1000, 1000));
+        plane.rotation.x += Math.PI / 90;
+        plane.position.z = -10;
+        canvas.addEventListener("mousemove", (event) => {
+            if (!this._roadDiagramData)
+                return;
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, scene2d.camera);
+            const intersects = raycaster.intersectObject(plane);
+            if (intersects.length) {
+                const found = intersects[0];
+                const x = found.point.x;
+                if (x > 0 && x < this._roadDiagramData.length) {
+                    this._roadDiagramData.mousePosition = x;
+                }
+                else {
+                    this._roadDiagramData.mousePosition = null;
+                }
+                this.updateMouseMarker();
+            }
+        });
+        // TODO: make smart 2d grid
+        const gray = new THREE$1.Color(0.05, 0.05, 0.05);
+        const grid2d = new THREE$1.GridHelper(1000, 1000, gray, gray);
+        grid2d.position.z = -10;
+        grid2d.rotation.x = Math.PI / 2;
+        scene2d.camera.add(grid2d);
+        main.onClick.add(() => {
+            drawer.visible = !drawer.visible;
+        });
+        this.uiElement.set({ main, window: drawer });
+    }
     updateLongProjection() {
         // Assuming that the lines of the road axis are sorted
         // TODO: Sort them in case they are not
+        if (this._scene2d) {
+            this._longProjection.mesh.removeFromParent();
+            this._longProjection.vertices.mesh.removeFromParent();
+        }
         this._longProjection.clear();
         this._longProjection = new Lines();
+        if (this._scene2d) {
+            const scene2d = this._scene2d.get();
+            scene2d.add(this._longProjection.mesh);
+            scene2d.add(this._longProjection.vertices.mesh);
+        }
         const vertices = this._lines.mesh.geometry.attributes.position;
-        console.log(vertices);
         const v1 = new THREE$1.Vector3();
         const v2 = new THREE$1.Vector3();
         const points = [];
         let accumulatedX = 0;
+        let minY = Number.MAX_VALUE;
         for (let i = 0; i < vertices.count * 3 - 5; i += 6) {
             const x1 = vertices.array[i];
             const y1 = vertices.array[i + 1];
@@ -113462,9 +113552,118 @@ class RoadNavigator extends Component {
             const length = v1.distanceTo(v2);
             accumulatedX += length;
             points.push([accumulatedX, y2, 0]);
+            if (y2 < minY) {
+                minY = y2;
+            }
         }
         const ids = this._longProjection.addPoints(points);
         this._longProjection.add(ids);
+        if (!this._roadDiagramData) {
+            this._roadDiagramData = {
+                length: accumulatedX,
+                mousePosition: null,
+            };
+        }
+        else {
+            this._roadDiagramData.length = accumulatedX;
+        }
+        this.updateTopDiagram(accumulatedX, minY);
+    }
+    updateTopDiagram(distance, minY) {
+        if (!this._scene2d)
+            return;
+        const start = new THREE$1.Vector3(0, 0, 0);
+        const one = new THREE$1.Vector3(1, 0, 0);
+        const end = new THREE$1.Vector3(distance, 0, 0);
+        if (!this._topRoadDiagram) {
+            const regularLine = new THREE$1.LineBasicMaterial({ color: 0xffffff });
+            const dashedLine = new THREE$1.LineDashedMaterial({
+                color: 0xffffff,
+                dashSize: 1,
+                gapSize: 0.5,
+            });
+            const topBottomGeometry = new THREE$1.BufferGeometry().setFromPoints([
+                start,
+                one,
+            ]);
+            const middleGeometry = new THREE$1.BufferGeometry().setFromPoints([
+                start,
+                one,
+            ]);
+            const top = new THREE$1.Line(topBottomGeometry, regularLine);
+            const middle = new THREE$1.Line(middleGeometry, dashedLine);
+            const bottom = new THREE$1.Line(topBottomGeometry, regularLine);
+            top.position.y = minY - 6;
+            middle.position.y = minY - 10;
+            bottom.position.y = minY - 13;
+            const scene = this._scene2d.get();
+            scene.add(top);
+            scene.add(middle);
+            scene.add(bottom);
+            this._topRoadDiagram = { top, bottom, middle };
+        }
+        else {
+            const { top, bottom, middle } = this._topRoadDiagram;
+            top.position.y = minY - 6;
+            middle.position.y = minY - 10;
+            bottom.position.y = minY - 13;
+            top.scale.x = distance;
+            bottom.scale.x = distance;
+            middle.geometry.setFromPoints([start, end]);
+            middle.computeLineDistances();
+        }
+    }
+    updateMouseMarker() {
+        if (!this._scene2d || !this._roadDiagramData)
+            return;
+        if (!this._mouseMarker) {
+            const scene = this._scene2d.get();
+            const redLineMaterial = new THREE$1.LineBasicMaterial({ color: 0xff0000 });
+            const top = new THREE$1.Vector3(0, 1000, 0);
+            const bottom = new THREE$1.Vector3(0, -1000, 0);
+            const geometry = new THREE$1.BufferGeometry().setFromPoints([top, bottom]);
+            const line = new THREE$1.Line(geometry, redLineMaterial);
+            scene.add(line);
+            const zero = new THREE$1.Vector3();
+            const verticalGeom = new THREE$1.BufferGeometry().setFromPoints([zero]);
+            const verticalMat = new THREE$1.PointsMaterial({
+                color: "red",
+                size: 15,
+            });
+            const verticalMarker = new THREE$1.Points(verticalGeom, verticalMat);
+            scene.add(verticalMarker);
+            this._mouseMarker = { line, verticalMarker };
+        }
+        const { line, verticalMarker } = this._mouseMarker;
+        line.visible = this._roadDiagramData.mousePosition !== null;
+        verticalMarker.visible = this._roadDiagramData.mousePosition !== null;
+        if (this._roadDiagramData.mousePosition !== null) {
+            line.position.x = this._roadDiagramData.mousePosition;
+            verticalMarker.position.x = this._roadDiagramData.mousePosition;
+            verticalMarker.position.y = this.getCurrentVerticalProjectionHeight();
+        }
+    }
+    getCurrentVerticalProjectionHeight() {
+        if (!this._roadDiagramData)
+            return 0;
+        if (this._roadDiagramData.mousePosition === null)
+            return 0;
+        const { mousePosition } = this._roadDiagramData;
+        const geometry = this._longProjection.mesh.geometry;
+        const vertices = geometry.attributes.position;
+        const size = vertices.count * 3;
+        for (let i = 0; i < size - 5; i += 6) {
+            const x1 = vertices.array[i];
+            const y1 = vertices.array[i + 1];
+            const x2 = vertices.array[i + 3];
+            const y2 = vertices.array[i + 4];
+            if (mousePosition > x1 && mousePosition < x2) {
+                const slope = (y2 - y1) / (x2 - x1);
+                const originY = (mousePosition - x1) * slope;
+                return originY + y1;
+            }
+        }
+        return 0;
     }
 }
 /** {@link Component.uuid} */
