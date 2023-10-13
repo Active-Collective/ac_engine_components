@@ -113353,6 +113353,8 @@ class RoadNavigator extends Component {
         super(components);
         this.enabled = true;
         this.uiElement = new UIElement();
+        this.offset = 10;
+        this._sphere = new THREE$1.Mesh(new THREE$1.SphereGeometry());
         this._lines = new Lines();
         // TODO: this should be handled better and allow to define lines per IFC model
         this._defaultID = "RoadNavigator";
@@ -113457,6 +113459,44 @@ class RoadNavigator extends Component {
             }
         }
     }
+    // Navigate through road with clipping plane
+    // TODO: 2d window with cross section
+    // TODO: 2d window with floorplan
+    async focus(animate = true) {
+        const data = this._roadDiagramData;
+        if (!data)
+            return;
+        const { mousePosition, mouseSegment } = data;
+        if (mousePosition === null || mouseSegment === null)
+            return;
+        const index = mouseSegment * 6;
+        const position = this._longProjection.mesh.geometry.attributes.position;
+        const x1Diagram = position.array[index];
+        const x2Diagram = position.array[index + 3];
+        const segmentLength = x2Diagram - x1Diagram;
+        const portion = (mousePosition - x1Diagram) / segmentLength;
+        const axis3d = this._lines.mesh.geometry.attributes.position.array;
+        const x1 = axis3d[index];
+        const y1 = axis3d[index + 1];
+        const z1 = axis3d[index + 2];
+        const x2 = axis3d[index + 3];
+        const y2 = axis3d[index + 4];
+        const z2 = axis3d[index + 5];
+        const p1 = new THREE$1.Vector3(x1, y1, z1);
+        const p2 = new THREE$1.Vector3(x2, y2, z2);
+        const vector = p2.sub(p1);
+        vector.normalize();
+        const target = vector.clone().multiplyScalar(segmentLength * portion);
+        target.add(p1);
+        const scale = this.offset;
+        this._sphere.scale.set(scale, scale, scale);
+        this._sphere.position.copy(target);
+        const camera = this.components.camera;
+        await camera.controls.fitToSphere(this._sphere, animate);
+    }
+    // saveView();
+    // deleteView();
+    // goTo(view: any);
     setupUI() {
         const main = new Button(this.components);
         main.materialIcon = "edit_road";
@@ -113534,6 +113574,13 @@ class RoadNavigator extends Component {
             scene2d.add(this._longProjection.mesh);
             scene2d.add(this._longProjection.vertices.mesh);
         }
+        if (!this._roadDiagramData) {
+            this._roadDiagramData = {
+                length: 0,
+                mousePosition: null,
+                mouseSegment: null,
+            };
+        }
         const vertices = this._lines.mesh.geometry.attributes.position;
         const v1 = new THREE$1.Vector3();
         const v2 = new THREE$1.Vector3();
@@ -113547,6 +113594,9 @@ class RoadNavigator extends Component {
             const x2 = vertices.array[i + 3];
             const y2 = vertices.array[i + 4];
             const z2 = vertices.array[i + 5];
+            if (!points.length) {
+                points.push([0, y1, 0]);
+            }
             v1.set(x1, y1, z1);
             v2.set(x2, y2, z2);
             const length = v1.distanceTo(v2);
@@ -113558,15 +113608,7 @@ class RoadNavigator extends Component {
         }
         const ids = this._longProjection.addPoints(points);
         this._longProjection.add(ids);
-        if (!this._roadDiagramData) {
-            this._roadDiagramData = {
-                length: accumulatedX,
-                mousePosition: null,
-            };
-        }
-        else {
-            this._roadDiagramData.length = accumulatedX;
-        }
+        this._roadDiagramData.length = accumulatedX;
         this.updateTopDiagram(accumulatedX, minY);
     }
     updateTopDiagram(distance, minY) {
@@ -113650,18 +113692,21 @@ class RoadNavigator extends Component {
             return 0;
         const { mousePosition } = this._roadDiagramData;
         const geometry = this._longProjection.mesh.geometry;
-        const vertices = geometry.attributes.position;
-        const size = vertices.count * 3;
+        const position = geometry.attributes.position;
+        const size = position.count * 3;
+        let segmentIndex = 0;
         for (let i = 0; i < size - 5; i += 6) {
-            const x1 = vertices.array[i];
-            const y1 = vertices.array[i + 1];
-            const x2 = vertices.array[i + 3];
-            const y2 = vertices.array[i + 4];
+            const x1 = position.array[i];
+            const y1 = position.array[i + 1];
+            const x2 = position.array[i + 3];
+            const y2 = position.array[i + 4];
             if (mousePosition > x1 && mousePosition < x2) {
+                this._roadDiagramData.mouseSegment = segmentIndex;
                 const slope = (y2 - y1) / (x2 - x1);
                 const originY = (mousePosition - x1) * slope;
                 return originY + y1;
             }
+            segmentIndex++;
         }
         return 0;
     }
