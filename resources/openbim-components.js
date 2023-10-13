@@ -13274,6 +13274,14 @@ class SimplePlane extends Component {
             this.toggleControls(true);
         }
     }
+    setFromNormalAndCoplanarPoint(normal, point) {
+        this._normal.copy(normal);
+        this._origin.copy(point);
+        this._helper.lookAt(normal);
+        this._helper.position.copy(point);
+        this._helper.updateMatrix();
+        this.update();
+    }
     /** {@link Component.get} */
     get() {
         return this._plane;
@@ -113354,6 +113362,7 @@ class RoadNavigator extends Component {
         this.enabled = true;
         this.uiElement = new UIElement();
         this.offset = 10;
+        this.planeEnabled = true;
         this._sphere = new THREE$1.Mesh(new THREE$1.SphereGeometry());
         this._lines = new Lines();
         // TODO: this should be handled better and allow to define lines per IFC model
@@ -113467,8 +113476,12 @@ class RoadNavigator extends Component {
         if (!data)
             return;
         const { mousePosition, mouseSegment } = data;
-        if (mousePosition === null || mouseSegment === null)
+        if (mousePosition === null || mouseSegment === null) {
+            if (this.planeEnabled && this._plane) {
+                await this._plane.setEnabled(false);
+            }
             return;
+        }
         const index = mouseSegment * 6;
         const position = this._longProjection.mesh.geometry.attributes.position;
         const x1Diagram = position.array[index];
@@ -113492,6 +113505,18 @@ class RoadNavigator extends Component {
         this._sphere.scale.set(scale, scale, scale);
         this._sphere.position.copy(target);
         const camera = this.components.camera;
+        if (this.planeEnabled) {
+            if (!this._plane) {
+                const clipper = await this.components.tools.get(EdgesClipper);
+                clipper.enabled = true;
+                this._plane = clipper.createFromNormalAndCoplanarPoint(vector, target);
+                this._plane.visible = false;
+            }
+            if (!this._plane.enabled) {
+                await this._plane.setEnabled(true);
+            }
+            this._plane.setFromNormalAndCoplanarPoint(vector, target);
+        }
         await camera.controls.fitToSphere(this._sphere, animate);
     }
     // saveView();
@@ -113505,7 +113530,8 @@ class RoadNavigator extends Component {
         this.components.ui.add(drawer);
         drawer.alignment = "top";
         const scene2d = new Simple2DScene(this.components);
-        drawer.addChild(scene2d.uiElement.get("canvas"));
+        const canvasUIElement = scene2d.uiElement.get("canvas");
+        drawer.addChild(canvasUIElement);
         const { clientHeight, clientWidth } = drawer.domElement;
         const windowStyle = drawer.slots.content.domElement.style;
         windowStyle.padding = "0";
@@ -113525,12 +113551,15 @@ class RoadNavigator extends Component {
         });
         // TODO: Make sure all this is disposed
         const mouse = new THREE$1.Vector2();
-        const canvas = scene2d.uiElement.get("canvas").domElement;
+        const canvas = canvasUIElement.domElement;
+        let mouseDown = false;
         const raycaster = new THREE$1.Raycaster();
         const plane = new THREE$1.Mesh(new THREE$1.PlaneGeometry(1000, 1000));
         plane.rotation.x += Math.PI / 90;
         plane.position.z = -10;
-        canvas.addEventListener("mousemove", (event) => {
+        canvas.addEventListener("mousedown", () => (mouseDown = true));
+        canvas.addEventListener("mouseup", () => (mouseDown = false));
+        canvas.addEventListener("mousemove", async (event) => {
             if (!this._roadDiagramData)
                 return;
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -113547,6 +113576,9 @@ class RoadNavigator extends Component {
                     this._roadDiagramData.mousePosition = null;
                 }
                 this.updateMouseMarker();
+            }
+            if (mouseDown) {
+                await this.focus();
             }
         });
         // TODO: make smart 2d grid
