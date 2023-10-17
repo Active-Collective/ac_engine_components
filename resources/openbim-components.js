@@ -914,8 +914,6 @@ class CSS2DRenderer {
 class SimpleRenderer extends BaseRenderer {
     constructor(components, container, parameters) {
         super(components);
-        /** {@link Component.name} */
-        this.name = "SimpleRenderer";
         /** {@link Component.enabled} */
         this.enabled = true;
         /** {@link Updateable.onBeforeUpdate} */
@@ -924,12 +922,19 @@ class SimpleRenderer extends BaseRenderer {
         this.onAfterUpdate = new Event();
         this._renderer2D = new CSS2DRenderer();
         /** {@link Resizeable.resize}. */
-        this.resize = () => {
-            const width = this.container.clientWidth;
-            const height = this.container.clientHeight;
+        this.resize = (size) => {
+            this.updateContainer();
+            if (!this.container) {
+                return;
+            }
+            const width = size ? size.x : this.container.clientWidth;
+            const height = size ? size.y : this.container.clientHeight;
             this._renderer.setSize(width, height);
             this._renderer2D.setSize(width, height);
             this.onResize.trigger();
+        };
+        this.resizeEvent = () => {
+            this.resize();
         };
         this.onContextLost = (event) => {
             event.preventDefault();
@@ -946,7 +951,7 @@ class SimpleRenderer extends BaseRenderer {
             });
             this.components.enabled = true;
         };
-        this.container = container;
+        this.container = container || null;
         this._parameters = parameters;
         this._renderer = new THREE$1.WebGLRenderer({
             antialias: true,
@@ -968,10 +973,10 @@ class SimpleRenderer extends BaseRenderer {
         return this._renderer;
     }
     /** {@link Updateable.update} */
-    update(_delta) {
+    async update() {
         if (!this.enabled)
             return;
-        this.onBeforeUpdate.trigger(this);
+        await this.onBeforeUpdate.trigger(this);
         if (this.overrideScene && this.overrideCamera) {
             this._renderer.render(this.overrideScene, this.overrideCamera);
             this._renderer2D.render(this.overrideScene, this.overrideCamera);
@@ -984,7 +989,7 @@ class SimpleRenderer extends BaseRenderer {
             this._renderer.render(scene, camera);
             this._renderer2D.render(scene, camera);
         }
-        this.onAfterUpdate.trigger(this);
+        await this.onAfterUpdate.trigger(this);
     }
     /** {@link Disposable.dispose} */
     async dispose() {
@@ -1003,19 +1008,33 @@ class SimpleRenderer extends BaseRenderer {
     }
     setupEvents(active) {
         if (active) {
-            window.addEventListener("resize", this.resize);
+            window.addEventListener("resize", this.resizeEvent);
         }
         else {
-            window.removeEventListener("resize", this.resize);
+            window.removeEventListener("resize", this.resizeEvent);
         }
     }
     setupRenderers() {
         this._renderer.localClippingEnabled = true;
-        this.container.appendChild(this._renderer.domElement);
         this._renderer2D.domElement.style.position = "absolute";
         this._renderer2D.domElement.style.top = "0px";
         this._renderer2D.domElement.style.pointerEvents = "none";
-        this.container.appendChild(this._renderer2D.domElement);
+        if (this.container) {
+            this.container.appendChild(this._renderer.domElement);
+        }
+        if (this.container) {
+            this.container.appendChild(this._renderer2D.domElement);
+        }
+        this.updateContainer();
+    }
+    updateContainer() {
+        if (!this.container) {
+            const parent = this._renderer.domElement.parentElement;
+            if (parent) {
+                this.container = parent;
+                parent.appendChild(this._renderer2D.domElement);
+            }
+        }
     }
 }
 
@@ -11598,12 +11617,12 @@ class Components {
      * camera. Additionally, if any component that need a raycaster is
      * used, the {@link raycaster} will need to be initialized.
      */
-    init() {
+    async init() {
         this.enabled = true;
         this._clock.start();
         this.ui.init();
-        this.update();
-        this.onInitialized.trigger(this);
+        await this.update();
+        await this.onInitialized.trigger(this);
     }
     /**
      * Disposes the memory of all the components and tools of this instance of
@@ -20862,6 +20881,7 @@ class Simple2DScene extends Component {
         this.enabled = true;
         /** {@link UI.uiElement} */
         this.uiElement = new UIElement();
+        this._size = new THREE$1.Vector2();
         this._frustumSize = 50;
         /** {@link Resizeable.resize} */
         this.resize = () => {
@@ -20873,7 +20893,7 @@ class Simple2DScene extends Component {
             this.camera.bottom = -this._frustumSize / 2;
             this.camera.updateProjectionMatrix();
             this.camera.updateProjectionMatrix();
-            this._renderer.setSize(this._size.width, this._size.height);
+            this._renderer.resize(this._size);
         };
         if (!components.ui.enabled) {
             throw new Error("The Simple2DScene component needs to use UI elements (TODO: Decouple from them).");
@@ -20882,23 +20902,20 @@ class Simple2DScene extends Component {
         canvas.domElement.classList.remove("absolute");
         this.uiElement.set({ canvas });
         this._scene = new THREE$1.Scene();
-        this._size = {
-            width: window.innerWidth,
-            height: window.innerHeight,
-        };
+        this._size.set(window.innerWidth, window.innerHeight);
         const { width, height } = this._size;
         // Creates the camera (point of view of the user)
         this.camera = new THREE$1.OrthographicCamera(75, width / height);
         this._scene.add(this.camera);
         this.camera.position.z = 10;
-        this._renderer = new THREE$1.WebGLRenderer({ canvas: canvas.get() });
-        this._renderer.setSize(width, height);
-        this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        // Creates the orbit controls (to navigate the scene)
-        this.controls = new OrbitControls(this.camera, this._renderer.domElement);
-        this.controls.target.set(0, 0, 0);
-        this.controls.enableRotate = false;
-        this.controls.enableZoom = true;
+        this._renderer = new SimpleRenderer(this.components, undefined, {
+            canvas: canvas.get(),
+        });
+        const renderer = this._renderer.get();
+        renderer.localClippingEnabled = false;
+        this._renderer.setupEvents(false);
+        this._renderer.overrideScene = this._scene;
+        this._renderer.overrideCamera = this.camera;
         const parent = this.uiElement.get("canvas").parent;
         if (parent) {
             parent.domElement.classList.remove("p-4");
@@ -20906,6 +20923,11 @@ class Simple2DScene extends Component {
             parent.domElement.classList.add("overflow-hidden");
             parent.domElement.classList.add("h-full");
         }
+        // Creates the orbit controls (to navigate the scene)
+        this.controls = new OrbitControls(this.camera, renderer.domElement);
+        this.controls.target.set(0, 0, 0);
+        this.controls.enableRotate = false;
+        this.controls.enableZoom = true;
     }
     /**
      * {@link Component.get}
@@ -20923,14 +20945,14 @@ class Simple2DScene extends Component {
                 disposer.destroy(item);
             }
         }
-        this._renderer.dispose();
+        await this._renderer.dispose();
         await this.uiElement.dispose();
     }
     /** {@link Updateable.update} */
     async update() {
         await this.onBeforeUpdate.trigger();
         this.controls.update();
-        this._renderer.render(this._scene, this.camera);
+        await this._renderer.update();
         await this.onAfterUpdate.trigger();
     }
     /** {@link Resizeable.getSize} */
@@ -102433,7 +102455,7 @@ class PostproductionRenderer extends SimpleRenderer {
         this.onResize.add(() => this.resizePostproduction());
     }
     /** {@link Updateable.update} */
-    async update(_delta) {
+    async update() {
         var _a, _b;
         if (!this.enabled)
             return;
@@ -102463,6 +102485,8 @@ class PostproductionRenderer extends SimpleRenderer {
         }
     }
     setPostproductionSize() {
+        if (!this.container)
+            return;
         const { clientWidth, clientHeight } = this.container;
         this.postproduction.setSize(clientWidth, clientHeight);
     }
@@ -163927,6 +163951,7 @@ class RoadNavigator extends Component {
         this.planeEnabled = true;
         this._sphere = new THREE$1.Mesh(new THREE$1.SphereGeometry());
         this._crossSectionLines = {};
+        this._floorPlanElements = {};
         this._lines = new Lines();
         // TODO: this should be handled better and allow to define lines per IFC model
         this._defaultID = "RoadNavigator";
@@ -163960,12 +163985,21 @@ class RoadNavigator extends Component {
         if (this._scene2dTrans) {
             await this._scene2dTrans.dispose();
         }
+        if (this._scene2dTop) {
+            await this._scene2dTop.dispose();
+        }
         const disposer = await this.components.tools.get(Disposer);
         for (const name in this._crossSectionLines) {
             const { mesh, fill } = this._crossSectionLines[name];
             disposer.destroy(mesh);
             disposer.destroy(fill);
         }
+        this._crossSectionLines = {};
+        for (const id in this._floorPlanElements) {
+            const group = this._floorPlanElements[id];
+            disposer.destroy(group);
+        }
+        this._floorPlanElements = {};
         if (this._plane) {
             await this._plane.dispose();
         }
@@ -164107,15 +164141,28 @@ class RoadNavigator extends Component {
     setupUI() {
         const { main, drawer } = this.setupMainMenu();
         this.setupTransMenu();
+        this.setupTopMenu();
         this.uiElement.set({ main, window: drawer });
     }
     setupTransMenu() {
+        const { scene2d } = this.newFloating2DScene();
+        this._scene2dTrans = scene2d;
+    }
+    setupTopMenu() {
+        const { scene2d } = this.newFloating2DScene();
+        scene2d.camera.position.set(0, 20, 0);
+        scene2d.controls.target.set(0, 0, 0);
+        const scene = scene2d.get();
+        const light = new THREE$1.AmbientLight();
+        scene.add(light);
+        this._scene2dTop = scene2d;
+    }
+    newFloating2DScene() {
         const floatingWindow = new FloatingWindow(this.components);
         this.components.ui.add(floatingWindow);
         const scene2d = new Simple2DScene(this.components);
         const canvasUIElement = scene2d.uiElement.get("canvas");
         floatingWindow.addChild(canvasUIElement);
-        this._scene2dTrans = scene2d;
         const style = floatingWindow.slots.content.domElement.style;
         style.padding = "0";
         style.overflow = "hidden";
@@ -164138,6 +164185,7 @@ class RoadNavigator extends Component {
         grid2d.position.z = -10;
         grid2d.rotation.x = Math.PI / 2;
         scene2d.camera.add(grid2d);
+        return { scene2d, floatingWindow };
     }
     setupMainMenu() {
         const main = new Button(this.components);
@@ -164213,6 +164261,7 @@ class RoadNavigator extends Component {
                 fill.visible = true;
             }
             await this.updateCrossSection();
+            await this.updateFloorPlan();
         });
         canvas.addEventListener("mousemove", async (event) => {
             if (!this._roadDiagramData) {
@@ -164300,22 +164349,22 @@ class RoadNavigator extends Component {
         const ids = this._longProjection.addPoints(points);
         this._longProjection.add(ids);
         this._roadDiagramData.length = accumulatedX;
-        this.updateTopDiagram(accumulatedX, minY);
+        this.updateSideDiagram(accumulatedX, minY);
     }
-    updateTopDiagram(distance, minY) {
+    updateSideDiagram(distance, minY) {
         if (!this._scene2dSide)
             return;
         const start = new THREE$1.Vector3(0, 0, 0);
         const one = new THREE$1.Vector3(1, 0, 0);
         const end = new THREE$1.Vector3(distance, 0, 0);
-        if (!this._topRoadDiagram) {
+        if (!this._sideRoadDiagram) {
             const regularLine = new THREE$1.LineBasicMaterial({ color: 0xffffff });
             const dashedLine = new THREE$1.LineDashedMaterial({
                 color: 0xffffff,
                 dashSize: 1,
                 gapSize: 0.5,
             });
-            const topBottomGeometry = new THREE$1.BufferGeometry().setFromPoints([
+            const sideBottomGeometry = new THREE$1.BufferGeometry().setFromPoints([
                 start,
                 one,
             ]);
@@ -164323,9 +164372,9 @@ class RoadNavigator extends Component {
                 start,
                 one,
             ]);
-            const top = new THREE$1.Line(topBottomGeometry, regularLine);
+            const top = new THREE$1.Line(sideBottomGeometry, regularLine);
             const middle = new THREE$1.Line(middleGeometry, dashedLine);
-            const bottom = new THREE$1.Line(topBottomGeometry, regularLine);
+            const bottom = new THREE$1.Line(sideBottomGeometry, regularLine);
             top.position.y = minY - 6;
             middle.position.y = minY - 10;
             bottom.position.y = minY - 13;
@@ -164333,10 +164382,10 @@ class RoadNavigator extends Component {
             scene.add(top);
             scene.add(middle);
             scene.add(bottom);
-            this._topRoadDiagram = { top, bottom, middle };
+            this._sideRoadDiagram = { top, bottom, middle };
         }
         else {
-            const { top, bottom, middle } = this._topRoadDiagram;
+            const { top, bottom, middle } = this._sideRoadDiagram;
             top.position.y = minY - 6;
             middle.position.y = minY - 10;
             bottom.position.y = minY - 13;
@@ -164367,6 +164416,32 @@ class RoadNavigator extends Component {
                 fill.material = edge.fill.mesh.material;
             }
             await this._scene2dTrans.update();
+        }
+    }
+    async updateFloorPlan() {
+        if (!this._plane || !this._scene2dTop)
+            return;
+        const fragments = await this.components.tools.get(FragmentManager);
+        const scene = this._scene2dTop.get();
+        for (const group of fragments.groups) {
+            if (this._floorPlanElements[group.uuid])
+                continue;
+            const newGroup = new THREE$1.Group();
+            this._floorPlanElements[group.uuid] = newGroup;
+            scene.add(newGroup);
+            newGroup.matrix = group.matrix;
+            for (const child of group.children) {
+                const frag = child;
+                const size = frag.fragment.capacity;
+                const newMesh = new InstancedMesh(frag.geometry, frag.material, size);
+                newMesh.instanceMatrix = frag.instanceMatrix;
+                newMesh.instanceColor = frag.instanceColor;
+                newMesh.instanceMatrix.needsUpdate = true;
+                if (newMesh.instanceColor) {
+                    newMesh.instanceColor.needsUpdate = true;
+                }
+                newGroup.add(newMesh);
+            }
         }
     }
     updateMouseMarker() {
