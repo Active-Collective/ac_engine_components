@@ -105828,6 +105828,7 @@ ToolComponent.libraryUUIDs.add(FragmentPlans.uuid);
 class FragmentClipStyler extends Component {
     constructor(components) {
         super(components);
+        this.onChange = new Event();
         this.enabled = true;
         this.localStorageID = "FragmentClipStyler";
         this.styleCards = {};
@@ -105874,7 +105875,8 @@ class FragmentClipStyler extends Component {
         for (const id in this.styleCards) {
             await this.deleteStyleCard(id, false);
         }
-        this.uiElement.dispose();
+        await this.uiElement.dispose();
+        this.onChange.reset();
     }
     async update(ids = Object.keys(this.styleCards)) {
         const clipper = await this.components.tools.get(EdgesClipper);
@@ -106067,6 +106069,7 @@ class FragmentClipStyler extends Component {
         fillColor.onChange.add(() => {
             fillMaterial.color.set(fillColor.value);
             saveStyles();
+            this.onChange.trigger();
         });
         const lineMaterial = new THREE$1.LineBasicMaterial({
             color: lineColor.value,
@@ -106080,11 +106083,13 @@ class FragmentClipStyler extends Component {
         lineThickness.onChange.add(() => {
             outlineMaterial.opacity = lineThickness.value;
             saveStyles();
+            this.onChange.trigger();
         });
         lineColor.onChange.add(() => {
             lineMaterial.color.set(lineColor.value);
             outlineMaterial.color.set(lineColor.value);
             saveStyles();
+            this.onChange.trigger();
         });
         const clipper = await this.components.tools.get(EdgesClipper);
         clipper.styles.create(id, new Set(), lineMaterial, fillMaterial, outlineMaterial);
@@ -163943,6 +163948,11 @@ class RoadNavigator extends Component {
     get() {
         return this._lines;
     }
+    async updateDrawings() {
+        if (this._scene2dTrans) {
+            await this._scene2dTrans.update();
+        }
+    }
     async dispose() {
         if (this._scene2dSide) {
             await this._scene2dSide.dispose();
@@ -164111,15 +164121,17 @@ class RoadNavigator extends Component {
         style.overflow = "hidden";
         const { clientHeight, clientWidth } = floatingWindow.domElement;
         scene2d.setSize(clientHeight, clientWidth);
-        floatingWindow.onResized.add(() => {
+        floatingWindow.onResized.add(async () => {
             const { clientHeight, clientWidth } = floatingWindow.domElement;
             scene2d.setSize(clientHeight, clientWidth);
+            await scene2d.update();
         });
-        const renderer = this.components.renderer;
-        renderer.onAfterUpdate.add(async () => {
-            if (floatingWindow.visible) {
-                await scene2d.update();
-            }
+        const canvas = scene2d.uiElement.get("canvas");
+        canvas.domElement.addEventListener("mousemove", async () => {
+            await scene2d.update();
+        });
+        canvas.domElement.addEventListener("wheel", async () => {
+            await scene2d.update();
         });
         const gray = new THREE$1.Color(0.05, 0.05, 0.05);
         const grid2d = new THREE$1.GridHelper(1000, 1000, gray, gray);
@@ -164142,21 +164154,22 @@ class RoadNavigator extends Component {
         windowStyle.padding = "0";
         windowStyle.overflow = "hidden";
         scene2d.setSize(clientHeight, clientWidth);
-        drawer.onResized.add(() => {
+        drawer.onResized.add(async () => {
             const { clientHeight, clientWidth } = drawer.domElement;
             scene2d.setSize(clientHeight, clientWidth);
+            await scene2d.update();
         });
         this._scene2dSide = scene2d;
         this._scene2dSide.camera.zoom = 3;
-        const renderer = this.components.renderer;
-        renderer.onAfterUpdate.add(async () => {
-            if (drawer.visible) {
-                await scene2d.update();
-            }
-        });
         // TODO: Make sure all this is disposed
         const mouse = new THREE$1.Vector2();
         const canvas = canvasUIElement.domElement;
+        canvas.addEventListener("mousemove", async () => {
+            await scene2d.update();
+        });
+        canvas.addEventListener("wheel", async () => {
+            await scene2d.update();
+        });
         let mouseDown = false;
         const raycaster = new THREE$1.Raycaster();
         const plane = new THREE$1.Mesh(new THREE$1.PlaneGeometry(1000, 1000));
@@ -164199,7 +164212,7 @@ class RoadNavigator extends Component {
                 const { fill } = this._crossSectionLines[id];
                 fill.visible = true;
             }
-            this.updateCrossSection();
+            await this.updateCrossSection();
         });
         canvas.addEventListener("mousemove", async (event) => {
             if (!this._roadDiagramData) {
@@ -164222,6 +164235,9 @@ class RoadNavigator extends Component {
             }
             if (mouseDown) {
                 await this.focus();
+                if (this._scene2dTrans) {
+                    await this._scene2dTrans.update();
+                }
             }
         });
         // TODO: make smart 2d grid
@@ -164330,7 +164346,7 @@ class RoadNavigator extends Component {
             middle.computeLineDistances();
         }
     }
-    updateCrossSection() {
+    async updateCrossSection() {
         if (!this._plane || !this._scene2dTrans)
             return;
         const meshes = this._plane.edges.get();
@@ -164350,6 +164366,7 @@ class RoadNavigator extends Component {
                 fill.geometry = edge.fill.mesh.geometry;
                 fill.material = edge.fill.mesh.material;
             }
+            await this._scene2dTrans.update();
         }
     }
     updateMouseMarker() {
