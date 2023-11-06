@@ -106205,7 +106205,7 @@ class FragmentPlans extends Component {
         this.storeys = [];
         this._plans = [];
         await this.objects.dispose();
-        this.uiElement.dispose();
+        await this.uiElement.dispose();
     }
     // TODO: Compute georreference matrix when generating fragmentsgroup
     // so that we can correctly add floors in georreferenced models
@@ -106242,7 +106242,8 @@ class FragmentPlans extends Component {
     async create(config) {
         const previousPlan = this._plans.find((plan) => plan.id === config.id);
         if (previousPlan) {
-            throw new Error(`There's already a plan with the id: ${config.id}`);
+            console.warn(`There's already a plan with the id: ${config.id}`);
+            return;
         }
         const plane = await this.createClippingPlane(config);
         plane.visible = false;
