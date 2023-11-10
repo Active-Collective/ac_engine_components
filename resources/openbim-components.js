@@ -11510,6 +11510,13 @@ class Modal extends SimpleUIComponent {
  *
  */
 class Components {
+    /** {@link UIManager} */
+    get ui() {
+        if (!this._ui) {
+            throw new Error("UIManager hasn't been initialised.");
+        }
+        return this._ui;
+    }
     /**
      * The [Three.js renderer](https://threejs.org/docs/#api/en/renderers/WebGLRenderer)
      * used to render the scene. This library provides multiple renderer
@@ -11588,6 +11595,8 @@ class Components {
          */
         this.onInitialized = new Event();
         this.enabled = false;
+        /** Whether UI components should be created. */
+        this.uiEnabled = true;
         this.update = async () => {
             if (!this.enabled)
                 return;
@@ -11602,7 +11611,6 @@ class Components {
         };
         this._clock = new THREE$1.Clock();
         this.tools = new ToolComponent(this);
-        this.ui = new UIManager(this);
         Components.setupBVH();
     }
     /**
@@ -11614,7 +11622,10 @@ class Components {
     async init() {
         this.enabled = true;
         this._clock.start();
-        this.ui.init();
+        if (this.uiEnabled) {
+            this._ui = new UIManager(this);
+            this.ui.init();
+        }
         await this.update();
         await this.onInitialized.trigger(this);
     }
@@ -13397,7 +13408,7 @@ class SimpleClipper extends Component {
             plane.enabled = state;
         }
         this.updateMaterialsAndPlanes();
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             this.uiElement.get("main").active = state;
         }
     }
@@ -13482,7 +13493,7 @@ class SimpleClipper extends Component {
         };
         this.components.tools.add(SimpleClipper.uuid, this);
         this.PlaneType = SimplePlane;
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI(components);
         }
     }
@@ -19104,7 +19115,7 @@ class LocalCacher extends Component {
         this._storedModels = "open-bim-components-stored-files";
         components.tools.add(LocalCacher.uuid, this);
         this._db = new ModelDatabase();
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI(components);
         }
     }
@@ -21098,7 +21109,7 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         this.currentMode.toggle(true, { preventTargetAdjustment: true });
         this.toggleEvents(true);
         this._projectionManager = new ProjectionManager(components, this);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI();
         }
         this.onAspectUpdated.add(() => this.setOrthoCameraAspect());
@@ -31561,7 +31572,7 @@ class LengthMeasurement extends Component {
             this.cancelCreation();
         this._enabled = value;
         this._vertexPicker.enabled = value;
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             const main = this.uiElement.get("main");
             main.active = value;
         }
@@ -31658,7 +31669,7 @@ class LengthMeasurement extends Component {
             previewElement: this.newEndpoint(),
             snapDistance: this.snapDistance,
         });
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI();
         }
     }
@@ -34292,7 +34303,7 @@ class FragmentManager extends Component {
         this._loader = new Serializer();
         this._cards = [];
         this.components.tools.add(FragmentManager.uuid, this);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setupUI(components);
         }
     }
@@ -34365,7 +34376,7 @@ class FragmentManager extends Component {
         return this._loader.export(group);
     }
     async updateWindow() {
-        if (!this.components.ui.enabled) {
+        if (!this.components.uiEnabled) {
             return;
         }
         for (const card of this._cards) {
@@ -102265,7 +102276,7 @@ class IfcPropertiesManager extends Component {
         this.components.tools.add(IfcPropertiesManager.uuid, this);
         this._ifcApi = new IfcAPI2();
         // TODO: Save original IFC file so that opening it again is not necessary
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI(components);
             this.setUIEvents();
         }
@@ -102845,7 +102856,7 @@ class IfcPropertiesProcessor extends Component {
         this.components.tools.add(IfcPropertiesProcessor.uuid, this);
         // this._entityUIPool = new UIPool(this._components, TreeView);
         this._renderFunctions = this.getRenderFunctions();
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI();
         }
     }
@@ -103512,7 +103523,7 @@ class IfcPropertiesFinder extends Component {
         this._conditionFunctions = this.getConditionFunctions();
     }
     async init() {
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             await this.setUI();
         }
     }
@@ -104521,7 +104532,7 @@ class FragmentIfcLoader extends Component {
         this._geometry = new GeometryReader();
         this._converter = new DataConverter(components);
         this.components.tools.add(FragmentIfcLoader.uuid, this);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setupUI();
         }
     }
@@ -105403,7 +105414,7 @@ class FragmentTree extends Component {
         const classifier = await this.components.tools.get(FragmentClassifier);
         const tree = new FragmentTreeItem(this.components, classifier, "Model Tree");
         this._tree = tree;
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             this.setupUI(tree);
         }
     }
@@ -105482,7 +105493,7 @@ class FragmentHider extends Component {
         this._updateVisibilityOnFound = true;
         this._filterCards = {};
         this.components.tools.add(FragmentHider.uuid, this);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setupUI(components);
         }
     }
@@ -105719,7 +105730,7 @@ class FragmentCacher extends LocalCacher {
         super(components);
         this._mode = "none";
         components.tools.list.set(FragmentCacher.uuid, this);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setupUI();
         }
     }
@@ -105869,7 +105880,7 @@ class FragmentExploder extends Component {
         this.uiElement = new UIElement();
         this._explodedFragments = new Set();
         components.tools.add(FragmentExploder.uuid, this);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setupUI(components);
         }
     }
@@ -106036,7 +106047,7 @@ class PlanObjects {
         this.components = components;
         this.resetBounds();
         this.createPlaneOutlineGeometry();
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI(components);
         }
     }
@@ -106190,7 +106201,7 @@ class FragmentPlans extends Component {
         this._previousProjection = "Perspective";
         this.components.tools.add(FragmentPlans.uuid, this);
         this.objects = new PlanObjects(components);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI(components);
         }
     }
@@ -106272,7 +106283,7 @@ class FragmentPlans extends Component {
             await this.moveCameraTo2DPlanPosition(animate);
             this.enabled = true;
         }
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             this.uiElement.get("exitButton").enabled = true;
         }
     }
@@ -106296,12 +106307,12 @@ class FragmentPlans extends Component {
         }
         this.currentPlan = null;
         await camera.controls.setLookAt(this._previousCamera.x, this._previousCamera.y, this._previousCamera.z, this._previousTarget.x, this._previousTarget.y, this._previousTarget.z, animate);
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             this.uiElement.get("exitButton").enabled = false;
         }
     }
     async updatePlansList() {
-        if (!this.components.ui.enabled) {
+        if (!this.components.uiEnabled) {
             return;
         }
         const defaultText = this.uiElement.get("defaultText");
@@ -106524,7 +106535,7 @@ class FragmentClipStyler extends Component {
     }
   `;
         this.components.tools.add(FragmentClipStyler.uuid, this);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setupUI(components);
         }
     }
@@ -106792,7 +106803,7 @@ class ViewpointsManager extends Component {
         // this._fragmentGrouper = config.fragmentGrouper;
         // this._fragmentManager = config.fragmentManager;
         this._drawManager = config.drawManager;
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             this.setUI();
         }
     }
@@ -107300,7 +107311,7 @@ class Simple2DScene extends Component {
             this.camera.updateProjectionMatrix();
             this.renderer.resize(this._size);
         };
-        if (!components.ui.enabled) {
+        if (!components.uiEnabled) {
             throw new Error("The Simple2DScene component needs to use UI elements (TODO: Decouple from them).");
         }
         const canvas = new Canvas(components);
@@ -108653,7 +108664,7 @@ class AreaMeasurement extends Component {
     set enabled(value) {
         this._enabled = value;
         this._vertexPicker.enabled = value;
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             const main = this.uiElement.get("main");
             main.active = value;
         }
@@ -108730,7 +108741,7 @@ class AreaMeasurement extends Component {
         this.components.tools.add(AreaMeasurement.uuid, this);
         // TODO: Make vertexpicker a tool?
         this._vertexPicker = new VertexPicker(components);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI();
         }
     }
@@ -110290,7 +110301,7 @@ class AngleMeasurement extends Component {
         this._enabled = value;
         this.setupEvents(value);
         this._vertexPicker.enabled = value;
-        if (this.components.ui.enabled) {
+        if (this.components.uiEnabled) {
             const main = this.uiElement.get("main");
             main.active = value;
         }
@@ -110367,7 +110378,7 @@ class AngleMeasurement extends Component {
         });
         this._vertexPicker = new VertexPicker(components);
         // this.enabled = false;
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setUI();
         }
     }
@@ -113430,7 +113441,7 @@ class RoadNavigator extends Component {
         this._longProjection = new Lines();
         const longSection = this.longSection.get();
         longSection.add(this._longProjection.mesh, this._longProjection.vertices.mesh);
-        if (components.ui.enabled) {
+        if (components.uiEnabled) {
             this.setupUI();
         }
     }
