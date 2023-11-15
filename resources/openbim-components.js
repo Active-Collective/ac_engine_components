@@ -3233,11 +3233,11 @@ class SimpleCamera extends Component {
         this.controls.dispose();
     }
     /** {@link Updateable.update} */
-    update(_delta) {
+    async update(_delta) {
         if (this.enabled) {
-            this.onBeforeUpdate.trigger(this);
+            await this.onBeforeUpdate.trigger(this);
             this.controls.update(_delta);
-            this.onAfterUpdate.trigger(this);
+            await this.onAfterUpdate.trigger(this);
         }
     }
     setupCamera() {
@@ -107393,8 +107393,8 @@ Simple2DScene.uuid = "b48b7194-0f9a-43a4-a718-270b1522595f";
 /**
  * An object to easily use the services of That Open Platform.
  */
-class CloudProcessor extends Component {
-    constructor(components, token) {
+class CloudStorage extends Component {
+    constructor(components) {
         super(components);
         this.tools = [];
         /** {@link Component.name} */
@@ -107405,10 +107405,10 @@ class CloudProcessor extends Component {
         this.checkInterval = 5000;
         this._models = [];
         this._urls = {
-            base: "https://01wj0udft7.execute-api.eu-central-1.amazonaws.com/v1/models",
-            token: "?accessToken=",
+            base: "https://dev.api.dev.platform.thatopen.com/v1/models/",
+            tokenParam: "?accessToken=",
         };
-        this._urls.token += token;
+        this.components.tools.add(CloudStorage.uuid, this);
     }
     /**
      * Retrieves a tool component by its name.
@@ -107416,9 +107416,26 @@ class CloudProcessor extends Component {
     get() {
         return this._models;
     }
+    /**
+     * The authentication token generated in
+     * [That Open Platform](https://platform.thatopen.com/app)
+     */
+    get token() {
+        if (!this._token) {
+            throw new Error("Auth token has not been initialized!");
+        }
+        return this._token;
+    }
+    /**
+     * The authentication token generated in
+     * [That Open Platform](https://platform.thatopen.com/app)
+     */
+    set token(value) {
+        this._token = value;
+    }
     async update() {
-        const { base, token } = this._urls;
-        const url = `${base}${token}`;
+        const { base, tokenParam } = this._urls;
+        const url = `${base}${tokenParam}${this.token}`;
         const result = await fetch(url);
         const parsed = await result.json();
         this._models = parsed.models;
@@ -107432,14 +107449,14 @@ class CloudProcessor extends Component {
         this.setupModelProcessEvent(response.model._id);
     }
     async delete(modelID) {
-        const { base, token } = this._urls;
-        const url = `${base}/${modelID}${token}`;
+        const { base, tokenParam } = this._urls;
+        const url = `${base}/${modelID}${tokenParam}`;
         const result = await fetch(url, { method: "DELETE" });
         return result.json();
     }
     async getModel(modelID) {
-        const { base, token } = this._urls;
-        const modelUrl = `${base}/${modelID}${token}`;
+        const { base, tokenParam } = this._urls;
+        const modelUrl = `${base}/${modelID}${tokenParam}${this.token}`;
         const modelResponse = await fetch(modelUrl);
         return modelResponse.json();
     }
@@ -107453,12 +107470,13 @@ class CloudProcessor extends Component {
         }, this.checkInterval);
     }
     async createModel() {
-        const { base, token } = this._urls;
-        const url = `${base}${token}`;
+        const { base, tokenParam } = this._urls;
+        const url = `${base}${tokenParam}${this.token}`;
         const result = await fetch(url, { method: "POST" });
         return result.json();
     }
 }
+CloudStorage.uuid = "6fe6c739-d518-47b8-8057-a22a6c96e722";
 
 class SVGArrow extends Component {
     constructor(components, startPoint, endPoint) {
@@ -114012,4 +114030,4 @@ class RoadNavigator extends Component {
 RoadNavigator.uuid = "85f2c89c-4c6b-4c7d-bc20-5b675874b228";
 ToolComponent.libraryUUIDs.add(RoadNavigator.uuid);
 
-export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudProcessor, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgesClipper, EdgesPlane, Event, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, numberOfDigits, toCompositeID, tooeenRandomId };
