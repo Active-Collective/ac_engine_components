@@ -104422,6 +104422,11 @@ class GeometryReader {
         this.saveLocations = false;
         this.items = {};
         this.locations = {};
+        this.CivilItems = {
+            IfcAlignment: [],
+            IfcCrossSection2D: [],
+            IfcCrossSection3D: [],
+        };
     }
     get webIfc() {
         if (!this._webIfc) {
@@ -104472,6 +104477,13 @@ class GeometryReader {
             const { x, y, z } = totalTransform.divideScalar(size);
             this.locations[mesh.expressID] = [x, y, z];
         }
+    }
+    streamAlignment(webifc) {
+        this.CivilItems.IfcAlignment = webifc.GetAllAlignments(0);
+    }
+    streamCrossSection(webifc) {
+        this.CivilItems.IfcCrossSection2D = webifc.GetAllCrossSections2D(0);
+        this.CivilItems.IfcCrossSection3D = webifc.GetAllCrossSections3D(0);
     }
     newBufferGeometry(geometryID) {
         const geometry = this.webIfc.GetGeometry(0, geometryID);
@@ -104657,6 +104669,10 @@ class FragmentIfcLoader extends Component {
             }
             this._geometry.streamMesh(this._webIfc, mesh);
         });
+        // Load civil items
+        this._geometry.streamAlignment(this._webIfc);
+        this._geometry.streamCrossSection(this._webIfc);
+        console.log(this._geometry.CivilItems.IfcAlignment);
     }
     cleanUp() {
         this._webIfc = null;
