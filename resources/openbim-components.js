@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, HalfFloatType, DepthTexture, UnsignedInt248Type, UnsignedIntType, DepthStencilFormat, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -27976,7 +27976,7 @@ class RenderPass extends Pass {
 }
 
 /**
- * postprocessing v6.33.1 build Tue Sep 19 2023
+ * postprocessing v6.33.3 build Mon Oct 30 2023
  * https://github.com/pmndrs/postprocessing
  * Copyright 2015-2023 Raoul van Rüschen
  * @license Zlib
@@ -28067,9 +28067,6 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
         "samples": {
             value: []
         },
-        "samplesR": {
-            value: []
-        },
         "bluenoise": {
             value: null
         },
@@ -28118,7 +28115,6 @@ uniform vec3 cameraPos;
 uniform vec2 resolution;
 uniform float time;
 uniform vec3[SAMPLES] samples;
-uniform float[SAMPLES] samplesR;
 uniform float radius;
 uniform float distanceFalloff;
 uniform float near;
@@ -28200,6 +28196,14 @@ uniform sampler2D bluenoise;
     return normalize(cross(dpdx, dpdy));
 }
 
+mat3 makeRotationZ(float theta) {
+	float c = cos(theta);
+	float s = sin(theta);
+	return mat3(c, - s, 0,
+			s,  c, 0,
+			0,  0, 1);
+  }
+
 void main() {
       vec4 diffuse = texture2D(sceneDiffuse, vUv);
       float depth = texture2D(sceneDepth, vUv).x;
@@ -28208,29 +28212,22 @@ void main() {
         return;
       }
       vec3 worldPos = getWorldPos(depth, vUv);
-    //  vec3 normal = texture2D(sceneNormal, vUv).rgb;//computeNormal(worldPos, vUv);
       #ifdef HALFRES
         vec3 normal = texture2D(sceneNormal, vUv).rgb;
       #else
         vec3 normal = computeNormal(worldPos, vUv);
       #endif
       vec4 noise = texture2D(bluenoise, gl_FragCoord.xy / 128.0);
-      vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
-      vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-      vec3 bitangent = cross(normal, tangent);
-      mat3 tbn = mat3(tangent, bitangent, normal);
+        vec3 helperVec = vec3(0.0, 1.0, 0.0);
+        if (dot(helperVec, normal) > 0.99) {
+          helperVec = vec3(1.0, 0.0, 0.0);
+        }
+        vec3 tangent = normalize(cross(helperVec, normal));
+        vec3 bitangent = cross(normal, tangent);
+        mat3 tbn = mat3(tangent, bitangent, normal) *  makeRotationZ(noise.r * 2.0 * 3.1415962) ;
+
       float occluded = 0.0;
       float totalWeight = 0.0;
-     /* float radiusScreen = distance(
-        worldPos,
-        getWorldPos(depth, vUv + 
-          vec2(48.0, 0.0) / resolution)
-      );/*vUv.x < 0.5 ? radius : min(distance(
-        worldPos,
-        getWorldPos(depth, vUv + 
-          vec2(100.0, 0.0) / resolution)
-      ), radius);
-      float distanceFalloffScreen = radiusScreen * 0.2;*/
       float radiusToUse = screenSpaceRadius ? distance(
         worldPos,
         getWorldPos(depth, vUv +
@@ -28238,44 +28235,53 @@ void main() {
       ) : radius;
       float distanceFalloffToUse =screenSpaceRadius ?
           radiusToUse * distanceFalloff
-      : distanceFalloff;
-      float bias = (0.1 / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
+      : radiusToUse * distanceFalloff * 0.2;
+      float bias = (min(
+        0.1,
+        distanceFalloffToUse * 0.1
+      ) / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
+      float phi = 1.61803398875;
+      float offsetMove = 0.0;
+      float offsetMoveInv = 1.0 / FSAMPLES;
       for(float i = 0.0; i < FSAMPLES; i++) {
-        vec3 sampleDirection = 
-        tbn * 
-        samples[int(i)];
-        ;
-        float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
+        vec3 sampleDirection = tbn * samples[int(i)];
+
+        float moveAmt = fract(noise.g + offsetMove);
+        offsetMove += offsetMoveInv;
+
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
-        float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
-        /*float distSample = logDepth ? linearize_depth_log(sampleDepth, near, far) 
-         (ortho ?  linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far));*/
-        #ifdef LOGDEPTH
-        float distSample = linearize_depth_log(sampleDepth, near, far);
-        #else
-        float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
-        #endif
-        float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
-        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
-        vec2 diff = gl_FragCoord.xy - ( offset.xy * resolution);
-        float weight = dot(sampleDirection, normal);
-          occluded += rangeCheck * weight * 
-            (distSample + bias
-               < distWorld ? 1.0 : 0.0) * (
-          (dot(
-            diff,
-            diff
-             
-            ) < 1.0 || (sampleDepth == depth) || (
-              offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0
-            ) ? 0.0 : 1.0)
-          );
-          totalWeight += weight;
+        
+        vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
+        // From Rabbid76's hbao
+        vec2 clipRangeCheck = step(vec2(0.0),offset.xy) * step(offset.xy, vec2(1.0));
+          float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+
+          #ifdef LOGDEPTH
+
+          float distSample = linearize_depth_log(sampleDepth, near, far);
+
+          #else
+
+          float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
+
+          #endif
+
+          float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
+          
+          float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
+          
+          float sampleValid = (clipRangeCheck.x * clipRangeCheck.y);
+          occluded += rangeCheck * float(sampleDepth != depth) * float(distSample + bias < distWorld) * step(
+            1.0,
+            dot(diff, diff)
+          ) * sampleValid;
+          
+          totalWeight += sampleValid;
       }
-      float occ = clamp(1.0 - occluded / totalWeight, 0.0, 1.0);
+      float occ = clamp(1.0 - occluded / (totalWeight == 0.0 ? 1.0 : totalWeight), 0.0, 1.0);
       gl_FragColor = vec4(0.5 + 0.5 * normal, occ);
 }`
 };
@@ -28292,6 +28298,18 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         },
         "tDiffuse": {
             value: null
+        },
+        "transparencyDWFalse": {
+            value: null
+        },
+        "transparencyDWTrue": {
+            value: null
+        },
+        "transparencyDWTrueDepth": {
+            value: null
+        },
+        "transparencyAware": {
+            value: false
         },
         "projMat": {
             value: new Matrix4()
@@ -28384,6 +28402,9 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 		uniform sampler2D sceneDiffuse;
     uniform highp sampler2D sceneDepth;
     uniform highp sampler2D downsampledDepth;
+    uniform highp sampler2D transparencyDWFalse;
+    uniform highp sampler2D transparencyDWTrue;
+    uniform highp sampler2D transparencyDWTrueDepth;
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
@@ -28401,6 +28422,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform bool fog;
     uniform bool fogExp;
     uniform bool colorMultiply;
+    uniform bool transparencyAware;
     uniform float fogDensity;
     uniform float fogNear;
     uniform float fogFar;
@@ -28519,7 +28541,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
                 vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
                 vec3 normalSample = sampleInfo.xyz * 2.0 - 1.0;
                 vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
-                float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
+                float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
                 float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
                 float weight = rangeCheck;
                 totalWeight += weight;
@@ -28555,6 +28577,16 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else {
                 fogFactor = smoothstep( fogNear, fogFar, fogDepth );
             }
+        }
+        if (transparencyAware) {
+            float transparencyDWOff = texture2D(transparencyDWFalse, vUv).a;
+            float transparencyDWOn = texture2D(transparencyDWTrue, vUv).a;
+            float adjustmentFactorOff = transparencyDWOff;
+            float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
+                texture2D(transparencyDWTrueDepth, vUv).r == texture2D(sceneDepth, vUv).r ? 1.0 : 0.0
+            );
+            float adjustmentFactor = max(adjustmentFactorOff, adjustmentFactorOn);
+            finalAo = mix(finalAo, 1.0, adjustmentFactor);
         }
         finalAo = mix(finalAo, 1.0, fogFactor);
         vec3 aoApplied = color * mix(vec3(1.0), sceneTexel.rgb, float(colorMultiply));
@@ -28762,8 +28794,8 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             vec2(worldRadius, 0.0) / resolution)
         ) : worldRadius;
         float distanceFalloffToUse =screenSpaceRadius ?
-            radiusToUse * distanceFalloff
-        : distanceFalloff;
+        radiusToUse * distanceFalloff
+    : radiusToUse * distanceFalloff * 0.2;
 
 
         for(int i = 0; i < NUM_SAMPLES; i++) {
@@ -28773,7 +28805,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             vec3 normalSample = dataSample.rgb * 2.0 - 1.0;
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
-            float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
+            float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
             float rangeCheck = dSample == 1.0 ? 0.0 :exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
@@ -28920,47 +28952,6 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         gNormal = vec4(computeNormal(
             getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]), uvSamples[chosenIndex]
         ), 0.0);
-       /* float[] samples = float[4](depth00, depth10, depth01, depth11);
-        float c = 0.25 * (depth00 + depth10 + depth01 + depth11);
-        float[] distances = float[4](depth00, depth10, depth01, depth11);
-        float maxDistance = max(max(distances[0], distances[1]), max(distances[2], distances[3]));
-
-        int remaining[3];
-        int rejected[3];
-        int i, j, k;
-
-        for(i = 0, j = 0, k = 0; i < 4; ++i) {
-            if (distances[i] < maxDistance) {
-                remaining[j++] = i;
-            } else {
-                rejected[k++] = i;
-            }
-        }
-        for(;j < 3;++j) {
-            remaining[j] = rejected[--k];
-        }
-        vec3 s = vec3(
-            samples[remaining[0]],
-            samples[remaining[1]],
-            samples[remaining[2]]
-        );
-        c = (s.x + s.y + s.z) / 3.0;
-
-        distances[0] = abs(c - s.x);
-        distances[1] = abs(c - s.y);
-        distances[2] = abs(c - s.z);
-
-        float minDistance = min(min(distances[0], distances[1]), distances[2]);
-
-        for(i = 0; i < 3; ++i) {
-            if (distances[i] == minDistance) {
-                break;
-            }
-        }*/
-      /*  gl_FragColor = vec4(samples[remaining[i]], 0.0, 0.0, 0.0);
-        gNormal = vec4(computeNormal(
-            getWorldPos(samples[remaining[i]], uvSamples[remaining[i]]), uvSamples[remaining[i]]
-        ), 0.0);*/
     }`
 };
 
@@ -29050,7 +29041,9 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             halfRes: false,
             depthAwareUpsampling: true,
             autoRenderBeauty: true,
-            colorMultiply: true
+            colorMultiply: true,
+            transparencyAware: false,
+            stencil: false
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -29064,21 +29057,46 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
                     this.setSize(this.width, this.height);
                 }
                 if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+                if (propName === "transparencyAware" && oldProp !== value) {
+                    this.autoDetectTransparency = false;
+                    this.configureTransparencyTarget();
+                }
+                if (propName === "stencil" && oldProp !== value) {
+                    /*  this.beautyRenderTarget.stencilBuffer = value;
+                      this.beautyRenderTarget.depthTexture.format = value ? THREE.DepthStencilFormat : THREE.DepthFormat;
+                      this.beautyRenderTarget.depthTexture.type = value ? THREE.UnsignedInt248Type : THREE.UnsignedIntType;
+                      this.beautyRenderTarget.depthTexture.needsUpdate = true;
+                      this.beautyRenderTarget.needsUpdate = true;*/ this.beautyRenderTarget.dispose();
+                    this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
+                        minFilter: LinearFilter,
+                        magFilter: NearestFilter,
+                        type: HalfFloatType,
+                        format: RGBAFormat,
+                        stencilBuffer: value
+                    });
+                    this.beautyRenderTarget.depthTexture = new DepthTexture(this.width, this.height, value ? UnsignedInt248Type : UnsignedIntType);
+                    this.beautyRenderTarget.depthTexture.format = value ? DepthStencilFormat : DepthFormat;
+                }
                 return true;
             }
         });
         /** @type {THREE.Vector3[]} */ this.samples = [];
-        /** @type {number[]} */ this.samplesR = [];
         /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
-        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
-        this.configureSampleDependentPasses();
-        this.configureHalfResTargets();
+        this.autoDetectTransparency = true;
         this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
             minFilter: LinearFilter,
-            magFilter: NearestFilter
+            magFilter: NearestFilter,
+            type: HalfFloatType,
+            format: RGBAFormat,
+            stencilBuffer: false
         });
         this.beautyRenderTarget.depthTexture = new DepthTexture(this.width, this.height, UnsignedIntType);
         this.beautyRenderTarget.depthTexture.format = DepthFormat;
+        this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
+        this.configureSampleDependentPasses();
+        this.configureHalfResTargets();
+        this.detectTransparency();
+        this.configureTransparencyTarget();
         this.writeTargetInternal = new WebGLRenderTarget(this.width, this.height, {
             minFilter: LinearFilter,
             magFilter: LinearFilter,
@@ -29131,13 +29149,110 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             }
         }
     }
+    detectTransparency() {
+        if (this.autoDetectTransparency) {
+            let isTransparency = false;
+            this.scene.traverse((obj)=>{
+                if (obj.material && obj.material.transparent) isTransparency = true;
+            });
+            this.configuration.transparencyAware = isTransparency;
+        }
+    }
+    configureTransparencyTarget() {
+        if (this.configuration.transparencyAware) {
+            this.transparencyRenderTargetDWFalse = new WebGLRenderTarget(this.width, this.height, {
+                minFilter: LinearFilter,
+                magFilter: NearestFilter,
+                type: HalfFloatType,
+                format: RGBAFormat
+            });
+            this.transparencyRenderTargetDWTrue = new WebGLRenderTarget(this.width, this.height, {
+                minFilter: LinearFilter,
+                magFilter: NearestFilter,
+                type: HalfFloatType,
+                format: RGBAFormat
+            });
+            this.transparencyRenderTargetDWTrue.depthTexture = new DepthTexture(this.width, this.height, UnsignedIntType);
+            this.depthCopyPass = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial({
+                uniforms: {
+                    depthTexture: {
+                        value: this.beautyRenderTarget.depthTexture
+                    }
+                },
+                vertexShader: /* glsl */ `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = vec4(position, 1);
+            }`,
+                fragmentShader: /* glsl */ `
+            uniform sampler2D depthTexture;
+            varying vec2 vUv;
+            void main() {
+               gl_FragDepth = texture2D(depthTexture, vUv).r + 0.00001;
+               gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+            }
+            `
+            }));
+        } else {
+            if (this.transparencyRenderTargetDWFalse) {
+                this.transparencyRenderTargetDWFalse.dispose();
+                this.transparencyRenderTargetDWFalse = null;
+            }
+            if (this.transparencyRenderTargetDWTrue) {
+                this.transparencyRenderTargetDWTrue.dispose();
+                this.transparencyRenderTargetDWTrue = null;
+            }
+            if (this.depthCopyPass) {
+                this.depthCopyPass.dispose();
+                this.depthCopyPass = null;
+            }
+        }
+    }
+    renderTransparency(renderer) {
+        const oldBackground = this.scene.background;
+        const oldClearColor = renderer.getClearColor(new Color());
+        const oldClearAlpha = renderer.getClearAlpha();
+        const oldVisibility = new Map();
+        const oldAutoClearDepth = renderer.autoClearDepth;
+        this.scene.traverse((obj)=>{
+            oldVisibility.set(obj, obj.visible);
+        });
+        // Override the state
+        this.scene.background = null;
+        renderer.autoClearDepth = false;
+        renderer.setClearColor(new Color(0, 0, 0), 0);
+        this.depthCopyPass.material.uniforms.depthTexture.value = this.beautyRenderTarget.depthTexture;
+        // Render out transparent objects WITHOUT depth write
+        renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
+        this.scene.traverse((obj)=>{
+            if (obj.material) obj.visible = oldVisibility.get(obj) && obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque;
+        });
+        renderer.clear(true, true, true);
+        this.depthCopyPass.render(renderer);
+        renderer.render(this.scene, this.camera);
+        // Render out transparent objects WITH depth write
+        renderer.setRenderTarget(this.transparencyRenderTargetDWTrue);
+        this.scene.traverse((obj)=>{
+            if (obj.material) obj.visible = oldVisibility.get(obj) && obj.material.transparent && obj.material.depthWrite && !obj.userData.treatAsOpaque;
+        });
+        renderer.clear(true, true, true);
+        this.depthCopyPass.render(renderer);
+        renderer.render(this.scene, this.camera);
+        // Restore
+        this.scene.traverse((obj)=>{
+            obj.visible = oldVisibility.get(obj);
+        });
+        renderer.setClearColor(oldClearColor, oldClearAlpha);
+        this.scene.background = oldBackground;
+        renderer.autoClearDepth = oldAutoClearDepth;
+    }
     configureSampleDependentPasses() {
         this.configureAOPass(this.configuration.logarithmicDepthBuffer);
         this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
     }
     configureAOPass(logarithmicDepthBuffer = false) {
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
-        this.samplesR = this.generateHemisphereSamplesR(this.configuration.aoSamples);
         const e = {
             ...($1ed45968c1160c3c$export$c9b263b9a17dffd7)
         };
@@ -29180,7 +29295,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         const points = [];
         for(let k = 0; k < n; k++){
             const theta = 2.399963 * k;
-            const r = Math.sqrt(k + 0.5) / Math.sqrt(n);
+            let r = Math.sqrt(k + 0.5) / Math.sqrt(n);
             const x = r * Math.cos(theta);
             const y = r * Math.sin(theta);
             // Project to hemisphere
@@ -29188,15 +29303,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             points.push(new Vector3$1(x, y, z));
         }
         return points;
-    }
-    /**
-         * 
-         * @param {number} n 
-         * @returns {number[]}
-         */ generateHemisphereSamplesR(n) {
-        let samplesR = [];
-        for(let i = 0; i < n; i++)samplesR.push((i + 1) / n);
-        return samplesR;
     }
     /**
          * 
@@ -29225,6 +29331,10 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.writeTargetInternal.setSize(width * c, height * c);
         this.readTargetInternal.setSize(width * c, height * c);
         if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(width * c, height * c);
+        if (this.configuration.transparencyAware) {
+            this.transparencyRenderTargetDWFalse.setSize(width, height);
+            this.transparencyRenderTargetDWTrue.setSize(width, height);
+        }
     }
     render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
         if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
@@ -29233,6 +29343,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
             this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
         }
+        this.detectTransparency();
         let gl;
         let ext;
         let timerQuery;
@@ -29247,6 +29358,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         if (this.configuration.autoRenderBeauty) {
             renderer.setRenderTarget(this.beautyRenderTarget);
             renderer.render(this.scene, this.camera);
+            if (this.configuration.transparencyAware) this.renderTransparency(renderer);
         }
         if (this.debugMode) {
             timerQuery = gl.createQuery();
@@ -29281,7 +29393,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
-        this.effectShaderQuad.material.uniforms["samplesR"].value = this.samplesR;
         this.effectShaderQuad.material.uniforms["bluenoise"].value = this.bluenoise;
         this.effectShaderQuad.material.uniforms["radius"].value = trueRadius;
         this.effectShaderQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
@@ -29325,6 +29436,12 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         // Now, we have the blurred AO in writeTargetInternal
         // End the blur
         // Start the composition
+        if (this.configuration.transparencyAware) {
+            this.effectCompositerQuad.material.uniforms["transparencyDWFalse"].value = this.transparencyRenderTargetDWFalse.texture;
+            this.effectCompositerQuad.material.uniforms["transparencyDWTrue"].value = this.transparencyRenderTargetDWTrue.texture;
+            this.effectCompositerQuad.material.uniforms["transparencyDWTrueDepth"].value = this.transparencyRenderTargetDWTrue.depthTexture;
+            this.effectCompositerQuad.material.uniforms["transparencyAware"].value = true;
+        }
         this.effectCompositerQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
         this.effectCompositerQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
         this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
@@ -33391,6 +33508,190 @@ class Builder {
 }
 
 // automatically generated by the FlatBuffers compiler, do not modify
+class Alignment {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsAlignment(bb, obj) {
+        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsAlignment(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    position(index) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    positionLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    positionArray() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    curve(index) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    curveLength() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    curveArray() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    segment(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    segmentLength() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    segmentArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    static startAlignment(builder) {
+        builder.startObject(3);
+    }
+    static addPosition(builder, positionOffset) {
+        builder.addFieldOffset(0, positionOffset, 0);
+    }
+    static createPositionVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startPositionVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addCurve(builder, curveOffset) {
+        builder.addFieldOffset(1, curveOffset, 0);
+    }
+    static createCurveVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startCurveVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addSegment(builder, segmentOffset) {
+        builder.addFieldOffset(2, segmentOffset, 0);
+    }
+    static createSegmentVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startSegmentVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static endAlignment(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static createAlignment(builder, positionOffset, curveOffset, segmentOffset) {
+        Alignment.startAlignment(builder);
+        Alignment.addPosition(builder, positionOffset);
+        Alignment.addCurve(builder, curveOffset);
+        Alignment.addSegment(builder, segmentOffset);
+        return Alignment.endAlignment(builder);
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+class Civil {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsCivil(bb, obj) {
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsCivil(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    alignmentHorizontal(index, obj) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    }
+    alignmentHorizontalLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    alignmentVertical(index, obj) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    }
+    alignmentVerticalLength() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    static startCivil(builder) {
+        builder.startObject(2);
+    }
+    static addAlignmentHorizontal(builder, alignmentHorizontalOffset) {
+        builder.addFieldOffset(0, alignmentHorizontalOffset, 0);
+    }
+    static createAlignmentHorizontalVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addOffset(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startAlignmentHorizontalVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addAlignmentVertical(builder, alignmentVerticalOffset) {
+        builder.addFieldOffset(1, alignmentVerticalOffset, 0);
+    }
+    static createAlignmentVerticalVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addOffset(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startAlignmentVerticalVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static endCivil(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static createCivil(builder, alignmentHorizontalOffset, alignmentVerticalOffset) {
+        Civil.startCivil(builder);
+        Civil.addAlignmentHorizontal(builder, alignmentHorizontalOffset);
+        Civil.addAlignmentVertical(builder, alignmentVerticalOffset);
+        return Civil.endCivil(builder);
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
 class Fragment {
     constructor() {
         this.bb = null;
@@ -33679,120 +33980,124 @@ let FragmentsGroup$1 = class FragmentsGroup {
         const offset = this.bb.__offset(this.bb_pos, 4);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    coordinationMatrix(index) {
+    civil(obj) {
         const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? (obj || new Civil()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    coordinationMatrix(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     coordinationMatrixLength() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
+        const offset = this.bb.__offset(this.bb_pos, 8);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     coordinationMatrixArray() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
+        const offset = this.bb.__offset(this.bb_pos, 8);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     ids(index) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
+        const offset = this.bb.__offset(this.bb_pos, 10);
         return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     idsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
+        const offset = this.bb.__offset(this.bb_pos, 10);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     idsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
+        const offset = this.bb.__offset(this.bb_pos, 10);
         return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsKeys(index) {
-        const offset = this.bb.__offset(this.bb_pos, 10);
+        const offset = this.bb.__offset(this.bb_pos, 12);
         return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsKeysLength() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
+        const offset = this.bb.__offset(this.bb_pos, 12);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     itemsKeysArray() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
+        const offset = this.bb.__offset(this.bb_pos, 12);
         return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsKeysIndices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 12);
+        const offset = this.bb.__offset(this.bb_pos, 14);
         return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsKeysIndicesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
+        const offset = this.bb.__offset(this.bb_pos, 14);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     itemsKeysIndicesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
+        const offset = this.bb.__offset(this.bb_pos, 14);
         return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsRels(index) {
-        const offset = this.bb.__offset(this.bb_pos, 14);
+        const offset = this.bb.__offset(this.bb_pos, 16);
         return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsRelsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
+        const offset = this.bb.__offset(this.bb_pos, 16);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     itemsRelsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
+        const offset = this.bb.__offset(this.bb_pos, 16);
         return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     itemsRelsIndices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 16);
+        const offset = this.bb.__offset(this.bb_pos, 18);
         return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     itemsRelsIndicesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
+        const offset = this.bb.__offset(this.bb_pos, 18);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     itemsRelsIndicesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
+        const offset = this.bb.__offset(this.bb_pos, 18);
         return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     fragmentKeys(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    id(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 20);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    name(optionalEncoding) {
+    id(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 22);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    ifcName(optionalEncoding) {
+    name(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 24);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    ifcDescription(optionalEncoding) {
+    ifcName(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 26);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    ifcSchema(optionalEncoding) {
+    ifcDescription(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 28);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    maxExpressId() {
+    ifcSchema(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 30);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    maxExpressId() {
+        const offset = this.bb.__offset(this.bb_pos, 32);
         return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
     }
     boundingBox(index) {
-        const offset = this.bb.__offset(this.bb_pos, 32);
+        const offset = this.bb.__offset(this.bb_pos, 34);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     boundingBoxLength() {
-        const offset = this.bb.__offset(this.bb_pos, 32);
+        const offset = this.bb.__offset(this.bb_pos, 34);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     boundingBoxArray() {
-        const offset = this.bb.__offset(this.bb_pos, 32);
+        const offset = this.bb.__offset(this.bb_pos, 34);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     static startFragmentsGroup(builder) {
-        builder.startObject(15);
+        builder.startObject(16);
     }
     static addItems(builder, itemsOffset) {
         builder.addFieldOffset(0, itemsOffset, 0);
@@ -33807,8 +34112,11 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static startItemsVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
+    static addCivil(builder, civilOffset) {
+        builder.addFieldOffset(1, civilOffset, 0);
+    }
     static addCoordinationMatrix(builder, coordinationMatrixOffset) {
-        builder.addFieldOffset(1, coordinationMatrixOffset, 0);
+        builder.addFieldOffset(2, coordinationMatrixOffset, 0);
     }
     static createCoordinationMatrixVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -33821,7 +34129,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         builder.startVector(4, numElems, 4);
     }
     static addIds(builder, idsOffset) {
-        builder.addFieldOffset(2, idsOffset, 0);
+        builder.addFieldOffset(3, idsOffset, 0);
     }
     static createIdsVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -33834,7 +34142,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         builder.startVector(4, numElems, 4);
     }
     static addItemsKeys(builder, itemsKeysOffset) {
-        builder.addFieldOffset(3, itemsKeysOffset, 0);
+        builder.addFieldOffset(4, itemsKeysOffset, 0);
     }
     static createItemsKeysVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -33847,7 +34155,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         builder.startVector(4, numElems, 4);
     }
     static addItemsKeysIndices(builder, itemsKeysIndicesOffset) {
-        builder.addFieldOffset(4, itemsKeysIndicesOffset, 0);
+        builder.addFieldOffset(5, itemsKeysIndicesOffset, 0);
     }
     static createItemsKeysIndicesVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -33860,7 +34168,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         builder.startVector(4, numElems, 4);
     }
     static addItemsRels(builder, itemsRelsOffset) {
-        builder.addFieldOffset(5, itemsRelsOffset, 0);
+        builder.addFieldOffset(6, itemsRelsOffset, 0);
     }
     static createItemsRelsVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -33873,7 +34181,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
         builder.startVector(4, numElems, 4);
     }
     static addItemsRelsIndices(builder, itemsRelsIndicesOffset) {
-        builder.addFieldOffset(6, itemsRelsIndicesOffset, 0);
+        builder.addFieldOffset(7, itemsRelsIndicesOffset, 0);
     }
     static createItemsRelsIndicesVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -33886,28 +34194,28 @@ let FragmentsGroup$1 = class FragmentsGroup {
         builder.startVector(4, numElems, 4);
     }
     static addFragmentKeys(builder, fragmentKeysOffset) {
-        builder.addFieldOffset(7, fragmentKeysOffset, 0);
+        builder.addFieldOffset(8, fragmentKeysOffset, 0);
     }
     static addId(builder, idOffset) {
-        builder.addFieldOffset(8, idOffset, 0);
+        builder.addFieldOffset(9, idOffset, 0);
     }
     static addName(builder, nameOffset) {
-        builder.addFieldOffset(9, nameOffset, 0);
+        builder.addFieldOffset(10, nameOffset, 0);
     }
     static addIfcName(builder, ifcNameOffset) {
-        builder.addFieldOffset(10, ifcNameOffset, 0);
+        builder.addFieldOffset(11, ifcNameOffset, 0);
     }
     static addIfcDescription(builder, ifcDescriptionOffset) {
-        builder.addFieldOffset(11, ifcDescriptionOffset, 0);
+        builder.addFieldOffset(12, ifcDescriptionOffset, 0);
     }
     static addIfcSchema(builder, ifcSchemaOffset) {
-        builder.addFieldOffset(12, ifcSchemaOffset, 0);
+        builder.addFieldOffset(13, ifcSchemaOffset, 0);
     }
     static addMaxExpressId(builder, maxExpressId) {
-        builder.addFieldInt32(13, maxExpressId, 0);
+        builder.addFieldInt32(14, maxExpressId, 0);
     }
     static addBoundingBox(builder, boundingBoxOffset) {
-        builder.addFieldOffset(14, boundingBoxOffset, 0);
+        builder.addFieldOffset(15, boundingBoxOffset, 0);
     }
     static createBoundingBoxVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -33929,25 +34237,6 @@ let FragmentsGroup$1 = class FragmentsGroup {
     static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
         builder.finish(offset, undefined, true);
     }
-    static createFragmentsGroup(builder, itemsOffset, coordinationMatrixOffset, idsOffset, itemsKeysOffset, itemsKeysIndicesOffset, itemsRelsOffset, itemsRelsIndicesOffset, fragmentKeysOffset, idOffset, nameOffset, ifcNameOffset, ifcDescriptionOffset, ifcSchemaOffset, maxExpressId, boundingBoxOffset) {
-        FragmentsGroup.startFragmentsGroup(builder);
-        FragmentsGroup.addItems(builder, itemsOffset);
-        FragmentsGroup.addCoordinationMatrix(builder, coordinationMatrixOffset);
-        FragmentsGroup.addIds(builder, idsOffset);
-        FragmentsGroup.addItemsKeys(builder, itemsKeysOffset);
-        FragmentsGroup.addItemsKeysIndices(builder, itemsKeysIndicesOffset);
-        FragmentsGroup.addItemsRels(builder, itemsRelsOffset);
-        FragmentsGroup.addItemsRelsIndices(builder, itemsRelsIndicesOffset);
-        FragmentsGroup.addFragmentKeys(builder, fragmentKeysOffset);
-        FragmentsGroup.addId(builder, idOffset);
-        FragmentsGroup.addName(builder, nameOffset);
-        FragmentsGroup.addIfcName(builder, ifcNameOffset);
-        FragmentsGroup.addIfcDescription(builder, ifcDescriptionOffset);
-        FragmentsGroup.addIfcSchema(builder, ifcSchemaOffset);
-        FragmentsGroup.addMaxExpressId(builder, maxExpressId);
-        FragmentsGroup.addBoundingBox(builder, boundingBoxOffset);
-        return FragmentsGroup.endFragmentsGroup(builder);
-    }
 };
 
 // TODO: Document this
@@ -33967,6 +34256,7 @@ class FragmentsGroup extends THREE$1.Group {
             maxExpressID: 0,
         };
     }
+    // TODO: Force all item IDs to be numbers or strings
     getFragmentMap(expressIDs) {
         const fragmentMap = {};
         for (const expressID of expressIDs) {
@@ -33990,6 +34280,20 @@ class FragmentsGroup extends THREE$1.Group {
         this.keyFragments = {};
         this.data = {};
         this.properties = {};
+    }
+}
+
+class IfcAlignmentData {
+    constructor() {
+        this.Coordinates = new Float32Array(0);
+        this.CurveLenght = [];
+        this.SegmentLenght = [];
+    }
+    exportData() {
+        const coordinates = this.Coordinates;
+        const curveLenght = this.CurveLenght;
+        const segmentLenght = this.SegmentLenght;
+        return { coordinates, curveLenght, segmentLenght };
     }
 }
 
@@ -34023,10 +34327,48 @@ class Serializer {
         return fragmentsGroup;
     }
     export(group) {
+        var _a, _b, _c;
         const builder = new Builder(1024);
         const items = [];
+        const alignmentItemsH = [];
+        const alignmentItemsV = [];
         const G = FragmentsGroup$1;
         const F = Fragment;
+        const C = Civil;
+        if ((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments) {
+            for (const alignment of (_b = group.ifcCivil) === null || _b === void 0 ? void 0 : _b.horizontalAlignments) {
+                const result = alignment.exportData();
+                const A = Alignment;
+                const posVector = A.createPositionVector(builder, result.coordinates);
+                const segVector = A.createSegmentVector(builder, result.segmentLenght);
+                const crvVector = A.createCurveVector(builder, result.curveLenght);
+                A.startAlignment(builder);
+                A.addPosition(builder, posVector);
+                A.addSegment(builder, segVector);
+                A.addCurve(builder, crvVector);
+                const exported = Alignment.endAlignment(builder);
+                alignmentItemsH.push(exported);
+            }
+            for (const alignment of (_c = group.ifcCivil) === null || _c === void 0 ? void 0 : _c.verticalAlignments) {
+                const result = alignment.exportData();
+                const A = Alignment;
+                const posVector = A.createPositionVector(builder, result.coordinates);
+                const segVector = A.createSegmentVector(builder, result.segmentLenght);
+                const crvVector = A.createCurveVector(builder, result.curveLenght);
+                A.startAlignment(builder);
+                A.addPosition(builder, posVector);
+                A.addSegment(builder, segVector);
+                A.addCurve(builder, crvVector);
+                const exported = Alignment.endAlignment(builder);
+                alignmentItemsV.push(exported);
+            }
+        }
+        const horVector = C.createAlignmentHorizontalVector(builder, alignmentItemsH);
+        const verVector = C.createAlignmentVerticalVector(builder, alignmentItemsV);
+        C.startCivil(builder);
+        C.addAlignmentHorizontal(builder, horVector);
+        C.addAlignmentVertical(builder, verVector);
+        const exportedCivil = Civil.endCivil(builder);
         for (const fragment of group.items) {
             const result = fragment.exportData();
             const posVector = F.createPositionVector(builder, result.position);
@@ -34101,6 +34443,7 @@ class Serializer {
         const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
         const bboxVector = G.createBoundingBoxVector(builder, bbox);
         G.startFragmentsGroup(builder);
+        G.addCivil(builder, exportedCivil);
         G.addId(builder, groupID);
         G.addName(builder, groupName);
         G.addIfcName(builder, ifcName);
@@ -34197,6 +34540,46 @@ class Serializer {
     }
     constructFragmentGroup(group) {
         const fragmentsGroup = new FragmentsGroup();
+        const FBcivil = group.civil();
+        if (FBcivil) {
+            fragmentsGroup.ifcCivil = {
+                horizontalAlignments: [],
+                verticalAlignments: [],
+            };
+            for (let i = 0; i < FBcivil.alignmentHorizontalLength(); i++) {
+                const FBalignmentH = FBcivil.alignmentHorizontal(i);
+                if (FBalignmentH) {
+                    const data = new IfcAlignmentData();
+                    if (FBalignmentH.positionArray) {
+                        data.Coordinates = FBalignmentH.positionArray();
+                        for (let j = 0; j < FBalignmentH.curveLength(); j++) {
+                            data.CurveLenght.push(FBalignmentH.curve(j));
+                        }
+                        for (let j = 0; j < FBalignmentH.segmentLength(); j++) {
+                            data.SegmentLenght.push(FBalignmentH.segment(j));
+                        }
+                    }
+                    fragmentsGroup.ifcCivil.horizontalAlignments.push(data);
+                }
+            }
+            for (let i = 0; i < FBcivil.alignmentVerticalLength(); i++) {
+                const FBalignmentV = FBcivil.alignmentVertical(i);
+                if (FBalignmentV) {
+                    const data = new IfcAlignmentData();
+                    if (FBalignmentV.positionArray) {
+                        data.Coordinates = FBalignmentV.positionArray();
+                        for (let j = 0; j < FBalignmentV.curveLength(); j++) {
+                            data.CurveLenght.push(FBalignmentV.curve(j));
+                        }
+                        for (let j = 0; j < FBalignmentV.segmentLength(); j++) {
+                            data.SegmentLenght.push(FBalignmentV.segment(j));
+                        }
+                    }
+                    fragmentsGroup.ifcCivil.verticalAlignments.push(data);
+                }
+            }
+        }
+        // fragmentsGroup.ifcCivil?.horizontalAlignments
         fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
         fragmentsGroup.name = group.name() || "";
         fragmentsGroup.ifcMetadata = {
@@ -104216,9 +104599,9 @@ class DataConverter {
     saveIfcCategories(webIfc) {
         this.categories = this._ifcCategories.getAll(webIfc, 0);
     }
-    async generate(webIfc, geometries) {
+    async generate(webIfc, geometries, civilItems) {
         await this._spatialTree.setUp(webIfc);
-        this.createAllFragments(geometries);
+        this.createAllFragments(geometries, civilItems);
         await this.saveModelData(webIfc);
         return this._model;
     }
@@ -104287,10 +104670,64 @@ class DataConverter {
             this._propertyExporter.export(webIfc, 0);
         });
     }
-    createAllFragments(geometries) {
+    createAllFragments(geometries, civilItems) {
+        var _a, _b;
         const uniqueItems = {};
+        this._model.ifcCivil = {
+            horizontalAlignments: [],
+            verticalAlignments: [],
+        };
         const matrix = new THREE$1.Matrix4();
         const color = new THREE$1.Color();
+        // Add alignments data
+        if (civilItems.IfcAlignment) {
+            const dataH = new IfcAlignmentData();
+            let countH = 0;
+            const valuesH = [];
+            for (const alignment of civilItems.IfcAlignment) {
+                dataH.CurveLenght.push(countH);
+                if (alignment.horizontal) {
+                    for (const hAlignment of alignment.horizontal) {
+                        dataH.SegmentLenght.push(countH);
+                        for (const point of hAlignment.points) {
+                            valuesH.push(point.x);
+                            valuesH.push(point.y);
+                            countH++;
+                        }
+                    }
+                }
+            }
+            // Create a new Float32Array with the desired size
+            const resizedCoordinatesH = new Float32Array(valuesH.length);
+            // Set the values from the number[] to the resized Float32Array
+            resizedCoordinatesH.set(valuesH);
+            // Assign the resized Float32Array to dataH.Coordinates
+            dataH.Coordinates = resizedCoordinatesH;
+            (_a = this._model.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments.push(dataH);
+            const dataV = new IfcAlignmentData();
+            let countV = 0;
+            const valuesV = [];
+            for (const alignment of civilItems.IfcAlignment) {
+                dataV.CurveLenght.push(countV);
+                if (alignment.vertical) {
+                    for (const vAlignment of alignment.vertical) {
+                        dataV.SegmentLenght.push(countV);
+                        for (const point of vAlignment.points) {
+                            valuesV.push(point.x);
+                            valuesV.push(point.y);
+                            countV++;
+                        }
+                    }
+                }
+            }
+            // Create a new Float32Array with the desired size
+            const resizedCoordinatesV = new Float32Array(valuesV.length);
+            // Set the values from the number[] to the resized Float32Array
+            resizedCoordinatesV.set(valuesV);
+            // Assign the resized Float32Array to dataH.Coordinates
+            dataV.Coordinates = resizedCoordinatesV;
+            (_b = this._model.ifcCivil) === null || _b === void 0 ? void 0 : _b.verticalAlignments.push(dataV);
+        }
         for (const id in geometries) {
             const { buffer, instances } = geometries[id];
             const transparent = instances[0].color.w !== 1;
@@ -104573,8 +105010,11 @@ class FragmentIfcLoader extends Component {
         const before = performance.now();
         await this.readIfcFile(data);
         await this.readAllGeometries();
+        await this._geometry.streamAlignment(this._webIfc);
+        await this._geometry.streamCrossSection(this._webIfc);
         const items = this._geometry.items;
-        const model = await this._converter.generate(this._webIfc, items);
+        const civItems = this._geometry.CivilItems;
+        const model = await this._converter.generate(this._webIfc, items, civItems);
         model.name = name;
         if (this.settings.saveLocations) {
             await this.onLocationsSaved.trigger(this._geometry.locations);
@@ -104672,7 +105112,6 @@ class FragmentIfcLoader extends Component {
         // Load civil items
         this._geometry.streamAlignment(this._webIfc);
         this._geometry.streamCrossSection(this._webIfc);
-        console.log(this._geometry.CivilItems.IfcAlignment);
     }
     cleanUp() {
         this._webIfc = null;
@@ -114803,16 +115242,14 @@ class RoadNavigator extends Component {
             }
         });
         canvas.addEventListener("mouseup", async (event) => {
-            if (event.button !== 0) {
-                return;
-            }
+            if (event.button !== 0) ;
             mouseDown = false;
             if (!this._roadDiagramData || !this._roadDiagramData.mousePosition) {
                 if (this._plane) {
                     await this._plane.setEnabled(false);
                     await this._plane.edges.setVisible(false);
                 }
-                return;
+                // return;
             }
             if (this._plane) {
                 this._plane.edges.fillVisible = true;
@@ -114998,11 +115435,15 @@ class RoadNavigator extends Component {
         }
     }
     async updateFloorPlan() {
+        var _a, _b;
+        console.log(this);
         if (!this._plane || !this._scene2dTop)
             return;
         const fragments = await this.components.tools.get(FragmentManager);
         const scene = this._scene2dTop.get();
         for (const group of fragments.groups) {
+            console.log((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments);
+            console.log((_b = group.ifcCivil) === null || _b === void 0 ? void 0 : _b.verticalAlignments);
             if (this._floorPlanElements[group.uuid])
                 continue;
             const newGroup = new THREE$1.Group();
