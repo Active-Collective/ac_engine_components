@@ -107734,12 +107734,194 @@ class MiniMap extends Component {
 MiniMap.uuid = "39ad6aad-84c8-4adf-a1e0-7f25313a9e7f";
 ToolComponent.libraryUUIDs.add(MiniMap.uuid);
 
+/**
+ * An infinite lightweight 2D grid that can be used for any
+ * kind of 2d viewports.
+ */
+class Infinite2dGrid {
+    constructor(camera, container) {
+        this.numbers = new THREE$1.Group();
+        this.maxRegenerateRetrys = 4;
+        this.gridsFactor = 5;
+        this.scaleX = 1;
+        this.scaleY = 1;
+        this._group = new THREE$1.Group();
+        this._frustum = new THREE$1.Frustum();
+        this._frustumMat = new THREE$1.Matrix4();
+        this._regenerateDelay = 200;
+        this._regenerateCounter = 0;
+        this._camera = camera;
+        this._container = container;
+        const main = this.newGrid(0x222222, -1);
+        const secondary = this.newGrid(0x111111, -2);
+        this.grids = { main, secondary };
+        this._group.add(secondary, main, this.numbers);
+    }
+    get() {
+        return this._group;
+    }
+    dispose() {
+        const { main, secondary } = this.grids;
+        main.removeFromParent();
+        secondary.removeFromParent();
+        main.geometry.dispose();
+        const mMat = main.material;
+        mMat.dispose();
+        secondary.geometry.dispose();
+        const sMat = secondary.material;
+        sMat.dispose();
+    }
+    regenerate() {
+        const isReady = this.isGridReady();
+        if (!isReady) {
+            this._regenerateCounter++;
+            if (this._regenerateCounter > this.maxRegenerateRetrys) {
+                throw new Error("Grid could not be regenerated");
+            }
+            setTimeout(() => this.regenerate, this._regenerateDelay);
+            return;
+        }
+        this._regenerateCounter = 0;
+        const matrix = this._frustumMat.multiplyMatrices(this._camera.projectionMatrix, this._camera.matrixWorldInverse);
+        this._frustum.setFromProjectionMatrix(matrix);
+        // Step 1: find out the distance of the visible area of the 2D scene
+        // and the translation pixel / 3d unit
+        const { planes } = this._frustum;
+        const right = planes[0].constant * -planes[0].normal.x;
+        const left = planes[1].constant * -planes[1].normal.x;
+        const bottom = planes[2].constant * -planes[2].normal.y;
+        const top = planes[3].constant * -planes[3].normal.y;
+        const horizontalDistance = Math.abs(right - left);
+        const verticalDistance = Math.abs(top - bottom);
+        const { clientWidth, clientHeight } = this._container;
+        const maxPixelDist = Math.max(clientWidth, clientHeight);
+        const maxUnit3dDist = Math.max(horizontalDistance, verticalDistance);
+        const unit3dPixelRel = maxUnit3dDist / maxPixelDist;
+        // Step 2: find out its order of magnitude
+        const magnitudeX = Math.ceil(Math.log10(horizontalDistance / this.scaleX));
+        const magnitudeY = Math.ceil(Math.log10(verticalDistance / this.scaleY));
+        // Step 3: represent main grid
+        const sDistanceHor = 10 ** (magnitudeX - 2) * this.scaleX;
+        const sDistanceVert = 10 ** (magnitudeY - 2) * this.scaleY;
+        const mDistanceHor = sDistanceHor * this.gridsFactor;
+        const mDistanceVert = sDistanceVert * this.gridsFactor;
+        const mainGridCountVert = Math.ceil(verticalDistance / mDistanceVert);
+        const mainGridCountHor = Math.ceil(horizontalDistance / mDistanceHor);
+        const secondaryGridCountVert = Math.ceil(verticalDistance / sDistanceVert);
+        const secondaryGridCountHor = Math.ceil(horizontalDistance / sDistanceHor);
+        // Step 4: find out position of first lines
+        const sTrueLeft = sDistanceHor * Math.ceil(left / sDistanceHor);
+        const sTrueBottom = sDistanceVert * Math.ceil(bottom / sDistanceVert);
+        const mTrueLeft = mDistanceHor * Math.ceil(left / mDistanceHor);
+        const mTrueBottom = mDistanceVert * Math.ceil(bottom / mDistanceVert);
+        // Step 5: draw lines and texts
+        const numbers = [...this.numbers.children];
+        for (const number of numbers) {
+            number.removeFromParent();
+        }
+        this.numbers.children = [];
+        const mPoints = [];
+        for (let i = 0; i < mainGridCountHor; i++) {
+            const offset = mTrueLeft + i * mDistanceHor;
+            mPoints.push(offset, top, 0, offset, bottom, 0);
+            const sign = this.newNumber(offset / this.scaleX);
+            const textOffsetPixels = 12;
+            const textOffset = textOffsetPixels * unit3dPixelRel;
+            sign.position.set(offset, bottom + textOffset, 0);
+        }
+        for (let i = 0; i < mainGridCountVert; i++) {
+            const offset = mTrueBottom + i * mDistanceVert;
+            mPoints.push(left, offset, 0, right, offset, 0);
+            const sign = this.newNumber(offset / this.scaleY);
+            let textOffsetPixels = 12;
+            if (sign.element.textContent) {
+                textOffsetPixels += 4 * sign.element.textContent.length;
+            }
+            const textOffset = textOffsetPixels * unit3dPixelRel;
+            sign.position.set(left + textOffset, offset, 0);
+        }
+        const sPoints = [];
+        for (let i = 0; i < secondaryGridCountHor; i++) {
+            const offset = sTrueLeft + i * sDistanceHor;
+            sPoints.push(offset, top, 0, offset, bottom, 0);
+        }
+        for (let i = 0; i < secondaryGridCountVert; i++) {
+            const offset = sTrueBottom + i * sDistanceVert;
+            sPoints.push(left, offset, 0, right, offset, 0);
+        }
+        const mIndices = [];
+        const sIndices = [];
+        this.fillIndices(mPoints, mIndices);
+        this.fillIndices(sPoints, sIndices);
+        const mBuffer = new THREE$1.BufferAttribute(new Float32Array(mPoints), 3);
+        const sBuffer = new THREE$1.BufferAttribute(new Float32Array(sPoints), 3);
+        const { main, secondary } = this.grids;
+        main.geometry.setAttribute("position", mBuffer);
+        main.geometry.setIndex(mIndices);
+        secondary.geometry.setAttribute("position", sBuffer);
+        secondary.geometry.setIndex(sIndices);
+    }
+    fillIndices(points, indices) {
+        for (let i = 0; i < points.length / 2 - 1; i += 2) {
+            indices.push(i, i + 1);
+        }
+    }
+    newNumber(offset) {
+        const text = document.createElement("div");
+        text.textContent = `${offset}`;
+        if (text.textContent.length > 6) {
+            text.textContent = text.textContent.slice(0, 6);
+        }
+        text.style.height = "24px";
+        text.style.fontSize = "12px";
+        const sign = new CSS2DObject(text);
+        this.numbers.add(sign);
+        return sign;
+    }
+    newGrid(color, renderOrder) {
+        const geometry = new THREE$1.BufferGeometry();
+        const material = new THREE$1.LineBasicMaterial({ color });
+        const grid = new THREE$1.LineSegments(geometry, material);
+        grid.frustumCulled = false;
+        grid.renderOrder = renderOrder;
+        return grid;
+    }
+    isGridReady() {
+        const nums = this._camera.projectionMatrix.elements;
+        for (let i = 0; i < nums.length; i++) {
+            const num = nums[i];
+            if (Number.isNaN(num)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
 // TODO: Make a scene manager as a Tool (so that it as an UUID)
 /**
  * A simple floating 2D scene that you can use to easily draw 2D graphics
  * with all the power of Three.js.
  */
 class Simple2DScene extends Component {
+    get scaleX() {
+        return this._scaleX;
+    }
+    set scaleX(value) {
+        this._scaleX = value;
+        this._root.scale.x = value;
+        this.grid.scaleX = value;
+        this.grid.regenerate();
+    }
+    get scaleY() {
+        return this._scaleY;
+    }
+    set scaleY(value) {
+        this._scaleY = value;
+        this._root.scale.y = value;
+        this.grid.scaleY = value;
+        this.grid.regenerate();
+    }
     constructor(components, postproduction = false) {
         super(components);
         /** {@link Updateable.onAfterUpdate} */
@@ -107752,6 +107934,9 @@ class Simple2DScene extends Component {
         this.enabled = true;
         /** {@link UI.uiElement} */
         this.uiElement = new UIElement();
+        this._scaleX = 1;
+        this._scaleY = 1;
+        this._root = new THREE$1.Group();
         this._size = new THREE$1.Vector2();
         this._frustumSize = 50;
         /** {@link Resizeable.resize} */
@@ -107769,55 +107954,49 @@ class Simple2DScene extends Component {
         if (!components.uiEnabled) {
             throw new Error("The Simple2DScene component needs to use UI elements (TODO: Decouple from them).");
         }
-        const canvas = new Canvas(components);
-        canvas.domElement.classList.remove("absolute");
-        this.uiElement.set({ canvas });
-        this._scene = new THREE$1.Scene();
+        const container = new SimpleUIComponent(components);
+        container.domElement.classList.add("relative");
+        this.uiElement.set({ container });
+        this.scene = new THREE$1.Scene();
         this._size.set(window.innerWidth, window.innerHeight);
         const { width, height } = this._size;
         // Creates the camera (point of view of the user)
         this.camera = new THREE$1.OrthographicCamera(75, width / height);
-        this._scene.add(this.camera);
+        this.scene.add(this.camera);
         this.camera.position.z = 10;
+        const domContainer = container.domElement;
+        this.scene.add(this._root);
+        this.grid = new Infinite2dGrid(this.camera, domContainer);
+        const gridObject = this.grid.get();
+        this.scene.add(gridObject);
         if (postproduction) {
-            this.renderer = new PostproductionRenderer(this.components, undefined, {
-                canvas: canvas.get(),
-            });
+            this.renderer = new PostproductionRenderer(this.components, domContainer);
         }
         else {
-            this.renderer = new SimpleRenderer(this.components, undefined, {
-                canvas: canvas.get(),
-            });
+            this.renderer = new SimpleRenderer(this.components, domContainer);
         }
         const renderer = this.renderer.get();
         renderer.localClippingEnabled = false;
         this.renderer.setupEvents(false);
-        this.renderer.overrideScene = this._scene;
+        this.renderer.overrideScene = this.scene;
         this.renderer.overrideCamera = this.camera;
         this.controls = new OrbitControls(this.camera, renderer.domElement);
         this.controls.target.set(0, 0, 0);
         this.controls.enableRotate = false;
         this.controls.enableZoom = true;
-        const parent = this.uiElement.get("canvas").parent;
-        if (parent) {
-            parent.domElement.classList.remove("p-4");
-            parent.domElement.classList.remove("overflow-auto");
-            parent.domElement.classList.add("overflow-hidden");
-            parent.domElement.classList.add("h-full");
-        }
-        // Creates the orbit controls (to navigate the scene)
+        this.controls.addEventListener("change", () => this.grid.regenerate());
     }
     /**
      * {@link Component.get}
      * @returns the 2D scene.
      */
     get() {
-        return this._scene;
+        return this._root;
     }
     /** {@link Disposable.dispose} */
     async dispose() {
         const disposer = await this.components.tools.get(Disposer);
-        for (const child of this._scene.children) {
+        for (const child of this.scene.children) {
             const item = child;
             if (item instanceof THREE$1.Object3D) {
                 disposer.destroy(item);
@@ -115150,7 +115329,7 @@ class RoadNavigator extends Component {
         const { scene2d } = this.newFloating2DScene("Floorplan", true);
         const { postproduction } = scene2d.renderer;
         postproduction.overrideClippingPlanes = true;
-        postproduction.overrideScene = scene2d.get();
+        postproduction.overrideScene = scene2d.scene;
         postproduction.overrideCamera = scene2d.camera;
         postproduction.enabled = true;
         scene2d.camera.position.set(0, 20, 0);
@@ -115167,7 +115346,7 @@ class RoadNavigator extends Component {
         this.components.ui.add(floatingWindow);
         floatingWindow.title = title;
         const scene2d = new Simple2DScene(this.components, postproduction);
-        const canvasUIElement = scene2d.uiElement.get("canvas");
+        const canvasUIElement = scene2d.uiElement.get("container");
         floatingWindow.addChild(canvasUIElement);
         const style = floatingWindow.slots.content.domElement.style;
         style.padding = "0";
@@ -115179,7 +115358,7 @@ class RoadNavigator extends Component {
             scene2d.setSize(clientHeight, clientWidth);
             await scene2d.update();
         });
-        const canvas = scene2d.uiElement.get("canvas");
+        const canvas = scene2d.uiElement.get("container");
         canvas.domElement.addEventListener("mousemove", async () => {
             await scene2d.update();
         });
@@ -115196,7 +115375,7 @@ class RoadNavigator extends Component {
         this.components.ui.add(drawer);
         drawer.alignment = "top";
         const scene2d = new Simple2DScene(this.components);
-        const canvasUIElement = scene2d.uiElement.get("canvas");
+        const canvasUIElement = scene2d.uiElement.get("container");
         drawer.addChild(canvasUIElement);
         const { clientHeight, clientWidth } = drawer.domElement;
         const windowStyle = drawer.slots.content.domElement.style;
