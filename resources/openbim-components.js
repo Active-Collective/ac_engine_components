@@ -26,6 +26,10 @@ class Component {
         this.isHideable = () => {
             return "visible" in this;
         };
+        /** Whether is component is {@link Configurable}. */
+        this.isConfigurable = () => {
+            return "setup" in this && "config" in this && "onSetup" in this;
+        };
         /** Whether is component implements any kind of {@link UI}. */
         this.hasUI = () => {
             return "uiElement" in this;
@@ -464,7 +468,7 @@ class ToolComponent extends Component {
     constructor() {
         super(...arguments);
         /** The list of components created in this app. */
-        this.list = new Map();
+        this.list = {};
         /** The auth token to get tools from That Open Platform. */
         this.token = "";
         /** {@link Component.uuid} */
@@ -477,6 +481,8 @@ class ToolComponent extends Component {
             baseDev: "https://dev.api.dev.platform.thatopen.com/v1/tools/",
             path: "/download?accessToken=",
         };
+        this.onToolAdded = new Event();
+        this._uuidv4Pattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
     }
     /** Pass the whole library object as argument.
      * @param ORB: `import * as OBC from "openbim-components"`.
@@ -491,9 +497,11 @@ class ToolComponent extends Component {
      * @param instance The instance of your tool (`this` inside the constructor).
      */
     add(uuid, instance) {
-        if (!this.list.has(uuid)) {
-            this.list.set(uuid, instance);
-        }
+        if (uuid in this.list)
+            throw new Error(`You're trying to add a tool that already exists in the components intance. Use ToolsComponent.get() instead.`);
+        this.validateUUID(uuid);
+        this.list[uuid] = instance;
+        this.onToolAdded.trigger(instance);
     }
     /**
      * Retrieves a tool component. If it already exists in this app, it returns the instance of the component. If it
@@ -501,18 +509,17 @@ class ToolComponent extends Component {
      *
      * @param ToolClass - The component to get or create.
      */
-    async get(ToolClass) {
-        const id = ToolClass.uuid;
-        if (!this.list.has(id)) {
-            const isLibraryComponent = ToolComponent.libraryUUIDs.has(id);
-            if (isLibraryComponent) {
-                const newLibraryComponent = new ToolClass(this.components);
-                this.list.set(id, newLibraryComponent);
-                return newLibraryComponent;
+    get(ToolClass) {
+        const uuid = ToolClass.uuid;
+        if (!(uuid in this.list)) {
+            const toolInstance = new ToolClass(this.components);
+            // If true, means the tool is not autoregistered.
+            if (!(uuid in this.list)) {
+                this.add(uuid, toolInstance);
             }
-            return this.getPlatformComponent(id);
+            return toolInstance;
         }
-        return this.list.get(id);
+        return this.list[uuid];
     }
     /**
      * Updates all the registered tool components. Only the components where the
@@ -521,8 +528,8 @@ class ToolComponent extends Component {
      * [delta time](https://threejs.org/docs/#api/en/core/Clock) of the loop.
      */
     async update(delta) {
-        const tools = this.list.values();
-        for (const tool of tools) {
+        for (const uuid in this.list) {
+            const tool = this.list[uuid];
             if (tool.enabled && tool.isUpdateable()) {
                 await tool.update(delta);
             }
@@ -532,18 +539,27 @@ class ToolComponent extends Component {
      * Disposes all the MEMORY used by all the tools.
      */
     async dispose() {
-        const tools = this.list.values();
-        for (const tool of tools) {
+        for (const uuid in this.list) {
+            const tool = this.list[uuid];
             tool.enabled = false;
             if (tool.isDisposeable()) {
                 await tool.dispose();
             }
         }
     }
+    validateUUID(uuid) {
+        if (!this._uuidv4Pattern.test(uuid))
+            throw new Error(`${uuid} is not a valid UUID v4.
+
+- If you're the tool creator, you can take one from https://www.uuidgenerator.net/.
+
+- If you're using a platform tool, verify the uuid isn't misspelled or contact the tool creator.`);
+    }
     async getPlatformComponent(id) {
         if (!this._OBC) {
             console.log("Tools component not initialized! Call the init method.");
         }
+        this.validateUUID(id);
         const { base, baseDev, path } = this._urls;
         const currentUrl = window.location.href;
         const devPattern = /(https:\/\/qa.)|(localhost)/;
@@ -668,6 +684,18 @@ class SimpleScene extends Component {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
+        this.config = {
+            directionalLight: {
+                color: new THREE$1.Color("white"),
+                intensity: 0.6,
+                position: new THREE$1.Vector3(5, 10, 3),
+            },
+            ambientLight: {
+                color: new THREE$1.Color("white"),
+                intensity: 0.5,
+            },
+        };
+        this.onSetup = new Event();
         this._scene = new THREE$1.Scene();
         this._scene.background = new THREE$1.Color(0x202932);
     }
@@ -677,7 +705,7 @@ class SimpleScene extends Component {
     }
     /** {@link Disposable.dispose} */
     async dispose() {
-        const disposer = await this.components.tools.get(Disposer);
+        const disposer = this.components.tools.get(Disposer);
         for (const child of this._scene.children) {
             const mesh = child;
             if (mesh.geometry) {
@@ -687,14 +715,13 @@ class SimpleScene extends Component {
         this._scene.children = [];
     }
     /** Creates a simple and nice default set up for the scene (e.g. lighting). */
-    setup() {
-        const directionalLight = new THREE$1.DirectionalLight();
-        directionalLight.position.set(5, 10, 3);
-        directionalLight.intensity = 0.5;
-        this._scene.add(directionalLight);
-        const ambientLight = new THREE$1.AmbientLight();
-        ambientLight.intensity = 0.5;
-        this._scene.add(ambientLight);
+    async setup(config) {
+        this.config = { ...this.config, ...config };
+        const directionalLight = new THREE$1.DirectionalLight(this.config.directionalLight.color, this.config.directionalLight.intensity);
+        directionalLight.position.copy(this.config.directionalLight.position);
+        const ambientLight = new THREE$1.AmbientLight(this.config.ambientLight.color, this.config.ambientLight.intensity);
+        this._scene.add(directionalLight, ambientLight);
+        this.onSetup.trigger(this);
     }
 }
 
@@ -3502,7 +3529,7 @@ class SimpleGrid extends Component {
     /** {@link Disposable.dispose} */
     async dispose() {
         this.setupEvents(false);
-        const disposer = await this.components.tools.get(Disposer);
+        const disposer = this.components.tools.get(Disposer);
         disposer.destroy(this._grid);
     }
     setupEvents(active) {
@@ -11645,7 +11672,7 @@ class Components {
      *
      */
     async dispose() {
-        const disposer = await this.tools.get(Disposer);
+        const disposer = this.tools.get(Disposer);
         this.enabled = false;
         await this.tools.dispose();
         await this.ui.dispose();
@@ -13856,7 +13883,7 @@ class ScreenCuller extends Component {
                 material.dispose();
             }
         }
-        const disposer = await this.components.tools.get(Disposer);
+        const disposer = this.components.tools.get(Disposer);
         for (const id in this._colorMeshes) {
             const mesh = this._colorMeshes.get(id);
             if (mesh) {
@@ -21109,9 +21136,9 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         this.currentMode.toggle(true, { preventTargetAdjustment: true });
         this.toggleEvents(true);
         this._projectionManager = new ProjectionManager(components, this);
-        if (components.uiEnabled) {
+        components.onInitialized.add(() => {
             this.setUI();
-        }
+        });
         this.onAspectUpdated.add(() => this.setOrthoCameraAspect());
     }
     setUI() {
@@ -33696,8 +33723,8 @@ class ClippingEdges extends Component {
             delete outlines[name];
         }
     }
-    async disposeEdge(name) {
-        const disposer = await this.components.tools.get(Disposer);
+    disposeEdge(name) {
+        const disposer = this.components.tools.get(Disposer);
         const edge = this._edges[name];
         if (edge.fill) {
             edge.fill.dispose();
@@ -33846,7 +33873,7 @@ class EdgesStyles extends Component {
 class EdgesClipper extends SimpleClipper {
     constructor(components) {
         super(components);
-        this.components.tools.list.set(EdgesClipper.uuid, this);
+        this.components.tools.list[EdgesClipper.uuid] = this;
         this.PlaneType = EdgesPlane;
         this.styles = new EdgesStyles(components);
     }
@@ -34013,7 +34040,7 @@ class ShadowDropper extends Component {
     /** {@link Disposable.dispose} */
     async dispose() {
         for (const id in this.shadows) {
-            await this.deleteShadow(id);
+            this.deleteShadow(id);
         }
         this.tempMaterial.dispose();
         this.depthMaterial.dispose();
@@ -34041,8 +34068,8 @@ class ShadowDropper extends Component {
      *
      * @param id - the name of this shadow.
      */
-    async deleteShadow(id) {
-        const disposer = await this.components.tools.get(Disposer);
+    deleteShadow(id) {
+        const disposer = this.components.tools.get(Disposer);
         const shadow = this.shadows[id];
         delete this.shadows[id];
         if (!shadow)
@@ -104073,9 +104100,9 @@ class IfcPropertiesFinder extends Component {
         this._noHandleAttributes = ["type"];
         this._conditionFunctions = this.getConditionFunctions();
     }
-    async init() {
+    init() {
         if (this.components.uiEnabled) {
-            await this.setUI();
+            this.setUI();
         }
     }
     get() {
@@ -104100,13 +104127,13 @@ class IfcPropertiesFinder extends Component {
     deleteCache() {
         localStorage.removeItem(this._localStorageID);
     }
-    async setUI() {
+    setUI() {
         const main = new Button(this.components, {
             materialIconName: "manage_search",
         });
         const queryWindow = new FloatingWindow(this.components);
         this.components.ui.add(queryWindow);
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         // queryWindow.get().classList.add("overflow-visible");
         queryWindow.get().style.width = "700px";
         queryWindow.get().style.height = "420px";
@@ -104176,7 +104203,7 @@ class IfcPropertiesFinder extends Component {
         return map;
     }
     async find(queryGroups, queryModels) {
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         const queries = this.uiElement.get("query");
         const models = queryModels || fragments.groups;
         const groups = queryGroups || queries.query;
@@ -104223,12 +104250,12 @@ class IfcPropertiesFinder extends Component {
             }
             result[model.uuid] = { modelEntities, otherEntities };
         }
-        const foundFragments = await this.toFragmentMap(result);
-        await this.onFound.trigger(foundFragments);
+        const foundFragments = this.toFragmentMap(result);
+        this.onFound.trigger(foundFragments);
         return foundFragments;
     }
-    async toFragmentMap(data) {
-        const fragments = await this.components.tools.get(FragmentManager);
+    toFragmentMap(data) {
+        const fragments = this.components.tools.get(FragmentManager);
         const fragmentMap = {};
         for (const modelID in data) {
             const model = fragments.groups.find((m) => m.uuid === modelID);
@@ -104626,7 +104653,7 @@ class FragmentBoundingBox extends Component {
     }
     /** {@link Disposable.dispose} */
     async dispose() {
-        const disposer = await this.components.tools.get(Disposer);
+        const disposer = this.components.tools.get(Disposer);
         for (const mesh of this._meshes) {
             disposer.destroy(mesh);
         }
@@ -105189,7 +105216,7 @@ class FragmentIfcLoader extends Component {
         if (this.settings.saveLocations) {
             await this.onLocationsSaved.trigger(this._geometry.locations);
         }
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         if (this.settings.coordinate) {
             const isFirstModel = fragments.groups.length === 0;
             if (isFirstModel) {
@@ -105223,7 +105250,7 @@ class FragmentIfcLoader extends Component {
             fileOpener.accept = ".ifc";
             fileOpener.style.display = "none";
             fileOpener.onchange = async () => {
-                const fragments = await this.components.tools.get(FragmentManager);
+                const fragments = this.components.tools.get(FragmentManager);
                 if (fileOpener.files === null || fileOpener.files.length === 0)
                     return;
                 const file = fileOpener.files[0];
@@ -105337,52 +105364,55 @@ class FragmentHighlighter extends Component {
         this._outlinedMeshes = {};
         this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
         this._tempMatrix = new THREE$1.Matrix4();
-        this._default = {
+        this.config = {
             selectName: "select",
             hoverName: "hover",
-            mouseDown: false,
-            mouseMoved: false,
             selectionMaterial: new THREE$1.MeshBasicMaterial({
                 color: "#BCF124",
                 transparent: true,
                 opacity: 0.85,
                 depthTest: true,
             }),
-            highlightMaterial: new THREE$1.MeshBasicMaterial({
+            hoverMaterial: new THREE$1.MeshBasicMaterial({
                 color: "#6528D7",
                 transparent: true,
                 opacity: 0.2,
                 depthTest: true,
             }),
         };
+        this._mouseState = {
+            down: false,
+            moved: false,
+        };
+        this.onSetup = new Event();
         this.onMouseDown = () => {
             if (!this.enabled)
                 return;
-            this._default.mouseDown = true;
+            this._mouseState.down = true;
         };
         this.onMouseUp = async (event) => {
             if (!this.enabled)
                 return;
             if (event.target !== this.components.renderer.get().domElement)
                 return;
-            this._default.mouseDown = false;
-            if (this._default.mouseMoved || event.button !== 0) {
-                this._default.mouseMoved = false;
+            this._mouseState.down = false;
+            if (this._mouseState.moved || event.button !== 0) {
+                this._mouseState.moved = false;
                 return;
             }
-            this._default.mouseMoved = false;
+            this._mouseState.moved = false;
             const mult = this.multiple === "none" ? true : !event[this.multiple];
-            await this.highlight(this._default.selectName, mult, this.zoomToSelection);
+            await this.highlight(this.config.selectName, mult, this.zoomToSelection);
         };
         this.onMouseMove = async () => {
             if (!this.enabled)
                 return;
-            if (this._default.mouseMoved) {
-                await this.clearFills(this._default.hoverName);
+            if (this._mouseState.moved) {
+                await this.clearFills(this.config.hoverName);
                 return;
             }
-            this._default.mouseMoved = this._default.mouseDown;
-            await this.highlight(this._default.hoverName, true, false);
+            this._mouseState.moved = this._mouseState.down;
+            await this.highlight(this.config.hoverName, true, false);
         };
         this.components.tools.add(FragmentHighlighter.uuid, this);
     }
@@ -105391,8 +105421,8 @@ class FragmentHighlighter extends Component {
     }
     async dispose() {
         this.setupEvents(false);
-        this._default.highlightMaterial.dispose();
-        this._default.selectionMaterial.dispose();
+        this.config.hoverMaterial.dispose();
+        this.config.selectionMaterial.dispose();
         for (const matID in this.highlightMats) {
             const mats = this.highlightMats[matID] || [];
             for (const mat of mats) {
@@ -105411,6 +105441,7 @@ class FragmentHighlighter extends Component {
             this.events[name].onClear.reset();
             this.events[name].onHighlight.reset();
         }
+        this.onSetup.reset();
         this.events = {};
     }
     async add(name, material) {
@@ -105429,7 +105460,7 @@ class FragmentHighlighter extends Component {
         if (!this.fillEnabled) {
             return;
         }
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         for (const fragmentID in fragments.list) {
             const fragment = fragments.list[fragmentID];
             this.addHighlightToFragment(fragment);
@@ -105445,7 +105476,7 @@ class FragmentHighlighter extends Component {
         if (!this.enabled)
             return null;
         this.checkSelection(name);
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         const fragList = [];
         const meshes = fragments.meshes;
         const result = this.components.raycaster.castRay(meshes);
@@ -105508,7 +105539,7 @@ class FragmentHighlighter extends Component {
             if (!styles[fragID]) {
                 styles[fragID] = new Set();
             }
-            const fragments = await this.components.tools.get(FragmentManager);
+            const fragments = this.components.tools.get(FragmentManager);
             const fragment = fragments.list[fragID];
             const idsNum = new Set();
             for (const id of ids[fragID]) {
@@ -105534,13 +105565,21 @@ class FragmentHighlighter extends Component {
             await this.clearOutlines();
         }
     }
-    async setup() {
-        this.enabled = true;
+    async setup(config) {
+        if (config === null || config === void 0 ? void 0 : config.selectionMaterial) {
+            this.config.selectionMaterial.dispose();
+        }
+        if (config === null || config === void 0 ? void 0 : config.hoverMaterial) {
+            this.config.hoverMaterial.dispose();
+        }
+        this.config = { ...this.config, ...config };
         this.outlineMaterial.color.set(0xf0ff7a);
-        this.excludeOutline.add(this._default.hoverName);
-        await this.add(this._default.selectName, [this._default.selectionMaterial]);
-        await this.add(this._default.hoverName, [this._default.highlightMaterial]);
+        this.excludeOutline.add(this.config.hoverName);
+        await this.add(this.config.selectName, [this.config.selectionMaterial]);
+        await this.add(this.config.hoverName, [this.config.hoverMaterial]);
         this.setupEvents(true);
+        this.enabled = true;
+        this.onSetup.trigger(this);
     }
     async regenerate(name, fragID) {
         if (this.fillEnabled) {
@@ -105554,8 +105593,8 @@ class FragmentHighlighter extends Component {
         if (!this.fillEnabled && !this._outlineEnabled) {
             return;
         }
-        const bbox = await this.components.tools.get(FragmentBoundingBox);
-        const fragments = await this.components.tools.get(FragmentManager);
+        const bbox = this.components.tools.get(FragmentBoundingBox);
+        const fragments = this.components.tools.get(FragmentManager);
         bbox.reset();
         const selected = this.selection[name];
         if (!Object.keys(selected).length) {
@@ -105588,7 +105627,7 @@ class FragmentHighlighter extends Component {
         }
     }
     async clearStyle(name) {
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         for (const fragID in this.selection[name]) {
             const fragment = fragments.list[fragID];
             if (!fragment)
@@ -105602,7 +105641,7 @@ class FragmentHighlighter extends Component {
         this.selection[name] = {};
     }
     async updateFragmentFill(name, fragmentID) {
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         const ids = this.selection[name][fragmentID];
         const fragment = fragments.list[fragmentID];
         if (!fragment)
@@ -105610,16 +105649,10 @@ class FragmentHighlighter extends Component {
         const selection = fragment.fragments[name];
         if (!selection)
             return;
-        // #region Old child/parent code
-        // const scene = this._components.scene.get();
-        // scene.add(selection.mesh); //If we add selection.mesh directly to the scene, it won't be coordinated unless we do so manually.
-        // #endregion
-        // #region New child/parent code
         const fragmentParent = fragment.mesh.parent;
         if (!fragmentParent)
             return;
         fragmentParent.add(selection.mesh);
-        // #endregion
         const isBlockFragment = selection.blocks.count > 1;
         if (isBlockFragment) {
             fragment.getInstance(0, this._tempMatrix);
@@ -105669,7 +105702,7 @@ class FragmentHighlighter extends Component {
         }
     }
     async clearOutlines() {
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         const effects = this._postproduction.customEffects;
         const fragmentsOutline = effects.outlinedMeshes.fragments;
         if (fragmentsOutline) {
@@ -105688,7 +105721,7 @@ class FragmentHighlighter extends Component {
         }
     }
     async updateFragmentOutline(name, fragmentID) {
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         if (!this.selection[name][fragmentID]) {
             return;
         }
@@ -105841,8 +105874,8 @@ class FragmentClassifier extends Component {
             }
         }
     }
-    async find(filter) {
-        const fragments = await this.components.tools.get(FragmentManager);
+    find(filter) {
+        const fragments = this.components.tools.get(FragmentManager);
         if (!filter) {
             const result = {};
             const fragList = fragments.list;
@@ -106035,8 +106068,8 @@ class FragmentTree extends Component {
         }
         return this._tree;
     }
-    async init() {
-        const classifier = await this.components.tools.get(FragmentClassifier);
+    init() {
+        const classifier = this.components.tools.get(FragmentClassifier);
         const tree = new FragmentTreeItem(this.components, classifier, "Model Tree");
         this._tree = tree;
         if (this.components.uiEnabled) {
@@ -106054,12 +106087,12 @@ class FragmentTree extends Component {
     async update(groupSystems) {
         if (!this._tree)
             return;
-        const classifier = await this.components.tools.get(FragmentClassifier);
+        const classifier = this.components.tools.get(FragmentClassifier);
         if (this._tree.children.length) {
             await this._tree.dispose();
             this._tree = new FragmentTreeItem(this.components, classifier, this._title);
         }
-        this._tree.children = await this.regenerate(groupSystems);
+        this._tree.children = this.regenerate(groupSystems);
     }
     setupUI(tree) {
         const window = new FloatingWindow(this.components);
@@ -106076,8 +106109,8 @@ class FragmentTree extends Component {
         });
         this.uiElement.set({ main, window });
     }
-    async regenerate(groupSystemNames, result = {}) {
-        const classifier = await this.components.tools.get(FragmentClassifier);
+    regenerate(groupSystemNames, result = {}) {
+        const classifier = this.components.tools.get(FragmentClassifier);
         const systems = classifier.get();
         const groups = [];
         const currentSystemName = groupSystemNames[0]; // storeys
@@ -106088,9 +106121,9 @@ class FragmentTree extends Component {
         for (const name in systemGroups) {
             // name is N00, N01, N02...
             // { storeys: "N00" }, { storeys: "N01" }...
-            const classifier = await this.components.tools.get(FragmentClassifier);
+            const classifier = this.components.tools.get(FragmentClassifier);
             const filter = { ...result, [currentSystemName]: [name] };
-            const found = await classifier.find(filter);
+            const found = classifier.find(filter);
             const hasElements = Object.keys(found).length > 0;
             if (hasElements) {
                 const firstLetter = currentSystemName[0].toUpperCase();
@@ -106100,7 +106133,7 @@ class FragmentTree extends Component {
                 treeItem.onSelected.add((result) => this.onSelected.trigger(result));
                 treeItem.filter = filter;
                 groups.push(treeItem);
-                treeItem.children = await this.regenerate(groupSystemNames.slice(1), filter);
+                treeItem.children = this.regenerate(groupSystemNames.slice(1), filter);
             }
         }
         return groups;
@@ -106150,14 +106183,14 @@ class FragmentHider extends Component {
     async dispose() {
         this.uiElement.dispose();
     }
-    async set(visible, items) {
-        const fragments = await this.components.tools.get(FragmentManager);
+    set(visible, items) {
+        const fragments = this.components.tools.get(FragmentManager);
         if (!items) {
             for (const id in fragments.list) {
                 const fragment = fragments.list[id];
                 if (fragment) {
                     fragment.setVisibility(visible);
-                    await this.updateCulledVisibility(fragment);
+                    this.updateCulledVisibility(fragment);
                 }
             }
             return;
@@ -106166,12 +106199,12 @@ class FragmentHider extends Component {
             const ids = items[fragID];
             const fragment = fragments.list[fragID];
             fragment.setVisibility(visible, ids);
-            await this.updateCulledVisibility(fragment);
+            this.updateCulledVisibility(fragment);
         }
     }
-    async isolate(items) {
-        await this.set(false);
-        await this.set(true, items);
+    isolate(items) {
+        this.set(false);
+        this.set(true, items);
     }
     get() { }
     async update() {
@@ -106181,7 +106214,7 @@ class FragmentHider extends Component {
             await finder.find();
         }
         this._updateVisibilityOnFound = true;
-        await this.updateQueries();
+        this.updateQueries();
     }
     async loadCached() {
         const serialized = localStorage.getItem(this._localStorageID);
@@ -106189,19 +106222,19 @@ class FragmentHider extends Component {
             return;
         const filters = JSON.parse(serialized);
         for (const filter of filters) {
-            await this.createStyleCard(filter);
+            this.createStyleCard(filter);
         }
         await this.update();
     }
-    async updateCulledVisibility(fragment) {
-        const culler = await this.components.tools.get(ScreenCuller);
+    updateCulledVisibility(fragment) {
+        const culler = this.components.tools.get(ScreenCuller);
         const colorMeshes = culler.get();
         const culled = colorMeshes.get(fragment.id);
         if (culled) {
             culled.count = fragment.mesh.count;
         }
     }
-    async createStyleCard(config) {
+    createStyleCard(config) {
         const filterCard = new SimpleUIComponent(this.components);
         if (config && config.id.length) {
             filterCard.id = config.id;
@@ -106250,7 +106283,7 @@ class FragmentHider extends Component {
         checkBoxContainer.addChild(enabled);
         bottomContainer.append(checkBoxContainer.domElement);
         const finder = new IfcPropertiesFinder(this.components);
-        await finder.init();
+        finder.init();
         finder.loadCached(id);
         const queryBuilder = finder.uiElement.get("query");
         const mainButton = finder.uiElement.get("main");
@@ -106285,12 +106318,12 @@ class FragmentHider extends Component {
         const mainWindow = this.uiElement.get("window");
         mainWindow.addChild(filterCard);
     }
-    async updateQueries() {
-        await this.set(true);
+    updateQueries() {
+        this.set(true);
         for (const id in this._filterCards) {
             const { enabled, visible, fragments } = this._filterCards[id];
             if (enabled.value) {
-                await this.set(visible.value, fragments);
+                this.set(visible.value, fragments);
             }
         }
         this.cache();
@@ -106307,7 +106340,7 @@ class FragmentHider extends Component {
             await found.enabled.dispose();
         }
         delete this._filterCards[id];
-        await this.updateQueries();
+        this.updateQueries();
     }
     hideAllFinders(excludeID) {
         for (const id in this._filterCards) {
@@ -106354,7 +106387,7 @@ class FragmentCacher extends LocalCacher {
     constructor(components) {
         super(components);
         this._mode = "none";
-        components.tools.list.set(FragmentCacher.uuid, this);
+        components.tools.list[FragmentCacher.uuid] = this;
         if (components.uiEnabled) {
             this.setupUI();
         }
@@ -106370,7 +106403,7 @@ class FragmentCacher extends LocalCacher {
         if (!fragmentsCacheID || !propertiesCacheID) {
             return null;
         }
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         const fragmentFile = await this.get(fragmentsCacheID);
         if (fragmentFile === null) {
             throw new Error("Loading error");
@@ -106388,7 +106421,7 @@ class FragmentCacher extends LocalCacher {
         return group;
     }
     async saveFragmentGroup(group, id = group.uuid) {
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         const { fragmentsCacheID, propertiesCacheID } = this.getIDs(id);
         const exported = fragments.export(group);
         const fragmentsFile = new File([new Blob([exported])], fragmentsCacheID);
@@ -106447,7 +106480,7 @@ class FragmentCacher extends LocalCacher {
     }
     async onSaveButtonClicked() {
         const floatingMenu = this.uiElement.get("floatingMenu");
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragments = this.components.tools.get(FragmentManager);
         floatingMenu.title = "Save items";
         if (floatingMenu.visible && this._mode === "save") {
             floatingMenu.visible = false;
@@ -106513,17 +106546,17 @@ class FragmentExploder extends Component {
         this._explodedFragments.clear();
         this.uiElement.dispose();
     }
-    async explode() {
+    explode() {
         this.enabled = true;
-        await this.update();
+        this.update();
     }
-    async reset() {
+    reset() {
         this.enabled = false;
-        await this.update();
+        this.update();
     }
-    async update() {
-        const classifier = await this.components.tools.get(FragmentClassifier);
-        const fragments = await this.components.tools.get(FragmentManager);
+    update() {
+        const classifier = this.components.tools.get(FragmentClassifier);
+        const fragments = this.components.tools.get(FragmentManager);
         const factor = this.enabled ? 1 : -1;
         let i = 0;
         const systems = classifier.get();
@@ -106617,10 +106650,10 @@ class FragmentExploder extends Component {
         main.materialIcon = "splitscreen";
         main.onClick.add(async () => {
             if (this.enabled) {
-                await this.reset();
+                this.reset();
             }
             else {
-                await this.explode();
+                this.explode();
             }
         });
     }
@@ -107037,7 +107070,7 @@ class FragmentPlans extends Component {
         if (config.offset) {
             clippingPoint.y += config.offset;
         }
-        const clipper = await this.components.tools.get(EdgesClipper);
+        const clipper = this.components.tools.get(EdgesClipper);
         const plane = clipper.createFromNormalAndCoplanarPoint(normal, clippingPoint);
         await plane.setEnabled(false);
         await plane.edges.update();
@@ -107159,17 +107192,24 @@ class FragmentClipStyler extends Component {
         }
     }
   `;
+        this.config = {
+            force: false,
+        };
+        this.onSetup = new Event();
         this.components.tools.add(FragmentClipStyler.uuid, this);
         if (components.uiEnabled) {
             this.setupUI(components);
         }
     }
-    async setup(force = false) {
+    async setup(config) {
+        this.config = { ...this.config, ...config };
+        const { force } = this.config;
         const noCards = Object.keys(this.styleCards).length === 0;
         if (force || noCards) {
             localStorage.setItem(this.localStorageID, this._defaultStyles);
             await this.loadCachedStyles();
         }
+        this.onSetup.trigger(this);
     }
     get() {
         const saved = localStorage.getItem(this.localStorageID);
@@ -107187,9 +107227,9 @@ class FragmentClipStyler extends Component {
         this.onChange.reset();
     }
     async update(ids = Object.keys(this.styleCards)) {
-        const clipper = await this.components.tools.get(EdgesClipper);
-        const fragments = await this.components.tools.get(FragmentManager);
-        const classifier = await this.components.tools.get(FragmentClassifier);
+        const clipper = this.components.tools.get(EdgesClipper);
+        const fragments = this.components.tools.get(FragmentManager);
+        const classifier = this.components.tools.get(FragmentClassifier);
         for (const id of ids) {
             const card = this.styleCards[id];
             if (!card)
@@ -107201,7 +107241,7 @@ class FragmentClipStyler extends Component {
             style.meshes.clear();
             const categoryList = card.categories.value.split(",");
             const entities = categoryList.map((item) => item.replace(" ", ""));
-            const found = await classifier.find({ entities });
+            const found = classifier.find({ entities });
             for (const fragID in found) {
                 const { mesh } = fragments.list[fragID];
                 style.fragments[fragID] = new Set(found[fragID]);
@@ -107262,7 +107302,7 @@ class FragmentClipStyler extends Component {
     }
     async deleteStyleCard(id, updateCache = true) {
         const found = this.styleCards[id];
-        const clipper = await this.components.tools.get(EdgesClipper);
+        const clipper = this.components.tools.get(EdgesClipper);
         clipper.styles.deleteStyle(id, true);
         if (found) {
             await found.styleCard.dispose();
@@ -107399,7 +107439,7 @@ class FragmentClipStyler extends Component {
             saveStyles();
             this.onChange.trigger();
         });
-        const clipper = await this.components.tools.get(EdgesClipper);
+        const clipper = this.components.tools.get(EdgesClipper);
         clipper.styles.create(id, new Set(), lineMaterial, fillMaterial, outlineMaterial);
         categories.domElement.addEventListener("focusout", () => this.update([id]));
         if (config) {
@@ -107459,7 +107499,7 @@ class ViewpointsManager extends Component {
     get() {
         throw new Error("Method not implemented.");
     }
-    async add(data) {
+    add(data) {
         var _a;
         const { title, description } = data;
         if (!title) {
@@ -107468,14 +107508,14 @@ class ViewpointsManager extends Component {
         const guid = generateUUID().toLowerCase();
         // #region Store dimensions
         const dimensions = [];
-        const dimensionsComp = await this.components.tools.get(LengthMeasurement);
+        const dimensionsComp = this.components.tools.get(LengthMeasurement);
         const allDimensions = dimensionsComp.get();
         for (const dimension of allDimensions) {
             dimensions.push({ start: dimension.start, end: dimension.end });
         }
         // #endregion
         // #redgion Store selection
-        const highlighter = await this.components.tools.get(FragmentHighlighter);
+        const highlighter = this.components.tools.get(FragmentHighlighter);
         const selection = highlighter.selection[this.selectionHighlighter];
         // #endregion
         // #region Store filter (WIP)
@@ -107513,7 +107553,7 @@ class ViewpointsManager extends Component {
         this.uiElement.get("window").addChild(card);
         // #endregion
         this.list.push(viewpoint);
-        await this.onViewpointAdded.trigger(guid);
+        this.onViewpointAdded.trigger(guid);
         return viewpoint;
     }
     retrieve(guid) {
@@ -107565,7 +107605,7 @@ class ViewpointsManager extends Component {
         for (const fragmentID in viewpoint.selection) {
             selection[fragmentID] = viewpoint.selection[fragmentID];
         }
-        const highlighter = await this.components.tools.get(FragmentHighlighter);
+        const highlighter = this.components.tools.get(FragmentHighlighter);
         await highlighter.highlightByID(this.selectionHighlighter, selection, true);
         // #region Recover camera position & target
         const camera = this.components.camera;
@@ -108165,7 +108205,7 @@ class Simple2DScene extends Component {
     }
     /** {@link Disposable.dispose} */
     async dispose() {
-        const disposer = await this.components.tools.get(Disposer);
+        const disposer = this.components.tools.get(Disposer);
         for (const child of this.scene.children) {
             const item = child;
             if (item instanceof THREE$1.Object3D) {
@@ -114481,8 +114521,8 @@ class DXFExporter extends Component {
         const drawing = new Drawing();
         drawing.setUnits("Meters");
         // Draw projected lines
-        const fragPlans = await this.components.tools.get(FragmentPlans);
-        const fragments = await this.components.tools.get(FragmentManager);
+        const fragPlans = this.components.tools.get(FragmentPlans);
+        const fragments = this.components.tools.get(FragmentManager);
         const plans = fragPlans.get();
         const plan = plans.find((plan) => plan.name === name);
         if (!plan || !plan.plane) {
@@ -114592,7 +114632,6 @@ class RoadNavigator extends Component {
             this._caster.setFromCamera(position, hCamera);
             const result = this._caster.intersectObject(this._alignments.horizontal);
             if (result.length) {
-                console.log(result);
                 const { index, point } = result[0];
                 if (index === undefined)
                     return;
@@ -114617,6 +114656,31 @@ class RoadNavigator extends Component {
                 const coordsBuffer = new Float32Array([x, y, 0]);
                 const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
                 horizontal.geometry.setAttribute("position", coordsAttr);
+                let verticalIndex = -1;
+                const alignmentIndex = this._selected.ifcCivil.horizontalAlignments.alignmentIndex;
+                if (pointIndex1 >= alignmentIndex[alignmentIndex.length - 1]) {
+                    verticalIndex = alignmentIndex.length - 1;
+                }
+                else {
+                    for (let i = 0; i < alignmentIndex.length - 1; i++) {
+                        const start = alignmentIndex[i];
+                        const end = alignmentIndex[i + 1];
+                        if (pointIndex1 >= start && pointIndex1 < end) {
+                            verticalIndex = i;
+                        }
+                    }
+                }
+                this.getAlignmentGeometry(this._selected.ifcCivil.verticalAlignments, this._alignments.vertical.geometry, false, verticalIndex);
+                // const { alignmentIndex } = this._selected.ifcCivil.horizontalAlignments;
+                // let counter = 0;
+                // for (let i = 0; i < alignmentIndex.length; i++) {
+                // const currentAlignment = alignmentIndex[i];
+                // if (currentAlignment > index) {
+                //   console.log(`Selected alignment: ${counter - 1}`);
+                //   break;
+                // }
+                // counter++;
+                // }
             }
         });
         if (this.components.uiEnabled) {
@@ -114631,7 +114695,6 @@ class RoadNavigator extends Component {
         }
         this._selected = model;
         this.getAlignmentGeometry(model.ifcCivil.horizontalAlignments, this._alignments.horizontal.geometry, false);
-        this.getAlignmentGeometry(model.ifcCivil.verticalAlignments, this._alignments.vertical.geometry, false);
         this.getAlignmentGeometry(model.ifcCivil.realAlignments, this._alignments.real.geometry, true);
     }
     setAnchor() {
@@ -114649,14 +114712,14 @@ class RoadNavigator extends Component {
         position.z = real.z + horizontal.y;
         position.y = real.y - yPosition3D;
     }
-    getAlignmentGeometry(alignment, geometry, is3D) {
-        const data = this.getAlignmentData(alignment, is3D);
+    getAlignmentGeometry(alignment, geometry, is3D, selectedIndex = -1) {
+        const data = this.getAlignmentData(alignment, is3D, selectedIndex);
         const coordsBuffer = new Float32Array(data.coords);
         const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
         geometry.setAttribute("position", coordsAttr);
         geometry.setIndex(data.index);
     }
-    getAlignmentData(alignment, is3D) {
+    getAlignmentData(alignment, is3D, selectedIndex = -1) {
         const coords = [];
         const index = [];
         const { coordinates, curveIndex } = alignment;
@@ -114666,25 +114729,65 @@ class RoadNavigator extends Component {
         let isSegmentStart = true;
         const factor = is3D ? 3 : 2;
         const last = coordinates.length / factor - 1;
-        for (let i = 0; i < curveIndex.length; i++) {
-            const start = curveIndex[i];
-            const isLast = i === curveIndex.length - 1;
-            const end = isLast ? last : curveIndex[i + 1];
-            isSegmentStart = true;
-            for (let j = start; j < end; j++) {
-                const x = coordinates[j * factor] - offsetX;
-                const y = coordinates[j * factor + 1] - offsetY;
-                const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
-                coords.push(x, y, z);
-                if (isSegmentStart) {
-                    isSegmentStart = false;
+        if (selectedIndex === -1) {
+            for (let i = 0; i < curveIndex.length; i++) {
+                const start = curveIndex[i];
+                const isLast = i === curveIndex.length - 1;
+                const end = isLast ? last : curveIndex[i + 1];
+                isSegmentStart = true;
+                for (let j = start; j < end; j++) {
+                    const x = coordinates[j * factor] - offsetX;
+                    const y = coordinates[j * factor + 1] - offsetY;
+                    const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
+                    coords.push(x, y, z);
+                    if (isSegmentStart) {
+                        isSegmentStart = false;
+                    }
+                    else {
+                        index.push(j - 1, j);
+                    }
                 }
-                else {
-                    index.push(j - 1, j);
+            }
+        }
+        else {
+            let counter = 0;
+            for (let i = 0; i < curveIndex.length; i++) {
+                if (selectedIndex === this.currentAlignment(alignment, curveIndex[i])) {
+                    const start = curveIndex[i];
+                    const isLast = i === curveIndex.length - 1;
+                    const end = isLast ? last : curveIndex[i + 1];
+                    isSegmentStart = true;
+                    for (let j = start; j < end; j++) {
+                        const x = coordinates[j * factor] - offsetX;
+                        const y = coordinates[j * factor + 1] - offsetY;
+                        const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
+                        coords.push(x, y, z);
+                        if (isSegmentStart) {
+                            isSegmentStart = false;
+                        }
+                        else {
+                            index.push(counter - 1, counter);
+                        }
+                        counter++;
+                    }
                 }
             }
         }
         return { coords, index };
+    }
+    currentAlignment(alignment, curveIndex) {
+        const last = alignment.alignmentIndex.length - 1;
+        if (curveIndex >= alignment.alignmentIndex[last]) {
+            return last;
+        }
+        for (let i = 0; i < alignment.alignmentIndex.length - 1; i++) {
+            const start = alignment.alignmentIndex[i];
+            const end = alignment.alignmentIndex[i + 1];
+            if (curveIndex >= start && curveIndex < end) {
+                return i;
+            }
+        }
+        return -1;
     }
     setUI() {
         const horizontalAlignment = new FloatingWindow(this.components);
