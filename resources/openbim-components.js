@@ -11390,7 +11390,7 @@ class Drawer extends SimpleUIComponent {
     }
     constructor(components) {
         const template = `
-        <div class="fixed bg-ifcjs-100 backdrop-blur-xl shadow-md overflow-auto shadow-lg z-20 top-0 left-0 h-full transition-all duration-500 transform">
+        <div class="fixed bg-ifcjs-100 backdrop-blur-xl shadow-md overflow-auto shadow-lg z-20 top-0 left-0 h-full transition-all duration-500 transform text-white">
             <div data-tooeen-slot="content"></div>
         </div>
     `;
@@ -21309,6 +21309,371 @@ class OrthoPerspectiveCamera extends SimpleCamera {
 }
 
 /**
+ * @param  {Array<BufferGeometry>} geometries
+ * @param  {Boolean} useGroups
+ * @return {BufferGeometry}
+ */
+function mergeGeometries( geometries, useGroups = false ) {
+
+	const isIndexed = geometries[ 0 ].index !== null;
+
+	const attributesUsed = new Set( Object.keys( geometries[ 0 ].attributes ) );
+	const morphAttributesUsed = new Set( Object.keys( geometries[ 0 ].morphAttributes ) );
+
+	const attributes = {};
+	const morphAttributes = {};
+
+	const morphTargetsRelative = geometries[ 0 ].morphTargetsRelative;
+
+	const mergedGeometry = new BufferGeometry();
+
+	let offset = 0;
+
+	for ( let i = 0; i < geometries.length; ++ i ) {
+
+		const geometry = geometries[ i ];
+		let attributesCount = 0;
+
+		// ensure that all geometries are indexed, or none
+
+		if ( isIndexed !== ( geometry.index !== null ) ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.' );
+			return null;
+
+		}
+
+		// gather attributes, exit early if they're different
+
+		for ( const name in geometry.attributes ) {
+
+			if ( ! attributesUsed.has( name ) ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.' );
+				return null;
+
+			}
+
+			if ( attributes[ name ] === undefined ) attributes[ name ] = [];
+
+			attributes[ name ].push( geometry.attributes[ name ] );
+
+			attributesCount ++;
+
+		}
+
+		// ensure geometries have the same number of attributes
+
+		if ( attributesCount !== attributesUsed.size ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. Make sure all geometries have the same number of attributes.' );
+			return null;
+
+		}
+
+		// gather morph attributes, exit early if they're different
+
+		if ( morphTargetsRelative !== geometry.morphTargetsRelative ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. .morphTargetsRelative must be consistent throughout all geometries.' );
+			return null;
+
+		}
+
+		for ( const name in geometry.morphAttributes ) {
+
+			if ( ! morphAttributesUsed.has( name ) ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '.  .morphAttributes must be consistent throughout all geometries.' );
+				return null;
+
+			}
+
+			if ( morphAttributes[ name ] === undefined ) morphAttributes[ name ] = [];
+
+			morphAttributes[ name ].push( geometry.morphAttributes[ name ] );
+
+		}
+
+		if ( useGroups ) {
+
+			let count;
+
+			if ( isIndexed ) {
+
+				count = geometry.index.count;
+
+			} else if ( geometry.attributes.position !== undefined ) {
+
+				count = geometry.attributes.position.count;
+
+			} else {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. The geometry must have either an index or a position attribute' );
+				return null;
+
+			}
+
+			mergedGeometry.addGroup( offset, count, i );
+
+			offset += count;
+
+		}
+
+	}
+
+	// merge indices
+
+	if ( isIndexed ) {
+
+		let indexOffset = 0;
+		const mergedIndex = [];
+
+		for ( let i = 0; i < geometries.length; ++ i ) {
+
+			const index = geometries[ i ].index;
+
+			for ( let j = 0; j < index.count; ++ j ) {
+
+				mergedIndex.push( index.getX( j ) + indexOffset );
+
+			}
+
+			indexOffset += geometries[ i ].attributes.position.count;
+
+		}
+
+		mergedGeometry.setIndex( mergedIndex );
+
+	}
+
+	// merge attributes
+
+	for ( const name in attributes ) {
+
+		const mergedAttribute = mergeAttributes( attributes[ name ] );
+
+		if ( ! mergedAttribute ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' attribute.' );
+			return null;
+
+		}
+
+		mergedGeometry.setAttribute( name, mergedAttribute );
+
+	}
+
+	// merge morph attributes
+
+	for ( const name in morphAttributes ) {
+
+		const numMorphTargets = morphAttributes[ name ][ 0 ].length;
+
+		if ( numMorphTargets === 0 ) break;
+
+		mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
+		mergedGeometry.morphAttributes[ name ] = [];
+
+		for ( let i = 0; i < numMorphTargets; ++ i ) {
+
+			const morphAttributesToMerge = [];
+
+			for ( let j = 0; j < morphAttributes[ name ].length; ++ j ) {
+
+				morphAttributesToMerge.push( morphAttributes[ name ][ j ][ i ] );
+
+			}
+
+			const mergedMorphAttribute = mergeAttributes( morphAttributesToMerge );
+
+			if ( ! mergedMorphAttribute ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' morphAttribute.' );
+				return null;
+
+			}
+
+			mergedGeometry.morphAttributes[ name ].push( mergedMorphAttribute );
+
+		}
+
+	}
+
+	return mergedGeometry;
+
+}
+
+/**
+ * @param {Array<BufferAttribute>} attributes
+ * @return {BufferAttribute}
+ */
+function mergeAttributes( attributes ) {
+
+	let TypedArray;
+	let itemSize;
+	let normalized;
+	let arrayLength = 0;
+
+	for ( let i = 0; i < attributes.length; ++ i ) {
+
+		const attribute = attributes[ i ];
+
+		if ( attribute.isInterleavedBufferAttribute ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. InterleavedBufferAttributes are not supported.' );
+			return null;
+
+		}
+
+		if ( TypedArray === undefined ) TypedArray = attribute.array.constructor;
+		if ( TypedArray !== attribute.array.constructor ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.' );
+			return null;
+
+		}
+
+		if ( itemSize === undefined ) itemSize = attribute.itemSize;
+		if ( itemSize !== attribute.itemSize ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.' );
+			return null;
+
+		}
+
+		if ( normalized === undefined ) normalized = attribute.normalized;
+		if ( normalized !== attribute.normalized ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.' );
+			return null;
+
+		}
+
+		arrayLength += attribute.array.length;
+
+	}
+
+	const array = new TypedArray( arrayLength );
+	let offset = 0;
+
+	for ( let i = 0; i < attributes.length; ++ i ) {
+
+		array.set( attributes[ i ].array, offset );
+
+		offset += attributes[ i ].array.length;
+
+	}
+
+	return new BufferAttribute$1( array, itemSize, normalized );
+
+}
+
+class GeometryUtils {
+    static merge(geometriesByMaterial, splitByBlocks = false) {
+        const geometriesByMat = [];
+        const sizes = [];
+        for (const geometries of geometriesByMaterial) {
+            const merged = this.mergeGeomsOfSameMaterial(geometries, splitByBlocks);
+            geometriesByMat.push(merged);
+            sizes.push(merged.index.count);
+        }
+        const geometry = mergeGeometries(geometriesByMat);
+        this.setupMaterialGroups(sizes, geometry);
+        this.cleanUp(geometriesByMat);
+        return geometry;
+    }
+    // When Three.js exports to glTF, it generates one separate mesh per material. All meshes
+    // share the same BufferAttributes and have different indices
+    static async mergeGltfMeshes(meshes) {
+        const geometry = new BufferGeometry();
+        const attributes = meshes[0].geometry.attributes;
+        this.getMeshesAttributes(geometry, attributes);
+        this.getMeshesIndices(geometry, meshes);
+        return geometry;
+    }
+    static getMeshesAttributes(geometry, attributes) {
+        // Three.js GLTFExporter exports custom BufferAttributes as underscore lowercase
+        // eslint-disable-next-line no-underscore-dangle
+        geometry.setAttribute("blockID", attributes._blockid);
+        geometry.setAttribute("position", attributes.position);
+        geometry.setAttribute("normal", attributes.normal);
+        geometry.groups = [];
+    }
+    static getMeshesIndices(geometry, meshes) {
+        const counter = { index: 0, material: 0 };
+        const indices = [];
+        for (const mesh of meshes) {
+            const index = mesh.geometry.index;
+            this.getIndicesOfMesh(index, indices);
+            this.getMeshGroup(geometry, counter, index);
+            this.cleanUpMesh(mesh);
+        }
+        geometry.setIndex(indices);
+    }
+    static getMeshGroup(geometry, counter, index) {
+        geometry.groups.push({
+            start: counter.index,
+            count: index.count,
+            materialIndex: counter.material++,
+        });
+        counter.index += index.count;
+    }
+    static cleanUpMesh(mesh) {
+        mesh.geometry.setIndex([]);
+        mesh.geometry.attributes = {};
+        mesh.geometry.dispose();
+    }
+    static getIndicesOfMesh(index, indices) {
+        for (const number of index.array) {
+            indices.push(number);
+        }
+    }
+    static cleanUp(geometries) {
+        geometries.forEach((geometry) => geometry.dispose());
+        geometries.length = 0;
+    }
+    static setupMaterialGroups(sizes, geometry) {
+        let vertexCounter = 0;
+        let counter = 0;
+        for (const size of sizes) {
+            const group = {
+                start: vertexCounter,
+                count: size,
+                materialIndex: counter++,
+            };
+            geometry.groups.push(group);
+            vertexCounter += size;
+        }
+    }
+    static mergeGeomsOfSameMaterial(geometries, splitByBlocks) {
+        this.checkAllGeometriesAreIndexed(geometries);
+        if (splitByBlocks) {
+            this.splitByBlocks(geometries);
+        }
+        const merged = mergeGeometries(geometries);
+        this.cleanUp(geometries);
+        return merged;
+    }
+    static splitByBlocks(geometries) {
+        let i = 0;
+        for (const geometry of geometries) {
+            const size = geometry.attributes.position.count;
+            // TODO: Substitute blockID attribute by block id map
+            const array = new Uint16Array(size).fill(i++);
+            geometry.setAttribute("blockID", new BufferAttribute$1(array, 1));
+        }
+    }
+    static checkAllGeometriesAreIndexed(geometries) {
+        for (const geometry of geometries) {
+            if (!geometry.index) {
+                throw new Error("All geometries must be indexed!");
+            }
+        }
+    }
+}
+
+/**
  * The KHR_mesh_quantization extension allows these extra attribute component types
  *
  * @see https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md#extending-mesh-attributes
@@ -26707,6 +27072,2323 @@ class FragmentMesh extends InstancedMesh {
     }
 }
 
+/**
+ * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
+ * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
+ */
+class Blocks {
+    get count() {
+        return this.ids.size;
+    }
+    constructor(fragment) {
+        this.fragment = fragment;
+        this._visibilityInitialized = false;
+        this._originalIndex = new Map();
+        this._idIndexIndexMap = {};
+        const rawIds = fragment.mesh.geometry.attributes.blockID.array;
+        this.ids = new Set(rawIds);
+        this.visibleIds = new Set(this.ids);
+    }
+    setVisibility(visible, itemIDs = new Set(this.fragment.items), isolate = false) {
+        const geometry = this.fragment.mesh.geometry;
+        const index = geometry.index;
+        if (!this._visibilityInitialized) {
+            this.initializeVisibility(index, geometry);
+        }
+        if (isolate) {
+            index.array.fill(0);
+        }
+        for (const id of itemIDs) {
+            const indices = this._idIndexIndexMap[id];
+            if (!indices)
+                continue;
+            for (const i of indices) {
+                const originalIndex = this._originalIndex.get(i);
+                if (originalIndex === undefined)
+                    continue;
+                const blockID = geometry.attributes.blockID.getX(originalIndex);
+                const itemID = this.fragment.items[blockID];
+                if (itemIDs.has(itemID)) {
+                    if (visible) {
+                        this.visibleIds.add(blockID);
+                    }
+                    else {
+                        this.visibleIds.delete(blockID);
+                    }
+                    const newIndex = visible ? originalIndex : 0;
+                    index.setX(i, newIndex);
+                }
+            }
+        }
+        index.needsUpdate = true;
+    }
+    initializeVisibility(index, geometry) {
+        for (let i = 0; i < index.count; i++) {
+            const foundIndex = index.getX(i);
+            this._originalIndex.set(i, foundIndex);
+            const blockID = geometry.attributes.blockID.getX(foundIndex);
+            const itemID = this.fragment.getItemID(0, blockID);
+            if (!this._idIndexIndexMap[itemID]) {
+                this._idIndexIndexMap[itemID] = [];
+            }
+            this._idIndexIndexMap[itemID].push(i);
+        }
+        this._visibilityInitialized = true;
+    }
+    // Use this only for destroying the current Fragment instance
+    dispose() {
+        this._idIndexIndexMap = {};
+        this.ids.clear();
+        this.visibleIds.clear();
+        this._originalIndex.clear();
+        this.ids = null;
+        this.visibleIds = null;
+        this._originalIndex = null;
+    }
+}
+
+// Source: https://github.com/gkjohnson/three-mesh-bvh
+class BVH {
+    static apply(geometry) {
+        if (!BVH.initialized) {
+            BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+            BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+            Mesh.prototype.raycast = acceleratedRaycast;
+            BVH.initialized = true;
+        }
+        if (!geometry.boundsTree) {
+            geometry.computeBoundsTree();
+        }
+    }
+    static dispose(geometry) {
+        geometry.disposeBoundsTree();
+    }
+}
+BVH.initialized = false;
+
+/*
+ * Fragments can contain one or multiple Instances of one or multiple Blocks
+ * Each Instance is identified by an instanceID (property of THREE.InstancedMesh)
+ * Each Block identified by a blockID (custom bufferAttribute per vertex)
+ * Both instanceId and blockId are unsigned integers starting at 0 and going up sequentially
+ * A specific Block of a specific Instance is an Item, identified by an itemID
+ *
+ * For example:
+ * Imagine a fragment mesh with 8 instances and 2 elements (16 items, identified from A to P)
+ * It will have instanceIds from 0 to 8, and blockIds from 0 to 2
+ * If we raycast it, we will get an instanceId and the index of the found triangle
+ * We can use the index to get the blockId for that triangle
+ * Combining instanceId and blockId using the elementMap will give us the itemId
+ * The items will look like this:
+ *
+ *    [ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P ]
+ *
+ *  Where the criteria to sort the items is the following (Y-axis is instance, X-axis is block):
+ *
+ *        A  C  E  G  I  K  M  O
+ *        B  D  F  H  J  L  N  P
+ * */
+let Fragment$1 = class Fragment {
+    get ids() {
+        const ids = new Set();
+        for (const id of this.items) {
+            ids.add(id);
+        }
+        for (const id in this.hiddenInstances) {
+            ids.add(id);
+        }
+        return ids;
+    }
+    constructor(geometry, material, count) {
+        this.fragments = {};
+        this.items = [];
+        this.hiddenInstances = {};
+        // When multiple instances represent the same object
+        // this allows to create a composite ID for each instance
+        // E.g. all the steps in a stair are a single thing
+        // so if the ID of the stair is asdf, then each step could be
+        // asdf.1, asdf.2, asdf.3, etc
+        // the value is the number of instances
+        this.composites = {};
+        this.mesh = new FragmentMesh(geometry, material, count, this);
+        this.id = this.mesh.uuid;
+        this.capacity = count;
+        this.blocks = new Blocks(this);
+        BVH.apply(geometry);
+    }
+    dispose(disposeResources = true) {
+        this.items = null;
+        this.group = undefined;
+        if (this.mesh) {
+            if (disposeResources) {
+                this.mesh.material.forEach((mat) => mat.dispose());
+                this.mesh.material = [];
+                BVH.dispose(this.mesh.geometry);
+                this.mesh.geometry.dispose();
+                this.mesh.geometry = null;
+            }
+            this.mesh.removeFromParent();
+            this.mesh.dispose();
+            this.mesh.fragment = null;
+            this.mesh = null;
+        }
+        this.disposeNestedFragments();
+    }
+    getItemID(instanceID, blockID) {
+        const index = this.getItemIndex(instanceID, blockID);
+        return this.items[index];
+    }
+    getInstanceAndBlockID(itemID) {
+        const index = this.items.indexOf(itemID);
+        const instanceID = this.getInstanceIDFromIndex(index);
+        const blockID = index % this.blocks.count;
+        return { instanceID, blockID };
+    }
+    getVertexBlockID(geometry, index) {
+        const blocks = geometry.attributes.blockID;
+        return blocks.array[index];
+    }
+    getItemData(itemID) {
+        const index = this.items.indexOf(itemID);
+        const instanceID = Math.ceil(index / this.blocks.count);
+        const blockID = index % this.blocks.count;
+        return { instanceID, blockID };
+    }
+    getInstance(instanceID, matrix) {
+        return this.mesh.getMatrixAt(instanceID, matrix);
+    }
+    setInstance(instanceID, items) {
+        this.checkIfInstanceExist(instanceID);
+        this.mesh.setMatrixAt(instanceID, items.transform);
+        this.mesh.instanceMatrix.needsUpdate = true;
+        if (items.color && this.mesh.instanceColor) {
+            this.mesh.setColorAt(instanceID, items.color);
+            this.mesh.instanceColor.needsUpdate = true;
+        }
+        if (items.ids) {
+            this.saveItemsInMap(items.ids, instanceID);
+        }
+    }
+    addInstances(items) {
+        this.resizeCapacityIfNeeded(items.length);
+        const start = this.mesh.count;
+        this.mesh.count += items.length;
+        for (let i = 0; i < items.length; i++) {
+            this.setInstance(start + i, items[i]);
+        }
+    }
+    removeInstances(itemsIDs) {
+        if (this.mesh.count <= 1) {
+            this.clear();
+            return;
+        }
+        this.deleteAndRearrangeInstances(itemsIDs);
+        this.mesh.count -= itemsIDs.length;
+        this.mesh.instanceMatrix.needsUpdate = true;
+    }
+    clear() {
+        this.mesh.clear();
+        this.mesh.count = 0;
+        this.items = [];
+    }
+    addFragment(id, material = this.mesh.material) {
+        const newGeometry = this.initializeGeometry();
+        if (material === this.mesh.material) {
+            this.copyGroups(newGeometry);
+        }
+        const newFragment = new Fragment(newGeometry, material, this.capacity);
+        newFragment.mesh.applyMatrix4(this.mesh.matrix);
+        newFragment.mesh.updateMatrix();
+        this.fragments[id] = newFragment;
+        return this.fragments[id];
+    }
+    removeFragment(id) {
+        const fragment = this.fragments[id];
+        if (fragment) {
+            fragment.dispose(false);
+            delete this.fragments[id];
+        }
+    }
+    resetVisibility() {
+        if (this.blocks.count > 1) {
+            this.blocks.setVisibility(true);
+        }
+        else {
+            const hiddenInstances = Object.keys(this.hiddenInstances);
+            this.makeInstancesVisible(hiddenInstances);
+            this.hiddenInstances = {};
+        }
+    }
+    setVisibility(visible, itemIDs = this.ids) {
+        if (this.blocks.count > 1) {
+            this.blocks.setVisibility(visible, itemIDs);
+        }
+        else {
+            this.toggleInstanceVisibility(visible, itemIDs);
+        }
+    }
+    resize(size) {
+        var _a;
+        const newMesh = this.createFragmentMeshWithNewSize(size);
+        this.capacity = size;
+        const oldMesh = this.mesh;
+        (_a = oldMesh.parent) === null || _a === void 0 ? void 0 : _a.add(newMesh);
+        oldMesh.removeFromParent();
+        this.mesh = newMesh;
+        oldMesh.dispose();
+    }
+    exportData() {
+        const geometry = this.mesh.exportData();
+        const ids = this.items.join("|");
+        const id = this.id;
+        return { ...geometry, ids, id };
+    }
+    copyGroups(newGeometry) {
+        newGeometry.groups = [];
+        for (const group of this.mesh.geometry.groups) {
+            newGeometry.groups.push({ ...group });
+        }
+    }
+    initializeGeometry() {
+        const newGeometry = new THREE$1.BufferGeometry();
+        newGeometry.setAttribute("position", this.mesh.geometry.attributes.position);
+        newGeometry.setAttribute("normal", this.mesh.geometry.attributes.normal);
+        newGeometry.setAttribute("blockID", this.mesh.geometry.attributes.blockID);
+        newGeometry.setIndex(Array.from(this.mesh.geometry.index.array));
+        return newGeometry;
+    }
+    saveItemsInMap(ids, instanceId) {
+        this.checkBlockNumberValid(ids);
+        let counter = 0;
+        for (const id of ids) {
+            const index = this.getItemIndex(instanceId, counter);
+            this.items[index] = id;
+            counter++;
+        }
+    }
+    resizeCapacityIfNeeded(newSize) {
+        const necessaryCapacity = newSize + this.mesh.count;
+        if (necessaryCapacity > this.capacity) {
+            this.resize(necessaryCapacity);
+        }
+    }
+    createFragmentMeshWithNewSize(capacity) {
+        const newMesh = new FragmentMesh(this.mesh.geometry, this.mesh.material, capacity, this);
+        newMesh.count = this.mesh.count;
+        return newMesh;
+    }
+    disposeNestedFragments() {
+        const fragments = Object.values(this.fragments);
+        for (let i = 0; i < fragments.length; i++) {
+            fragments[i].dispose();
+        }
+        this.fragments = {};
+    }
+    checkBlockNumberValid(ids) {
+        if (ids.length > this.blocks.count) {
+            throw new Error(`You passed more items (${ids.length}) than blocks in this instance (${this.blocks.count})`);
+        }
+    }
+    checkIfInstanceExist(index) {
+        if (index > this.mesh.count) {
+            throw new Error(`The given index (${index}) exceeds the instances in this fragment (${this.mesh.count})`);
+        }
+    }
+    // Assigns the index of the removed instance to the last instance
+    // F.e. let there be 6 instances: (A) (B) (C) (D) (E) (F)
+    // If instance (C) is removed: -> (A) (B) (F) (D) (E)
+    deleteAndRearrangeInstances(ids) {
+        const deletedItems = [];
+        for (const id of ids) {
+            const deleted = this.deleteAndRearrange(id);
+            if (deleted) {
+                deletedItems.push(deleted);
+            }
+        }
+        for (const id of ids) {
+            delete this.hiddenInstances[id];
+        }
+        return deletedItems;
+    }
+    deleteAndRearrange(id) {
+        const index = this.items.indexOf(id);
+        if (index === -1)
+            return null;
+        this.mesh.count--;
+        const isLastElement = index === this.mesh.count;
+        const instanceId = this.getInstanceIDFromIndex(index);
+        const tempMatrix = new THREE$1.Matrix4();
+        const tempColor = new THREE$1.Color();
+        const transform = new THREE$1.Matrix4();
+        this.mesh.getMatrixAt(instanceId, transform);
+        const result = { ids: [id], transform };
+        if (this.mesh.instanceColor) {
+            const color = new THREE$1.Color();
+            this.mesh.getColorAt(instanceId, color);
+            result.color = color;
+        }
+        if (isLastElement) {
+            this.items.pop();
+            return result;
+        }
+        const lastElement = this.mesh.count;
+        this.items[index] = this.items[lastElement];
+        this.items.pop();
+        this.mesh.getMatrixAt(lastElement, tempMatrix);
+        this.mesh.setMatrixAt(instanceId, tempMatrix);
+        this.mesh.instanceMatrix.needsUpdate = true;
+        if (this.mesh.instanceColor) {
+            this.mesh.getColorAt(lastElement, tempColor);
+            this.mesh.setColorAt(instanceId, tempColor);
+            this.mesh.instanceColor.needsUpdate = true;
+        }
+        return result;
+    }
+    getItemIndex(instanceId, blockId) {
+        return instanceId * this.blocks.count + blockId;
+    }
+    getInstanceIDFromIndex(itemIndex) {
+        return Math.trunc(itemIndex / this.blocks.count);
+    }
+    toggleInstanceVisibility(visible, itemIDs) {
+        if (visible) {
+            this.makeInstancesVisible(itemIDs);
+        }
+        else {
+            this.makeInstancesInvisible(itemIDs);
+        }
+    }
+    makeInstancesInvisible(itemIDs) {
+        itemIDs = this.filterHiddenItems(itemIDs, false);
+        const deletedItems = this.deleteAndRearrangeInstances(itemIDs);
+        for (const item of deletedItems) {
+            if (item.ids) {
+                this.hiddenInstances[item.ids[0]] = item;
+            }
+        }
+    }
+    makeInstancesVisible(itemIDs) {
+        const items = [];
+        itemIDs = this.filterHiddenItems(itemIDs, true);
+        for (const id of itemIDs) {
+            const found = this.hiddenInstances[id];
+            if (found !== undefined) {
+                items.push(found);
+                delete this.hiddenInstances[id];
+            }
+        }
+        this.addInstances(items);
+    }
+    filterHiddenItems(itemIDs, hidden) {
+        const hiddenItems = Object.keys(this.hiddenInstances);
+        const result = [];
+        for (const id of itemIDs) {
+            const isHidden = hidden && hiddenItems.includes(id);
+            const isNotHidden = !hidden && !hiddenItems.includes(id);
+            if (isHidden || isNotHidden) {
+                result.push(id);
+            }
+        }
+        return result;
+    }
+};
+
+const SIZEOF_SHORT = 2;
+const SIZEOF_INT = 4;
+const FILE_IDENTIFIER_LENGTH = 4;
+const SIZE_PREFIX_LENGTH = 4;
+
+const int32 = new Int32Array(2);
+const float32 = new Float32Array(int32.buffer);
+const float64 = new Float64Array(int32.buffer);
+const isLittleEndian = new Uint16Array(new Uint8Array([1, 0]).buffer)[0] === 1;
+
+var Encoding;
+(function (Encoding) {
+    Encoding[Encoding["UTF8_BYTES"] = 1] = "UTF8_BYTES";
+    Encoding[Encoding["UTF16_STRING"] = 2] = "UTF16_STRING";
+})(Encoding || (Encoding = {}));
+
+class ByteBuffer {
+    /**
+     * Create a new ByteBuffer with a given array of bytes (`Uint8Array`)
+     */
+    constructor(bytes_) {
+        this.bytes_ = bytes_;
+        this.position_ = 0;
+        this.text_decoder_ = new TextDecoder();
+    }
+    /**
+     * Create and allocate a new ByteBuffer with a given size.
+     */
+    static allocate(byte_size) {
+        return new ByteBuffer(new Uint8Array(byte_size));
+    }
+    clear() {
+        this.position_ = 0;
+    }
+    /**
+     * Get the underlying `Uint8Array`.
+     */
+    bytes() {
+        return this.bytes_;
+    }
+    /**
+     * Get the buffer's position.
+     */
+    position() {
+        return this.position_;
+    }
+    /**
+     * Set the buffer's position.
+     */
+    setPosition(position) {
+        this.position_ = position;
+    }
+    /**
+     * Get the buffer's capacity.
+     */
+    capacity() {
+        return this.bytes_.length;
+    }
+    readInt8(offset) {
+        return this.readUint8(offset) << 24 >> 24;
+    }
+    readUint8(offset) {
+        return this.bytes_[offset];
+    }
+    readInt16(offset) {
+        return this.readUint16(offset) << 16 >> 16;
+    }
+    readUint16(offset) {
+        return this.bytes_[offset] | this.bytes_[offset + 1] << 8;
+    }
+    readInt32(offset) {
+        return this.bytes_[offset] | this.bytes_[offset + 1] << 8 | this.bytes_[offset + 2] << 16 | this.bytes_[offset + 3] << 24;
+    }
+    readUint32(offset) {
+        return this.readInt32(offset) >>> 0;
+    }
+    readInt64(offset) {
+        return BigInt.asIntN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
+    }
+    readUint64(offset) {
+        return BigInt.asUintN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
+    }
+    readFloat32(offset) {
+        int32[0] = this.readInt32(offset);
+        return float32[0];
+    }
+    readFloat64(offset) {
+        int32[isLittleEndian ? 0 : 1] = this.readInt32(offset);
+        int32[isLittleEndian ? 1 : 0] = this.readInt32(offset + 4);
+        return float64[0];
+    }
+    writeInt8(offset, value) {
+        this.bytes_[offset] = value;
+    }
+    writeUint8(offset, value) {
+        this.bytes_[offset] = value;
+    }
+    writeInt16(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+    }
+    writeUint16(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+    }
+    writeInt32(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+        this.bytes_[offset + 2] = value >> 16;
+        this.bytes_[offset + 3] = value >> 24;
+    }
+    writeUint32(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+        this.bytes_[offset + 2] = value >> 16;
+        this.bytes_[offset + 3] = value >> 24;
+    }
+    writeInt64(offset, value) {
+        this.writeInt32(offset, Number(BigInt.asIntN(32, value)));
+        this.writeInt32(offset + 4, Number(BigInt.asIntN(32, value >> BigInt(32))));
+    }
+    writeUint64(offset, value) {
+        this.writeUint32(offset, Number(BigInt.asUintN(32, value)));
+        this.writeUint32(offset + 4, Number(BigInt.asUintN(32, value >> BigInt(32))));
+    }
+    writeFloat32(offset, value) {
+        float32[0] = value;
+        this.writeInt32(offset, int32[0]);
+    }
+    writeFloat64(offset, value) {
+        float64[0] = value;
+        this.writeInt32(offset, int32[isLittleEndian ? 0 : 1]);
+        this.writeInt32(offset + 4, int32[isLittleEndian ? 1 : 0]);
+    }
+    /**
+     * Return the file identifier.   Behavior is undefined for FlatBuffers whose
+     * schema does not include a file_identifier (likely points at padding or the
+     * start of a the root vtable).
+     */
+    getBufferIdentifier() {
+        if (this.bytes_.length < this.position_ + SIZEOF_INT +
+            FILE_IDENTIFIER_LENGTH) {
+            throw new Error('FlatBuffers: ByteBuffer is too short to contain an identifier.');
+        }
+        let result = "";
+        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
+            result += String.fromCharCode(this.readInt8(this.position_ + SIZEOF_INT + i));
+        }
+        return result;
+    }
+    /**
+     * Look up a field in the vtable, return an offset into the object, or 0 if the
+     * field is not present.
+     */
+    __offset(bb_pos, vtable_offset) {
+        const vtable = bb_pos - this.readInt32(bb_pos);
+        return vtable_offset < this.readInt16(vtable) ? this.readInt16(vtable + vtable_offset) : 0;
+    }
+    /**
+     * Initialize any Table-derived type to point to the union at the given offset.
+     */
+    __union(t, offset) {
+        t.bb_pos = offset + this.readInt32(offset);
+        t.bb = this;
+        return t;
+    }
+    /**
+     * Create a JavaScript string from UTF-8 data stored inside the FlatBuffer.
+     * This allocates a new string and converts to wide chars upon each access.
+     *
+     * To avoid the conversion to string, pass Encoding.UTF8_BYTES as the
+     * "optionalEncoding" argument. This is useful for avoiding conversion when
+     * the data will just be packaged back up in another FlatBuffer later on.
+     *
+     * @param offset
+     * @param opt_encoding Defaults to UTF16_STRING
+     */
+    __string(offset, opt_encoding) {
+        offset += this.readInt32(offset);
+        const length = this.readInt32(offset);
+        offset += SIZEOF_INT;
+        const utf8bytes = this.bytes_.subarray(offset, offset + length);
+        if (opt_encoding === Encoding.UTF8_BYTES)
+            return utf8bytes;
+        else
+            return this.text_decoder_.decode(utf8bytes);
+    }
+    /**
+     * Handle unions that can contain string as its member, if a Table-derived type then initialize it,
+     * if a string then return a new one
+     *
+     * WARNING: strings are immutable in JS so we can't change the string that the user gave us, this
+     * makes the behaviour of __union_with_string different compared to __union
+     */
+    __union_with_string(o, offset) {
+        if (typeof o === 'string') {
+            return this.__string(offset);
+        }
+        return this.__union(o, offset);
+    }
+    /**
+     * Retrieve the relative offset stored at "offset"
+     */
+    __indirect(offset) {
+        return offset + this.readInt32(offset);
+    }
+    /**
+     * Get the start of data of a vector whose offset is stored at "offset" in this object.
+     */
+    __vector(offset) {
+        return offset + this.readInt32(offset) + SIZEOF_INT; // data starts after the length
+    }
+    /**
+     * Get the length of a vector whose offset is stored at "offset" in this object.
+     */
+    __vector_len(offset) {
+        return this.readInt32(offset + this.readInt32(offset));
+    }
+    __has_identifier(ident) {
+        if (ident.length != FILE_IDENTIFIER_LENGTH) {
+            throw new Error('FlatBuffers: file identifier must be length ' +
+                FILE_IDENTIFIER_LENGTH);
+        }
+        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
+            if (ident.charCodeAt(i) != this.readInt8(this.position() + SIZEOF_INT + i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    /**
+     * A helper function for generating list for obj api
+     */
+    createScalarList(listAccessor, listLength) {
+        const ret = [];
+        for (let i = 0; i < listLength; ++i) {
+            const val = listAccessor(i);
+            if (val !== null) {
+                ret.push(val);
+            }
+        }
+        return ret;
+    }
+    /**
+     * A helper function for generating list for obj api
+     * @param listAccessor function that accepts an index and return data at that index
+     * @param listLength listLength
+     * @param res result list
+     */
+    createObjList(listAccessor, listLength) {
+        const ret = [];
+        for (let i = 0; i < listLength; ++i) {
+            const val = listAccessor(i);
+            if (val !== null) {
+                ret.push(val.unpack());
+            }
+        }
+        return ret;
+    }
+}
+
+class Builder {
+    /**
+     * Create a FlatBufferBuilder.
+     */
+    constructor(opt_initial_size) {
+        /** Minimum alignment encountered so far. */
+        this.minalign = 1;
+        /** The vtable for the current table. */
+        this.vtable = null;
+        /** The amount of fields we're actually using. */
+        this.vtable_in_use = 0;
+        /** Whether we are currently serializing a table. */
+        this.isNested = false;
+        /** Starting offset of the current struct/table. */
+        this.object_start = 0;
+        /** List of offsets of all vtables. */
+        this.vtables = [];
+        /** For the current vector being built. */
+        this.vector_num_elems = 0;
+        /** False omits default values from the serialized data */
+        this.force_defaults = false;
+        this.string_maps = null;
+        this.text_encoder = new TextEncoder();
+        let initial_size;
+        if (!opt_initial_size) {
+            initial_size = 1024;
+        }
+        else {
+            initial_size = opt_initial_size;
+        }
+        /**
+         * @type {ByteBuffer}
+         * @private
+         */
+        this.bb = ByteBuffer.allocate(initial_size);
+        this.space = initial_size;
+    }
+    clear() {
+        this.bb.clear();
+        this.space = this.bb.capacity();
+        this.minalign = 1;
+        this.vtable = null;
+        this.vtable_in_use = 0;
+        this.isNested = false;
+        this.object_start = 0;
+        this.vtables = [];
+        this.vector_num_elems = 0;
+        this.force_defaults = false;
+        this.string_maps = null;
+    }
+    /**
+     * In order to save space, fields that are set to their default value
+     * don't get serialized into the buffer. Forcing defaults provides a
+     * way to manually disable this optimization.
+     *
+     * @param forceDefaults true always serializes default values
+     */
+    forceDefaults(forceDefaults) {
+        this.force_defaults = forceDefaults;
+    }
+    /**
+     * Get the ByteBuffer representing the FlatBuffer. Only call this after you've
+     * called finish(). The actual data starts at the ByteBuffer's current position,
+     * not necessarily at 0.
+     */
+    dataBuffer() {
+        return this.bb;
+    }
+    /**
+     * Get the bytes representing the FlatBuffer. Only call this after you've
+     * called finish().
+     */
+    asUint8Array() {
+        return this.bb.bytes().subarray(this.bb.position(), this.bb.position() + this.offset());
+    }
+    /**
+     * Prepare to write an element of `size` after `additional_bytes` have been
+     * written, e.g. if you write a string, you need to align such the int length
+     * field is aligned to 4 bytes, and the string data follows it directly. If all
+     * you need to do is alignment, `additional_bytes` will be 0.
+     *
+     * @param size This is the of the new element to write
+     * @param additional_bytes The padding size
+     */
+    prep(size, additional_bytes) {
+        // Track the biggest thing we've ever aligned to.
+        if (size > this.minalign) {
+            this.minalign = size;
+        }
+        // Find the amount of alignment needed such that `size` is properly
+        // aligned after `additional_bytes`
+        const align_size = ((~(this.bb.capacity() - this.space + additional_bytes)) + 1) & (size - 1);
+        // Reallocate the buffer if needed.
+        while (this.space < align_size + size + additional_bytes) {
+            const old_buf_size = this.bb.capacity();
+            this.bb = Builder.growByteBuffer(this.bb);
+            this.space += this.bb.capacity() - old_buf_size;
+        }
+        this.pad(align_size);
+    }
+    pad(byte_size) {
+        for (let i = 0; i < byte_size; i++) {
+            this.bb.writeInt8(--this.space, 0);
+        }
+    }
+    writeInt8(value) {
+        this.bb.writeInt8(this.space -= 1, value);
+    }
+    writeInt16(value) {
+        this.bb.writeInt16(this.space -= 2, value);
+    }
+    writeInt32(value) {
+        this.bb.writeInt32(this.space -= 4, value);
+    }
+    writeInt64(value) {
+        this.bb.writeInt64(this.space -= 8, value);
+    }
+    writeFloat32(value) {
+        this.bb.writeFloat32(this.space -= 4, value);
+    }
+    writeFloat64(value) {
+        this.bb.writeFloat64(this.space -= 8, value);
+    }
+    /**
+     * Add an `int8` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int8` to add the buffer.
+     */
+    addInt8(value) {
+        this.prep(1, 0);
+        this.writeInt8(value);
+    }
+    /**
+     * Add an `int16` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int16` to add the buffer.
+     */
+    addInt16(value) {
+        this.prep(2, 0);
+        this.writeInt16(value);
+    }
+    /**
+     * Add an `int32` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int32` to add the buffer.
+     */
+    addInt32(value) {
+        this.prep(4, 0);
+        this.writeInt32(value);
+    }
+    /**
+     * Add an `int64` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int64` to add the buffer.
+     */
+    addInt64(value) {
+        this.prep(8, 0);
+        this.writeInt64(value);
+    }
+    /**
+     * Add a `float32` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `float32` to add the buffer.
+     */
+    addFloat32(value) {
+        this.prep(4, 0);
+        this.writeFloat32(value);
+    }
+    /**
+     * Add a `float64` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `float64` to add the buffer.
+     */
+    addFloat64(value) {
+        this.prep(8, 0);
+        this.writeFloat64(value);
+    }
+    addFieldInt8(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addInt8(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldInt16(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addInt16(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldInt32(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addInt32(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldInt64(voffset, value, defaultValue) {
+        if (this.force_defaults || value !== defaultValue) {
+            this.addInt64(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldFloat32(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addFloat32(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldFloat64(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addFloat64(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldOffset(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addOffset(value);
+            this.slot(voffset);
+        }
+    }
+    /**
+     * Structs are stored inline, so nothing additional is being added. `d` is always 0.
+     */
+    addFieldStruct(voffset, value, defaultValue) {
+        if (value != defaultValue) {
+            this.nested(value);
+            this.slot(voffset);
+        }
+    }
+    /**
+     * Structures are always stored inline, they need to be created right
+     * where they're used.  You'll get this assertion failure if you
+     * created it elsewhere.
+     */
+    nested(obj) {
+        if (obj != this.offset()) {
+            throw new TypeError('FlatBuffers: struct must be serialized inline.');
+        }
+    }
+    /**
+     * Should not be creating any other object, string or vector
+     * while an object is being constructed
+     */
+    notNested() {
+        if (this.isNested) {
+            throw new TypeError('FlatBuffers: object serialization must not be nested.');
+        }
+    }
+    /**
+     * Set the current vtable at `voffset` to the current location in the buffer.
+     */
+    slot(voffset) {
+        if (this.vtable !== null)
+            this.vtable[voffset] = this.offset();
+    }
+    /**
+     * @returns Offset relative to the end of the buffer.
+     */
+    offset() {
+        return this.bb.capacity() - this.space;
+    }
+    /**
+     * Doubles the size of the backing ByteBuffer and copies the old data towards
+     * the end of the new buffer (since we build the buffer backwards).
+     *
+     * @param bb The current buffer with the existing data
+     * @returns A new byte buffer with the old data copied
+     * to it. The data is located at the end of the buffer.
+     *
+     * uint8Array.set() formally takes {Array<number>|ArrayBufferView}, so to pass
+     * it a uint8Array we need to suppress the type check:
+     * @suppress {checkTypes}
+     */
+    static growByteBuffer(bb) {
+        const old_buf_size = bb.capacity();
+        // Ensure we don't grow beyond what fits in an int.
+        if (old_buf_size & 0xC0000000) {
+            throw new Error('FlatBuffers: cannot grow buffer beyond 2 gigabytes.');
+        }
+        const new_buf_size = old_buf_size << 1;
+        const nbb = ByteBuffer.allocate(new_buf_size);
+        nbb.setPosition(new_buf_size - old_buf_size);
+        nbb.bytes().set(bb.bytes(), new_buf_size - old_buf_size);
+        return nbb;
+    }
+    /**
+     * Adds on offset, relative to where it will be written.
+     *
+     * @param offset The offset to add.
+     */
+    addOffset(offset) {
+        this.prep(SIZEOF_INT, 0); // Ensure alignment is already done.
+        this.writeInt32(this.offset() - offset + SIZEOF_INT);
+    }
+    /**
+     * Start encoding a new object in the buffer.  Users will not usually need to
+     * call this directly. The FlatBuffers compiler will generate helper methods
+     * that call this method internally.
+     */
+    startObject(numfields) {
+        this.notNested();
+        if (this.vtable == null) {
+            this.vtable = [];
+        }
+        this.vtable_in_use = numfields;
+        for (let i = 0; i < numfields; i++) {
+            this.vtable[i] = 0; // This will push additional elements as needed
+        }
+        this.isNested = true;
+        this.object_start = this.offset();
+    }
+    /**
+     * Finish off writing the object that is under construction.
+     *
+     * @returns The offset to the object inside `dataBuffer`
+     */
+    endObject() {
+        if (this.vtable == null || !this.isNested) {
+            throw new Error('FlatBuffers: endObject called without startObject');
+        }
+        this.addInt32(0);
+        const vtableloc = this.offset();
+        // Trim trailing zeroes.
+        let i = this.vtable_in_use - 1;
+        // eslint-disable-next-line no-empty
+        for (; i >= 0 && this.vtable[i] == 0; i--) { }
+        const trimmed_size = i + 1;
+        // Write out the current vtable.
+        for (; i >= 0; i--) {
+            // Offset relative to the start of the table.
+            this.addInt16(this.vtable[i] != 0 ? vtableloc - this.vtable[i] : 0);
+        }
+        const standard_fields = 2; // The fields below:
+        this.addInt16(vtableloc - this.object_start);
+        const len = (trimmed_size + standard_fields) * SIZEOF_SHORT;
+        this.addInt16(len);
+        // Search for an existing vtable that matches the current one.
+        let existing_vtable = 0;
+        const vt1 = this.space;
+        outer_loop: for (i = 0; i < this.vtables.length; i++) {
+            const vt2 = this.bb.capacity() - this.vtables[i];
+            if (len == this.bb.readInt16(vt2)) {
+                for (let j = SIZEOF_SHORT; j < len; j += SIZEOF_SHORT) {
+                    if (this.bb.readInt16(vt1 + j) != this.bb.readInt16(vt2 + j)) {
+                        continue outer_loop;
+                    }
+                }
+                existing_vtable = this.vtables[i];
+                break;
+            }
+        }
+        if (existing_vtable) {
+            // Found a match:
+            // Remove the current vtable.
+            this.space = this.bb.capacity() - vtableloc;
+            // Point table to existing vtable.
+            this.bb.writeInt32(this.space, existing_vtable - vtableloc);
+        }
+        else {
+            // No match:
+            // Add the location of the current vtable to the list of vtables.
+            this.vtables.push(this.offset());
+            // Point table to current vtable.
+            this.bb.writeInt32(this.bb.capacity() - vtableloc, this.offset() - vtableloc);
+        }
+        this.isNested = false;
+        return vtableloc;
+    }
+    /**
+     * Finalize a buffer, poiting to the given `root_table`.
+     */
+    finish(root_table, opt_file_identifier, opt_size_prefix) {
+        const size_prefix = opt_size_prefix ? SIZE_PREFIX_LENGTH : 0;
+        if (opt_file_identifier) {
+            const file_identifier = opt_file_identifier;
+            this.prep(this.minalign, SIZEOF_INT +
+                FILE_IDENTIFIER_LENGTH + size_prefix);
+            if (file_identifier.length != FILE_IDENTIFIER_LENGTH) {
+                throw new TypeError('FlatBuffers: file identifier must be length ' +
+                    FILE_IDENTIFIER_LENGTH);
+            }
+            for (let i = FILE_IDENTIFIER_LENGTH - 1; i >= 0; i--) {
+                this.writeInt8(file_identifier.charCodeAt(i));
+            }
+        }
+        this.prep(this.minalign, SIZEOF_INT + size_prefix);
+        this.addOffset(root_table);
+        if (size_prefix) {
+            this.addInt32(this.bb.capacity() - this.space);
+        }
+        this.bb.setPosition(this.space);
+    }
+    /**
+     * Finalize a size prefixed buffer, pointing to the given `root_table`.
+     */
+    finishSizePrefixed(root_table, opt_file_identifier) {
+        this.finish(root_table, opt_file_identifier, true);
+    }
+    /**
+     * This checks a required field has been set in a given table that has
+     * just been constructed.
+     */
+    requiredField(table, field) {
+        const table_start = this.bb.capacity() - table;
+        const vtable_start = table_start - this.bb.readInt32(table_start);
+        const ok = field < this.bb.readInt16(vtable_start) &&
+            this.bb.readInt16(vtable_start + field) != 0;
+        // If this fails, the caller will show what field needs to be set.
+        if (!ok) {
+            throw new TypeError('FlatBuffers: field ' + field + ' must be set');
+        }
+    }
+    /**
+     * Start a new array/vector of objects.  Users usually will not call
+     * this directly. The FlatBuffers compiler will create a start/end
+     * method for vector types in generated code.
+     *
+     * @param elem_size The size of each element in the array
+     * @param num_elems The number of elements in the array
+     * @param alignment The alignment of the array
+     */
+    startVector(elem_size, num_elems, alignment) {
+        this.notNested();
+        this.vector_num_elems = num_elems;
+        this.prep(SIZEOF_INT, elem_size * num_elems);
+        this.prep(alignment, elem_size * num_elems); // Just in case alignment > int.
+    }
+    /**
+     * Finish off the creation of an array and all its elements. The array must be
+     * created with `startVector`.
+     *
+     * @returns The offset at which the newly created array
+     * starts.
+     */
+    endVector() {
+        this.writeInt32(this.vector_num_elems);
+        return this.offset();
+    }
+    /**
+     * Encode the string `s` in the buffer using UTF-8. If the string passed has
+     * already been seen, we return the offset of the already written string
+     *
+     * @param s The string to encode
+     * @return The offset in the buffer where the encoded string starts
+     */
+    createSharedString(s) {
+        if (!s) {
+            return 0;
+        }
+        if (!this.string_maps) {
+            this.string_maps = new Map();
+        }
+        if (this.string_maps.has(s)) {
+            return this.string_maps.get(s);
+        }
+        const offset = this.createString(s);
+        this.string_maps.set(s, offset);
+        return offset;
+    }
+    /**
+     * Encode the string `s` in the buffer using UTF-8. If a Uint8Array is passed
+     * instead of a string, it is assumed to contain valid UTF-8 encoded data.
+     *
+     * @param s The string to encode
+     * @return The offset in the buffer where the encoded string starts
+     */
+    createString(s) {
+        if (s === null || s === undefined) {
+            return 0;
+        }
+        let utf8;
+        if (s instanceof Uint8Array) {
+            utf8 = s;
+        }
+        else {
+            utf8 = this.text_encoder.encode(s);
+        }
+        this.addInt8(0);
+        this.startVector(1, utf8.length, 1);
+        this.bb.setPosition(this.space -= utf8.length);
+        for (let i = 0, offset = this.space, bytes = this.bb.bytes(); i < utf8.length; i++) {
+            bytes[offset++] = utf8[i];
+        }
+        return this.endVector();
+    }
+    /**
+     * A helper function to pack an object
+     *
+     * @returns offset of obj
+     */
+    createObjectOffset(obj) {
+        if (obj === null) {
+            return 0;
+        }
+        if (typeof obj === 'string') {
+            return this.createString(obj);
+        }
+        else {
+            return obj.pack(this);
+        }
+    }
+    /**
+     * A helper function to pack a list of object
+     *
+     * @returns list of offsets of each non null object
+     */
+    createObjectOffsetList(list) {
+        const ret = [];
+        for (let i = 0; i < list.length; ++i) {
+            const val = list[i];
+            if (val !== null) {
+                ret.push(this.createObjectOffset(val));
+            }
+            else {
+                throw new TypeError('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
+            }
+        }
+        return ret;
+    }
+    createStructOffsetList(list, startFunc) {
+        startFunc(this, list.length);
+        this.createObjectOffsetList(list.slice().reverse());
+        return this.endVector();
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+class Alignment {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsAlignment(bb, obj) {
+        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsAlignment(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    position(index) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    positionLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    positionArray() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    curve(index) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    curveLength() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    curveArray() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    segment(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    segmentLength() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    segmentArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    static startAlignment(builder) {
+        builder.startObject(3);
+    }
+    static addPosition(builder, positionOffset) {
+        builder.addFieldOffset(0, positionOffset, 0);
+    }
+    static createPositionVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startPositionVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addCurve(builder, curveOffset) {
+        builder.addFieldOffset(1, curveOffset, 0);
+    }
+    static createCurveVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startCurveVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addSegment(builder, segmentOffset) {
+        builder.addFieldOffset(2, segmentOffset, 0);
+    }
+    static createSegmentVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startSegmentVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static endAlignment(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static createAlignment(builder, positionOffset, curveOffset, segmentOffset) {
+        Alignment.startAlignment(builder);
+        Alignment.addPosition(builder, positionOffset);
+        Alignment.addCurve(builder, curveOffset);
+        Alignment.addSegment(builder, segmentOffset);
+        return Alignment.endAlignment(builder);
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+class Civil {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsCivil(bb, obj) {
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsCivil(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    alignmentHorizontal(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    alignmentVertical(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    alignment3d(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    static startCivil(builder) {
+        builder.startObject(3);
+    }
+    static addAlignmentHorizontal(builder, alignmentHorizontalOffset) {
+        builder.addFieldOffset(0, alignmentHorizontalOffset, 0);
+    }
+    static addAlignmentVertical(builder, alignmentVerticalOffset) {
+        builder.addFieldOffset(1, alignmentVerticalOffset, 0);
+    }
+    static addAlignment3d(builder, alignment3dOffset) {
+        builder.addFieldOffset(2, alignment3dOffset, 0);
+    }
+    static endCivil(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+class Fragment {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsFragment(bb, obj) {
+        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsFragment(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    position(index) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    positionLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    positionArray() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    normal(index) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    normalLength() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    normalArray() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    index(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    indexLength() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    indexArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    blockId(index) {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    blockIdLength() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    blockIdArray() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    groups(index) {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    groupsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    groupsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    materials(index) {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    materialsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    materialsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    matrices(index) {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    matricesLength() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    matricesArray() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    colors(index) {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    colorsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    colorsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    ids(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 20);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    id(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 22);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    composites(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 24);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    static startFragment(builder) {
+        builder.startObject(11);
+    }
+    static addPosition(builder, positionOffset) {
+        builder.addFieldOffset(0, positionOffset, 0);
+    }
+    static createPositionVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startPositionVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addNormal(builder, normalOffset) {
+        builder.addFieldOffset(1, normalOffset, 0);
+    }
+    static createNormalVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startNormalVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addIndex(builder, indexOffset) {
+        builder.addFieldOffset(2, indexOffset, 0);
+    }
+    static createIndexVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startIndexVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addBlockId(builder, blockIdOffset) {
+        builder.addFieldOffset(3, blockIdOffset, 0);
+    }
+    static createBlockIdVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startBlockIdVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addGroups(builder, groupsOffset) {
+        builder.addFieldOffset(4, groupsOffset, 0);
+    }
+    static createGroupsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startGroupsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addMaterials(builder, materialsOffset) {
+        builder.addFieldOffset(5, materialsOffset, 0);
+    }
+    static createMaterialsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startMaterialsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addMatrices(builder, matricesOffset) {
+        builder.addFieldOffset(6, matricesOffset, 0);
+    }
+    static createMatricesVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startMatricesVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addColors(builder, colorsOffset) {
+        builder.addFieldOffset(7, colorsOffset, 0);
+    }
+    static createColorsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startColorsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addIds(builder, idsOffset) {
+        builder.addFieldOffset(8, idsOffset, 0);
+    }
+    static addId(builder, idOffset) {
+        builder.addFieldOffset(9, idOffset, 0);
+    }
+    static addComposites(builder, compositesOffset) {
+        builder.addFieldOffset(10, compositesOffset, 0);
+    }
+    static endFragment(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static createFragment(builder, positionOffset, normalOffset, indexOffset, blockIdOffset, groupsOffset, materialsOffset, matricesOffset, colorsOffset, idsOffset, idOffset, compositesOffset) {
+        Fragment.startFragment(builder);
+        Fragment.addPosition(builder, positionOffset);
+        Fragment.addNormal(builder, normalOffset);
+        Fragment.addIndex(builder, indexOffset);
+        Fragment.addBlockId(builder, blockIdOffset);
+        Fragment.addGroups(builder, groupsOffset);
+        Fragment.addMaterials(builder, materialsOffset);
+        Fragment.addMatrices(builder, matricesOffset);
+        Fragment.addColors(builder, colorsOffset);
+        Fragment.addIds(builder, idsOffset);
+        Fragment.addId(builder, idOffset);
+        Fragment.addComposites(builder, compositesOffset);
+        return Fragment.endFragment(builder);
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+let FragmentsGroup$1 = class FragmentsGroup {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsFragmentsGroup(bb, obj) {
+        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsFragmentsGroup(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    items(index, obj) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? (obj || new Fragment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    }
+    itemsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    civil(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? (obj || new Civil()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    coordinationMatrix(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    coordinationMatrixLength() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    coordinationMatrixArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    ids(index) {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    idsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    idsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsKeys(index) {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsKeysLength() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsKeysArray() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsKeysIndices(index) {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsKeysIndicesLength() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsKeysIndicesArray() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsRels(index) {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsRelsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsRelsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsRelsIndices(index) {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsRelsIndicesLength() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsRelsIndicesArray() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    fragmentKeys(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 20);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    id(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 22);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    name(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 24);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    ifcName(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 26);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    ifcDescription(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 28);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    ifcSchema(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 30);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    maxExpressId() {
+        const offset = this.bb.__offset(this.bb_pos, 32);
+        return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
+    }
+    boundingBox(index) {
+        const offset = this.bb.__offset(this.bb_pos, 34);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    boundingBoxLength() {
+        const offset = this.bb.__offset(this.bb_pos, 34);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    boundingBoxArray() {
+        const offset = this.bb.__offset(this.bb_pos, 34);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    static startFragmentsGroup(builder) {
+        builder.startObject(16);
+    }
+    static addItems(builder, itemsOffset) {
+        builder.addFieldOffset(0, itemsOffset, 0);
+    }
+    static createItemsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addOffset(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addCivil(builder, civilOffset) {
+        builder.addFieldOffset(1, civilOffset, 0);
+    }
+    static addCoordinationMatrix(builder, coordinationMatrixOffset) {
+        builder.addFieldOffset(2, coordinationMatrixOffset, 0);
+    }
+    static createCoordinationMatrixVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startCoordinationMatrixVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addIds(builder, idsOffset) {
+        builder.addFieldOffset(3, idsOffset, 0);
+    }
+    static createIdsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startIdsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsKeys(builder, itemsKeysOffset) {
+        builder.addFieldOffset(4, itemsKeysOffset, 0);
+    }
+    static createItemsKeysVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsKeysVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsKeysIndices(builder, itemsKeysIndicesOffset) {
+        builder.addFieldOffset(5, itemsKeysIndicesOffset, 0);
+    }
+    static createItemsKeysIndicesVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsKeysIndicesVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsRels(builder, itemsRelsOffset) {
+        builder.addFieldOffset(6, itemsRelsOffset, 0);
+    }
+    static createItemsRelsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsRelsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsRelsIndices(builder, itemsRelsIndicesOffset) {
+        builder.addFieldOffset(7, itemsRelsIndicesOffset, 0);
+    }
+    static createItemsRelsIndicesVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsRelsIndicesVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addFragmentKeys(builder, fragmentKeysOffset) {
+        builder.addFieldOffset(8, fragmentKeysOffset, 0);
+    }
+    static addId(builder, idOffset) {
+        builder.addFieldOffset(9, idOffset, 0);
+    }
+    static addName(builder, nameOffset) {
+        builder.addFieldOffset(10, nameOffset, 0);
+    }
+    static addIfcName(builder, ifcNameOffset) {
+        builder.addFieldOffset(11, ifcNameOffset, 0);
+    }
+    static addIfcDescription(builder, ifcDescriptionOffset) {
+        builder.addFieldOffset(12, ifcDescriptionOffset, 0);
+    }
+    static addIfcSchema(builder, ifcSchemaOffset) {
+        builder.addFieldOffset(13, ifcSchemaOffset, 0);
+    }
+    static addMaxExpressId(builder, maxExpressId) {
+        builder.addFieldInt32(14, maxExpressId, 0);
+    }
+    static addBoundingBox(builder, boundingBoxOffset) {
+        builder.addFieldOffset(15, boundingBoxOffset, 0);
+    }
+    static createBoundingBoxVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startBoundingBoxVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static endFragmentsGroup(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static finishFragmentsGroupBuffer(builder, offset) {
+        builder.finish(offset);
+    }
+    static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
+        builder.finish(offset, undefined, true);
+    }
+};
+
+// TODO: Document this
+class FragmentsGroup extends THREE$1.Group {
+    constructor() {
+        super(...arguments);
+        this.items = [];
+        this.boundingBox = new THREE$1.Box3();
+        this.coordinationMatrix = new THREE$1.Matrix4();
+        this.keyFragments = {};
+        // data: [expressID: number]: [keys, rels]
+        this.data = {};
+        this.ifcMetadata = {
+            name: "",
+            description: "",
+            schema: "IFC2X3",
+            maxExpressID: 0,
+        };
+    }
+    // TODO: Force all item IDs to be numbers or strings
+    getFragmentMap(expressIDs) {
+        const fragmentMap = {};
+        for (const expressID of expressIDs) {
+            const data = this.data[expressID];
+            if (!data)
+                continue;
+            for (const key of data[0]) {
+                const fragmentID = this.keyFragments[key];
+                if (!fragmentMap[fragmentID])
+                    fragmentMap[fragmentID] = new Set();
+                fragmentMap[fragmentID].add(expressID);
+            }
+        }
+        return fragmentMap;
+    }
+    dispose(disposeResources = true) {
+        for (const fragment of this.items) {
+            fragment.dispose(disposeResources);
+        }
+        this.coordinationMatrix = new THREE$1.Matrix4();
+        this.keyFragments = {};
+        this.data = {};
+        this.properties = {};
+    }
+}
+
+class IfcAlignmentData {
+    constructor() {
+        this.coordinates = new Float32Array(0);
+        this.alignmentIndex = [];
+        this.curveIndex = [];
+    }
+    exportData() {
+        const { coordinates, alignmentIndex, curveIndex } = this;
+        return { coordinates, alignmentIndex, curveIndex };
+    }
+}
+
+/**
+ * Object to export and import sets of fragments efficiently using
+ * [flatbuffers](https://flatbuffers.dev/).
+ */
+class Serializer {
+    constructor() {
+        this.fragmentIDSeparator = "|";
+    }
+    import(bytes) {
+        const buffer = new ByteBuffer(bytes);
+        const fbFragmentsGroup = FragmentsGroup$1.getRootAsFragmentsGroup(buffer);
+        const fragmentsGroup = this.constructFragmentGroup(fbFragmentsGroup);
+        const length = fbFragmentsGroup.itemsLength();
+        for (let i = 0; i < length; i++) {
+            const fbFragment = fbFragmentsGroup.items(i);
+            if (!fbFragment)
+                continue;
+            const geometry = this.constructGeometry(fbFragment);
+            const materials = this.constructMaterials(fbFragment);
+            const { instances, colors } = this.constructInstances(fbFragment);
+            const fragment = new Fragment$1(geometry, materials, instances.length);
+            this.getComposites(fbFragment, fragment);
+            this.setInstances(instances, colors, fragment);
+            this.setID(fbFragment, fragment);
+            fragmentsGroup.items.push(fragment);
+            fragmentsGroup.add(fragment.mesh);
+        }
+        return fragmentsGroup;
+    }
+    export(group) {
+        var _a;
+        const builder = new Builder(1024);
+        const items = [];
+        const G = FragmentsGroup$1;
+        const F = Fragment;
+        const C = Civil;
+        let exportedCivil = null;
+        if ((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments) {
+            const A = Alignment;
+            const resultH = group.ifcCivil.horizontalAlignments.exportData();
+            const posVectorH = A.createPositionVector(builder, resultH.coordinates);
+            const curveVectorH = A.createSegmentVector(builder, resultH.curveIndex);
+            const alignVectorH = A.createCurveVector(builder, resultH.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorH);
+            A.addSegment(builder, curveVectorH);
+            A.addCurve(builder, alignVectorH);
+            const exportedH = Alignment.endAlignment(builder);
+            const resultV = group.ifcCivil.verticalAlignments.exportData();
+            const posVectorV = A.createPositionVector(builder, resultV.coordinates);
+            const curveVectorV = A.createSegmentVector(builder, resultV.curveIndex);
+            const alignVectorV = A.createCurveVector(builder, resultV.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorV);
+            A.addSegment(builder, curveVectorV);
+            A.addCurve(builder, alignVectorV);
+            const exportedV = Alignment.endAlignment(builder);
+            const resultR = group.ifcCivil.realAlignments.exportData();
+            const posVectorR = A.createPositionVector(builder, resultR.coordinates);
+            const curveVectorR = A.createSegmentVector(builder, resultR.curveIndex);
+            const alignVectorR = A.createCurveVector(builder, resultR.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorR);
+            A.addSegment(builder, curveVectorR);
+            A.addCurve(builder, alignVectorR);
+            const exportedR = Alignment.endAlignment(builder);
+            C.startCivil(builder);
+            C.addAlignmentHorizontal(builder, exportedH);
+            C.addAlignmentVertical(builder, exportedV);
+            C.addAlignment3d(builder, exportedR);
+            exportedCivil = Civil.endCivil(builder);
+        }
+        for (const fragment of group.items) {
+            const result = fragment.exportData();
+            const posVector = F.createPositionVector(builder, result.position);
+            const normalVector = F.createNormalVector(builder, result.normal);
+            const blockVector = F.createBlockIdVector(builder, result.blockID);
+            const indexVector = F.createIndexVector(builder, result.index);
+            const groupsVector = F.createGroupsVector(builder, result.groups);
+            const matsVector = F.createMaterialsVector(builder, result.materials);
+            const matricesVector = F.createMatricesVector(builder, result.matrices);
+            const colorsVector = F.createColorsVector(builder, result.colors);
+            const idsStr = builder.createString(result.ids);
+            const idStr = builder.createString(result.id);
+            const compositeStr = builder.createString(JSON.stringify(fragment.composites));
+            F.startFragment(builder);
+            F.addPosition(builder, posVector);
+            F.addNormal(builder, normalVector);
+            F.addBlockId(builder, blockVector);
+            F.addIndex(builder, indexVector);
+            F.addGroups(builder, groupsVector);
+            F.addMaterials(builder, matsVector);
+            F.addMatrices(builder, matricesVector);
+            F.addColors(builder, colorsVector);
+            F.addIds(builder, idsStr);
+            F.addId(builder, idStr);
+            F.addComposites(builder, compositeStr);
+            const exported = Fragment.endFragment(builder);
+            items.push(exported);
+        }
+        const itemsVector = G.createItemsVector(builder, items);
+        const matrixVector = G.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
+        let fragmentKeys = "";
+        for (const key in group.keyFragments) {
+            const fragmentID = group.keyFragments[key];
+            if (fragmentKeys.length)
+                fragmentKeys += this.fragmentIDSeparator;
+            fragmentKeys += fragmentID;
+        }
+        const fragmentKeysRef = builder.createString(fragmentKeys);
+        const keyIndices = [];
+        const itemsKeys = [];
+        const relsIndices = [];
+        const itemsRels = [];
+        const ids = [];
+        let keysCounter = 0;
+        let relsCounter = 0;
+        for (const expressID in group.data) {
+            keyIndices.push(keysCounter);
+            relsIndices.push(relsCounter);
+            const [keys, rels] = group.data[expressID];
+            const id = parseInt(expressID, 10);
+            ids.push(id);
+            for (const key of keys) {
+                itemsKeys.push(key);
+            }
+            for (const rel of rels) {
+                itemsRels.push(rel);
+            }
+            keysCounter += keys.length;
+            relsCounter += rels.length;
+        }
+        const groupID = builder.createString(group.uuid);
+        const groupName = builder.createString(group.name);
+        const ifcName = builder.createString(group.ifcMetadata.name);
+        const ifcDescription = builder.createString(group.ifcMetadata.description);
+        const ifcSchema = builder.createString(group.ifcMetadata.schema);
+        const keysIVector = G.createItemsKeysIndicesVector(builder, keyIndices);
+        const keysVector = G.createItemsKeysVector(builder, itemsKeys);
+        const relsIVector = G.createItemsRelsIndicesVector(builder, relsIndices);
+        const relsVector = G.createItemsRelsVector(builder, itemsRels);
+        const idsVector = G.createIdsVector(builder, ids);
+        const { min, max } = group.boundingBox;
+        const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
+        const bboxVector = G.createBoundingBoxVector(builder, bbox);
+        G.startFragmentsGroup(builder);
+        if (exportedCivil !== null) {
+            G.addCivil(builder, exportedCivil);
+        }
+        G.addId(builder, groupID);
+        G.addName(builder, groupName);
+        G.addIfcName(builder, ifcName);
+        G.addIfcDescription(builder, ifcDescription);
+        G.addIfcSchema(builder, ifcSchema);
+        G.addMaxExpressId(builder, group.ifcMetadata.maxExpressID);
+        G.addItems(builder, itemsVector);
+        G.addFragmentKeys(builder, fragmentKeysRef);
+        G.addIds(builder, idsVector);
+        G.addItemsKeysIndices(builder, keysIVector);
+        G.addItemsKeys(builder, keysVector);
+        G.addItemsRelsIndices(builder, relsIVector);
+        G.addItemsRels(builder, relsVector);
+        G.addCoordinationMatrix(builder, matrixVector);
+        G.addBoundingBox(builder, bboxVector);
+        const result = FragmentsGroup$1.endFragmentsGroup(builder);
+        builder.finish(result);
+        return builder.asUint8Array();
+    }
+    getComposites(fbFragment, fragment) {
+        const composites = fbFragment.composites() || "{}";
+        fragment.composites = JSON.parse(composites);
+    }
+    setID(fbFragment, fragment) {
+        const id = fbFragment.id();
+        if (id) {
+            fragment.id = id;
+            fragment.mesh.uuid = id;
+        }
+    }
+    setInstances(instances, colors, fragment) {
+        for (let i = 0; i < instances.length; i++) {
+            fragment.setInstance(i, instances[i]);
+            if (colors.length) {
+                fragment.mesh.setColorAt(i, colors[i]);
+            }
+        }
+    }
+    constructInstances(fragment) {
+        const matricesData = fragment.matricesArray();
+        const colorData = fragment.colorsArray();
+        const colors = [];
+        const idsString = fragment.ids();
+        const id = fragment.id();
+        if (!matricesData || !idsString) {
+            throw new Error(`Error: Can't load empty fragment: ${id}`);
+        }
+        const ids = idsString.split("|");
+        const singleInstance = matricesData.length === 16;
+        const manyItems = ids.length > 1;
+        const isMergedFragment = singleInstance && manyItems;
+        if (isMergedFragment) {
+            const transform = new THREE$1.Matrix4().fromArray(matricesData);
+            const instances = [{ ids, transform }];
+            return { instances, colors };
+        }
+        // Instanced fragment
+        const instances = [];
+        for (let i = 0; i < matricesData.length; i += 16) {
+            const matrixArray = matricesData.subarray(i, i + 17);
+            const transform = new THREE$1.Matrix4().fromArray(matrixArray);
+            const id = ids[i / 16];
+            instances.push({ ids: [id], transform });
+        }
+        if (colorData && colorData.length === instances.length * 3) {
+            for (let i = 0; i < colorData.length; i += 3) {
+                const [r, g, b] = colorData.subarray(i, i + 4);
+                const color = new THREE$1.Color(r, g, b);
+                colors.push(color);
+            }
+        }
+        return { instances, colors };
+    }
+    constructMaterials(fragment) {
+        const materials = fragment.materialsArray();
+        const matArray = [];
+        if (!materials)
+            return matArray;
+        for (let i = 0; i < materials.length; i += 5) {
+            const opacity = materials[i];
+            const transparent = Boolean(materials[i + 1]);
+            const red = materials[i + 2];
+            const green = materials[i + 3];
+            const blue = materials[i + 4];
+            const color = new THREE$1.Color(red, green, blue);
+            const material = new THREE$1.MeshLambertMaterial({
+                color,
+                opacity,
+                transparent,
+            });
+            matArray.push(material);
+        }
+        return matArray;
+    }
+    constructFragmentGroup(group) {
+        const fragmentsGroup = new FragmentsGroup();
+        const FBcivil = group.civil();
+        const horizontalAlignments = new IfcAlignmentData();
+        const verticalAlignments = new IfcAlignmentData();
+        const realAlignments = new IfcAlignmentData();
+        if (FBcivil) {
+            const FBalignmentH = FBcivil.alignmentHorizontal();
+            this.getAlignmentData(FBalignmentH, horizontalAlignments);
+            const FBalignmentV = FBcivil.alignmentVertical();
+            this.getAlignmentData(FBalignmentV, verticalAlignments);
+            const FBalignment3D = FBcivil.alignment3d();
+            this.getAlignmentData(FBalignment3D, realAlignments);
+            fragmentsGroup.ifcCivil = {
+                horizontalAlignments,
+                verticalAlignments,
+                realAlignments,
+            };
+        }
+        // fragmentsGroup.ifcCivil?.horizontalAlignments
+        fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
+        fragmentsGroup.name = group.name() || "";
+        fragmentsGroup.ifcMetadata = {
+            name: group.ifcName() || "",
+            description: group.ifcDescription() || "",
+            schema: group.ifcSchema() || "IFC2X3",
+            maxExpressID: group.maxExpressId() || 0,
+        };
+        const defaultMatrix = new THREE$1.Matrix4().elements;
+        const matrixArray = group.coordinationMatrixArray() || defaultMatrix;
+        const ids = group.idsArray() || new Uint32Array();
+        const keysIndices = group.itemsKeysIndicesArray() || new Uint32Array();
+        const keysArray = group.itemsKeysArray() || new Uint32Array();
+        const relsArray = group.itemsRelsArray() || new Uint32Array();
+        const relsIndices = group.itemsRelsIndicesArray() || new Uint32Array();
+        const keysIdsString = group.fragmentKeys() || "";
+        const keysIdsArray = keysIdsString.split(this.fragmentIDSeparator);
+        this.setGroupData(fragmentsGroup, ids, keysIndices, keysArray, 0);
+        this.setGroupData(fragmentsGroup, ids, relsIndices, relsArray, 1);
+        const bbox = group.boundingBoxArray() || [0, 0, 0, 0, 0, 0];
+        const [minX, minY, minZ, maxX, maxY, maxZ] = bbox;
+        fragmentsGroup.boundingBox.min.set(minX, minY, minZ);
+        fragmentsGroup.boundingBox.max.set(maxX, maxY, maxZ);
+        for (let i = 0; i < keysIdsArray.length; i++) {
+            fragmentsGroup.keyFragments[i] = keysIdsArray[i];
+        }
+        if (matrixArray.length === 16) {
+            fragmentsGroup.coordinationMatrix.fromArray(matrixArray);
+        }
+        return fragmentsGroup;
+    }
+    getAlignmentData(alignment, result) {
+        if (alignment) {
+            if (alignment.positionArray) {
+                result.coordinates = alignment.positionArray();
+                for (let j = 0; j < alignment.curveLength(); j++) {
+                    result.alignmentIndex.push(alignment.curve(j));
+                }
+                for (let j = 0; j < alignment.segmentLength(); j++) {
+                    result.curveIndex.push(alignment.segment(j));
+                }
+            }
+        }
+    }
+    setGroupData(group, ids, indices, array, index) {
+        for (let i = 0; i < indices.length; i++) {
+            const expressID = ids[i];
+            const currentIndex = indices[i];
+            const nextIndex = indices[i + 1] || array.length;
+            const keys = [];
+            for (let j = currentIndex; j < nextIndex; j++) {
+                keys.push(array[j]);
+            }
+            if (!group.data[expressID]) {
+                group.data[expressID] = [[], []];
+            }
+            group.data[expressID][index] = keys;
+        }
+    }
+    constructGeometry(fragment) {
+        const position = fragment.positionArray();
+        const normal = fragment.normalArray();
+        const blockID = fragment.blockIdArray();
+        const index = fragment.indexArray();
+        const groups = fragment.groupsArray();
+        if (!index)
+            throw new Error("Index not found!");
+        const geometry = new THREE$1.BufferGeometry();
+        geometry.setIndex(Array.from(index));
+        this.loadAttribute(geometry, "position", position, 3);
+        this.loadAttribute(geometry, "normal", normal, 3);
+        this.loadAttribute(geometry, "blockID", blockID, 1);
+        this.loadGeometryGroups(groups, geometry);
+        return geometry;
+    }
+    loadGeometryGroups(groups, geometry) {
+        if (!groups)
+            return;
+        for (let i = 0; i < groups.length; i += 3) {
+            const start = groups[i];
+            const count = groups[i + 1];
+            const materialIndex = groups[i + 2];
+            geometry.addGroup(start, count, materialIndex);
+        }
+    }
+    loadAttribute(geometry, name, data, size) {
+        if (!data)
+            return;
+        geometry.setAttribute(name, new THREE$1.BufferAttribute(data, size));
+    }
+}
+
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 function getDefaultExportFromCjs (x) {
@@ -31942,2724 +34624,6 @@ LengthMeasurement.uuid = "2f9bcacf-18a9-4be6-a293-e898eae64ea1";
 ToolComponent.libraryUUIDs.add(LengthMeasurement.uuid);
 
 /**
- * @param  {Array<BufferGeometry>} geometries
- * @param  {Boolean} useGroups
- * @return {BufferGeometry}
- */
-function mergeGeometries( geometries, useGroups = false ) {
-
-	const isIndexed = geometries[ 0 ].index !== null;
-
-	const attributesUsed = new Set( Object.keys( geometries[ 0 ].attributes ) );
-	const morphAttributesUsed = new Set( Object.keys( geometries[ 0 ].morphAttributes ) );
-
-	const attributes = {};
-	const morphAttributes = {};
-
-	const morphTargetsRelative = geometries[ 0 ].morphTargetsRelative;
-
-	const mergedGeometry = new BufferGeometry();
-
-	let offset = 0;
-
-	for ( let i = 0; i < geometries.length; ++ i ) {
-
-		const geometry = geometries[ i ];
-		let attributesCount = 0;
-
-		// ensure that all geometries are indexed, or none
-
-		if ( isIndexed !== ( geometry.index !== null ) ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.' );
-			return null;
-
-		}
-
-		// gather attributes, exit early if they're different
-
-		for ( const name in geometry.attributes ) {
-
-			if ( ! attributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.' );
-				return null;
-
-			}
-
-			if ( attributes[ name ] === undefined ) attributes[ name ] = [];
-
-			attributes[ name ].push( geometry.attributes[ name ] );
-
-			attributesCount ++;
-
-		}
-
-		// ensure geometries have the same number of attributes
-
-		if ( attributesCount !== attributesUsed.size ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. Make sure all geometries have the same number of attributes.' );
-			return null;
-
-		}
-
-		// gather morph attributes, exit early if they're different
-
-		if ( morphTargetsRelative !== geometry.morphTargetsRelative ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. .morphTargetsRelative must be consistent throughout all geometries.' );
-			return null;
-
-		}
-
-		for ( const name in geometry.morphAttributes ) {
-
-			if ( ! morphAttributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '.  .morphAttributes must be consistent throughout all geometries.' );
-				return null;
-
-			}
-
-			if ( morphAttributes[ name ] === undefined ) morphAttributes[ name ] = [];
-
-			morphAttributes[ name ].push( geometry.morphAttributes[ name ] );
-
-		}
-
-		if ( useGroups ) {
-
-			let count;
-
-			if ( isIndexed ) {
-
-				count = geometry.index.count;
-
-			} else if ( geometry.attributes.position !== undefined ) {
-
-				count = geometry.attributes.position.count;
-
-			} else {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. The geometry must have either an index or a position attribute' );
-				return null;
-
-			}
-
-			mergedGeometry.addGroup( offset, count, i );
-
-			offset += count;
-
-		}
-
-	}
-
-	// merge indices
-
-	if ( isIndexed ) {
-
-		let indexOffset = 0;
-		const mergedIndex = [];
-
-		for ( let i = 0; i < geometries.length; ++ i ) {
-
-			const index = geometries[ i ].index;
-
-			for ( let j = 0; j < index.count; ++ j ) {
-
-				mergedIndex.push( index.getX( j ) + indexOffset );
-
-			}
-
-			indexOffset += geometries[ i ].attributes.position.count;
-
-		}
-
-		mergedGeometry.setIndex( mergedIndex );
-
-	}
-
-	// merge attributes
-
-	for ( const name in attributes ) {
-
-		const mergedAttribute = mergeAttributes( attributes[ name ] );
-
-		if ( ! mergedAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' attribute.' );
-			return null;
-
-		}
-
-		mergedGeometry.setAttribute( name, mergedAttribute );
-
-	}
-
-	// merge morph attributes
-
-	for ( const name in morphAttributes ) {
-
-		const numMorphTargets = morphAttributes[ name ][ 0 ].length;
-
-		if ( numMorphTargets === 0 ) break;
-
-		mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
-		mergedGeometry.morphAttributes[ name ] = [];
-
-		for ( let i = 0; i < numMorphTargets; ++ i ) {
-
-			const morphAttributesToMerge = [];
-
-			for ( let j = 0; j < morphAttributes[ name ].length; ++ j ) {
-
-				morphAttributesToMerge.push( morphAttributes[ name ][ j ][ i ] );
-
-			}
-
-			const mergedMorphAttribute = mergeAttributes( morphAttributesToMerge );
-
-			if ( ! mergedMorphAttribute ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' morphAttribute.' );
-				return null;
-
-			}
-
-			mergedGeometry.morphAttributes[ name ].push( mergedMorphAttribute );
-
-		}
-
-	}
-
-	return mergedGeometry;
-
-}
-
-/**
- * @param {Array<BufferAttribute>} attributes
- * @return {BufferAttribute}
- */
-function mergeAttributes( attributes ) {
-
-	let TypedArray;
-	let itemSize;
-	let normalized;
-	let arrayLength = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		const attribute = attributes[ i ];
-
-		if ( attribute.isInterleavedBufferAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. InterleavedBufferAttributes are not supported.' );
-			return null;
-
-		}
-
-		if ( TypedArray === undefined ) TypedArray = attribute.array.constructor;
-		if ( TypedArray !== attribute.array.constructor ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.' );
-			return null;
-
-		}
-
-		if ( itemSize === undefined ) itemSize = attribute.itemSize;
-		if ( itemSize !== attribute.itemSize ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		if ( normalized === undefined ) normalized = attribute.normalized;
-		if ( normalized !== attribute.normalized ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		arrayLength += attribute.array.length;
-
-	}
-
-	const array = new TypedArray( arrayLength );
-	let offset = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		array.set( attributes[ i ].array, offset );
-
-		offset += attributes[ i ].array.length;
-
-	}
-
-	return new BufferAttribute$1( array, itemSize, normalized );
-
-}
-
-class GeometryUtils {
-    static merge(geometriesByMaterial, splitByBlocks = false) {
-        const geometriesByMat = [];
-        const sizes = [];
-        for (const geometries of geometriesByMaterial) {
-            const merged = this.mergeGeomsOfSameMaterial(geometries, splitByBlocks);
-            geometriesByMat.push(merged);
-            sizes.push(merged.index.count);
-        }
-        const geometry = mergeGeometries(geometriesByMat);
-        this.setupMaterialGroups(sizes, geometry);
-        this.cleanUp(geometriesByMat);
-        return geometry;
-    }
-    // When Three.js exports to glTF, it generates one separate mesh per material. All meshes
-    // share the same BufferAttributes and have different indices
-    static async mergeGltfMeshes(meshes) {
-        const geometry = new BufferGeometry();
-        const attributes = meshes[0].geometry.attributes;
-        this.getMeshesAttributes(geometry, attributes);
-        this.getMeshesIndices(geometry, meshes);
-        return geometry;
-    }
-    static getMeshesAttributes(geometry, attributes) {
-        // Three.js GLTFExporter exports custom BufferAttributes as underscore lowercase
-        // eslint-disable-next-line no-underscore-dangle
-        geometry.setAttribute("blockID", attributes._blockid);
-        geometry.setAttribute("position", attributes.position);
-        geometry.setAttribute("normal", attributes.normal);
-        geometry.groups = [];
-    }
-    static getMeshesIndices(geometry, meshes) {
-        const counter = { index: 0, material: 0 };
-        const indices = [];
-        for (const mesh of meshes) {
-            const index = mesh.geometry.index;
-            this.getIndicesOfMesh(index, indices);
-            this.getMeshGroup(geometry, counter, index);
-            this.cleanUpMesh(mesh);
-        }
-        geometry.setIndex(indices);
-    }
-    static getMeshGroup(geometry, counter, index) {
-        geometry.groups.push({
-            start: counter.index,
-            count: index.count,
-            materialIndex: counter.material++,
-        });
-        counter.index += index.count;
-    }
-    static cleanUpMesh(mesh) {
-        mesh.geometry.setIndex([]);
-        mesh.geometry.attributes = {};
-        mesh.geometry.dispose();
-    }
-    static getIndicesOfMesh(index, indices) {
-        for (const number of index.array) {
-            indices.push(number);
-        }
-    }
-    static cleanUp(geometries) {
-        geometries.forEach((geometry) => geometry.dispose());
-        geometries.length = 0;
-    }
-    static setupMaterialGroups(sizes, geometry) {
-        let vertexCounter = 0;
-        let counter = 0;
-        for (const size of sizes) {
-            const group = {
-                start: vertexCounter,
-                count: size,
-                materialIndex: counter++,
-            };
-            geometry.groups.push(group);
-            vertexCounter += size;
-        }
-    }
-    static mergeGeomsOfSameMaterial(geometries, splitByBlocks) {
-        this.checkAllGeometriesAreIndexed(geometries);
-        if (splitByBlocks) {
-            this.splitByBlocks(geometries);
-        }
-        const merged = mergeGeometries(geometries);
-        this.cleanUp(geometries);
-        return merged;
-    }
-    static splitByBlocks(geometries) {
-        let i = 0;
-        for (const geometry of geometries) {
-            const size = geometry.attributes.position.count;
-            // TODO: Substitute blockID attribute by block id map
-            const array = new Uint16Array(size).fill(i++);
-            geometry.setAttribute("blockID", new BufferAttribute$1(array, 1));
-        }
-    }
-    static checkAllGeometriesAreIndexed(geometries) {
-        for (const geometry of geometries) {
-            if (!geometry.index) {
-                throw new Error("All geometries must be indexed!");
-            }
-        }
-    }
-}
-
-/**
- * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
- * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
- */
-class Blocks {
-    constructor(fragment) {
-        this.fragment = fragment;
-        this._visibilityInitialized = false;
-        this._originalIndex = new Map();
-        this._idIndexIndexMap = {};
-        const rawIds = fragment.mesh.geometry.attributes.blockID.array;
-        this.ids = new Set(rawIds);
-        this.visibleIds = new Set(this.ids);
-    }
-    get count() {
-        return this.ids.size;
-    }
-    setVisibility(visible, itemIDs = new Set(this.fragment.items), isolate = false) {
-        const geometry = this.fragment.mesh.geometry;
-        const index = geometry.index;
-        if (!this._visibilityInitialized) {
-            this.initializeVisibility(index, geometry);
-        }
-        if (isolate) {
-            index.array.fill(0);
-        }
-        for (const id of itemIDs) {
-            const indices = this._idIndexIndexMap[id];
-            if (!indices)
-                continue;
-            for (const i of indices) {
-                const originalIndex = this._originalIndex.get(i);
-                if (originalIndex === undefined)
-                    continue;
-                const blockID = geometry.attributes.blockID.getX(originalIndex);
-                const itemID = this.fragment.items[blockID];
-                if (itemIDs.has(itemID)) {
-                    if (visible) {
-                        this.visibleIds.add(blockID);
-                    }
-                    else {
-                        this.visibleIds.delete(blockID);
-                    }
-                    const newIndex = visible ? originalIndex : 0;
-                    index.setX(i, newIndex);
-                }
-            }
-        }
-        index.needsUpdate = true;
-    }
-    initializeVisibility(index, geometry) {
-        for (let i = 0; i < index.count; i++) {
-            const foundIndex = index.getX(i);
-            this._originalIndex.set(i, foundIndex);
-            const blockID = geometry.attributes.blockID.getX(foundIndex);
-            const itemID = this.fragment.getItemID(0, blockID);
-            if (!this._idIndexIndexMap[itemID]) {
-                this._idIndexIndexMap[itemID] = [];
-            }
-            this._idIndexIndexMap[itemID].push(i);
-        }
-        this._visibilityInitialized = true;
-    }
-    // Use this only for destroying the current Fragment instance
-    dispose() {
-        this._idIndexIndexMap = {};
-        this.ids.clear();
-        this.visibleIds.clear();
-        this._originalIndex.clear();
-        this.ids = null;
-        this.visibleIds = null;
-        this._originalIndex = null;
-    }
-}
-
-// Source: https://github.com/gkjohnson/three-mesh-bvh
-class BVH {
-    static apply(geometry) {
-        if (!BVH.initialized) {
-            BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-            BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-            Mesh.prototype.raycast = acceleratedRaycast;
-            BVH.initialized = true;
-        }
-        if (!geometry.boundsTree) {
-            geometry.computeBoundsTree();
-        }
-    }
-    static dispose(geometry) {
-        geometry.disposeBoundsTree();
-    }
-}
-BVH.initialized = false;
-
-/*
- * Fragments can contain one or multiple Instances of one or multiple Blocks
- * Each Instance is identified by an instanceID (property of THREE.InstancedMesh)
- * Each Block identified by a blockID (custom bufferAttribute per vertex)
- * Both instanceId and blockId are unsigned integers starting at 0 and going up sequentially
- * A specific Block of a specific Instance is an Item, identified by an itemID
- *
- * For example:
- * Imagine a fragment mesh with 8 instances and 2 elements (16 items, identified from A to P)
- * It will have instanceIds from 0 to 8, and blockIds from 0 to 2
- * If we raycast it, we will get an instanceId and the index of the found triangle
- * We can use the index to get the blockId for that triangle
- * Combining instanceId and blockId using the elementMap will give us the itemId
- * The items will look like this:
- *
- *    [ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P ]
- *
- *  Where the criteria to sort the items is the following (Y-axis is instance, X-axis is block):
- *
- *        A  C  E  G  I  K  M  O
- *        B  D  F  H  J  L  N  P
- * */
-let Fragment$1 = class Fragment {
-    constructor(geometry, material, count) {
-        this.fragments = {};
-        this.items = [];
-        this.hiddenInstances = {};
-        // When multiple instances represent the same object
-        // this allows to create a composite ID for each instance
-        // E.g. all the steps in a stair are a single thing
-        // so if the ID of the stair is asdf, then each step could be
-        // asdf.1, asdf.2, asdf.3, etc
-        // the value is the number of instances
-        this.composites = {};
-        this.mesh = new FragmentMesh(geometry, material, count, this);
-        this.id = this.mesh.uuid;
-        this.capacity = count;
-        this.blocks = new Blocks(this);
-        BVH.apply(geometry);
-    }
-    get ids() {
-        const ids = new Set();
-        for (const id of this.items) {
-            ids.add(id);
-        }
-        for (const id in this.hiddenInstances) {
-            ids.add(id);
-        }
-        return ids;
-    }
-    dispose(disposeResources = true) {
-        this.items = null;
-        this.group = undefined;
-        if (this.mesh) {
-            if (disposeResources) {
-                this.mesh.material.forEach((mat) => mat.dispose());
-                this.mesh.material = [];
-                BVH.dispose(this.mesh.geometry);
-                this.mesh.geometry.dispose();
-                this.mesh.geometry = null;
-            }
-            this.mesh.removeFromParent();
-            this.mesh.dispose();
-            this.mesh.fragment = null;
-            this.mesh = null;
-        }
-        this.disposeNestedFragments();
-    }
-    getItemID(instanceID, blockID) {
-        const index = this.getItemIndex(instanceID, blockID);
-        return this.items[index];
-    }
-    getInstanceAndBlockID(itemID) {
-        const index = this.items.indexOf(itemID);
-        const instanceID = this.getInstanceIDFromIndex(index);
-        const blockID = index % this.blocks.count;
-        return { instanceID, blockID };
-    }
-    getVertexBlockID(geometry, index) {
-        const blocks = geometry.attributes.blockID;
-        return blocks.array[index];
-    }
-    getItemData(itemID) {
-        const index = this.items.indexOf(itemID);
-        const instanceID = Math.ceil(index / this.blocks.count);
-        const blockID = index % this.blocks.count;
-        return { instanceID, blockID };
-    }
-    getInstance(instanceID, matrix) {
-        return this.mesh.getMatrixAt(instanceID, matrix);
-    }
-    setInstance(instanceID, items) {
-        this.checkIfInstanceExist(instanceID);
-        this.mesh.setMatrixAt(instanceID, items.transform);
-        this.mesh.instanceMatrix.needsUpdate = true;
-        if (items.color && this.mesh.instanceColor) {
-            this.mesh.setColorAt(instanceID, items.color);
-            this.mesh.instanceColor.needsUpdate = true;
-        }
-        if (items.ids) {
-            this.saveItemsInMap(items.ids, instanceID);
-        }
-    }
-    addInstances(items) {
-        this.resizeCapacityIfNeeded(items.length);
-        const start = this.mesh.count;
-        this.mesh.count += items.length;
-        for (let i = 0; i < items.length; i++) {
-            this.setInstance(start + i, items[i]);
-        }
-    }
-    removeInstances(itemsIDs) {
-        if (this.mesh.count <= 1) {
-            this.clear();
-            return;
-        }
-        this.deleteAndRearrangeInstances(itemsIDs);
-        this.mesh.count -= itemsIDs.length;
-        this.mesh.instanceMatrix.needsUpdate = true;
-    }
-    clear() {
-        this.mesh.clear();
-        this.mesh.count = 0;
-        this.items = [];
-    }
-    addFragment(id, material = this.mesh.material) {
-        const newGeometry = this.initializeGeometry();
-        if (material === this.mesh.material) {
-            this.copyGroups(newGeometry);
-        }
-        const newFragment = new Fragment(newGeometry, material, this.capacity);
-        newFragment.mesh.applyMatrix4(this.mesh.matrix);
-        newFragment.mesh.updateMatrix();
-        this.fragments[id] = newFragment;
-        return this.fragments[id];
-    }
-    removeFragment(id) {
-        const fragment = this.fragments[id];
-        if (fragment) {
-            fragment.dispose(false);
-            delete this.fragments[id];
-        }
-    }
-    resetVisibility() {
-        if (this.blocks.count > 1) {
-            this.blocks.setVisibility(true);
-        }
-        else {
-            const hiddenInstances = Object.keys(this.hiddenInstances);
-            this.makeInstancesVisible(hiddenInstances);
-            this.hiddenInstances = {};
-        }
-    }
-    setVisibility(visible, itemIDs = this.ids) {
-        if (this.blocks.count > 1) {
-            this.blocks.setVisibility(visible, itemIDs);
-        }
-        else {
-            this.toggleInstanceVisibility(visible, itemIDs);
-        }
-    }
-    resize(size) {
-        var _a;
-        const newMesh = this.createFragmentMeshWithNewSize(size);
-        this.capacity = size;
-        const oldMesh = this.mesh;
-        (_a = oldMesh.parent) === null || _a === void 0 ? void 0 : _a.add(newMesh);
-        oldMesh.removeFromParent();
-        this.mesh = newMesh;
-        oldMesh.dispose();
-    }
-    exportData() {
-        const geometry = this.mesh.exportData();
-        const ids = this.items.join("|");
-        const id = this.id;
-        return { ...geometry, ids, id };
-    }
-    copyGroups(newGeometry) {
-        newGeometry.groups = [];
-        for (const group of this.mesh.geometry.groups) {
-            newGeometry.groups.push({ ...group });
-        }
-    }
-    initializeGeometry() {
-        const newGeometry = new THREE$1.BufferGeometry();
-        newGeometry.setAttribute("position", this.mesh.geometry.attributes.position);
-        newGeometry.setAttribute("normal", this.mesh.geometry.attributes.normal);
-        newGeometry.setAttribute("blockID", this.mesh.geometry.attributes.blockID);
-        newGeometry.setIndex(Array.from(this.mesh.geometry.index.array));
-        return newGeometry;
-    }
-    saveItemsInMap(ids, instanceId) {
-        this.checkBlockNumberValid(ids);
-        let counter = 0;
-        for (const id of ids) {
-            const index = this.getItemIndex(instanceId, counter);
-            this.items[index] = id;
-            counter++;
-        }
-    }
-    resizeCapacityIfNeeded(newSize) {
-        const necessaryCapacity = newSize + this.mesh.count;
-        if (necessaryCapacity > this.capacity) {
-            this.resize(necessaryCapacity);
-        }
-    }
-    createFragmentMeshWithNewSize(capacity) {
-        const newMesh = new FragmentMesh(this.mesh.geometry, this.mesh.material, capacity, this);
-        newMesh.count = this.mesh.count;
-        return newMesh;
-    }
-    disposeNestedFragments() {
-        const fragments = Object.values(this.fragments);
-        for (let i = 0; i < fragments.length; i++) {
-            fragments[i].dispose();
-        }
-        this.fragments = {};
-    }
-    checkBlockNumberValid(ids) {
-        if (ids.length > this.blocks.count) {
-            throw new Error(`You passed more items (${ids.length}) than blocks in this instance (${this.blocks.count})`);
-        }
-    }
-    checkIfInstanceExist(index) {
-        if (index > this.mesh.count) {
-            throw new Error(`The given index (${index}) exceeds the instances in this fragment (${this.mesh.count})`);
-        }
-    }
-    // Assigns the index of the removed instance to the last instance
-    // F.e. let there be 6 instances: (A) (B) (C) (D) (E) (F)
-    // If instance (C) is removed: -> (A) (B) (F) (D) (E)
-    deleteAndRearrangeInstances(ids) {
-        const deletedItems = [];
-        for (const id of ids) {
-            const deleted = this.deleteAndRearrange(id);
-            if (deleted) {
-                deletedItems.push(deleted);
-            }
-        }
-        for (const id of ids) {
-            delete this.hiddenInstances[id];
-        }
-        return deletedItems;
-    }
-    deleteAndRearrange(id) {
-        const index = this.items.indexOf(id);
-        if (index === -1)
-            return null;
-        this.mesh.count--;
-        const isLastElement = index === this.mesh.count;
-        const instanceId = this.getInstanceIDFromIndex(index);
-        const tempMatrix = new THREE$1.Matrix4();
-        const tempColor = new THREE$1.Color();
-        const transform = new THREE$1.Matrix4();
-        this.mesh.getMatrixAt(instanceId, transform);
-        const result = { ids: [id], transform };
-        if (this.mesh.instanceColor) {
-            const color = new THREE$1.Color();
-            this.mesh.getColorAt(instanceId, color);
-            result.color = color;
-        }
-        if (isLastElement) {
-            this.items.pop();
-            return result;
-        }
-        const lastElement = this.mesh.count;
-        this.items[index] = this.items[lastElement];
-        this.items.pop();
-        this.mesh.getMatrixAt(lastElement, tempMatrix);
-        this.mesh.setMatrixAt(instanceId, tempMatrix);
-        this.mesh.instanceMatrix.needsUpdate = true;
-        if (this.mesh.instanceColor) {
-            this.mesh.getColorAt(lastElement, tempColor);
-            this.mesh.setColorAt(instanceId, tempColor);
-            this.mesh.instanceColor.needsUpdate = true;
-        }
-        return result;
-    }
-    getItemIndex(instanceId, blockId) {
-        return instanceId * this.blocks.count + blockId;
-    }
-    getInstanceIDFromIndex(itemIndex) {
-        return Math.trunc(itemIndex / this.blocks.count);
-    }
-    toggleInstanceVisibility(visible, itemIDs) {
-        if (visible) {
-            this.makeInstancesVisible(itemIDs);
-        }
-        else {
-            this.makeInstancesInvisible(itemIDs);
-        }
-    }
-    makeInstancesInvisible(itemIDs) {
-        itemIDs = this.filterHiddenItems(itemIDs, false);
-        const deletedItems = this.deleteAndRearrangeInstances(itemIDs);
-        for (const item of deletedItems) {
-            if (item.ids) {
-                this.hiddenInstances[item.ids[0]] = item;
-            }
-        }
-    }
-    makeInstancesVisible(itemIDs) {
-        const items = [];
-        itemIDs = this.filterHiddenItems(itemIDs, true);
-        for (const id of itemIDs) {
-            const found = this.hiddenInstances[id];
-            if (found !== undefined) {
-                items.push(found);
-                delete this.hiddenInstances[id];
-            }
-        }
-        this.addInstances(items);
-    }
-    filterHiddenItems(itemIDs, hidden) {
-        const hiddenItems = Object.keys(this.hiddenInstances);
-        const result = [];
-        for (const id of itemIDs) {
-            const isHidden = hidden && hiddenItems.includes(id);
-            const isNotHidden = !hidden && !hiddenItems.includes(id);
-            if (isHidden || isNotHidden) {
-                result.push(id);
-            }
-        }
-        return result;
-    }
-};
-
-const SIZEOF_SHORT = 2;
-const SIZEOF_INT = 4;
-const FILE_IDENTIFIER_LENGTH = 4;
-const SIZE_PREFIX_LENGTH = 4;
-
-const int32 = new Int32Array(2);
-const float32 = new Float32Array(int32.buffer);
-const float64 = new Float64Array(int32.buffer);
-const isLittleEndian = new Uint16Array(new Uint8Array([1, 0]).buffer)[0] === 1;
-
-var Encoding;
-(function (Encoding) {
-    Encoding[Encoding["UTF8_BYTES"] = 1] = "UTF8_BYTES";
-    Encoding[Encoding["UTF16_STRING"] = 2] = "UTF16_STRING";
-})(Encoding || (Encoding = {}));
-
-class ByteBuffer {
-    /**
-     * Create a new ByteBuffer with a given array of bytes (`Uint8Array`)
-     */
-    constructor(bytes_) {
-        this.bytes_ = bytes_;
-        this.position_ = 0;
-        this.text_decoder_ = new TextDecoder();
-    }
-    /**
-     * Create and allocate a new ByteBuffer with a given size.
-     */
-    static allocate(byte_size) {
-        return new ByteBuffer(new Uint8Array(byte_size));
-    }
-    clear() {
-        this.position_ = 0;
-    }
-    /**
-     * Get the underlying `Uint8Array`.
-     */
-    bytes() {
-        return this.bytes_;
-    }
-    /**
-     * Get the buffer's position.
-     */
-    position() {
-        return this.position_;
-    }
-    /**
-     * Set the buffer's position.
-     */
-    setPosition(position) {
-        this.position_ = position;
-    }
-    /**
-     * Get the buffer's capacity.
-     */
-    capacity() {
-        return this.bytes_.length;
-    }
-    readInt8(offset) {
-        return this.readUint8(offset) << 24 >> 24;
-    }
-    readUint8(offset) {
-        return this.bytes_[offset];
-    }
-    readInt16(offset) {
-        return this.readUint16(offset) << 16 >> 16;
-    }
-    readUint16(offset) {
-        return this.bytes_[offset] | this.bytes_[offset + 1] << 8;
-    }
-    readInt32(offset) {
-        return this.bytes_[offset] | this.bytes_[offset + 1] << 8 | this.bytes_[offset + 2] << 16 | this.bytes_[offset + 3] << 24;
-    }
-    readUint32(offset) {
-        return this.readInt32(offset) >>> 0;
-    }
-    readInt64(offset) {
-        return BigInt.asIntN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
-    }
-    readUint64(offset) {
-        return BigInt.asUintN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
-    }
-    readFloat32(offset) {
-        int32[0] = this.readInt32(offset);
-        return float32[0];
-    }
-    readFloat64(offset) {
-        int32[isLittleEndian ? 0 : 1] = this.readInt32(offset);
-        int32[isLittleEndian ? 1 : 0] = this.readInt32(offset + 4);
-        return float64[0];
-    }
-    writeInt8(offset, value) {
-        this.bytes_[offset] = value;
-    }
-    writeUint8(offset, value) {
-        this.bytes_[offset] = value;
-    }
-    writeInt16(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-    }
-    writeUint16(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-    }
-    writeInt32(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-        this.bytes_[offset + 2] = value >> 16;
-        this.bytes_[offset + 3] = value >> 24;
-    }
-    writeUint32(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-        this.bytes_[offset + 2] = value >> 16;
-        this.bytes_[offset + 3] = value >> 24;
-    }
-    writeInt64(offset, value) {
-        this.writeInt32(offset, Number(BigInt.asIntN(32, value)));
-        this.writeInt32(offset + 4, Number(BigInt.asIntN(32, value >> BigInt(32))));
-    }
-    writeUint64(offset, value) {
-        this.writeUint32(offset, Number(BigInt.asUintN(32, value)));
-        this.writeUint32(offset + 4, Number(BigInt.asUintN(32, value >> BigInt(32))));
-    }
-    writeFloat32(offset, value) {
-        float32[0] = value;
-        this.writeInt32(offset, int32[0]);
-    }
-    writeFloat64(offset, value) {
-        float64[0] = value;
-        this.writeInt32(offset, int32[isLittleEndian ? 0 : 1]);
-        this.writeInt32(offset + 4, int32[isLittleEndian ? 1 : 0]);
-    }
-    /**
-     * Return the file identifier.   Behavior is undefined for FlatBuffers whose
-     * schema does not include a file_identifier (likely points at padding or the
-     * start of a the root vtable).
-     */
-    getBufferIdentifier() {
-        if (this.bytes_.length < this.position_ + SIZEOF_INT +
-            FILE_IDENTIFIER_LENGTH) {
-            throw new Error('FlatBuffers: ByteBuffer is too short to contain an identifier.');
-        }
-        let result = "";
-        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
-            result += String.fromCharCode(this.readInt8(this.position_ + SIZEOF_INT + i));
-        }
-        return result;
-    }
-    /**
-     * Look up a field in the vtable, return an offset into the object, or 0 if the
-     * field is not present.
-     */
-    __offset(bb_pos, vtable_offset) {
-        const vtable = bb_pos - this.readInt32(bb_pos);
-        return vtable_offset < this.readInt16(vtable) ? this.readInt16(vtable + vtable_offset) : 0;
-    }
-    /**
-     * Initialize any Table-derived type to point to the union at the given offset.
-     */
-    __union(t, offset) {
-        t.bb_pos = offset + this.readInt32(offset);
-        t.bb = this;
-        return t;
-    }
-    /**
-     * Create a JavaScript string from UTF-8 data stored inside the FlatBuffer.
-     * This allocates a new string and converts to wide chars upon each access.
-     *
-     * To avoid the conversion to string, pass Encoding.UTF8_BYTES as the
-     * "optionalEncoding" argument. This is useful for avoiding conversion when
-     * the data will just be packaged back up in another FlatBuffer later on.
-     *
-     * @param offset
-     * @param opt_encoding Defaults to UTF16_STRING
-     */
-    __string(offset, opt_encoding) {
-        offset += this.readInt32(offset);
-        const length = this.readInt32(offset);
-        offset += SIZEOF_INT;
-        const utf8bytes = this.bytes_.subarray(offset, offset + length);
-        if (opt_encoding === Encoding.UTF8_BYTES)
-            return utf8bytes;
-        else
-            return this.text_decoder_.decode(utf8bytes);
-    }
-    /**
-     * Handle unions that can contain string as its member, if a Table-derived type then initialize it,
-     * if a string then return a new one
-     *
-     * WARNING: strings are immutable in JS so we can't change the string that the user gave us, this
-     * makes the behaviour of __union_with_string different compared to __union
-     */
-    __union_with_string(o, offset) {
-        if (typeof o === 'string') {
-            return this.__string(offset);
-        }
-        return this.__union(o, offset);
-    }
-    /**
-     * Retrieve the relative offset stored at "offset"
-     */
-    __indirect(offset) {
-        return offset + this.readInt32(offset);
-    }
-    /**
-     * Get the start of data of a vector whose offset is stored at "offset" in this object.
-     */
-    __vector(offset) {
-        return offset + this.readInt32(offset) + SIZEOF_INT; // data starts after the length
-    }
-    /**
-     * Get the length of a vector whose offset is stored at "offset" in this object.
-     */
-    __vector_len(offset) {
-        return this.readInt32(offset + this.readInt32(offset));
-    }
-    __has_identifier(ident) {
-        if (ident.length != FILE_IDENTIFIER_LENGTH) {
-            throw new Error('FlatBuffers: file identifier must be length ' +
-                FILE_IDENTIFIER_LENGTH);
-        }
-        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
-            if (ident.charCodeAt(i) != this.readInt8(this.position() + SIZEOF_INT + i)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    /**
-     * A helper function for generating list for obj api
-     */
-    createScalarList(listAccessor, listLength) {
-        const ret = [];
-        for (let i = 0; i < listLength; ++i) {
-            const val = listAccessor(i);
-            if (val !== null) {
-                ret.push(val);
-            }
-        }
-        return ret;
-    }
-    /**
-     * A helper function for generating list for obj api
-     * @param listAccessor function that accepts an index and return data at that index
-     * @param listLength listLength
-     * @param res result list
-     */
-    createObjList(listAccessor, listLength) {
-        const ret = [];
-        for (let i = 0; i < listLength; ++i) {
-            const val = listAccessor(i);
-            if (val !== null) {
-                ret.push(val.unpack());
-            }
-        }
-        return ret;
-    }
-}
-
-class Builder {
-    /**
-     * Create a FlatBufferBuilder.
-     */
-    constructor(opt_initial_size) {
-        /** Minimum alignment encountered so far. */
-        this.minalign = 1;
-        /** The vtable for the current table. */
-        this.vtable = null;
-        /** The amount of fields we're actually using. */
-        this.vtable_in_use = 0;
-        /** Whether we are currently serializing a table. */
-        this.isNested = false;
-        /** Starting offset of the current struct/table. */
-        this.object_start = 0;
-        /** List of offsets of all vtables. */
-        this.vtables = [];
-        /** For the current vector being built. */
-        this.vector_num_elems = 0;
-        /** False omits default values from the serialized data */
-        this.force_defaults = false;
-        this.string_maps = null;
-        this.text_encoder = new TextEncoder();
-        let initial_size;
-        if (!opt_initial_size) {
-            initial_size = 1024;
-        }
-        else {
-            initial_size = opt_initial_size;
-        }
-        /**
-         * @type {ByteBuffer}
-         * @private
-         */
-        this.bb = ByteBuffer.allocate(initial_size);
-        this.space = initial_size;
-    }
-    clear() {
-        this.bb.clear();
-        this.space = this.bb.capacity();
-        this.minalign = 1;
-        this.vtable = null;
-        this.vtable_in_use = 0;
-        this.isNested = false;
-        this.object_start = 0;
-        this.vtables = [];
-        this.vector_num_elems = 0;
-        this.force_defaults = false;
-        this.string_maps = null;
-    }
-    /**
-     * In order to save space, fields that are set to their default value
-     * don't get serialized into the buffer. Forcing defaults provides a
-     * way to manually disable this optimization.
-     *
-     * @param forceDefaults true always serializes default values
-     */
-    forceDefaults(forceDefaults) {
-        this.force_defaults = forceDefaults;
-    }
-    /**
-     * Get the ByteBuffer representing the FlatBuffer. Only call this after you've
-     * called finish(). The actual data starts at the ByteBuffer's current position,
-     * not necessarily at 0.
-     */
-    dataBuffer() {
-        return this.bb;
-    }
-    /**
-     * Get the bytes representing the FlatBuffer. Only call this after you've
-     * called finish().
-     */
-    asUint8Array() {
-        return this.bb.bytes().subarray(this.bb.position(), this.bb.position() + this.offset());
-    }
-    /**
-     * Prepare to write an element of `size` after `additional_bytes` have been
-     * written, e.g. if you write a string, you need to align such the int length
-     * field is aligned to 4 bytes, and the string data follows it directly. If all
-     * you need to do is alignment, `additional_bytes` will be 0.
-     *
-     * @param size This is the of the new element to write
-     * @param additional_bytes The padding size
-     */
-    prep(size, additional_bytes) {
-        // Track the biggest thing we've ever aligned to.
-        if (size > this.minalign) {
-            this.minalign = size;
-        }
-        // Find the amount of alignment needed such that `size` is properly
-        // aligned after `additional_bytes`
-        const align_size = ((~(this.bb.capacity() - this.space + additional_bytes)) + 1) & (size - 1);
-        // Reallocate the buffer if needed.
-        while (this.space < align_size + size + additional_bytes) {
-            const old_buf_size = this.bb.capacity();
-            this.bb = Builder.growByteBuffer(this.bb);
-            this.space += this.bb.capacity() - old_buf_size;
-        }
-        this.pad(align_size);
-    }
-    pad(byte_size) {
-        for (let i = 0; i < byte_size; i++) {
-            this.bb.writeInt8(--this.space, 0);
-        }
-    }
-    writeInt8(value) {
-        this.bb.writeInt8(this.space -= 1, value);
-    }
-    writeInt16(value) {
-        this.bb.writeInt16(this.space -= 2, value);
-    }
-    writeInt32(value) {
-        this.bb.writeInt32(this.space -= 4, value);
-    }
-    writeInt64(value) {
-        this.bb.writeInt64(this.space -= 8, value);
-    }
-    writeFloat32(value) {
-        this.bb.writeFloat32(this.space -= 4, value);
-    }
-    writeFloat64(value) {
-        this.bb.writeFloat64(this.space -= 8, value);
-    }
-    /**
-     * Add an `int8` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int8` to add the buffer.
-     */
-    addInt8(value) {
-        this.prep(1, 0);
-        this.writeInt8(value);
-    }
-    /**
-     * Add an `int16` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int16` to add the buffer.
-     */
-    addInt16(value) {
-        this.prep(2, 0);
-        this.writeInt16(value);
-    }
-    /**
-     * Add an `int32` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int32` to add the buffer.
-     */
-    addInt32(value) {
-        this.prep(4, 0);
-        this.writeInt32(value);
-    }
-    /**
-     * Add an `int64` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int64` to add the buffer.
-     */
-    addInt64(value) {
-        this.prep(8, 0);
-        this.writeInt64(value);
-    }
-    /**
-     * Add a `float32` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `float32` to add the buffer.
-     */
-    addFloat32(value) {
-        this.prep(4, 0);
-        this.writeFloat32(value);
-    }
-    /**
-     * Add a `float64` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `float64` to add the buffer.
-     */
-    addFloat64(value) {
-        this.prep(8, 0);
-        this.writeFloat64(value);
-    }
-    addFieldInt8(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addInt8(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldInt16(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addInt16(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldInt32(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addInt32(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldInt64(voffset, value, defaultValue) {
-        if (this.force_defaults || value !== defaultValue) {
-            this.addInt64(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldFloat32(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addFloat32(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldFloat64(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addFloat64(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldOffset(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addOffset(value);
-            this.slot(voffset);
-        }
-    }
-    /**
-     * Structs are stored inline, so nothing additional is being added. `d` is always 0.
-     */
-    addFieldStruct(voffset, value, defaultValue) {
-        if (value != defaultValue) {
-            this.nested(value);
-            this.slot(voffset);
-        }
-    }
-    /**
-     * Structures are always stored inline, they need to be created right
-     * where they're used.  You'll get this assertion failure if you
-     * created it elsewhere.
-     */
-    nested(obj) {
-        if (obj != this.offset()) {
-            throw new TypeError('FlatBuffers: struct must be serialized inline.');
-        }
-    }
-    /**
-     * Should not be creating any other object, string or vector
-     * while an object is being constructed
-     */
-    notNested() {
-        if (this.isNested) {
-            throw new TypeError('FlatBuffers: object serialization must not be nested.');
-        }
-    }
-    /**
-     * Set the current vtable at `voffset` to the current location in the buffer.
-     */
-    slot(voffset) {
-        if (this.vtable !== null)
-            this.vtable[voffset] = this.offset();
-    }
-    /**
-     * @returns Offset relative to the end of the buffer.
-     */
-    offset() {
-        return this.bb.capacity() - this.space;
-    }
-    /**
-     * Doubles the size of the backing ByteBuffer and copies the old data towards
-     * the end of the new buffer (since we build the buffer backwards).
-     *
-     * @param bb The current buffer with the existing data
-     * @returns A new byte buffer with the old data copied
-     * to it. The data is located at the end of the buffer.
-     *
-     * uint8Array.set() formally takes {Array<number>|ArrayBufferView}, so to pass
-     * it a uint8Array we need to suppress the type check:
-     * @suppress {checkTypes}
-     */
-    static growByteBuffer(bb) {
-        const old_buf_size = bb.capacity();
-        // Ensure we don't grow beyond what fits in an int.
-        if (old_buf_size & 0xC0000000) {
-            throw new Error('FlatBuffers: cannot grow buffer beyond 2 gigabytes.');
-        }
-        const new_buf_size = old_buf_size << 1;
-        const nbb = ByteBuffer.allocate(new_buf_size);
-        nbb.setPosition(new_buf_size - old_buf_size);
-        nbb.bytes().set(bb.bytes(), new_buf_size - old_buf_size);
-        return nbb;
-    }
-    /**
-     * Adds on offset, relative to where it will be written.
-     *
-     * @param offset The offset to add.
-     */
-    addOffset(offset) {
-        this.prep(SIZEOF_INT, 0); // Ensure alignment is already done.
-        this.writeInt32(this.offset() - offset + SIZEOF_INT);
-    }
-    /**
-     * Start encoding a new object in the buffer.  Users will not usually need to
-     * call this directly. The FlatBuffers compiler will generate helper methods
-     * that call this method internally.
-     */
-    startObject(numfields) {
-        this.notNested();
-        if (this.vtable == null) {
-            this.vtable = [];
-        }
-        this.vtable_in_use = numfields;
-        for (let i = 0; i < numfields; i++) {
-            this.vtable[i] = 0; // This will push additional elements as needed
-        }
-        this.isNested = true;
-        this.object_start = this.offset();
-    }
-    /**
-     * Finish off writing the object that is under construction.
-     *
-     * @returns The offset to the object inside `dataBuffer`
-     */
-    endObject() {
-        if (this.vtable == null || !this.isNested) {
-            throw new Error('FlatBuffers: endObject called without startObject');
-        }
-        this.addInt32(0);
-        const vtableloc = this.offset();
-        // Trim trailing zeroes.
-        let i = this.vtable_in_use - 1;
-        // eslint-disable-next-line no-empty
-        for (; i >= 0 && this.vtable[i] == 0; i--) { }
-        const trimmed_size = i + 1;
-        // Write out the current vtable.
-        for (; i >= 0; i--) {
-            // Offset relative to the start of the table.
-            this.addInt16(this.vtable[i] != 0 ? vtableloc - this.vtable[i] : 0);
-        }
-        const standard_fields = 2; // The fields below:
-        this.addInt16(vtableloc - this.object_start);
-        const len = (trimmed_size + standard_fields) * SIZEOF_SHORT;
-        this.addInt16(len);
-        // Search for an existing vtable that matches the current one.
-        let existing_vtable = 0;
-        const vt1 = this.space;
-        outer_loop: for (i = 0; i < this.vtables.length; i++) {
-            const vt2 = this.bb.capacity() - this.vtables[i];
-            if (len == this.bb.readInt16(vt2)) {
-                for (let j = SIZEOF_SHORT; j < len; j += SIZEOF_SHORT) {
-                    if (this.bb.readInt16(vt1 + j) != this.bb.readInt16(vt2 + j)) {
-                        continue outer_loop;
-                    }
-                }
-                existing_vtable = this.vtables[i];
-                break;
-            }
-        }
-        if (existing_vtable) {
-            // Found a match:
-            // Remove the current vtable.
-            this.space = this.bb.capacity() - vtableloc;
-            // Point table to existing vtable.
-            this.bb.writeInt32(this.space, existing_vtable - vtableloc);
-        }
-        else {
-            // No match:
-            // Add the location of the current vtable to the list of vtables.
-            this.vtables.push(this.offset());
-            // Point table to current vtable.
-            this.bb.writeInt32(this.bb.capacity() - vtableloc, this.offset() - vtableloc);
-        }
-        this.isNested = false;
-        return vtableloc;
-    }
-    /**
-     * Finalize a buffer, poiting to the given `root_table`.
-     */
-    finish(root_table, opt_file_identifier, opt_size_prefix) {
-        const size_prefix = opt_size_prefix ? SIZE_PREFIX_LENGTH : 0;
-        if (opt_file_identifier) {
-            const file_identifier = opt_file_identifier;
-            this.prep(this.minalign, SIZEOF_INT +
-                FILE_IDENTIFIER_LENGTH + size_prefix);
-            if (file_identifier.length != FILE_IDENTIFIER_LENGTH) {
-                throw new TypeError('FlatBuffers: file identifier must be length ' +
-                    FILE_IDENTIFIER_LENGTH);
-            }
-            for (let i = FILE_IDENTIFIER_LENGTH - 1; i >= 0; i--) {
-                this.writeInt8(file_identifier.charCodeAt(i));
-            }
-        }
-        this.prep(this.minalign, SIZEOF_INT + size_prefix);
-        this.addOffset(root_table);
-        if (size_prefix) {
-            this.addInt32(this.bb.capacity() - this.space);
-        }
-        this.bb.setPosition(this.space);
-    }
-    /**
-     * Finalize a size prefixed buffer, pointing to the given `root_table`.
-     */
-    finishSizePrefixed(root_table, opt_file_identifier) {
-        this.finish(root_table, opt_file_identifier, true);
-    }
-    /**
-     * This checks a required field has been set in a given table that has
-     * just been constructed.
-     */
-    requiredField(table, field) {
-        const table_start = this.bb.capacity() - table;
-        const vtable_start = table_start - this.bb.readInt32(table_start);
-        const ok = field < this.bb.readInt16(vtable_start) &&
-            this.bb.readInt16(vtable_start + field) != 0;
-        // If this fails, the caller will show what field needs to be set.
-        if (!ok) {
-            throw new TypeError('FlatBuffers: field ' + field + ' must be set');
-        }
-    }
-    /**
-     * Start a new array/vector of objects.  Users usually will not call
-     * this directly. The FlatBuffers compiler will create a start/end
-     * method for vector types in generated code.
-     *
-     * @param elem_size The size of each element in the array
-     * @param num_elems The number of elements in the array
-     * @param alignment The alignment of the array
-     */
-    startVector(elem_size, num_elems, alignment) {
-        this.notNested();
-        this.vector_num_elems = num_elems;
-        this.prep(SIZEOF_INT, elem_size * num_elems);
-        this.prep(alignment, elem_size * num_elems); // Just in case alignment > int.
-    }
-    /**
-     * Finish off the creation of an array and all its elements. The array must be
-     * created with `startVector`.
-     *
-     * @returns The offset at which the newly created array
-     * starts.
-     */
-    endVector() {
-        this.writeInt32(this.vector_num_elems);
-        return this.offset();
-    }
-    /**
-     * Encode the string `s` in the buffer using UTF-8. If the string passed has
-     * already been seen, we return the offset of the already written string
-     *
-     * @param s The string to encode
-     * @return The offset in the buffer where the encoded string starts
-     */
-    createSharedString(s) {
-        if (!s) {
-            return 0;
-        }
-        if (!this.string_maps) {
-            this.string_maps = new Map();
-        }
-        if (this.string_maps.has(s)) {
-            return this.string_maps.get(s);
-        }
-        const offset = this.createString(s);
-        this.string_maps.set(s, offset);
-        return offset;
-    }
-    /**
-     * Encode the string `s` in the buffer using UTF-8. If a Uint8Array is passed
-     * instead of a string, it is assumed to contain valid UTF-8 encoded data.
-     *
-     * @param s The string to encode
-     * @return The offset in the buffer where the encoded string starts
-     */
-    createString(s) {
-        if (s === null || s === undefined) {
-            return 0;
-        }
-        let utf8;
-        if (s instanceof Uint8Array) {
-            utf8 = s;
-        }
-        else {
-            utf8 = this.text_encoder.encode(s);
-        }
-        this.addInt8(0);
-        this.startVector(1, utf8.length, 1);
-        this.bb.setPosition(this.space -= utf8.length);
-        for (let i = 0, offset = this.space, bytes = this.bb.bytes(); i < utf8.length; i++) {
-            bytes[offset++] = utf8[i];
-        }
-        return this.endVector();
-    }
-    /**
-     * A helper function to pack an object
-     *
-     * @returns offset of obj
-     */
-    createObjectOffset(obj) {
-        if (obj === null) {
-            return 0;
-        }
-        if (typeof obj === 'string') {
-            return this.createString(obj);
-        }
-        else {
-            return obj.pack(this);
-        }
-    }
-    /**
-     * A helper function to pack a list of object
-     *
-     * @returns list of offsets of each non null object
-     */
-    createObjectOffsetList(list) {
-        const ret = [];
-        for (let i = 0; i < list.length; ++i) {
-            const val = list[i];
-            if (val !== null) {
-                ret.push(this.createObjectOffset(val));
-            }
-            else {
-                throw new TypeError('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
-            }
-        }
-        return ret;
-    }
-    createStructOffsetList(list, startFunc) {
-        startFunc(this, list.length);
-        this.createObjectOffsetList(list.slice().reverse());
-        return this.endVector();
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-class Alignment {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsAlignment(bb, obj) {
-        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsAlignment(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    position(index) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    positionLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    positionArray() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    curve(index) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    curveLength() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    curveArray() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    segment(index) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    segmentLength() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    segmentArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    static startAlignment(builder) {
-        builder.startObject(3);
-    }
-    static addPosition(builder, positionOffset) {
-        builder.addFieldOffset(0, positionOffset, 0);
-    }
-    static createPositionVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startPositionVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addCurve(builder, curveOffset) {
-        builder.addFieldOffset(1, curveOffset, 0);
-    }
-    static createCurveVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startCurveVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addSegment(builder, segmentOffset) {
-        builder.addFieldOffset(2, segmentOffset, 0);
-    }
-    static createSegmentVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startSegmentVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static endAlignment(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static createAlignment(builder, positionOffset, curveOffset, segmentOffset) {
-        Alignment.startAlignment(builder);
-        Alignment.addPosition(builder, positionOffset);
-        Alignment.addCurve(builder, curveOffset);
-        Alignment.addSegment(builder, segmentOffset);
-        return Alignment.endAlignment(builder);
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-class Civil {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsCivil(bb, obj) {
-        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsCivil(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    alignmentHorizontal(index, obj) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
-    }
-    alignmentHorizontalLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    alignmentVertical(index, obj) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
-    }
-    alignmentVerticalLength() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    static startCivil(builder) {
-        builder.startObject(2);
-    }
-    static addAlignmentHorizontal(builder, alignmentHorizontalOffset) {
-        builder.addFieldOffset(0, alignmentHorizontalOffset, 0);
-    }
-    static createAlignmentHorizontalVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startAlignmentHorizontalVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addAlignmentVertical(builder, alignmentVerticalOffset) {
-        builder.addFieldOffset(1, alignmentVerticalOffset, 0);
-    }
-    static createAlignmentVerticalVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startAlignmentVerticalVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static endCivil(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static createCivil(builder, alignmentHorizontalOffset, alignmentVerticalOffset) {
-        Civil.startCivil(builder);
-        Civil.addAlignmentHorizontal(builder, alignmentHorizontalOffset);
-        Civil.addAlignmentVertical(builder, alignmentVerticalOffset);
-        return Civil.endCivil(builder);
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-class Fragment {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsFragment(bb, obj) {
-        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsFragment(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    position(index) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    positionLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    positionArray() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    normal(index) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    normalLength() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    normalArray() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    index(index) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    indexLength() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    indexArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    blockId(index) {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    blockIdLength() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    blockIdArray() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    groups(index) {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    groupsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    groupsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    materials(index) {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    materialsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    materialsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    matrices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    matricesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    matricesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    colors(index) {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    colorsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    colorsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    ids(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 20);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    id(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 22);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    composites(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 24);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    static startFragment(builder) {
-        builder.startObject(11);
-    }
-    static addPosition(builder, positionOffset) {
-        builder.addFieldOffset(0, positionOffset, 0);
-    }
-    static createPositionVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startPositionVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addNormal(builder, normalOffset) {
-        builder.addFieldOffset(1, normalOffset, 0);
-    }
-    static createNormalVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startNormalVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addIndex(builder, indexOffset) {
-        builder.addFieldOffset(2, indexOffset, 0);
-    }
-    static createIndexVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startIndexVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addBlockId(builder, blockIdOffset) {
-        builder.addFieldOffset(3, blockIdOffset, 0);
-    }
-    static createBlockIdVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startBlockIdVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addGroups(builder, groupsOffset) {
-        builder.addFieldOffset(4, groupsOffset, 0);
-    }
-    static createGroupsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startGroupsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addMaterials(builder, materialsOffset) {
-        builder.addFieldOffset(5, materialsOffset, 0);
-    }
-    static createMaterialsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startMaterialsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addMatrices(builder, matricesOffset) {
-        builder.addFieldOffset(6, matricesOffset, 0);
-    }
-    static createMatricesVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startMatricesVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addColors(builder, colorsOffset) {
-        builder.addFieldOffset(7, colorsOffset, 0);
-    }
-    static createColorsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startColorsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addIds(builder, idsOffset) {
-        builder.addFieldOffset(8, idsOffset, 0);
-    }
-    static addId(builder, idOffset) {
-        builder.addFieldOffset(9, idOffset, 0);
-    }
-    static addComposites(builder, compositesOffset) {
-        builder.addFieldOffset(10, compositesOffset, 0);
-    }
-    static endFragment(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static createFragment(builder, positionOffset, normalOffset, indexOffset, blockIdOffset, groupsOffset, materialsOffset, matricesOffset, colorsOffset, idsOffset, idOffset, compositesOffset) {
-        Fragment.startFragment(builder);
-        Fragment.addPosition(builder, positionOffset);
-        Fragment.addNormal(builder, normalOffset);
-        Fragment.addIndex(builder, indexOffset);
-        Fragment.addBlockId(builder, blockIdOffset);
-        Fragment.addGroups(builder, groupsOffset);
-        Fragment.addMaterials(builder, materialsOffset);
-        Fragment.addMatrices(builder, matricesOffset);
-        Fragment.addColors(builder, colorsOffset);
-        Fragment.addIds(builder, idsOffset);
-        Fragment.addId(builder, idOffset);
-        Fragment.addComposites(builder, compositesOffset);
-        return Fragment.endFragment(builder);
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-let FragmentsGroup$1 = class FragmentsGroup {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsFragmentsGroup(bb, obj) {
-        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsFragmentsGroup(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    items(index, obj) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? (obj || new Fragment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
-    }
-    itemsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    civil(obj) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new Civil()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
-    }
-    coordinationMatrix(index) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    coordinationMatrixLength() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    coordinationMatrixArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    ids(index) {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    idsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    idsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsKeys(index) {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsKeysLength() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsKeysArray() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsKeysIndices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsKeysIndicesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsKeysIndicesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsRels(index) {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsRelsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsRelsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsRelsIndices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsRelsIndicesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsRelsIndicesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    fragmentKeys(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 20);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    id(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 22);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    name(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 24);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    ifcName(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 26);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    ifcDescription(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 28);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    ifcSchema(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 30);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    maxExpressId() {
-        const offset = this.bb.__offset(this.bb_pos, 32);
-        return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
-    }
-    boundingBox(index) {
-        const offset = this.bb.__offset(this.bb_pos, 34);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    boundingBoxLength() {
-        const offset = this.bb.__offset(this.bb_pos, 34);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    boundingBoxArray() {
-        const offset = this.bb.__offset(this.bb_pos, 34);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    static startFragmentsGroup(builder) {
-        builder.startObject(16);
-    }
-    static addItems(builder, itemsOffset) {
-        builder.addFieldOffset(0, itemsOffset, 0);
-    }
-    static createItemsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addCivil(builder, civilOffset) {
-        builder.addFieldOffset(1, civilOffset, 0);
-    }
-    static addCoordinationMatrix(builder, coordinationMatrixOffset) {
-        builder.addFieldOffset(2, coordinationMatrixOffset, 0);
-    }
-    static createCoordinationMatrixVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startCoordinationMatrixVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addIds(builder, idsOffset) {
-        builder.addFieldOffset(3, idsOffset, 0);
-    }
-    static createIdsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startIdsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsKeys(builder, itemsKeysOffset) {
-        builder.addFieldOffset(4, itemsKeysOffset, 0);
-    }
-    static createItemsKeysVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsKeysVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsKeysIndices(builder, itemsKeysIndicesOffset) {
-        builder.addFieldOffset(5, itemsKeysIndicesOffset, 0);
-    }
-    static createItemsKeysIndicesVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsKeysIndicesVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsRels(builder, itemsRelsOffset) {
-        builder.addFieldOffset(6, itemsRelsOffset, 0);
-    }
-    static createItemsRelsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsRelsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsRelsIndices(builder, itemsRelsIndicesOffset) {
-        builder.addFieldOffset(7, itemsRelsIndicesOffset, 0);
-    }
-    static createItemsRelsIndicesVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsRelsIndicesVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addFragmentKeys(builder, fragmentKeysOffset) {
-        builder.addFieldOffset(8, fragmentKeysOffset, 0);
-    }
-    static addId(builder, idOffset) {
-        builder.addFieldOffset(9, idOffset, 0);
-    }
-    static addName(builder, nameOffset) {
-        builder.addFieldOffset(10, nameOffset, 0);
-    }
-    static addIfcName(builder, ifcNameOffset) {
-        builder.addFieldOffset(11, ifcNameOffset, 0);
-    }
-    static addIfcDescription(builder, ifcDescriptionOffset) {
-        builder.addFieldOffset(12, ifcDescriptionOffset, 0);
-    }
-    static addIfcSchema(builder, ifcSchemaOffset) {
-        builder.addFieldOffset(13, ifcSchemaOffset, 0);
-    }
-    static addMaxExpressId(builder, maxExpressId) {
-        builder.addFieldInt32(14, maxExpressId, 0);
-    }
-    static addBoundingBox(builder, boundingBoxOffset) {
-        builder.addFieldOffset(15, boundingBoxOffset, 0);
-    }
-    static createBoundingBoxVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startBoundingBoxVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static endFragmentsGroup(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static finishFragmentsGroupBuffer(builder, offset) {
-        builder.finish(offset);
-    }
-    static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
-        builder.finish(offset, undefined, true);
-    }
-};
-
-// TODO: Document this
-class FragmentsGroup extends THREE$1.Group {
-    constructor() {
-        super(...arguments);
-        this.items = [];
-        this.boundingBox = new THREE$1.Box3();
-        this.coordinationMatrix = new THREE$1.Matrix4();
-        this.keyFragments = {};
-        // data: [expressID: number]: [keys, rels]
-        this.data = {};
-        this.ifcMetadata = {
-            name: "",
-            description: "",
-            schema: "IFC2X3",
-            maxExpressID: 0,
-        };
-    }
-    // TODO: Force all item IDs to be numbers or strings
-    getFragmentMap(expressIDs) {
-        const fragmentMap = {};
-        for (const expressID of expressIDs) {
-            const data = this.data[expressID];
-            if (!data)
-                continue;
-            for (const key of data[0]) {
-                const fragmentID = this.keyFragments[key];
-                if (!fragmentMap[fragmentID])
-                    fragmentMap[fragmentID] = new Set();
-                fragmentMap[fragmentID].add(expressID);
-            }
-        }
-        return fragmentMap;
-    }
-    dispose(disposeResources = true) {
-        for (const fragment of this.items) {
-            fragment.dispose(disposeResources);
-        }
-        this.coordinationMatrix = new THREE$1.Matrix4();
-        this.keyFragments = {};
-        this.data = {};
-        this.properties = {};
-    }
-}
-
-class IfcAlignmentData {
-    constructor() {
-        this.Coordinates = new Float32Array(0);
-        this.CurveLenght = [];
-        this.SegmentLenght = [];
-    }
-    exportData() {
-        const coordinates = this.Coordinates;
-        const curveLenght = this.CurveLenght;
-        const segmentLenght = this.SegmentLenght;
-        return { coordinates, curveLenght, segmentLenght };
-    }
-}
-
-/**
- * Object to export and import sets of fragments efficiently using
- * [flatbuffers](https://flatbuffers.dev/).
- */
-class Serializer {
-    constructor() {
-        this.fragmentIDSeparator = "|";
-    }
-    import(bytes) {
-        const buffer = new ByteBuffer(bytes);
-        const fbFragmentsGroup = FragmentsGroup$1.getRootAsFragmentsGroup(buffer);
-        const fragmentsGroup = this.constructFragmentGroup(fbFragmentsGroup);
-        const length = fbFragmentsGroup.itemsLength();
-        for (let i = 0; i < length; i++) {
-            const fbFragment = fbFragmentsGroup.items(i);
-            if (!fbFragment)
-                continue;
-            const geometry = this.constructGeometry(fbFragment);
-            const materials = this.constructMaterials(fbFragment);
-            const { instances, colors } = this.constructInstances(fbFragment);
-            const fragment = new Fragment$1(geometry, materials, instances.length);
-            this.getComposites(fbFragment, fragment);
-            this.setInstances(instances, colors, fragment);
-            this.setID(fbFragment, fragment);
-            fragmentsGroup.items.push(fragment);
-            fragmentsGroup.add(fragment.mesh);
-        }
-        return fragmentsGroup;
-    }
-    export(group) {
-        var _a, _b, _c;
-        const builder = new Builder(1024);
-        const items = [];
-        const alignmentItemsH = [];
-        const alignmentItemsV = [];
-        const G = FragmentsGroup$1;
-        const F = Fragment;
-        const C = Civil;
-        if ((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments) {
-            for (const alignment of (_b = group.ifcCivil) === null || _b === void 0 ? void 0 : _b.horizontalAlignments) {
-                const result = alignment.exportData();
-                const A = Alignment;
-                const posVector = A.createPositionVector(builder, result.coordinates);
-                const segVector = A.createSegmentVector(builder, result.segmentLenght);
-                const crvVector = A.createCurveVector(builder, result.curveLenght);
-                A.startAlignment(builder);
-                A.addPosition(builder, posVector);
-                A.addSegment(builder, segVector);
-                A.addCurve(builder, crvVector);
-                const exported = Alignment.endAlignment(builder);
-                alignmentItemsH.push(exported);
-            }
-            for (const alignment of (_c = group.ifcCivil) === null || _c === void 0 ? void 0 : _c.verticalAlignments) {
-                const result = alignment.exportData();
-                const A = Alignment;
-                const posVector = A.createPositionVector(builder, result.coordinates);
-                const segVector = A.createSegmentVector(builder, result.segmentLenght);
-                const crvVector = A.createCurveVector(builder, result.curveLenght);
-                A.startAlignment(builder);
-                A.addPosition(builder, posVector);
-                A.addSegment(builder, segVector);
-                A.addCurve(builder, crvVector);
-                const exported = Alignment.endAlignment(builder);
-                alignmentItemsV.push(exported);
-            }
-        }
-        const horVector = C.createAlignmentHorizontalVector(builder, alignmentItemsH);
-        const verVector = C.createAlignmentVerticalVector(builder, alignmentItemsV);
-        C.startCivil(builder);
-        C.addAlignmentHorizontal(builder, horVector);
-        C.addAlignmentVertical(builder, verVector);
-        const exportedCivil = Civil.endCivil(builder);
-        for (const fragment of group.items) {
-            const result = fragment.exportData();
-            const posVector = F.createPositionVector(builder, result.position);
-            const normalVector = F.createNormalVector(builder, result.normal);
-            const blockVector = F.createBlockIdVector(builder, result.blockID);
-            const indexVector = F.createIndexVector(builder, result.index);
-            const groupsVector = F.createGroupsVector(builder, result.groups);
-            const matsVector = F.createMaterialsVector(builder, result.materials);
-            const matricesVector = F.createMatricesVector(builder, result.matrices);
-            const colorsVector = F.createColorsVector(builder, result.colors);
-            const idsStr = builder.createString(result.ids);
-            const idStr = builder.createString(result.id);
-            const compositeStr = builder.createString(JSON.stringify(fragment.composites));
-            F.startFragment(builder);
-            F.addPosition(builder, posVector);
-            F.addNormal(builder, normalVector);
-            F.addBlockId(builder, blockVector);
-            F.addIndex(builder, indexVector);
-            F.addGroups(builder, groupsVector);
-            F.addMaterials(builder, matsVector);
-            F.addMatrices(builder, matricesVector);
-            F.addColors(builder, colorsVector);
-            F.addIds(builder, idsStr);
-            F.addId(builder, idStr);
-            F.addComposites(builder, compositeStr);
-            const exported = Fragment.endFragment(builder);
-            items.push(exported);
-        }
-        const itemsVector = G.createItemsVector(builder, items);
-        const matrixVector = G.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
-        let fragmentKeys = "";
-        for (const key in group.keyFragments) {
-            const fragmentID = group.keyFragments[key];
-            if (fragmentKeys.length)
-                fragmentKeys += this.fragmentIDSeparator;
-            fragmentKeys += fragmentID;
-        }
-        const fragmentKeysRef = builder.createString(fragmentKeys);
-        const keyIndices = [];
-        const itemsKeys = [];
-        const relsIndices = [];
-        const itemsRels = [];
-        const ids = [];
-        let keysCounter = 0;
-        let relsCounter = 0;
-        for (const expressID in group.data) {
-            keyIndices.push(keysCounter);
-            relsIndices.push(relsCounter);
-            const [keys, rels] = group.data[expressID];
-            const id = parseInt(expressID, 10);
-            ids.push(id);
-            for (const key of keys) {
-                itemsKeys.push(key);
-            }
-            for (const rel of rels) {
-                itemsRels.push(rel);
-            }
-            keysCounter += keys.length;
-            relsCounter += rels.length;
-        }
-        const groupID = builder.createString(group.uuid);
-        const groupName = builder.createString(group.name);
-        const ifcName = builder.createString(group.ifcMetadata.name);
-        const ifcDescription = builder.createString(group.ifcMetadata.description);
-        const ifcSchema = builder.createString(group.ifcMetadata.schema);
-        const keysIVector = G.createItemsKeysIndicesVector(builder, keyIndices);
-        const keysVector = G.createItemsKeysVector(builder, itemsKeys);
-        const relsIVector = G.createItemsRelsIndicesVector(builder, relsIndices);
-        const relsVector = G.createItemsRelsVector(builder, itemsRels);
-        const idsVector = G.createIdsVector(builder, ids);
-        const { min, max } = group.boundingBox;
-        const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
-        const bboxVector = G.createBoundingBoxVector(builder, bbox);
-        G.startFragmentsGroup(builder);
-        G.addCivil(builder, exportedCivil);
-        G.addId(builder, groupID);
-        G.addName(builder, groupName);
-        G.addIfcName(builder, ifcName);
-        G.addIfcDescription(builder, ifcDescription);
-        G.addIfcSchema(builder, ifcSchema);
-        G.addMaxExpressId(builder, group.ifcMetadata.maxExpressID);
-        G.addItems(builder, itemsVector);
-        G.addFragmentKeys(builder, fragmentKeysRef);
-        G.addIds(builder, idsVector);
-        G.addItemsKeysIndices(builder, keysIVector);
-        G.addItemsKeys(builder, keysVector);
-        G.addItemsRelsIndices(builder, relsIVector);
-        G.addItemsRels(builder, relsVector);
-        G.addCoordinationMatrix(builder, matrixVector);
-        G.addBoundingBox(builder, bboxVector);
-        const result = FragmentsGroup$1.endFragmentsGroup(builder);
-        builder.finish(result);
-        return builder.asUint8Array();
-    }
-    getComposites(fbFragment, fragment) {
-        const composites = fbFragment.composites() || "{}";
-        fragment.composites = JSON.parse(composites);
-    }
-    setID(fbFragment, fragment) {
-        const id = fbFragment.id();
-        if (id) {
-            fragment.id = id;
-            fragment.mesh.uuid = id;
-        }
-    }
-    setInstances(instances, colors, fragment) {
-        for (let i = 0; i < instances.length; i++) {
-            fragment.setInstance(i, instances[i]);
-            if (colors.length) {
-                fragment.mesh.setColorAt(i, colors[i]);
-            }
-        }
-    }
-    constructInstances(fragment) {
-        const matricesData = fragment.matricesArray();
-        const colorData = fragment.colorsArray();
-        const colors = [];
-        const idsString = fragment.ids();
-        const id = fragment.id();
-        if (!matricesData || !idsString) {
-            throw new Error(`Error: Can't load empty fragment: ${id}`);
-        }
-        const ids = idsString.split("|");
-        const singleInstance = matricesData.length === 16;
-        const manyItems = ids.length > 1;
-        const isMergedFragment = singleInstance && manyItems;
-        if (isMergedFragment) {
-            const transform = new THREE$1.Matrix4().fromArray(matricesData);
-            const instances = [{ ids, transform }];
-            return { instances, colors };
-        }
-        // Instanced fragment
-        const instances = [];
-        for (let i = 0; i < matricesData.length; i += 16) {
-            const matrixArray = matricesData.subarray(i, i + 17);
-            const transform = new THREE$1.Matrix4().fromArray(matrixArray);
-            const id = ids[i / 16];
-            instances.push({ ids: [id], transform });
-        }
-        if (colorData && colorData.length === instances.length * 3) {
-            for (let i = 0; i < colorData.length; i += 3) {
-                const [r, g, b] = colorData.subarray(i, i + 4);
-                const color = new THREE$1.Color(r, g, b);
-                colors.push(color);
-            }
-        }
-        return { instances, colors };
-    }
-    constructMaterials(fragment) {
-        const materials = fragment.materialsArray();
-        const matArray = [];
-        if (!materials)
-            return matArray;
-        for (let i = 0; i < materials.length; i += 5) {
-            const opacity = materials[i];
-            const transparent = Boolean(materials[i + 1]);
-            const red = materials[i + 2];
-            const green = materials[i + 3];
-            const blue = materials[i + 4];
-            const color = new THREE$1.Color(red, green, blue);
-            const material = new THREE$1.MeshLambertMaterial({
-                color,
-                opacity,
-                transparent,
-            });
-            matArray.push(material);
-        }
-        return matArray;
-    }
-    constructFragmentGroup(group) {
-        const fragmentsGroup = new FragmentsGroup();
-        const FBcivil = group.civil();
-        if (FBcivil) {
-            fragmentsGroup.ifcCivil = {
-                horizontalAlignments: [],
-                verticalAlignments: [],
-            };
-            for (let i = 0; i < FBcivil.alignmentHorizontalLength(); i++) {
-                const FBalignmentH = FBcivil.alignmentHorizontal(i);
-                if (FBalignmentH) {
-                    const data = new IfcAlignmentData();
-                    if (FBalignmentH.positionArray) {
-                        data.Coordinates = FBalignmentH.positionArray();
-                        for (let j = 0; j < FBalignmentH.curveLength(); j++) {
-                            data.CurveLenght.push(FBalignmentH.curve(j));
-                        }
-                        for (let j = 0; j < FBalignmentH.segmentLength(); j++) {
-                            data.SegmentLenght.push(FBalignmentH.segment(j));
-                        }
-                    }
-                    fragmentsGroup.ifcCivil.horizontalAlignments.push(data);
-                }
-            }
-            for (let i = 0; i < FBcivil.alignmentVerticalLength(); i++) {
-                const FBalignmentV = FBcivil.alignmentVertical(i);
-                if (FBalignmentV) {
-                    const data = new IfcAlignmentData();
-                    if (FBalignmentV.positionArray) {
-                        data.Coordinates = FBalignmentV.positionArray();
-                        for (let j = 0; j < FBalignmentV.curveLength(); j++) {
-                            data.CurveLenght.push(FBalignmentV.curve(j));
-                        }
-                        for (let j = 0; j < FBalignmentV.segmentLength(); j++) {
-                            data.SegmentLenght.push(FBalignmentV.segment(j));
-                        }
-                    }
-                    fragmentsGroup.ifcCivil.verticalAlignments.push(data);
-                }
-            }
-        }
-        // fragmentsGroup.ifcCivil?.horizontalAlignments
-        fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
-        fragmentsGroup.name = group.name() || "";
-        fragmentsGroup.ifcMetadata = {
-            name: group.ifcName() || "",
-            description: group.ifcDescription() || "",
-            schema: group.ifcSchema() || "IFC2X3",
-            maxExpressID: group.maxExpressId() || 0,
-        };
-        const defaultMatrix = new THREE$1.Matrix4().elements;
-        const matrixArray = group.coordinationMatrixArray() || defaultMatrix;
-        const ids = group.idsArray() || new Uint32Array();
-        const keysIndices = group.itemsKeysIndicesArray() || new Uint32Array();
-        const keysArray = group.itemsKeysArray() || new Uint32Array();
-        const relsArray = group.itemsRelsArray() || new Uint32Array();
-        const relsIndices = group.itemsRelsIndicesArray() || new Uint32Array();
-        const keysIdsString = group.fragmentKeys() || "";
-        const keysIdsArray = keysIdsString.split(this.fragmentIDSeparator);
-        this.setGroupData(fragmentsGroup, ids, keysIndices, keysArray, 0);
-        this.setGroupData(fragmentsGroup, ids, relsIndices, relsArray, 1);
-        const bbox = group.boundingBoxArray() || [0, 0, 0, 0, 0, 0];
-        const [minX, minY, minZ, maxX, maxY, maxZ] = bbox;
-        fragmentsGroup.boundingBox.min.set(minX, minY, minZ);
-        fragmentsGroup.boundingBox.max.set(maxX, maxY, maxZ);
-        for (let i = 0; i < keysIdsArray.length; i++) {
-            fragmentsGroup.keyFragments[i] = keysIdsArray[i];
-        }
-        if (matrixArray.length === 16) {
-            fragmentsGroup.coordinationMatrix.fromArray(matrixArray);
-        }
-        return fragmentsGroup;
-    }
-    setGroupData(group, ids, indices, array, index) {
-        for (let i = 0; i < indices.length; i++) {
-            const expressID = ids[i];
-            const currentIndex = indices[i];
-            const nextIndex = indices[i + 1] || array.length;
-            const keys = [];
-            for (let j = currentIndex; j < nextIndex; j++) {
-                keys.push(array[j]);
-            }
-            if (!group.data[expressID]) {
-                group.data[expressID] = [[], []];
-            }
-            group.data[expressID][index] = keys;
-        }
-    }
-    constructGeometry(fragment) {
-        const position = fragment.positionArray();
-        const normal = fragment.normalArray();
-        const blockID = fragment.blockIdArray();
-        const index = fragment.indexArray();
-        const groups = fragment.groupsArray();
-        if (!index)
-            throw new Error("Index not found!");
-        const geometry = new THREE$1.BufferGeometry();
-        geometry.setIndex(Array.from(index));
-        this.loadAttribute(geometry, "position", position, 3);
-        this.loadAttribute(geometry, "normal", normal, 3);
-        this.loadAttribute(geometry, "blockID", blockID, 1);
-        this.loadGeometryGroups(groups, geometry);
-        return geometry;
-    }
-    loadGeometryGroups(groups, geometry) {
-        if (!groups)
-            return;
-        for (let i = 0; i < groups.length; i += 3) {
-            const start = groups[i];
-            const count = groups[i + 1];
-            const materialIndex = groups[i + 2];
-            geometry.addGroup(start, count, materialIndex);
-        }
-    }
-    loadAttribute(geometry, name, data, size) {
-        if (!data)
-            return;
-        geometry.setAttribute(name, new THREE$1.BufferAttribute(data, size));
-    }
-}
-
-/**
  * Object that can efficiently load binary files that contain
  * [fragment geometry](https://github.com/ifcjs/fragment).
  */
@@ -35198,9 +35162,9 @@ var require_web_ifc_mt = __commonJS({
             var exports2 = instance.exports;
             exports2 = applySignatureConversions(exports2);
             wasmExports = exports2;
-            registerTLSInit(wasmExports["ha"]);
-            wasmTable = wasmExports["fa"];
-            addOnInit(wasmExports["ea"]);
+            registerTLSInit(wasmExports["ma"]);
+            wasmTable = wasmExports["ja"];
+            addOnInit(wasmExports["ia"]);
             wasmModule = module2;
             removeRunDependency();
             return exports2;
@@ -38482,62 +38446,6 @@ var require_web_ifc_mt = __commonJS({
             return Emval.toHandle(value);
           }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: null });
         }
-        function enumReadValueFromPointer(name, shift, signed) {
-          switch (shift) {
-            case 0:
-              return function(pointer) {
-                var heap = signed ? GROWABLE_HEAP_I8() : GROWABLE_HEAP_U8();
-                return this["fromWireType"](heap[pointer >>> 0]);
-              };
-            case 1:
-              return function(pointer) {
-                var heap = signed ? GROWABLE_HEAP_I16() : GROWABLE_HEAP_U16();
-                return this["fromWireType"](heap[pointer >>> 1]);
-              };
-            case 2:
-              return function(pointer) {
-                var heap = signed ? GROWABLE_HEAP_I32() : GROWABLE_HEAP_U32();
-                return this["fromWireType"](heap[pointer >>> 2]);
-              };
-            default:
-              throw new TypeError("Unknown integer type: " + name);
-          }
-        }
-        function __embind_register_enum(rawType, name, size, isSigned) {
-          rawType >>>= 0;
-          name >>>= 0;
-          size >>>= 0;
-          var shift = getShiftFromSize(size);
-          name = readLatin1String(name);
-          function ctor() {
-          }
-          ctor.values = {};
-          registerType(rawType, { name, constructor: ctor, "fromWireType": function(c) {
-            return this.constructor.values[c];
-          }, "toWireType": function(destructors, c) {
-            return c.value;
-          }, "argPackAdvance": 8, "readValueFromPointer": enumReadValueFromPointer(name, shift, isSigned), destructorFunction: null });
-          exposePublicSymbol(name, ctor);
-        }
-        function requireRegisteredType(rawType, humanName) {
-          var impl = registeredTypes[rawType];
-          if (impl === void 0) {
-            throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
-          }
-          return impl;
-        }
-        function __embind_register_enum_value(rawEnumType, name, enumValue) {
-          rawEnumType >>>= 0;
-          name >>>= 0;
-          enumValue >>>= 0;
-          var enumType = requireRegisteredType(rawEnumType, "enum");
-          name = readLatin1String(name);
-          var Enum = enumType.constructor;
-          var Value = Object.create(enumType.constructor.prototype, { value: { value: enumValue }, constructor: { value: createNamedFunction(`${enumType.name}_${name}`, function() {
-          }) } });
-          Enum.values[enumValue] = Value;
-          Enum[name] = Value;
-        }
         function embindRepr(v) {
           if (v === null) {
             return "null";
@@ -38934,6 +38842,8 @@ var require_web_ifc_mt = __commonJS({
             return void 0;
           } });
         }
+        var nowIsMonotonic = true;
+        var __emscripten_get_now_is_monotonic = () => nowIsMonotonic;
         var maybeExit = () => {
           if (!keepRuntimeAlive()) {
             try {
@@ -38994,6 +38904,13 @@ var require_web_ifc_mt = __commonJS({
           return -1;
         }
         function __emscripten_thread_set_strongref(thread) {
+        }
+        function requireRegisteredType(rawType, humanName) {
+          var impl = registeredTypes[rawType];
+          if (impl === void 0) {
+            throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
+          }
+          return impl;
         }
         function __emval_as(handle, returnType, destructorsRef) {
           handle >>>= 0;
@@ -39115,10 +39032,92 @@ var require_web_ifc_mt = __commonJS({
           var v = type["readValueFromPointer"](arg);
           return Emval.toHandle(v);
         }
+        function __gmtime_js(time_low, time_high, tmPtr) {
+          var time = convertI32PairToI53Checked(time_low, time_high);
+          tmPtr >>>= 0;
+          var date = new Date(time * 1e3);
+          GROWABLE_HEAP_I32()[tmPtr >>> 2] = date.getUTCSeconds();
+          GROWABLE_HEAP_I32()[tmPtr + 4 >>> 2] = date.getUTCMinutes();
+          GROWABLE_HEAP_I32()[tmPtr + 8 >>> 2] = date.getUTCHours();
+          GROWABLE_HEAP_I32()[tmPtr + 12 >>> 2] = date.getUTCDate();
+          GROWABLE_HEAP_I32()[tmPtr + 16 >>> 2] = date.getUTCMonth();
+          GROWABLE_HEAP_I32()[tmPtr + 20 >>> 2] = date.getUTCFullYear() - 1900;
+          GROWABLE_HEAP_I32()[tmPtr + 24 >>> 2] = date.getUTCDay();
+          var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
+          var yday = (date.getTime() - start) / (1e3 * 60 * 60 * 24) | 0;
+          GROWABLE_HEAP_I32()[tmPtr + 28 >>> 2] = yday;
+        }
+        var isLeapYear = (year) => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+        var MONTH_DAYS_LEAP_CUMULATIVE = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+        var MONTH_DAYS_REGULAR_CUMULATIVE = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+        var ydayFromDate = (date) => {
+          var leap = isLeapYear(date.getFullYear());
+          var monthDaysCumulative = leap ? MONTH_DAYS_LEAP_CUMULATIVE : MONTH_DAYS_REGULAR_CUMULATIVE;
+          var yday = monthDaysCumulative[date.getMonth()] + date.getDate() - 1;
+          return yday;
+        };
+        function __localtime_js(time_low, time_high, tmPtr) {
+          var time = convertI32PairToI53Checked(time_low, time_high);
+          tmPtr >>>= 0;
+          var date = new Date(time * 1e3);
+          GROWABLE_HEAP_I32()[tmPtr >>> 2] = date.getSeconds();
+          GROWABLE_HEAP_I32()[tmPtr + 4 >>> 2] = date.getMinutes();
+          GROWABLE_HEAP_I32()[tmPtr + 8 >>> 2] = date.getHours();
+          GROWABLE_HEAP_I32()[tmPtr + 12 >>> 2] = date.getDate();
+          GROWABLE_HEAP_I32()[tmPtr + 16 >>> 2] = date.getMonth();
+          GROWABLE_HEAP_I32()[tmPtr + 20 >>> 2] = date.getFullYear() - 1900;
+          GROWABLE_HEAP_I32()[tmPtr + 24 >>> 2] = date.getDay();
+          var yday = ydayFromDate(date) | 0;
+          GROWABLE_HEAP_I32()[tmPtr + 28 >>> 2] = yday;
+          GROWABLE_HEAP_I32()[tmPtr + 36 >>> 2] = -(date.getTimezoneOffset() * 60);
+          var start = new Date(date.getFullYear(), 0, 1);
+          var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
+          var winterOffset = start.getTimezoneOffset();
+          var dst = (summerOffset != winterOffset && date.getTimezoneOffset() == Math.min(winterOffset, summerOffset)) | 0;
+          GROWABLE_HEAP_I32()[tmPtr + 32 >>> 2] = dst;
+        }
+        var stringToNewUTF8 = (str) => {
+          var size = lengthBytesUTF8(str) + 1;
+          var ret = _malloc(size);
+          if (ret)
+            stringToUTF8(str, ret, size);
+          return ret;
+        };
+        function __tzset_js(timezone, daylight, tzname) {
+          timezone >>>= 0;
+          daylight >>>= 0;
+          tzname >>>= 0;
+          var currentYear = new Date().getFullYear();
+          var winter = new Date(currentYear, 0, 1);
+          var summer = new Date(currentYear, 6, 1);
+          var winterOffset = winter.getTimezoneOffset();
+          var summerOffset = summer.getTimezoneOffset();
+          var stdTimezoneOffset = Math.max(winterOffset, summerOffset);
+          GROWABLE_HEAP_U32()[timezone >>> 2] = stdTimezoneOffset * 60;
+          GROWABLE_HEAP_I32()[daylight >>> 2] = Number(winterOffset != summerOffset);
+          function extractZone(date) {
+            var match = date.toTimeString().match(/\(([A-Za-z ]+)\)$/);
+            return match ? match[1] : "GMT";
+          }
+          var winterName = extractZone(winter);
+          var summerName = extractZone(summer);
+          var winterNamePtr = stringToNewUTF8(winterName);
+          var summerNamePtr = stringToNewUTF8(summerName);
+          if (summerOffset < winterOffset) {
+            GROWABLE_HEAP_U32()[tzname >>> 2] = winterNamePtr;
+            GROWABLE_HEAP_U32()[tzname + 4 >>> 2] = summerNamePtr;
+          } else {
+            GROWABLE_HEAP_U32()[tzname >>> 2] = summerNamePtr;
+            GROWABLE_HEAP_U32()[tzname + 4 >>> 2] = winterNamePtr;
+          }
+        }
         var _abort = () => {
           abort("");
         };
         function _emscripten_check_blocking_allowed() {
+        }
+        function _emscripten_date_now() {
+          return Date.now();
         }
         var runtimeKeepalivePush = () => {
           runtimeKeepaliveCounter += 1;
@@ -39262,6 +39261,29 @@ var require_web_ifc_mt = __commonJS({
             return e.errno;
           }
         }
+        function _fd_fdstat_get(fd, pbuf) {
+          if (ENVIRONMENT_IS_PTHREAD)
+            return proxyToMainThread(6, 1, fd, pbuf);
+          pbuf >>>= 0;
+          try {
+            var rightsBase = 0;
+            var rightsInheriting = 0;
+            var flags = 0;
+            {
+              var stream = SYSCALLS.getStreamFromFD(fd);
+              var type = stream.tty ? 2 : FS.isDir(stream.mode) ? 3 : FS.isLink(stream.mode) ? 7 : 4;
+            }
+            GROWABLE_HEAP_I8()[pbuf >>> 0] = type;
+            GROWABLE_HEAP_I16()[pbuf + 2 >>> 1] = flags;
+            tempI64 = [rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[pbuf + 8 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[pbuf + 12 >>> 2] = tempI64[1];
+            tempI64 = [rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[pbuf + 16 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[pbuf + 20 >>> 2] = tempI64[1];
+            return 0;
+          } catch (e) {
+            if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
+              throw e;
+            return e.errno;
+          }
+        }
         var doReadv = (stream, iov, iovcnt, offset) => {
           var ret = 0;
           for (var i = 0; i < iovcnt; i++) {
@@ -39282,7 +39304,7 @@ var require_web_ifc_mt = __commonJS({
         };
         function _fd_read(fd, iov, iovcnt, pnum) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(6, 1, fd, iov, iovcnt, pnum);
+            return proxyToMainThread(7, 1, fd, iov, iovcnt, pnum);
           iov >>>= 0;
           iovcnt >>>= 0;
           pnum >>>= 0;
@@ -39299,7 +39321,7 @@ var require_web_ifc_mt = __commonJS({
         }
         function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(7, 1, fd, offset_low, offset_high, whence, newOffset);
+            return proxyToMainThread(8, 1, fd, offset_low, offset_high, whence, newOffset);
           var offset = convertI32PairToI53Checked(offset_low, offset_high);
           newOffset >>>= 0;
           try {
@@ -39335,7 +39357,7 @@ var require_web_ifc_mt = __commonJS({
         };
         function _fd_write(fd, iov, iovcnt, pnum) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(8, 1, fd, iov, iovcnt, pnum);
+            return proxyToMainThread(9, 1, fd, iov, iovcnt, pnum);
           iov >>>= 0;
           iovcnt >>>= 0;
           pnum >>>= 0;
@@ -39350,7 +39372,6 @@ var require_web_ifc_mt = __commonJS({
             return e.errno;
           }
         }
-        var isLeapYear = (year) => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
         var arraySum = (array, index) => {
           var sum = 0;
           for (var i = 0; i <= index; sum += array[i++]) {
@@ -39570,37 +39591,37 @@ var require_web_ifc_mt = __commonJS({
         UnboundTypeError = Module["UnboundTypeError"] = extendError(Error, "UnboundTypeError");
         handleAllocatorInit();
         init_emval();
-        var proxiedFunctionTable = [null, _proc_exit, exitOnMainThread, _environ_get, _environ_sizes_get, _fd_close, _fd_read, _fd_seek, _fd_write];
-        var wasmImports = { h: ___cxa_throw, W: ___emscripten_init_main_thread_js, K: ___emscripten_thread_cleanup, ba: __embind_finalize_value_array, r: __embind_finalize_value_object, I: __embind_register_bigint, $: __embind_register_bool, q: __embind_register_class, p: __embind_register_class_constructor, c: __embind_register_class_function, _: __embind_register_emval, E: __embind_register_enum, u: __embind_register_enum_value, C: __embind_register_float, d: __embind_register_function, t: __embind_register_integer, l: __embind_register_memory_view, D: __embind_register_std_string, z: __embind_register_std_wstring, ca: __embind_register_value_array, m: __embind_register_value_array_element, s: __embind_register_value_object, f: __embind_register_value_object_field, aa: __embind_register_void, R: __emscripten_notify_mailbox_postmessage, U: __emscripten_set_offscreencanvas_size, V: __emscripten_thread_mailbox_await, Z: __emscripten_thread_set_strongref, k: __emval_as, y: __emval_call, b: __emval_decref, B: __emval_get_global, i: __emval_get_property, o: __emval_incref, G: __emval_instanceof, A: __emval_is_number, F: __emval_is_string, da: __emval_new_array, g: __emval_new_cstring, w: __emval_new_object, j: __emval_run_destructors, n: __emval_set_property, e: __emval_take_value, x: _abort, X: _emscripten_check_blocking_allowed, Y: _emscripten_exit_with_live_runtime, v: _emscripten_get_now, T: _emscripten_receive_on_main_thread_js, Q: _emscripten_resize_heap, M: _environ_get, N: _environ_sizes_get, J: _exit, O: _fd_close, P: _fd_read, H: _fd_seek, S: _fd_write, a: wasmMemory || Module["wasmMemory"], L: _strftime_l };
+        var proxiedFunctionTable = [null, _proc_exit, exitOnMainThread, _environ_get, _environ_sizes_get, _fd_close, _fd_fdstat_get, _fd_read, _fd_seek, _fd_write];
+        var wasmImports = { g: ___cxa_throw, Y: ___emscripten_init_main_thread_js, B: ___emscripten_thread_cleanup, fa: __embind_finalize_value_array, r: __embind_finalize_value_object, K: __embind_register_bigint, da: __embind_register_bool, q: __embind_register_class, p: __embind_register_class_constructor, c: __embind_register_class_function, ca: __embind_register_emval, D: __embind_register_float, d: __embind_register_function, t: __embind_register_integer, l: __embind_register_memory_view, E: __embind_register_std_string, y: __embind_register_std_wstring, ga: __embind_register_value_array, m: __embind_register_value_array_element, s: __embind_register_value_object, f: __embind_register_value_object_field, ea: __embind_register_void, T: __emscripten_get_now_is_monotonic, R: __emscripten_notify_mailbox_postmessage, W: __emscripten_set_offscreencanvas_size, X: __emscripten_thread_mailbox_await, ba: __emscripten_thread_set_strongref, k: __emval_as, x: __emval_call, b: __emval_decref, A: __emval_get_global, i: __emval_get_property, o: __emval_incref, G: __emval_instanceof, z: __emval_is_number, F: __emval_is_string, ha: __emval_new_array, h: __emval_new_cstring, v: __emval_new_object, j: __emval_run_destructors, n: __emval_set_property, e: __emval_take_value, I: __gmtime_js, J: __localtime_js, Q: __tzset_js, w: _abort, C: _emscripten_check_blocking_allowed, U: _emscripten_date_now, aa: _emscripten_exit_with_live_runtime, u: _emscripten_get_now, V: _emscripten_receive_on_main_thread_js, P: _emscripten_resize_heap, _: _environ_get, $: _environ_sizes_get, L: _exit, N: _fd_close, Z: _fd_fdstat_get, O: _fd_read, H: _fd_seek, S: _fd_write, a: wasmMemory || Module["wasmMemory"], M: _strftime_l };
         createWasm();
-        var _malloc = (a0) => (_malloc = wasmExports["ga"])(a0);
-        Module["__emscripten_tls_init"] = () => (Module["__emscripten_tls_init"] = wasmExports["ha"])();
-        var _pthread_self = Module["_pthread_self"] = () => (_pthread_self = Module["_pthread_self"] = wasmExports["ia"])();
-        var ___getTypeName = (a0) => (___getTypeName = wasmExports["ja"])(a0);
-        Module["__embind_initialize_bindings"] = () => (Module["__embind_initialize_bindings"] = wasmExports["ka"])();
-        var __emscripten_thread_init = Module["__emscripten_thread_init"] = (a0, a1, a2, a3, a4, a5) => (__emscripten_thread_init = Module["__emscripten_thread_init"] = wasmExports["la"])(a0, a1, a2, a3, a4, a5);
-        Module["__emscripten_thread_crashed"] = () => (Module["__emscripten_thread_crashed"] = wasmExports["ma"])();
-        var __emscripten_run_in_main_runtime_thread_js = (a0, a1, a2, a3) => (__emscripten_run_in_main_runtime_thread_js = wasmExports["na"])(a0, a1, a2, a3);
-        var __emscripten_thread_free_data = (a0) => (__emscripten_thread_free_data = wasmExports["oa"])(a0);
-        var __emscripten_thread_exit = Module["__emscripten_thread_exit"] = (a0) => (__emscripten_thread_exit = Module["__emscripten_thread_exit"] = wasmExports["pa"])(a0);
-        var _free = (a0) => (_free = wasmExports["qa"])(a0);
-        var __emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = () => (__emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = wasmExports["ra"])();
-        var _emscripten_stack_set_limits = (a0, a1) => (_emscripten_stack_set_limits = wasmExports["sa"])(a0, a1);
-        var stackSave = () => (stackSave = wasmExports["ta"])();
-        var stackRestore = (a0) => (stackRestore = wasmExports["ua"])(a0);
-        var stackAlloc = (a0) => (stackAlloc = wasmExports["va"])(a0);
-        var ___cxa_is_pointer_type = (a0) => (___cxa_is_pointer_type = wasmExports["wa"])(a0);
-        Module["dynCall_jiji"] = (a0, a1, a2, a3, a4) => (Module["dynCall_jiji"] = wasmExports["xa"])(a0, a1, a2, a3, a4);
-        Module["dynCall_viijii"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_viijii"] = wasmExports["ya"])(a0, a1, a2, a3, a4, a5, a6);
-        Module["dynCall_iiiiij"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_iiiiij"] = wasmExports["za"])(a0, a1, a2, a3, a4, a5, a6);
-        Module["dynCall_iiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (Module["dynCall_iiiiijj"] = wasmExports["Aa"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-        Module["dynCall_iiiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (Module["dynCall_iiiiiijj"] = wasmExports["Ba"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+        var _pthread_self = Module["_pthread_self"] = () => (_pthread_self = Module["_pthread_self"] = wasmExports["ka"])();
+        var _malloc = (a0) => (_malloc = wasmExports["la"])(a0);
+        Module["__emscripten_tls_init"] = () => (Module["__emscripten_tls_init"] = wasmExports["ma"])();
+        var ___getTypeName = (a0) => (___getTypeName = wasmExports["na"])(a0);
+        Module["__embind_initialize_bindings"] = () => (Module["__embind_initialize_bindings"] = wasmExports["oa"])();
+        var __emscripten_thread_init = Module["__emscripten_thread_init"] = (a0, a1, a2, a3, a4, a5) => (__emscripten_thread_init = Module["__emscripten_thread_init"] = wasmExports["pa"])(a0, a1, a2, a3, a4, a5);
+        Module["__emscripten_thread_crashed"] = () => (Module["__emscripten_thread_crashed"] = wasmExports["qa"])();
+        var __emscripten_run_in_main_runtime_thread_js = (a0, a1, a2, a3) => (__emscripten_run_in_main_runtime_thread_js = wasmExports["ra"])(a0, a1, a2, a3);
+        var _free = (a0) => (_free = wasmExports["sa"])(a0);
+        var __emscripten_thread_free_data = (a0) => (__emscripten_thread_free_data = wasmExports["ta"])(a0);
+        var __emscripten_thread_exit = Module["__emscripten_thread_exit"] = (a0) => (__emscripten_thread_exit = Module["__emscripten_thread_exit"] = wasmExports["ua"])(a0);
+        var __emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = () => (__emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = wasmExports["va"])();
+        var _emscripten_stack_set_limits = (a0, a1) => (_emscripten_stack_set_limits = wasmExports["wa"])(a0, a1);
+        var stackSave = () => (stackSave = wasmExports["xa"])();
+        var stackRestore = (a0) => (stackRestore = wasmExports["ya"])(a0);
+        var stackAlloc = (a0) => (stackAlloc = wasmExports["za"])(a0);
+        var ___cxa_is_pointer_type = (a0) => (___cxa_is_pointer_type = wasmExports["Aa"])(a0);
+        Module["dynCall_jiji"] = (a0, a1, a2, a3, a4) => (Module["dynCall_jiji"] = wasmExports["Ba"])(a0, a1, a2, a3, a4);
+        Module["dynCall_viijii"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_viijii"] = wasmExports["Ca"])(a0, a1, a2, a3, a4, a5, a6);
+        Module["dynCall_iiiiij"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_iiiiij"] = wasmExports["Da"])(a0, a1, a2, a3, a4, a5, a6);
+        Module["dynCall_iiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (Module["dynCall_iiiiijj"] = wasmExports["Ea"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+        Module["dynCall_iiiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (Module["dynCall_iiiiiijj"] = wasmExports["Fa"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
         function applySignatureConversions(exports2) {
           exports2 = Object.assign({}, exports2);
-          var makeWrapper_pp = (f) => (a0) => f(a0) >>> 0;
           var makeWrapper_p = (f) => () => f() >>> 0;
-          exports2["malloc"] = makeWrapper_pp(exports2["malloc"]);
+          var makeWrapper_pp = (f) => (a0) => f(a0) >>> 0;
           exports2["pthread_self"] = makeWrapper_p(exports2["pthread_self"]);
+          exports2["malloc"] = makeWrapper_pp(exports2["malloc"]);
           exports2["__getTypeName"] = makeWrapper_pp(exports2["__getTypeName"]);
           exports2["__errno_location"] = makeWrapper_p(exports2["__errno_location"]);
           exports2["stackSave"] = makeWrapper_p(exports2["stackSave"]);
@@ -39898,10 +39919,10 @@ var require_web_ifc = __commonJS({
             var exports2 = instance.exports;
             exports2 = applySignatureConversions(exports2);
             wasmExports = exports2;
-            wasmMemory = wasmExports["V"];
+            wasmMemory = wasmExports["Z"];
             updateMemoryViews();
-            wasmTable = wasmExports["X"];
-            addOnInit(wasmExports["W"]);
+            wasmTable = wasmExports["$"];
+            addOnInit(wasmExports["_"]);
             removeRunDependency();
             return exports2;
           }
@@ -41080,62 +41101,6 @@ var require_web_ifc = __commonJS({
             return Emval.toHandle(value);
           }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: null });
         }
-        function enumReadValueFromPointer(name, shift, signed) {
-          switch (shift) {
-            case 0:
-              return function(pointer) {
-                var heap = signed ? HEAP8 : HEAPU8;
-                return this["fromWireType"](heap[pointer >>> 0]);
-              };
-            case 1:
-              return function(pointer) {
-                var heap = signed ? HEAP16 : HEAPU16;
-                return this["fromWireType"](heap[pointer >>> 1]);
-              };
-            case 2:
-              return function(pointer) {
-                var heap = signed ? HEAP32 : HEAPU32;
-                return this["fromWireType"](heap[pointer >>> 2]);
-              };
-            default:
-              throw new TypeError("Unknown integer type: " + name);
-          }
-        }
-        function __embind_register_enum(rawType, name, size, isSigned) {
-          rawType >>>= 0;
-          name >>>= 0;
-          size >>>= 0;
-          var shift = getShiftFromSize(size);
-          name = readLatin1String(name);
-          function ctor() {
-          }
-          ctor.values = {};
-          registerType(rawType, { name, constructor: ctor, "fromWireType": function(c) {
-            return this.constructor.values[c];
-          }, "toWireType": function(destructors, c) {
-            return c.value;
-          }, "argPackAdvance": 8, "readValueFromPointer": enumReadValueFromPointer(name, shift, isSigned), destructorFunction: null });
-          exposePublicSymbol(name, ctor);
-        }
-        function requireRegisteredType(rawType, humanName) {
-          var impl = registeredTypes[rawType];
-          if (impl === void 0) {
-            throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
-          }
-          return impl;
-        }
-        function __embind_register_enum_value(rawEnumType, name, enumValue) {
-          rawEnumType >>>= 0;
-          name >>>= 0;
-          enumValue >>>= 0;
-          var enumType = requireRegisteredType(rawEnumType, "enum");
-          name = readLatin1String(name);
-          var Enum = enumType.constructor;
-          var Value = Object.create(enumType.constructor.prototype, { value: { value: enumValue }, constructor: { value: createNamedFunction(`${enumType.name}_${name}`, function() {
-          }) } });
-          Enum.values[enumValue] = Value;
-          Enum[name] = Value;
-        }
         function embindRepr(v) {
           if (v === null) {
             return "null";
@@ -41629,6 +41594,15 @@ var require_web_ifc = __commonJS({
             return void 0;
           } });
         }
+        var nowIsMonotonic = true;
+        var __emscripten_get_now_is_monotonic = () => nowIsMonotonic;
+        function requireRegisteredType(rawType, humanName) {
+          var impl = registeredTypes[rawType];
+          if (impl === void 0) {
+            throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
+          }
+          return impl;
+        }
         function __emval_as(handle, returnType, destructorsRef) {
           handle >>>= 0;
           returnType >>>= 0;
@@ -41749,9 +41723,91 @@ var require_web_ifc = __commonJS({
           var v = type["readValueFromPointer"](arg);
           return Emval.toHandle(v);
         }
+        function __gmtime_js(time_low, time_high, tmPtr) {
+          var time = convertI32PairToI53Checked(time_low, time_high);
+          tmPtr >>>= 0;
+          var date = new Date(time * 1e3);
+          HEAP32[tmPtr >>> 2] = date.getUTCSeconds();
+          HEAP32[tmPtr + 4 >>> 2] = date.getUTCMinutes();
+          HEAP32[tmPtr + 8 >>> 2] = date.getUTCHours();
+          HEAP32[tmPtr + 12 >>> 2] = date.getUTCDate();
+          HEAP32[tmPtr + 16 >>> 2] = date.getUTCMonth();
+          HEAP32[tmPtr + 20 >>> 2] = date.getUTCFullYear() - 1900;
+          HEAP32[tmPtr + 24 >>> 2] = date.getUTCDay();
+          var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
+          var yday = (date.getTime() - start) / (1e3 * 60 * 60 * 24) | 0;
+          HEAP32[tmPtr + 28 >>> 2] = yday;
+        }
+        var isLeapYear = (year) => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+        var MONTH_DAYS_LEAP_CUMULATIVE = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+        var MONTH_DAYS_REGULAR_CUMULATIVE = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+        var ydayFromDate = (date) => {
+          var leap = isLeapYear(date.getFullYear());
+          var monthDaysCumulative = leap ? MONTH_DAYS_LEAP_CUMULATIVE : MONTH_DAYS_REGULAR_CUMULATIVE;
+          var yday = monthDaysCumulative[date.getMonth()] + date.getDate() - 1;
+          return yday;
+        };
+        function __localtime_js(time_low, time_high, tmPtr) {
+          var time = convertI32PairToI53Checked(time_low, time_high);
+          tmPtr >>>= 0;
+          var date = new Date(time * 1e3);
+          HEAP32[tmPtr >>> 2] = date.getSeconds();
+          HEAP32[tmPtr + 4 >>> 2] = date.getMinutes();
+          HEAP32[tmPtr + 8 >>> 2] = date.getHours();
+          HEAP32[tmPtr + 12 >>> 2] = date.getDate();
+          HEAP32[tmPtr + 16 >>> 2] = date.getMonth();
+          HEAP32[tmPtr + 20 >>> 2] = date.getFullYear() - 1900;
+          HEAP32[tmPtr + 24 >>> 2] = date.getDay();
+          var yday = ydayFromDate(date) | 0;
+          HEAP32[tmPtr + 28 >>> 2] = yday;
+          HEAP32[tmPtr + 36 >>> 2] = -(date.getTimezoneOffset() * 60);
+          var start = new Date(date.getFullYear(), 0, 1);
+          var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
+          var winterOffset = start.getTimezoneOffset();
+          var dst = (summerOffset != winterOffset && date.getTimezoneOffset() == Math.min(winterOffset, summerOffset)) | 0;
+          HEAP32[tmPtr + 32 >>> 2] = dst;
+        }
+        var stringToNewUTF8 = (str) => {
+          var size = lengthBytesUTF8(str) + 1;
+          var ret = _malloc(size);
+          if (ret)
+            stringToUTF8(str, ret, size);
+          return ret;
+        };
+        function __tzset_js(timezone, daylight, tzname) {
+          timezone >>>= 0;
+          daylight >>>= 0;
+          tzname >>>= 0;
+          var currentYear = new Date().getFullYear();
+          var winter = new Date(currentYear, 0, 1);
+          var summer = new Date(currentYear, 6, 1);
+          var winterOffset = winter.getTimezoneOffset();
+          var summerOffset = summer.getTimezoneOffset();
+          var stdTimezoneOffset = Math.max(winterOffset, summerOffset);
+          HEAPU32[timezone >>> 2] = stdTimezoneOffset * 60;
+          HEAP32[daylight >>> 2] = Number(winterOffset != summerOffset);
+          function extractZone(date) {
+            var match = date.toTimeString().match(/\(([A-Za-z ]+)\)$/);
+            return match ? match[1] : "GMT";
+          }
+          var winterName = extractZone(winter);
+          var summerName = extractZone(summer);
+          var winterNamePtr = stringToNewUTF8(winterName);
+          var summerNamePtr = stringToNewUTF8(summerName);
+          if (summerOffset < winterOffset) {
+            HEAPU32[tzname >>> 2] = winterNamePtr;
+            HEAPU32[tzname + 4 >>> 2] = summerNamePtr;
+          } else {
+            HEAPU32[tzname >>> 2] = summerNamePtr;
+            HEAPU32[tzname + 4 >>> 2] = winterNamePtr;
+          }
+        }
         var _abort = () => {
           abort("");
         };
+        function _emscripten_date_now() {
+          return Date.now();
+        }
         function _emscripten_memcpy_big(dest, src, num) {
           dest >>>= 0;
           src >>>= 0;
@@ -43628,6 +43684,27 @@ var require_web_ifc = __commonJS({
             return e.errno;
           }
         }
+        function _fd_fdstat_get(fd, pbuf) {
+          pbuf >>>= 0;
+          try {
+            var rightsBase = 0;
+            var rightsInheriting = 0;
+            var flags = 0;
+            {
+              var stream = SYSCALLS.getStreamFromFD(fd);
+              var type = stream.tty ? 2 : FS.isDir(stream.mode) ? 3 : FS.isLink(stream.mode) ? 7 : 4;
+            }
+            HEAP8[pbuf >>> 0] = type;
+            HEAP16[pbuf + 2 >>> 1] = flags;
+            tempI64 = [rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[pbuf + 8 >>> 2] = tempI64[0], HEAP32[pbuf + 12 >>> 2] = tempI64[1];
+            tempI64 = [rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[pbuf + 16 >>> 2] = tempI64[0], HEAP32[pbuf + 20 >>> 2] = tempI64[1];
+            return 0;
+          } catch (e) {
+            if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
+              throw e;
+            return e.errno;
+          }
+        }
         var doReadv = (stream, iov, iovcnt, offset) => {
           var ret = 0;
           for (var i = 0; i < iovcnt; i++) {
@@ -43710,7 +43787,6 @@ var require_web_ifc = __commonJS({
             return e.errno;
           }
         }
-        var isLeapYear = (year) => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
         var arraySum = (array, index) => {
           var sum = 0;
           for (var i = 0; i <= index; sum += array[i++]) {
@@ -43929,18 +44005,18 @@ var require_web_ifc = __commonJS({
         FS.FSNode = FSNode;
         FS.createPreloadedFile = FS_createPreloadedFile;
         FS.staticInit();
-        var wasmImports = { g: ___cxa_throw, S: __embind_finalize_value_array, q: __embind_finalize_value_object, G: __embind_register_bigint, Q: __embind_register_bool, p: __embind_register_class, o: __embind_register_class_constructor, b: __embind_register_class_function, P: __embind_register_emval, C: __embind_register_enum, t: __embind_register_enum_value, A: __embind_register_float, c: __embind_register_function, s: __embind_register_integer, k: __embind_register_memory_view, B: __embind_register_std_string, x: __embind_register_std_wstring, T: __embind_register_value_array, l: __embind_register_value_array_element, r: __embind_register_value_object, e: __embind_register_value_object_field, R: __embind_register_void, j: __emval_as, v: __emval_call, a: __emval_decref, z: __emval_get_global, h: __emval_get_property, n: __emval_incref, E: __emval_instanceof, y: __emval_is_number, D: __emval_is_string, U: __emval_new_array, f: __emval_new_cstring, u: __emval_new_object, i: __emval_run_destructors, m: __emval_set_property, d: __emval_take_value, w: _abort, O: _emscripten_memcpy_big, M: _emscripten_resize_heap, I: _environ_get, J: _environ_sizes_get, K: _fd_close, L: _fd_read, F: _fd_seek, N: _fd_write, H: _strftime_l };
+        var wasmImports = { f: ___cxa_throw, W: __embind_finalize_value_array, q: __embind_finalize_value_object, G: __embind_register_bigint, U: __embind_register_bool, p: __embind_register_class, o: __embind_register_class_constructor, b: __embind_register_class_function, T: __embind_register_emval, z: __embind_register_float, c: __embind_register_function, s: __embind_register_integer, k: __embind_register_memory_view, A: __embind_register_std_string, w: __embind_register_std_wstring, X: __embind_register_value_array, l: __embind_register_value_array_element, r: __embind_register_value_object, e: __embind_register_value_object_field, V: __embind_register_void, N: __emscripten_get_now_is_monotonic, j: __emval_as, v: __emval_call, a: __emval_decref, y: __emval_get_global, h: __emval_get_property, n: __emval_incref, C: __emval_instanceof, x: __emval_is_number, B: __emval_is_string, Y: __emval_new_array, g: __emval_new_cstring, t: __emval_new_object, i: __emval_run_destructors, m: __emval_set_property, d: __emval_take_value, E: __gmtime_js, F: __localtime_js, L: __tzset_js, u: _abort, O: _emscripten_date_now, S: _emscripten_memcpy_big, K: _emscripten_resize_heap, Q: _environ_get, R: _environ_sizes_get, I: _fd_close, P: _fd_fdstat_get, J: _fd_read, D: _fd_seek, M: _fd_write, H: _strftime_l };
         createWasm();
-        var _malloc = (a0) => (_malloc = wasmExports["Y"])(a0);
-        var ___getTypeName = (a0) => (___getTypeName = wasmExports["Z"])(a0);
-        Module["__embind_initialize_bindings"] = () => (Module["__embind_initialize_bindings"] = wasmExports["_"])();
-        var _free = (a0) => (_free = wasmExports["$"])(a0);
-        var ___cxa_is_pointer_type = (a0) => (___cxa_is_pointer_type = wasmExports["aa"])(a0);
-        Module["dynCall_jiji"] = (a0, a1, a2, a3, a4) => (Module["dynCall_jiji"] = wasmExports["ba"])(a0, a1, a2, a3, a4);
-        Module["dynCall_viijii"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_viijii"] = wasmExports["ca"])(a0, a1, a2, a3, a4, a5, a6);
-        Module["dynCall_iiiiij"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_iiiiij"] = wasmExports["da"])(a0, a1, a2, a3, a4, a5, a6);
-        Module["dynCall_iiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (Module["dynCall_iiiiijj"] = wasmExports["ea"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-        Module["dynCall_iiiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (Module["dynCall_iiiiiijj"] = wasmExports["fa"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+        var _malloc = (a0) => (_malloc = wasmExports["aa"])(a0);
+        var ___getTypeName = (a0) => (___getTypeName = wasmExports["ba"])(a0);
+        Module["__embind_initialize_bindings"] = () => (Module["__embind_initialize_bindings"] = wasmExports["ca"])();
+        var _free = (a0) => (_free = wasmExports["da"])(a0);
+        var ___cxa_is_pointer_type = (a0) => (___cxa_is_pointer_type = wasmExports["ea"])(a0);
+        Module["dynCall_jiji"] = (a0, a1, a2, a3, a4) => (Module["dynCall_jiji"] = wasmExports["fa"])(a0, a1, a2, a3, a4);
+        Module["dynCall_viijii"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_viijii"] = wasmExports["ga"])(a0, a1, a2, a3, a4, a5, a6);
+        Module["dynCall_iiiiij"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_iiiiij"] = wasmExports["ha"])(a0, a1, a2, a3, a4, a5, a6);
+        Module["dynCall_iiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (Module["dynCall_iiiiijj"] = wasmExports["ia"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+        Module["dynCall_iiiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (Module["dynCall_iiiiiijj"] = wasmExports["ja"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
         function applySignatureConversions(exports2) {
           exports2 = Object.assign({}, exports2);
           var makeWrapper_pp = (f) => (a0) => f(a0) >>> 0;
@@ -45185,11 +45261,24 @@ function TypeInitialiser(schema, tapeItem) {
     return tapeItem.value;
 }
 function Labelise(tapeItem) {
-  tapeItem.value = tapeItem.value.toString();
-  tapeItem.valueType = tapeItem.type;
-  tapeItem.type = 2;
-  tapeItem.label = tapeItem.constructor.name.toUpperCase();
-  return tapeItem;
+  if (tapeItem.label)
+    return tapeItem;
+  else
+    return { value: tapeItem.value.toString(), valueType: tapeItem.type, type: 2, label: tapeItem.name };
+}
+function BooleanConvert(item) {
+  switch (item.toString()) {
+    case "true":
+      return "T";
+    case "false":
+      return "F";
+    case "0":
+      return "F";
+    case "1":
+      return "T";
+    case "2":
+      return "U";
+  }
 }
 var Schemas;
 (function(Schemas2) {
@@ -47948,10 +48037,7 @@ ToRawLineData[1] = {
   1040185647: (i) => [i.Location, i.ItemReference, i.Name],
   3207319532: (i) => [i.Location, i.ItemReference, i.Name],
   3548104201: (i) => [i.Location, i.ItemReference, i.Name],
-  852622518: (i) => {
-    var _a;
-    return [i.AxisTag, i.AxisCurve, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  852622518: (i) => [i.AxisTag, i.AxisCurve, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   3020489413: (i) => [i.TimeStamp, i.ListValues.map((p) => Labelise(p))],
   2655187982: (i) => [i.Name, i.Version, i.Publisher, i.VersionDate, i.LibraryReference],
   3452421091: (i) => [i.Location, i.ItemReference, i.Name],
@@ -47960,10 +48046,7 @@ ToRawLineData[1] = {
   30780891: (i) => [i.HourComponent, i.MinuteComponent, i.SecondComponent, i.Zone, i.DaylightSavingOffset],
   1838606355: (i) => [i.Name],
   1847130766: (i) => [i.MaterialClassifications, i.ClassifiedMaterial],
-  248100487: (i) => {
-    var _a;
-    return [i.Material, i.LayerThickness, (_a = i.IsVentilated) == null ? void 0 : _a.toString()];
-  },
+  248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }],
   3303938423: (i) => [i.MaterialLayers, i.LayerSetName],
   1303795690: (i) => [i.ForLayerSet, i.LayerSetDirection, i.DirectionSense, i.OffsetFromReferenceLine],
   2199411900: (i) => [i.Materials],
@@ -48155,10 +48238,7 @@ ToRawLineData[1] = {
   4124623270: (i) => [i.SbsmBoundary],
   2609359061: (i) => [i.Name, i.SlippageX, i.SlippageY, i.SlippageZ],
   723233188: (_) => [],
-  2485662743: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, (_a = i.IsAttenuating) == null ? void 0 : _a.toString(), i.SoundScale, i.SoundValues];
-  },
+  2485662743: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, { type: 3, value: BooleanConvert(i.IsAttenuating.value) }, i.SoundScale, i.SoundValues],
   1202362311: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.SoundLevelTimeSeries, i.Frequency, !i.SoundLevelSingleValue ? null : Labelise(i.SoundLevelSingleValue)],
   390701378: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableValueRatio, i.ThermalLoadSource, i.PropertySource, i.SourceDescription, i.MaximumValue, i.MinimumValue, i.ThermalLoadTimeSeriesValues, i.UserDefinedThermalLoadSource, i.UserDefinedPropertySource, i.ThermalLoadType],
   1595516126: (i) => [i.Name, i.LinearForceX, i.LinearForceY, i.LinearForceZ, i.LinearMomentX, i.LinearMomentY, i.LinearMomentZ],
@@ -48686,6 +48766,7 @@ var IFC2X3;
   class IfcAbsorbedDoseMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCABSORBEDDOSEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48693,6 +48774,7 @@ var IFC2X3;
   class IfcAccelerationMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCACCELERATIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48700,6 +48782,7 @@ var IFC2X3;
   class IfcAmountOfSubstanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAMOUNTOFSUBSTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48707,6 +48790,7 @@ var IFC2X3;
   class IfcAngularVelocityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCANGULARVELOCITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48714,6 +48798,7 @@ var IFC2X3;
   class IfcAreaMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAREAMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48721,6 +48806,7 @@ var IFC2X3;
   class IfcBoolean {
     constructor(v) {
       this.type = 3;
+      this.name = "IFCBOOLEAN";
       this.value = v === null ? v : v == "T" ? true : false;
     }
   }
@@ -48729,6 +48815,7 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCBOXALIGNMENT";
     }
   }
   IFC2X32.IfcBoxAlignment = IfcBoxAlignment;
@@ -48749,6 +48836,7 @@ var IFC2X3;
   class IfcContextDependentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCONTEXTDEPENDENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48756,6 +48844,7 @@ var IFC2X3;
   class IfcCountMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCOUNTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48763,6 +48852,7 @@ var IFC2X3;
   class IfcCurvatureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCURVATUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48770,6 +48860,7 @@ var IFC2X3;
   class IfcDayInMonthNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDAYINMONTHNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48777,6 +48868,7 @@ var IFC2X3;
   class IfcDaylightSavingHour {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDAYLIGHTSAVINGHOUR";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48785,12 +48877,14 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDESCRIPTIVEMEASURE";
     }
   }
   IFC2X32.IfcDescriptiveMeasure = IfcDescriptiveMeasure;
   class IfcDimensionCount {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDIMENSIONCOUNT";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48798,6 +48892,7 @@ var IFC2X3;
   class IfcDoseEquivalentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCDOSEEQUIVALENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48805,6 +48900,7 @@ var IFC2X3;
   class IfcDynamicViscosityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCDYNAMICVISCOSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48812,6 +48908,7 @@ var IFC2X3;
   class IfcElectricCapacitanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCAPACITANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48819,6 +48916,7 @@ var IFC2X3;
   class IfcElectricChargeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCHARGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48826,6 +48924,7 @@ var IFC2X3;
   class IfcElectricConductanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCONDUCTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48833,6 +48932,7 @@ var IFC2X3;
   class IfcElectricCurrentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCURRENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48840,6 +48940,7 @@ var IFC2X3;
   class IfcElectricResistanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICRESISTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48847,6 +48948,7 @@ var IFC2X3;
   class IfcElectricVoltageMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICVOLTAGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48854,6 +48956,7 @@ var IFC2X3;
   class IfcEnergyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCENERGYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48862,6 +48965,7 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTSTYLE";
     }
   }
   IFC2X32.IfcFontStyle = IfcFontStyle;
@@ -48869,6 +48973,7 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTVARIANT";
     }
   }
   IFC2X32.IfcFontVariant = IfcFontVariant;
@@ -48876,12 +48981,14 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTWEIGHT";
     }
   }
   IFC2X32.IfcFontWeight = IfcFontWeight;
   class IfcForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48889,6 +48996,7 @@ var IFC2X3;
   class IfcFrequencyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCFREQUENCYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48897,12 +49005,14 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCGLOBALLYUNIQUEID";
     }
   }
   IFC2X32.IfcGloballyUniqueId = IfcGloballyUniqueId;
   class IfcHeatFluxDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCHEATFLUXDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48910,6 +49020,7 @@ var IFC2X3;
   class IfcHeatingValueMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCHEATINGVALUEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48917,6 +49028,7 @@ var IFC2X3;
   class IfcHourInDay {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCHOURINDAY";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48925,12 +49037,14 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCIDENTIFIER";
     }
   }
   IFC2X32.IfcIdentifier = IfcIdentifier;
   class IfcIlluminanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCILLUMINANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48938,6 +49052,7 @@ var IFC2X3;
   class IfcInductanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCINDUCTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48945,6 +49060,7 @@ var IFC2X3;
   class IfcInteger {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCINTEGER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48952,6 +49068,7 @@ var IFC2X3;
   class IfcIntegerCountRateMeasure {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCINTEGERCOUNTRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48959,6 +49076,7 @@ var IFC2X3;
   class IfcIonConcentrationMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCIONCONCENTRATIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48966,6 +49084,7 @@ var IFC2X3;
   class IfcIsothermalMoistureCapacityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCISOTHERMALMOISTURECAPACITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48973,6 +49092,7 @@ var IFC2X3;
   class IfcKinematicViscosityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCKINEMATICVISCOSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48981,12 +49101,14 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCLABEL";
     }
   }
   IFC2X32.IfcLabel = IfcLabel;
   class IfcLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -48994,6 +49116,7 @@ var IFC2X3;
   class IfcLinearForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49001,6 +49124,7 @@ var IFC2X3;
   class IfcLinearMomentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARMOMENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49008,6 +49132,7 @@ var IFC2X3;
   class IfcLinearStiffnessMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARSTIFFNESSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49015,6 +49140,7 @@ var IFC2X3;
   class IfcLinearVelocityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARVELOCITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49022,6 +49148,7 @@ var IFC2X3;
   class IfcLogical {
     constructor(v) {
       this.type = 3;
+      this.name = "IFCLOGICAL";
       this.value = v === null ? v : v == "T" ? 1 : v == "F" ? 0 : 2;
     }
   }
@@ -49029,6 +49156,7 @@ var IFC2X3;
   class IfcLuminousFluxMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSFLUXMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49036,6 +49164,7 @@ var IFC2X3;
   class IfcLuminousIntensityDistributionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSINTENSITYDISTRIBUTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49043,6 +49172,7 @@ var IFC2X3;
   class IfcLuminousIntensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSINTENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49050,6 +49180,7 @@ var IFC2X3;
   class IfcMagneticFluxDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMAGNETICFLUXDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49057,6 +49188,7 @@ var IFC2X3;
   class IfcMagneticFluxMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMAGNETICFLUXMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49064,6 +49196,7 @@ var IFC2X3;
   class IfcMassDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49071,6 +49204,7 @@ var IFC2X3;
   class IfcMassFlowRateMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSFLOWRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49078,6 +49212,7 @@ var IFC2X3;
   class IfcMassMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49085,6 +49220,7 @@ var IFC2X3;
   class IfcMassPerLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSPERLENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49092,6 +49228,7 @@ var IFC2X3;
   class IfcMinuteInHour {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCMINUTEINHOUR";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49099,6 +49236,7 @@ var IFC2X3;
   class IfcModulusOfElasticityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFELASTICITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49106,6 +49244,7 @@ var IFC2X3;
   class IfcModulusOfLinearSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFLINEARSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49113,6 +49252,7 @@ var IFC2X3;
   class IfcModulusOfRotationalSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFROTATIONALSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49120,6 +49260,7 @@ var IFC2X3;
   class IfcModulusOfSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49127,6 +49268,7 @@ var IFC2X3;
   class IfcMoistureDiffusivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOISTUREDIFFUSIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49134,6 +49276,7 @@ var IFC2X3;
   class IfcMolecularWeightMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOLECULARWEIGHTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49141,6 +49284,7 @@ var IFC2X3;
   class IfcMomentOfInertiaMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOMENTOFINERTIAMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49148,6 +49292,7 @@ var IFC2X3;
   class IfcMonetaryMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMONETARYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49155,6 +49300,7 @@ var IFC2X3;
   class IfcMonthInYearNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCMONTHINYEARNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49162,6 +49308,7 @@ var IFC2X3;
   class IfcNormalisedRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNORMALISEDRATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49169,6 +49316,7 @@ var IFC2X3;
   class IfcNumericMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNUMERICMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49176,6 +49324,7 @@ var IFC2X3;
   class IfcPHMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49183,6 +49332,7 @@ var IFC2X3;
   class IfcParameterValue {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPARAMETERVALUE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49190,6 +49340,7 @@ var IFC2X3;
   class IfcPlanarForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPLANARFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49197,6 +49348,7 @@ var IFC2X3;
   class IfcPlaneAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPLANEANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49204,6 +49356,7 @@ var IFC2X3;
   class IfcPositiveLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVELENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49211,6 +49364,7 @@ var IFC2X3;
   class IfcPositivePlaneAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVEPLANEANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49218,6 +49372,7 @@ var IFC2X3;
   class IfcPositiveRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVERATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49225,6 +49380,7 @@ var IFC2X3;
   class IfcPowerMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOWERMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49233,12 +49389,14 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCPRESENTABLETEXT";
     }
   }
   IFC2X32.IfcPresentableText = IfcPresentableText;
   class IfcPressureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPRESSUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49246,6 +49404,7 @@ var IFC2X3;
   class IfcRadioActivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCRADIOACTIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49253,6 +49412,7 @@ var IFC2X3;
   class IfcRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCRATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49260,6 +49420,7 @@ var IFC2X3;
   class IfcReal {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCREAL";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49267,6 +49428,7 @@ var IFC2X3;
   class IfcRotationalFrequencyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALFREQUENCYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49274,6 +49436,7 @@ var IFC2X3;
   class IfcRotationalMassMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALMASSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49281,6 +49444,7 @@ var IFC2X3;
   class IfcRotationalStiffnessMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALSTIFFNESSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49288,6 +49452,7 @@ var IFC2X3;
   class IfcSecondInMinute {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSECONDINMINUTE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49295,6 +49460,7 @@ var IFC2X3;
   class IfcSectionModulusMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSECTIONMODULUSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49302,6 +49468,7 @@ var IFC2X3;
   class IfcSectionalAreaIntegralMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSECTIONALAREAINTEGRALMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49309,6 +49476,7 @@ var IFC2X3;
   class IfcShearModulusMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSHEARMODULUSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49316,6 +49484,7 @@ var IFC2X3;
   class IfcSolidAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOLIDANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49323,6 +49492,7 @@ var IFC2X3;
   class IfcSoundPowerMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPOWERMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49330,6 +49500,7 @@ var IFC2X3;
   class IfcSoundPressureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPRESSUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49337,6 +49508,7 @@ var IFC2X3;
   class IfcSpecificHeatCapacityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECIFICHEATCAPACITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49344,6 +49516,7 @@ var IFC2X3;
   class IfcSpecularExponent {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECULAREXPONENT";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49351,6 +49524,7 @@ var IFC2X3;
   class IfcSpecularRoughness {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECULARROUGHNESS";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49358,6 +49532,7 @@ var IFC2X3;
   class IfcTemperatureGradientMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTEMPERATUREGRADIENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49366,6 +49541,7 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXT";
     }
   }
   IFC2X32.IfcText = IfcText;
@@ -49373,6 +49549,7 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTALIGNMENT";
     }
   }
   IFC2X32.IfcTextAlignment = IfcTextAlignment;
@@ -49380,6 +49557,7 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTDECORATION";
     }
   }
   IFC2X32.IfcTextDecoration = IfcTextDecoration;
@@ -49387,6 +49565,7 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTFONTNAME";
     }
   }
   IFC2X32.IfcTextFontName = IfcTextFontName;
@@ -49394,12 +49573,14 @@ var IFC2X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTTRANSFORMATION";
     }
   }
   IFC2X32.IfcTextTransformation = IfcTextTransformation;
   class IfcThermalAdmittanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALADMITTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49407,6 +49588,7 @@ var IFC2X3;
   class IfcThermalConductivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALCONDUCTIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49414,6 +49596,7 @@ var IFC2X3;
   class IfcThermalExpansionCoefficientMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALEXPANSIONCOEFFICIENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49421,6 +49604,7 @@ var IFC2X3;
   class IfcThermalResistanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALRESISTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49428,6 +49612,7 @@ var IFC2X3;
   class IfcThermalTransmittanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALTRANSMITTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49435,6 +49620,7 @@ var IFC2X3;
   class IfcThermodynamicTemperatureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMODYNAMICTEMPERATUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49442,6 +49628,7 @@ var IFC2X3;
   class IfcTimeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTIMEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49449,6 +49636,7 @@ var IFC2X3;
   class IfcTimeStamp {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCTIMESTAMP";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49456,6 +49644,7 @@ var IFC2X3;
   class IfcTorqueMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTORQUEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49463,6 +49652,7 @@ var IFC2X3;
   class IfcVaporPermeabilityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVAPORPERMEABILITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49470,6 +49660,7 @@ var IFC2X3;
   class IfcVolumeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVOLUMEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49477,6 +49668,7 @@ var IFC2X3;
   class IfcVolumetricFlowRateMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVOLUMETRICFLOWRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49484,6 +49676,7 @@ var IFC2X3;
   class IfcWarpingConstantMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCWARPINGCONSTANTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49491,6 +49684,7 @@ var IFC2X3;
   class IfcWarpingMomentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCWARPINGMOMENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -49498,6 +49692,7 @@ var IFC2X3;
   class IfcYearNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCYEARNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -63250,10 +63445,7 @@ ToRawLineData[2] = {
   2242383968: (i) => [i.Location, i.Identification, i.Name],
   1040185647: (i) => [i.Location, i.Identification, i.Name],
   3548104201: (i) => [i.Location, i.Identification, i.Name],
-  852622518: (i) => {
-    var _a;
-    return [i.AxisTag, i.AxisCurve, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  852622518: (i) => [i.AxisTag, i.AxisCurve, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   3020489413: (i) => [i.TimeStamp, i.ListValues.map((p) => Labelise(p))],
   2655187982: (i) => [i.Name, i.Version, i.Publisher, i.VersionDate, i.Location, i.Description],
   3452421091: (i) => [i.Location, i.Identification, i.Name, i.Description, i.Language, i.ReferencedLibrary],
@@ -63262,15 +63454,9 @@ ToRawLineData[2] = {
   3057273783: (i) => [i.SourceCRS, i.TargetCRS, i.Eastings, i.Northings, i.OrthogonalHeight, i.XAxisAbscissa, i.XAxisOrdinate, i.Scale],
   1847130766: (i) => [i.MaterialClassifications, i.ClassifiedMaterial],
   760658860: (_) => [],
-  248100487: (i) => {
-    var _a;
-    return [i.Material, i.LayerThickness, (_a = i.IsVentilated) == null ? void 0 : _a.toString(), i.Name, i.Description, i.Category, i.Priority];
-  },
+  248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority],
   3303938423: (i) => [i.MaterialLayers, i.LayerSetName, i.Description],
-  1847252529: (i) => {
-    var _a;
-    return [i.Material, i.LayerThickness, (_a = i.IsVentilated) == null ? void 0 : _a.toString(), i.Name, i.Description, i.Category, i.Priority, i.OffsetDirection, i.OffsetValues];
-  },
+  1847252529: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority, i.OffsetDirection, i.OffsetValues],
   2199411900: (i) => [i.Materials],
   2235152071: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority, i.Category],
   164193824: (i) => [i.Name, i.Description, i.MaterialProfiles, i.CompositeProfile],
@@ -63291,10 +63477,7 @@ ToRawLineData[2] = {
   3355820592: (i) => [i.Purpose, i.Description, i.UserDefinedPurpose, i.InternalLocation, i.AddressLines, i.PostalBox, i.Town, i.Region, i.PostalCode, i.Country],
   677532197: (_) => [],
   2022622350: (i) => [i.Name, i.Description, i.AssignedItems, i.Identifier],
-  1304840413: (i) => {
-    var _a, _b, _c;
-    return [i.Name, i.Description, i.AssignedItems, i.Identifier, (_a = i.LayerOn) == null ? void 0 : _a.toString(), (_b = i.LayerFrozen) == null ? void 0 : _b.toString(), (_c = i.LayerBlocked) == null ? void 0 : _c.toString(), i.LayerStyles];
-  },
+  1304840413: (i) => [i.Name, i.Description, i.AssignedItems, i.Identifier, { type: 3, value: BooleanConvert(i.LayerOn.value) }, { type: 3, value: BooleanConvert(i.LayerFrozen.value) }, { type: 3, value: BooleanConvert(i.LayerBlocked.value) }, i.LayerStyles],
   3119450353: (i) => [i.Name],
   2417041796: (i) => [i.Styles],
   2095639259: (i) => [i.Name, i.Description, i.Representations],
@@ -63318,10 +63501,7 @@ ToRawLineData[2] = {
   2341007311: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   448429030: (i) => [i.Dimensions, i.UnitType, i.Prefix, i.Name],
   1054537805: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin],
-  867548509: (i) => {
-    var _a;
-    return [i.ShapeRepresentations, i.Name, i.Description, (_a = i.ProductDefinitional) == null ? void 0 : _a.toString(), i.PartOfProductDefinitionShape];
-  },
+  867548509: (i) => [i.ShapeRepresentations, i.Name, i.Description, { type: 3, value: BooleanConvert(i.ProductDefinitional.value) }, i.PartOfProductDefinitionShape],
   3982875396: (i) => [i.ContextOfItems, i.RepresentationIdentifier, i.RepresentationType, i.Items],
   4240577450: (i) => [i.ContextOfItems, i.RepresentationIdentifier, i.RepresentationType, i.Items],
   2273995522: (i) => [i.Name],
@@ -63339,29 +63519,14 @@ ToRawLineData[2] = {
   1607154358: (i) => [i.RefractionIndex, i.DispersionFactor],
   846575682: (i) => [i.SurfaceColour, i.Transparency],
   1351298697: (i) => [i.Textures],
-  626085974: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter];
-  },
+  626085974: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter],
   985171141: (i) => [i.Name, i.Rows, i.Columns],
   2043862942: (i) => [i.Identifier, i.Name, i.Description, i.Unit, i.ReferencePath],
-  531007025: (i) => {
-    var _a;
-    return [!i.RowCells ? null : i.RowCells.map((p) => Labelise(p)), (_a = i.IsHeading) == null ? void 0 : _a.toString()];
-  },
-  1549132990: (i) => {
-    var _a;
-    return [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, (_a = i.IsCritical) == null ? void 0 : _a.toString(), i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion];
-  },
-  2771591690: (i) => {
-    var _a;
-    return [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, (_a = i.IsCritical) == null ? void 0 : _a.toString(), i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion, i.Recurrence];
-  },
+  531007025: (i) => [!i.RowCells ? null : i.RowCells.map((p) => Labelise(p)), i.IsHeading == null ? null : { type: 3, value: BooleanConvert(i.IsHeading.value) }],
+  1549132990: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, i.IsCritical == null ? null : { type: 3, value: BooleanConvert(i.IsCritical.value) }, i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion],
+  2771591690: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, i.IsCritical == null ? null : { type: 3, value: BooleanConvert(i.IsCritical.value) }, i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion, i.Recurrence],
   912023232: (i) => [i.Purpose, i.Description, i.UserDefinedPurpose, i.TelephoneNumbers, i.FacsimileNumbers, i.PagerNumber, i.ElectronicMailAddresses, i.WWWHomePageURL, i.MessagingIDs],
-  1447204868: (i) => {
-    var _a;
-    return [i.Name, i.TextCharacterAppearance, i.TextStyle, i.TextFontStyle, (_a = i.ModelOrDraughting) == null ? void 0 : _a.toString()];
-  },
+  1447204868: (i) => [i.Name, i.TextCharacterAppearance, i.TextStyle, i.TextFontStyle, i.ModelOrDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelOrDraughting.value) }],
   2636378356: (i) => [i.Colour, i.BackgroundColour],
   1640371178: (i) => [!i.TextIndent ? null : Labelise(i.TextIndent), i.TextAlign, i.TextDecoration, !i.LetterSpacing ? null : Labelise(i.LetterSpacing), !i.WordSpacing ? null : Labelise(i.WordSpacing), i.TextTransform, !i.LineHeight ? null : Labelise(i.LineHeight)],
   280115917: (i) => [i.Maps],
@@ -63383,10 +63548,7 @@ ToRawLineData[2] = {
   3798115385: (i) => [i.ProfileType, i.ProfileName, i.OuterCurve],
   1310608509: (i) => [i.ProfileType, i.ProfileName, i.Curve],
   2705031697: (i) => [i.ProfileType, i.ProfileName, i.OuterCurve, i.InnerCurves],
-  616511568: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter, i.RasterFormat, i.RasterCode];
-  },
+  616511568: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.RasterFormat, i.RasterCode],
   3150382593: (i) => [i.ProfileType, i.ProfileName, i.Curve, i.Thickness],
   747523909: (i) => [i.Source, i.Edition, i.EditionDate, i.Name, i.Description, i.Location, i.ReferenceTokens],
   647927063: (i) => [i.Location, i.Identification, i.Name, i.ReferencedSource, i.Description, i.Sort],
@@ -63400,10 +63562,7 @@ ToRawLineData[2] = {
   2889183280: (i) => [i.Dimensions, i.UnitType, i.Name, i.ConversionFactor],
   2713554722: (i) => [i.Dimensions, i.UnitType, i.Name, i.ConversionFactor, i.ConversionOffset],
   539742890: (i) => [i.Name, i.Description, i.RelatingMonetaryUnit, i.RelatedMonetaryUnit, i.ExchangeRate, i.RateDateTime, i.RateSource],
-  3800577675: (i) => {
-    var _a;
-    return [i.Name, i.CurveFont, !i.CurveWidth ? null : Labelise(i.CurveWidth), i.CurveColour, (_a = i.ModelOrDraughting) == null ? void 0 : _a.toString()];
-  },
+  3800577675: (i) => [i.Name, i.CurveFont, !i.CurveWidth ? null : Labelise(i.CurveWidth), i.CurveColour, i.ModelOrDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelOrDraughting.value) }],
   1105321065: (i) => [i.Name, i.PatternList],
   2367409068: (i) => [i.Name, i.CurveFont, i.CurveFontScaling],
   3510044353: (i) => [i.VisibleSegmentLength, i.InvisibleSegmentLength],
@@ -63412,44 +63571,23 @@ ToRawLineData[2] = {
   770865208: (i) => [i.Name, i.Description, i.RelatingDocument, i.RelatedDocuments, i.RelationshipType],
   3732053477: (i) => [i.Location, i.Identification, i.Name, i.Description, i.ReferencedDocument],
   3900360178: (i) => [i.EdgeStart, i.EdgeEnd],
-  476780140: (i) => {
-    var _a;
-    return [i.EdgeStart, i.EdgeEnd, i.EdgeGeometry, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  476780140: (i) => [i.EdgeStart, i.EdgeEnd, i.EdgeGeometry, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   211053100: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.ActualDate, i.EarlyDate, i.LateDate, i.ScheduleDate],
   297599258: (i) => [i.Name, i.Description, i.Properties],
   1437805879: (i) => [i.Name, i.Description, i.RelatingReference, i.RelatedResourceObjects],
   2556980723: (i) => [i.Bounds],
-  1809719519: (i) => {
-    var _a;
-    return [i.Bound, (_a = i.Orientation) == null ? void 0 : _a.toString()];
-  },
-  803316827: (i) => {
-    var _a;
-    return [i.Bound, (_a = i.Orientation) == null ? void 0 : _a.toString()];
-  },
-  3008276851: (i) => {
-    var _a;
-    return [i.Bounds, i.FaceSurface, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  1809719519: (i) => [i.Bound, { type: 3, value: BooleanConvert(i.Orientation.value) }],
+  803316827: (i) => [i.Bound, { type: 3, value: BooleanConvert(i.Orientation.value) }],
+  3008276851: (i) => [i.Bounds, i.FaceSurface, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   4219587988: (i) => [i.Name, i.TensionFailureX, i.TensionFailureY, i.TensionFailureZ, i.CompressionFailureX, i.CompressionFailureY, i.CompressionFailureZ],
-  738692330: (i) => {
-    var _a;
-    return [i.Name, i.FillStyles, (_a = i.ModelorDraughting) == null ? void 0 : _a.toString()];
-  },
+  738692330: (i) => [i.Name, i.FillStyles, i.ModelorDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelorDraughting.value) }],
   3448662350: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
   2453401579: (_) => [],
   4142052618: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
   3590301190: (i) => [i.Elements],
   178086475: (i) => [i.PlacementLocation, i.PlacementRefDirection],
-  812098782: (i) => {
-    var _a;
-    return [i.BaseSurface, (_a = i.AgreementFlag) == null ? void 0 : _a.toString()];
-  },
-  3905492369: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter, i.URLReference];
-  },
+  812098782: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }],
+  3905492369: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.URLReference],
   3570813810: (i) => [i.MappedTo, i.Opacity, i.Colours, i.ColourIndex],
   1437953363: (i) => [i.Maps, i.MappedTo, i.TexCoords],
   2133299955: (i) => [i.Maps, i.MappedTo, i.TexCoords, i.TexCoordIndex],
@@ -63477,27 +63615,18 @@ ToRawLineData[2] = {
   219451334: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   2665983363: (i) => [i.CfsFaces],
   1411181986: (i) => [i.Name, i.Description, i.RelatingOrganization, i.RelatedOrganizations],
-  1029017970: (i) => {
-    var _a;
-    return [i.EdgeStart, i.EdgeEnd, i.EdgeElement, (_a = i.Orientation) == null ? void 0 : _a.toString()];
-  },
+  1029017970: (i) => [i.EdgeStart, i.EdgeEnd, i.EdgeElement, { type: 3, value: BooleanConvert(i.Orientation.value) }],
   2529465313: (i) => [i.ProfileType, i.ProfileName, i.Position],
   2519244187: (i) => [i.EdgeList],
   3021840470: (i) => [i.Name, i.Description, i.HasQuantities, i.Discrimination, i.Quality, i.Usage],
-  597895409: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter, i.Width, i.Height, i.ColourComponents, i.Pixel];
-  },
+  597895409: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.Width, i.Height, i.ColourComponents, i.Pixel],
   2004835150: (i) => [i.Location],
   1663979128: (i) => [i.SizeInX, i.SizeInY],
   2067069095: (_) => [],
   4022376103: (i) => [i.BasisCurve, i.PointParameter],
   1423911732: (i) => [i.BasisSurface, i.PointParameterU, i.PointParameterV],
   2924175390: (i) => [i.Polygon],
-  2775532180: (i) => {
-    var _a;
-    return [i.BaseSurface, (_a = i.AgreementFlag) == null ? void 0 : _a.toString(), i.Position, i.PolygonalBoundary];
-  },
+  2775532180: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }, i.Position, i.PolygonalBoundary],
   3727388367: (i) => [i.Name],
   3778827333: (_) => [],
   1775413392: (i) => [i.Name],
@@ -63515,10 +63644,7 @@ ToRawLineData[2] = {
   478536968: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   2943643501: (i) => [i.Name, i.Description, i.RelatedResourceObjects, i.RelatingApproval],
   1608871552: (i) => [i.Name, i.Description, i.RelatingConstraint, i.RelatedResourceObjects],
-  1042787934: (i) => {
-    var _a;
-    return [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.ScheduleWork, i.ScheduleUsage, i.ScheduleStart, i.ScheduleFinish, i.ScheduleContour, i.LevelingDelay, (_a = i.IsOverAllocated) == null ? void 0 : _a.toString(), i.StatusTime, i.ActualWork, i.ActualUsage, i.ActualStart, i.ActualFinish, i.RemainingWork, i.RemainingUsage, i.Completion];
-  },
+  1042787934: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.ScheduleWork, i.ScheduleUsage, i.ScheduleStart, i.ScheduleFinish, i.ScheduleContour, i.LevelingDelay, i.IsOverAllocated == null ? null : { type: 3, value: BooleanConvert(i.IsOverAllocated.value) }, i.StatusTime, i.ActualWork, i.ActualUsage, i.ActualStart, i.ActualFinish, i.RemainingWork, i.RemainingUsage, i.Completion],
   2778083089: (i) => [i.ProfileType, i.ProfileName, i.Position, i.XDim, i.YDim, i.RoundingRadius],
   2042790032: (i) => [i.SectionType, i.StartProfile, i.EndProfile],
   4165799628: (i) => [i.LongitudinalStartPosition, i.LongitudinalEndPosition, i.TransversePosition, i.ReinforcementRole, i.SectionDefinition, i.CrossSectionReinforcementDefinitions],
@@ -63553,15 +63679,9 @@ ToRawLineData[2] = {
   427810014: (i) => [i.ProfileType, i.ProfileName, i.Position, i.Depth, i.FlangeWidth, i.WebThickness, i.FlangeThickness, i.FilletRadius, i.EdgeRadius, i.FlangeSlope],
   1417489154: (i) => [i.Orientation, i.Magnitude],
   2759199220: (i) => [i.LoopVertex],
-  1299126871: (i) => {
-    var _a, _b;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ConstructionType, i.OperationType, (_a = i.ParameterTakesPrecedence) == null ? void 0 : _a.toString(), (_b = i.Sizeable) == null ? void 0 : _b.toString()];
-  },
+  1299126871: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ConstructionType, i.OperationType, { type: 3, value: BooleanConvert(i.ParameterTakesPrecedence.value) }, { type: 3, value: BooleanConvert(i.Sizeable.value) }],
   2543172580: (i) => [i.ProfileType, i.ProfileName, i.Position, i.Depth, i.FlangeWidth, i.WebThickness, i.FlangeThickness, i.FilletRadius, i.EdgeRadius],
-  3406155212: (i) => {
-    var _a;
-    return [i.Bounds, i.FaceSurface, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  3406155212: (i) => [i.Bounds, i.FaceSurface, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   669184980: (i) => [i.OuterBoundary, i.InnerBoundaries],
   3207858831: (i) => [i.ProfileType, i.ProfileName, i.Position, i.BottomFlangeWidth, i.OverallDepth, i.WebThickness, i.BottomFlangeThickness, i.BottomFlangeFilletRadius, i.TopFlangeWidth, i.TopFlangeThickness, i.TopFlangeFilletRadius, i.BottomFlangeEdgeRadius, i.BottomFlangeSlope, i.TopFlangeEdgeRadius, i.TopFlangeSlope],
   4261334040: (i) => [i.Location, i.Axis],
@@ -63570,10 +63690,7 @@ ToRawLineData[2] = {
   2736907675: (i) => [i.Operator, i.FirstOperand, i.SecondOperand],
   4182860854: (_) => [],
   2581212453: (i) => [i.Corner, i.XDim, i.YDim, i.ZDim],
-  2713105998: (i) => {
-    var _a;
-    return [i.BaseSurface, (_a = i.AgreementFlag) == null ? void 0 : _a.toString(), i.Enclosure];
-  },
+  2713105998: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }, i.Enclosure],
   2898889636: (i) => [i.ProfileType, i.ProfileName, i.Position, i.Depth, i.Width, i.WallThickness, i.Girth, i.InternalFilletRadius],
   1123145078: (i) => [i.Coordinates],
   574549367: (_) => [],
@@ -63588,10 +63705,7 @@ ToRawLineData[2] = {
   2205249479: (i) => [i.CfsFaces],
   776857604: (i) => [i.Name, i.Red, i.Green, i.Blue],
   2542286263: (i) => [i.Name, i.Description, i.UsageName, i.HasProperties],
-  2485617015: (i) => {
-    var _a;
-    return [i.Transition, (_a = i.SameSense) == null ? void 0 : _a.toString(), i.ParentCurve];
-  },
+  2485617015: (i) => [i.Transition, { type: 3, value: BooleanConvert(i.SameSense.value) }, i.ParentCurve],
   2574617495: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity],
   3419103109: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.LongName, i.Phase, i.RepresentationContexts, i.UnitsInContext],
   1815067380: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
@@ -63599,15 +63713,9 @@ ToRawLineData[2] = {
   2147822146: (i) => [i.TreeRootExpression],
   2601014836: (_) => [],
   2827736869: (i) => [i.BasisSurface, i.OuterBoundary, i.InnerBoundaries],
-  2629017746: (i) => {
-    var _a;
-    return [i.BasisSurface, i.Boundaries, (_a = i.ImplicitOuter) == null ? void 0 : _a.toString()];
-  },
+  2629017746: (i) => [i.BasisSurface, i.Boundaries, { type: 3, value: BooleanConvert(i.ImplicitOuter.value) }],
   32440307: (i) => [i.DirectionRatios],
-  526551008: (i) => {
-    var _a, _b;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.OperationType, i.ConstructionType, (_a = i.ParameterTakesPrecedence) == null ? void 0 : _a.toString(), (_b = i.Sizeable) == null ? void 0 : _b.toString()];
-  },
+  526551008: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.OperationType, i.ConstructionType, { type: 3, value: BooleanConvert(i.ParameterTakesPrecedence.value) }, { type: 3, value: BooleanConvert(i.Sizeable.value) }],
   1472233963: (i) => [i.EdgeList],
   1883228015: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.MethodOfMeasurement, i.Quantities],
   339256511: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
@@ -63632,14 +63740,8 @@ ToRawLineData[2] = {
   1281925730: (i) => [i.Pnt, i.Dir],
   1425443689: (i) => [i.Outer],
   3888040117: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType],
-  3388369263: (i) => {
-    var _a;
-    return [i.BasisCurve, i.Distance, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
-  3505215534: (i) => {
-    var _a;
-    return [i.BasisCurve, i.Distance, (_a = i.SelfIntersect) == null ? void 0 : _a.toString(), i.RefDirection];
-  },
+  3388369263: (i) => [i.BasisCurve, i.Distance, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  3505215534: (i) => [i.BasisCurve, i.Distance, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.RefDirection],
   1682466193: (i) => [i.BasisSurface, i.ReferenceCurve],
   603570806: (i) => [i.SizeInX, i.SizeInY, i.Placement],
   220341763: (i) => [i.Position],
@@ -63663,10 +63765,7 @@ ToRawLineData[2] = {
   3219374653: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.ProxyType, i.Tag],
   2770003689: (i) => [i.ProfileType, i.ProfileName, i.Position, i.XDim, i.YDim, i.WallThickness, i.InnerFilletRadius, i.OuterFilletRadius],
   2798486643: (i) => [i.Position, i.XLength, i.YLength, i.Height],
-  3454111270: (i) => {
-    var _a, _b;
-    return [i.BasisSurface, i.U1, i.V1, i.U2, i.V2, (_a = i.Usense) == null ? void 0 : _a.toString(), (_b = i.Vsense) == null ? void 0 : _b.toString()];
-  },
+  3454111270: (i) => [i.BasisSurface, i.U1, i.V1, i.U2, i.V2, { type: 3, value: BooleanConvert(i.Usense.value) }, { type: 3, value: BooleanConvert(i.Vsense.value) }],
   3765753017: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.DefinitionType, i.ReinforcementSectionDefinitions],
   3939117080: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatedObjectsType],
   1683148259: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatedObjectsType, i.RelatingActor, i.ActingRole],
@@ -63714,10 +63813,7 @@ ToRawLineData[2] = {
   3523091289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingSpace, i.RelatedBuildingElement, i.ConnectionGeometry, i.PhysicalOrVirtualBoundary, i.InternalOrExternalBoundary, i.ParentBoundary],
   1521410863: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingSpace, i.RelatedBuildingElement, i.ConnectionGeometry, i.PhysicalOrVirtualBoundary, i.InternalOrExternalBoundary, i.ParentBoundary, i.CorrespondingBoundary],
   1401173127: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingBuildingElement, i.RelatedOpeningElement],
-  816062949: (i) => {
-    var _a;
-    return [i.Transition, (_a = i.SameSense) == null ? void 0 : _a.toString(), i.ParentCurve, i.ParamLength];
-  },
+  816062949: (i) => [i.Transition, { type: 3, value: BooleanConvert(i.SameSense.value) }, i.ParentCurve, i.ParamLength],
   2914609552: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription],
   1856042241: (i) => [i.SweptArea, i.Position, i.Axis, i.Angle],
   3243963512: (i) => [i.SweptArea, i.Position, i.Axis, i.Angle, i.EndSweptArea],
@@ -63745,32 +63841,20 @@ ToRawLineData[2] = {
   2809605785: (i) => [i.SweptCurve, i.Position, i.ExtrudedDirection, i.Depth],
   4124788165: (i) => [i.SweptCurve, i.Position, i.AxisPosition],
   1580310250: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  3473067441: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, (_a = i.IsMilestone) == null ? void 0 : _a.toString(), i.Priority, i.TaskTime, i.PredefinedType];
-  },
+  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, { type: 3, value: BooleanConvert(i.IsMilestone.value) }, i.Priority, i.TaskTime, i.PredefinedType],
   3206491090: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ProcessType, i.PredefinedType, i.WorkMethod],
   2387106220: (i) => [i.Coordinates],
   1935646853: (i) => [i.Position, i.MajorRadius, i.MinorRadius],
   2097647324: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  2916149573: (i) => {
-    var _a;
-    return [i.Coordinates, i.Normals, (_a = i.Closed) == null ? void 0 : _a.toString(), i.CoordIndex, i.PnIndex];
-  },
+  2916149573: (i) => [i.Coordinates, i.Normals, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.CoordIndex, i.PnIndex],
   336235671: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.LiningDepth, i.LiningThickness, i.TransomThickness, i.MullionThickness, i.FirstTransomOffset, i.SecondTransomOffset, i.FirstMullionOffset, i.SecondMullionOffset, i.ShapeAspectStyle, i.LiningOffset, i.LiningToPanelOffsetX, i.LiningToPanelOffsetY],
   512836454: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.OperationType, i.PanelPosition, i.FrameDepth, i.FrameThickness, i.ShapeAspectStyle],
   2296667514: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TheActor],
   1635779807: (i) => [i.Outer],
   2603310189: (i) => [i.Outer, i.Voids],
   1674181508: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
-  2887950389: (i) => {
-    var _a, _b, _c;
-    return [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, (_a = i.UClosed) == null ? void 0 : _a.toString(), (_b = i.VClosed) == null ? void 0 : _b.toString(), (_c = i.SelfIntersect) == null ? void 0 : _c.toString()];
-  },
-  167062518: (i) => {
-    var _a, _b, _c;
-    return [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, (_a = i.UClosed) == null ? void 0 : _a.toString(), (_b = i.VClosed) == null ? void 0 : _b.toString(), (_c = i.SelfIntersect) == null ? void 0 : _c.toString(), i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec];
-  },
+  2887950389: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  167062518: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec],
   1334484129: (i) => [i.Position, i.XLength, i.YLength, i.ZLength],
   3649129432: (i) => [i.Operator, i.FirstOperand, i.SecondOperand],
   1260505505: (_) => [],
@@ -63782,14 +63866,8 @@ ToRawLineData[2] = {
   3893394355: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   300633059: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3875453745: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.UsageName, i.TemplateType, i.HasPropertyTemplates],
-  3732776249: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
-  15328376: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  3732776249: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  15328376: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   2510884976: (i) => [i.Position],
   2185764099: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
   4105962743: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
@@ -63806,10 +63884,7 @@ ToRawLineData[2] = {
   3849074793: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   2963535650: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.LiningDepth, i.LiningThickness, i.ThresholdDepth, i.ThresholdThickness, i.TransomThickness, i.TransomOffset, i.LiningOffset, i.ThresholdOffset, i.CasingThickness, i.CasingDepth, i.ShapeAspectStyle, i.LiningToPanelOffsetX, i.LiningToPanelOffsetY],
   1714330368: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.PanelDepth, i.PanelOperation, i.PanelWidth, i.PanelPosition, i.ShapeAspectStyle],
-  2323601079: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.OperationType, (_a = i.ParameterTakesPrecedence) == null ? void 0 : _a.toString(), i.UserDefinedOperationType];
-  },
+  2323601079: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.OperationType, i.ParameterTakesPrecedence == null ? null : { type: 3, value: BooleanConvert(i.ParameterTakesPrecedence.value) }, i.UserDefinedOperationType],
   445594917: (i) => [i.Name],
   4006246654: (i) => [i.Name],
   1758889154: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
@@ -63847,10 +63922,7 @@ ToRawLineData[2] = {
   2706460486: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType],
   1251058090: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1806887404: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  2571569899: (i) => {
-    var _a;
-    return [i.Points, !i.Segments ? null : i.Segments.map((p) => Labelise(p)), (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  2571569899: (i) => [i.Points, !i.Segments ? null : i.Segments.map((p) => Labelise(p)), i.SelfIntersect == null ? null : { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   3946677679: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3113134337: (i) => [i.Curve3D, i.AssociatedGeometry, i.MasterRepresentation],
   2391368822: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.Jurisdiction, i.ResponsiblePersons, i.LastUpdateDate, i.CurrentValue, i.OriginalValue],
@@ -63874,10 +63946,7 @@ ToRawLineData[2] = {
   804291784: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   4231323485: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   4017108033: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  2839578677: (i) => {
-    var _a;
-    return [i.Coordinates, (_a = i.Closed) == null ? void 0 : _a.toString(), i.Faces, i.PnIndex];
-  },
+  2839578677: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.Faces, i.PnIndex],
   3724593414: (i) => [i.Points],
   3740093272: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
   2744685151: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.PredefinedType],
@@ -63888,10 +63957,7 @@ ToRawLineData[2] = {
   2893384427: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2324767716: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1469900589: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  683857671: (i) => {
-    var _a, _b, _c;
-    return [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, (_a = i.UClosed) == null ? void 0 : _a.toString(), (_b = i.VClosed) == null ? void 0 : _b.toString(), (_c = i.SelfIntersect) == null ? void 0 : _c.toString(), i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData];
-  },
+  683857671: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData],
   3027567501: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade],
   964333572: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   2320036040: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.MeshLength, i.MeshWidth, i.LongitudinalBarNominalDiameter, i.TransverseBarNominalDiameter, i.LongitudinalBarCrossSectionArea, i.TransverseBarCrossSectionArea, i.LongitudinalBarSpacing, i.TransverseBarSpacing, i.PredefinedType],
@@ -63910,38 +63976,20 @@ ToRawLineData[2] = {
   3112655638: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1039846685: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   338393293: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  682877961: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString()];
-  },
+  682877961: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }],
   1179482911: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition],
-  1004757350: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  1004757350: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   4243806635: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition, i.Axis],
   214636428: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType, i.Axis],
   2445595289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType, i.Axis],
   2757150158: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.PredefinedType],
-  1807405624: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  1807405624: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   1252848954: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.ActionType, i.ActionSource, i.Coefficient, i.Purpose],
-  2082059205: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString()];
-  },
+  2082059205: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }],
   734778138: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition, i.ConditionCoordinateSystem],
   1235345126: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal],
-  2986769608: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TheoryType, i.ResultForLoadGroup, (_a = i.IsLinear) == null ? void 0 : _a.toString()];
-  },
-  3657597509: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  2986769608: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TheoryType, i.ResultForLoadGroup, { type: 3, value: BooleanConvert(i.IsLinear.value) }],
+  3657597509: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   1975003073: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition],
   148013059: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Usage, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
   3101698114: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -63955,10 +64003,7 @@ ToRawLineData[2] = {
   2415094496: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.NominalDiameter, i.CrossSectionArea, i.SheathDiameter],
   1692211062: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1620046519: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  3593883385: (i) => {
-    var _a;
-    return [i.BasisCurve, i.Trim1, i.Trim2, (_a = i.SenseAgreement) == null ? void 0 : _a.toString(), i.MasterRepresentation];
-  },
+  3593883385: (i) => [i.BasisCurve, i.Trim1, i.Trim2, { type: 3, value: BooleanConvert(i.SenseAgreement.value) }, i.MasterRepresentation],
   1600972822: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1911125066: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   728799441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
@@ -63968,10 +64013,7 @@ ToRawLineData[2] = {
   926996030: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1898987631: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1133259667: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  4009809668: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.PartitioningType, (_a = i.ParameterTakesPrecedence) == null ? void 0 : _a.toString(), i.UserDefinedPartitioningType];
-  },
+  4009809668: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.PartitioningType, i.ParameterTakesPrecedence == null ? null : { type: 3, value: BooleanConvert(i.ParameterTakesPrecedence.value) }, i.UserDefinedPartitioningType],
   4088093105: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.WorkingTimes, i.ExceptionTimes, i.PredefinedType],
   1028945134: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.CreationDate, i.Creators, i.Purpose, i.Duration, i.TotalFloat, i.StartTime, i.FinishTime],
   4218914973: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.CreationDate, i.Creators, i.Purpose, i.Duration, i.TotalFloat, i.StartTime, i.FinishTime, i.PredefinedType],
@@ -63983,20 +64025,11 @@ ToRawLineData[2] = {
   1871374353: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3460190687: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.OriginalValue, i.CurrentValue, i.TotalReplacementCost, i.Owner, i.User, i.ResponsiblePerson, i.IncorporationDate, i.DepreciatedValue],
   1532957894: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1967976161: (i) => {
-    var _a, _b;
-    return [i.Degree, i.ControlPointsList, i.CurveForm, (_a = i.ClosedCurve) == null ? void 0 : _a.toString(), (_b = i.SelfIntersect) == null ? void 0 : _b.toString()];
-  },
-  2461110595: (i) => {
-    var _a, _b;
-    return [i.Degree, i.ControlPointsList, i.CurveForm, (_a = i.ClosedCurve) == null ? void 0 : _a.toString(), (_b = i.SelfIntersect) == null ? void 0 : _b.toString(), i.KnotMultiplicities, i.Knots, i.KnotSpec];
-  },
+  1967976161: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  2461110595: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec],
   819618141: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   231477066: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1136057603: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  1136057603: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   3299480353: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
   2979338954: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   39481116: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
@@ -64073,10 +64106,7 @@ ToRawLineData[2] = {
   1073191201: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1911478936: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   2474470126: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  144952367: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  144952367: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   3694346114: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1687234759: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType, i.ConstructionType],
   310824031: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -64089,10 +64119,7 @@ ToRawLineData[2] = {
   2262370178: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3024970846: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3283111854: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  1232101972: (i) => {
-    var _a, _b;
-    return [i.Degree, i.ControlPointsList, i.CurveForm, (_a = i.ClosedCurve) == null ? void 0 : _a.toString(), (_b = i.SelfIntersect) == null ? void 0 : _b.toString(), i.KnotMultiplicities, i.Knots, i.KnotSpec, i.WeightsData];
-  },
+  1232101972: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec, i.WeightsData],
   979691226: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.PredefinedType, i.BarSurface],
   2572171363: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.BarSurface, i.BendingShapeCode, !i.BendingParameters ? null : i.BendingParameters.map((p) => Labelise(p))],
   2016517767: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -64109,10 +64136,7 @@ ToRawLineData[2] = {
   4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRisers, i.NumberOfTreads, i.RiserHeight, i.TreadLength, i.PredefinedType],
   2515109513: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.OrientationOf2DPlane, i.LoadedBy, i.HasResults, i.SharedPlacement],
   385403989: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.ActionType, i.ActionSource, i.Coefficient, i.Purpose, i.SelfWeightCoefficients],
-  1621171031: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  1621171031: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   1162798199: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   812556717: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3825984169: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -64309,6 +64333,7 @@ var IFC4;
   class IfcAbsorbedDoseMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCABSORBEDDOSEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64316,6 +64341,7 @@ var IFC4;
   class IfcAccelerationMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCACCELERATIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64323,6 +64349,7 @@ var IFC4;
   class IfcAmountOfSubstanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAMOUNTOFSUBSTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64330,6 +64357,7 @@ var IFC4;
   class IfcAngularVelocityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCANGULARVELOCITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64344,6 +64372,7 @@ var IFC4;
   class IfcAreaDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAREADENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64351,6 +64380,7 @@ var IFC4;
   class IfcAreaMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAREAMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64358,6 +64388,7 @@ var IFC4;
   class IfcBinary {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCBINARY";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64365,6 +64396,7 @@ var IFC4;
   class IfcBoolean {
     constructor(v) {
       this.type = 3;
+      this.name = "IFCBOOLEAN";
       this.value = v === null ? v : v == "T" ? true : false;
     }
   }
@@ -64373,12 +64405,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCBOXALIGNMENT";
     }
   }
   IFC42.IfcBoxAlignment = IfcBoxAlignment;
   class IfcCardinalPointReference {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCCARDINALPOINTREFERENCE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64400,6 +64434,7 @@ var IFC4;
   class IfcContextDependentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCONTEXTDEPENDENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64407,6 +64442,7 @@ var IFC4;
   class IfcCountMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCOUNTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64414,6 +64450,7 @@ var IFC4;
   class IfcCurvatureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCURVATUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64422,6 +64459,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDATE";
     }
   }
   IFC42.IfcDate = IfcDate;
@@ -64429,12 +64467,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDATETIME";
     }
   }
   IFC42.IfcDateTime = IfcDateTime;
   class IfcDayInMonthNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDAYINMONTHNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64442,6 +64482,7 @@ var IFC4;
   class IfcDayInWeekNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDAYINWEEKNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64450,12 +64491,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDESCRIPTIVEMEASURE";
     }
   }
   IFC42.IfcDescriptiveMeasure = IfcDescriptiveMeasure;
   class IfcDimensionCount {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDIMENSIONCOUNT";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64463,6 +64506,7 @@ var IFC4;
   class IfcDoseEquivalentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCDOSEEQUIVALENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64471,12 +64515,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDURATION";
     }
   }
   IFC42.IfcDuration = IfcDuration;
   class IfcDynamicViscosityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCDYNAMICVISCOSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64484,6 +64530,7 @@ var IFC4;
   class IfcElectricCapacitanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCAPACITANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64491,6 +64538,7 @@ var IFC4;
   class IfcElectricChargeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCHARGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64498,6 +64546,7 @@ var IFC4;
   class IfcElectricConductanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCONDUCTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64505,6 +64554,7 @@ var IFC4;
   class IfcElectricCurrentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCURRENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64512,6 +64562,7 @@ var IFC4;
   class IfcElectricResistanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICRESISTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64519,6 +64570,7 @@ var IFC4;
   class IfcElectricVoltageMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICVOLTAGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64526,6 +64578,7 @@ var IFC4;
   class IfcEnergyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCENERGYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64534,6 +64587,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTSTYLE";
     }
   }
   IFC42.IfcFontStyle = IfcFontStyle;
@@ -64541,6 +64595,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTVARIANT";
     }
   }
   IFC42.IfcFontVariant = IfcFontVariant;
@@ -64548,12 +64603,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTWEIGHT";
     }
   }
   IFC42.IfcFontWeight = IfcFontWeight;
   class IfcForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64561,6 +64618,7 @@ var IFC4;
   class IfcFrequencyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCFREQUENCYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64569,12 +64627,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCGLOBALLYUNIQUEID";
     }
   }
   IFC42.IfcGloballyUniqueId = IfcGloballyUniqueId;
   class IfcHeatFluxDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCHEATFLUXDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64582,6 +64642,7 @@ var IFC4;
   class IfcHeatingValueMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCHEATINGVALUEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64590,12 +64651,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCIDENTIFIER";
     }
   }
   IFC42.IfcIdentifier = IfcIdentifier;
   class IfcIlluminanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCILLUMINANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64603,6 +64666,7 @@ var IFC4;
   class IfcInductanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCINDUCTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64610,6 +64674,7 @@ var IFC4;
   class IfcInteger {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCINTEGER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64617,6 +64682,7 @@ var IFC4;
   class IfcIntegerCountRateMeasure {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCINTEGERCOUNTRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64624,6 +64690,7 @@ var IFC4;
   class IfcIonConcentrationMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCIONCONCENTRATIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64631,6 +64698,7 @@ var IFC4;
   class IfcIsothermalMoistureCapacityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCISOTHERMALMOISTURECAPACITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64638,6 +64706,7 @@ var IFC4;
   class IfcKinematicViscosityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCKINEMATICVISCOSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64646,6 +64715,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCLABEL";
     }
   }
   IFC42.IfcLabel = IfcLabel;
@@ -64653,12 +64723,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCLANGUAGEID";
     }
   }
   IFC42.IfcLanguageId = IfcLanguageId;
   class IfcLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64673,6 +64745,7 @@ var IFC4;
   class IfcLinearForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64680,6 +64753,7 @@ var IFC4;
   class IfcLinearMomentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARMOMENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64687,6 +64761,7 @@ var IFC4;
   class IfcLinearStiffnessMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARSTIFFNESSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64694,6 +64769,7 @@ var IFC4;
   class IfcLinearVelocityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARVELOCITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64701,6 +64777,7 @@ var IFC4;
   class IfcLogical {
     constructor(v) {
       this.type = 3;
+      this.name = "IFCLOGICAL";
       this.value = v === null ? v : v == "T" ? 1 : v == "F" ? 0 : 2;
     }
   }
@@ -64708,6 +64785,7 @@ var IFC4;
   class IfcLuminousFluxMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSFLUXMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64715,6 +64793,7 @@ var IFC4;
   class IfcLuminousIntensityDistributionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSINTENSITYDISTRIBUTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64722,6 +64801,7 @@ var IFC4;
   class IfcLuminousIntensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSINTENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64729,6 +64809,7 @@ var IFC4;
   class IfcMagneticFluxDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMAGNETICFLUXDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64736,6 +64817,7 @@ var IFC4;
   class IfcMagneticFluxMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMAGNETICFLUXMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64743,6 +64825,7 @@ var IFC4;
   class IfcMassDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64750,6 +64833,7 @@ var IFC4;
   class IfcMassFlowRateMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSFLOWRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64757,6 +64841,7 @@ var IFC4;
   class IfcMassMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64764,6 +64849,7 @@ var IFC4;
   class IfcMassPerLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSPERLENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64771,6 +64857,7 @@ var IFC4;
   class IfcModulusOfElasticityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFELASTICITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64778,6 +64865,7 @@ var IFC4;
   class IfcModulusOfLinearSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFLINEARSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64785,6 +64873,7 @@ var IFC4;
   class IfcModulusOfRotationalSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFROTATIONALSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64792,6 +64881,7 @@ var IFC4;
   class IfcModulusOfSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64799,6 +64889,7 @@ var IFC4;
   class IfcMoistureDiffusivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOISTUREDIFFUSIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64806,6 +64897,7 @@ var IFC4;
   class IfcMolecularWeightMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOLECULARWEIGHTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64813,6 +64905,7 @@ var IFC4;
   class IfcMomentOfInertiaMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOMENTOFINERTIAMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64820,6 +64913,7 @@ var IFC4;
   class IfcMonetaryMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMONETARYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64827,6 +64921,7 @@ var IFC4;
   class IfcMonthInYearNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCMONTHINYEARNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64834,6 +64929,7 @@ var IFC4;
   class IfcNonNegativeLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNONNEGATIVELENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64841,6 +64937,7 @@ var IFC4;
   class IfcNormalisedRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNORMALISEDRATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64848,6 +64945,7 @@ var IFC4;
   class IfcNumericMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNUMERICMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64855,6 +64953,7 @@ var IFC4;
   class IfcPHMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64862,6 +64961,7 @@ var IFC4;
   class IfcParameterValue {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPARAMETERVALUE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64869,6 +64969,7 @@ var IFC4;
   class IfcPlanarForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPLANARFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64876,6 +64977,7 @@ var IFC4;
   class IfcPlaneAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPLANEANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64883,6 +64985,7 @@ var IFC4;
   class IfcPositiveInteger {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCPOSITIVEINTEGER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64890,6 +64993,7 @@ var IFC4;
   class IfcPositiveLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVELENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64897,6 +65001,7 @@ var IFC4;
   class IfcPositivePlaneAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVEPLANEANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64904,6 +65009,7 @@ var IFC4;
   class IfcPositiveRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVERATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64911,6 +65017,7 @@ var IFC4;
   class IfcPowerMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOWERMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64919,12 +65026,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCPRESENTABLETEXT";
     }
   }
   IFC42.IfcPresentableText = IfcPresentableText;
   class IfcPressureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPRESSUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64939,6 +65048,7 @@ var IFC4;
   class IfcRadioActivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCRADIOACTIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64946,6 +65056,7 @@ var IFC4;
   class IfcRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCRATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64953,6 +65064,7 @@ var IFC4;
   class IfcReal {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCREAL";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64960,6 +65072,7 @@ var IFC4;
   class IfcRotationalFrequencyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALFREQUENCYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64967,6 +65080,7 @@ var IFC4;
   class IfcRotationalMassMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALMASSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64974,6 +65088,7 @@ var IFC4;
   class IfcRotationalStiffnessMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALSTIFFNESSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64981,6 +65096,7 @@ var IFC4;
   class IfcSectionModulusMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSECTIONMODULUSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64988,6 +65104,7 @@ var IFC4;
   class IfcSectionalAreaIntegralMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSECTIONALAREAINTEGRALMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -64995,6 +65112,7 @@ var IFC4;
   class IfcShearModulusMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSHEARMODULUSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65002,6 +65120,7 @@ var IFC4;
   class IfcSolidAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOLIDANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65009,6 +65128,7 @@ var IFC4;
   class IfcSoundPowerLevelMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPOWERLEVELMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65016,6 +65136,7 @@ var IFC4;
   class IfcSoundPowerMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPOWERMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65023,6 +65144,7 @@ var IFC4;
   class IfcSoundPressureLevelMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPRESSURELEVELMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65030,6 +65152,7 @@ var IFC4;
   class IfcSoundPressureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPRESSUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65037,6 +65160,7 @@ var IFC4;
   class IfcSpecificHeatCapacityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECIFICHEATCAPACITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65044,6 +65168,7 @@ var IFC4;
   class IfcSpecularExponent {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECULAREXPONENT";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65051,6 +65176,7 @@ var IFC4;
   class IfcSpecularRoughness {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECULARROUGHNESS";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65058,6 +65184,7 @@ var IFC4;
   class IfcTemperatureGradientMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTEMPERATUREGRADIENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65065,6 +65192,7 @@ var IFC4;
   class IfcTemperatureRateOfChangeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTEMPERATURERATEOFCHANGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65073,6 +65201,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXT";
     }
   }
   IFC42.IfcText = IfcText;
@@ -65080,6 +65209,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTALIGNMENT";
     }
   }
   IFC42.IfcTextAlignment = IfcTextAlignment;
@@ -65087,6 +65217,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTDECORATION";
     }
   }
   IFC42.IfcTextDecoration = IfcTextDecoration;
@@ -65094,6 +65225,7 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTFONTNAME";
     }
   }
   IFC42.IfcTextFontName = IfcTextFontName;
@@ -65101,12 +65233,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTTRANSFORMATION";
     }
   }
   IFC42.IfcTextTransformation = IfcTextTransformation;
   class IfcThermalAdmittanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALADMITTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65114,6 +65248,7 @@ var IFC4;
   class IfcThermalConductivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALCONDUCTIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65121,6 +65256,7 @@ var IFC4;
   class IfcThermalExpansionCoefficientMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALEXPANSIONCOEFFICIENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65128,6 +65264,7 @@ var IFC4;
   class IfcThermalResistanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALRESISTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65135,6 +65272,7 @@ var IFC4;
   class IfcThermalTransmittanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALTRANSMITTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65142,6 +65280,7 @@ var IFC4;
   class IfcThermodynamicTemperatureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMODYNAMICTEMPERATUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65150,12 +65289,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTIME";
     }
   }
   IFC42.IfcTime = IfcTime;
   class IfcTimeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTIMEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65163,6 +65304,7 @@ var IFC4;
   class IfcTimeStamp {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCTIMESTAMP";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65170,6 +65312,7 @@ var IFC4;
   class IfcTorqueMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTORQUEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65178,12 +65321,14 @@ var IFC4;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCURIREFERENCE";
     }
   }
   IFC42.IfcURIReference = IfcURIReference;
   class IfcVaporPermeabilityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVAPORPERMEABILITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65191,6 +65336,7 @@ var IFC4;
   class IfcVolumeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVOLUMEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65198,6 +65344,7 @@ var IFC4;
   class IfcVolumetricFlowRateMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVOLUMETRICFLOWRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65205,6 +65352,7 @@ var IFC4;
   class IfcWarpingConstantMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCWARPINGCONSTANTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -65212,6 +65360,7 @@ var IFC4;
   class IfcWarpingMomentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCWARPINGMOMENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -81924,10 +82073,7 @@ ToRawLineData[3] = {
   2242383968: (i) => [i.Location, i.Identification, i.Name],
   1040185647: (i) => [i.Location, i.Identification, i.Name],
   3548104201: (i) => [i.Location, i.Identification, i.Name],
-  852622518: (i) => {
-    var _a;
-    return [i.AxisTag, i.AxisCurve, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  852622518: (i) => [i.AxisTag, i.AxisCurve, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   3020489413: (i) => [i.TimeStamp, i.ListValues.map((p) => Labelise(p))],
   2655187982: (i) => [i.Name, i.Version, i.Publisher, i.VersionDate, i.Location, i.Description],
   3452421091: (i) => [i.Location, i.Identification, i.Name, i.Description, i.Language, i.ReferencedLibrary],
@@ -81936,15 +82082,9 @@ ToRawLineData[3] = {
   3057273783: (i) => [i.SourceCRS, i.TargetCRS, i.Eastings, i.Northings, i.OrthogonalHeight, i.XAxisAbscissa, i.XAxisOrdinate, i.Scale, i.ScaleY, i.ScaleZ],
   1847130766: (i) => [i.MaterialClassifications, i.ClassifiedMaterial],
   760658860: (_) => [],
-  248100487: (i) => {
-    var _a;
-    return [i.Material, i.LayerThickness, (_a = i.IsVentilated) == null ? void 0 : _a.toString(), i.Name, i.Description, i.Category, i.Priority];
-  },
+  248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority],
   3303938423: (i) => [i.MaterialLayers, i.LayerSetName, i.Description],
-  1847252529: (i) => {
-    var _a;
-    return [i.Material, i.LayerThickness, (_a = i.IsVentilated) == null ? void 0 : _a.toString(), i.Name, i.Description, i.Category, i.Priority, i.OffsetDirection, i.OffsetValues];
-  },
+  1847252529: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority, i.OffsetDirection, i.OffsetValues],
   2199411900: (i) => [i.Materials],
   2235152071: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority, i.Category],
   164193824: (i) => [i.Name, i.Description, i.MaterialProfiles, i.CompositeProfile],
@@ -81965,10 +82105,7 @@ ToRawLineData[3] = {
   3355820592: (i) => [i.Purpose, i.Description, i.UserDefinedPurpose, i.InternalLocation, i.AddressLines, i.PostalBox, i.Town, i.Region, i.PostalCode, i.Country],
   677532197: (_) => [],
   2022622350: (i) => [i.Name, i.Description, i.AssignedItems, i.Identifier],
-  1304840413: (i) => {
-    var _a, _b, _c;
-    return [i.Name, i.Description, i.AssignedItems, i.Identifier, (_a = i.LayerOn) == null ? void 0 : _a.toString(), (_b = i.LayerFrozen) == null ? void 0 : _b.toString(), (_c = i.LayerBlocked) == null ? void 0 : _c.toString(), i.LayerStyles];
-  },
+  1304840413: (i) => [i.Name, i.Description, i.AssignedItems, i.Identifier, { type: 3, value: BooleanConvert(i.LayerOn.value) }, { type: 3, value: BooleanConvert(i.LayerFrozen.value) }, { type: 3, value: BooleanConvert(i.LayerBlocked.value) }, i.LayerStyles],
   3119450353: (i) => [i.Name],
   2095639259: (i) => [i.Name, i.Description, i.Representations],
   3958567839: (i) => [i.ProfileType, i.ProfileName],
@@ -81992,10 +82129,7 @@ ToRawLineData[3] = {
   2341007311: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   448429030: (i) => [i.Dimensions, i.UnitType, i.Prefix, i.Name],
   1054537805: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin],
-  867548509: (i) => {
-    var _a;
-    return [i.ShapeRepresentations, i.Name, i.Description, (_a = i.ProductDefinitional) == null ? void 0 : _a.toString(), i.PartOfProductDefinitionShape];
-  },
+  867548509: (i) => [i.ShapeRepresentations, i.Name, i.Description, { type: 3, value: BooleanConvert(i.ProductDefinitional.value) }, i.PartOfProductDefinitionShape],
   3982875396: (i) => [i.ContextOfItems, i.RepresentationIdentifier, i.RepresentationType, i.Items],
   4240577450: (i) => [i.ContextOfItems, i.RepresentationIdentifier, i.RepresentationType, i.Items],
   2273995522: (i) => [i.Name],
@@ -82013,29 +82147,14 @@ ToRawLineData[3] = {
   1607154358: (i) => [i.RefractionIndex, i.DispersionFactor],
   846575682: (i) => [i.SurfaceColour, i.Transparency],
   1351298697: (i) => [i.Textures],
-  626085974: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter];
-  },
+  626085974: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter],
   985171141: (i) => [i.Name, i.Rows, i.Columns],
   2043862942: (i) => [i.Identifier, i.Name, i.Description, i.Unit, i.ReferencePath],
-  531007025: (i) => {
-    var _a;
-    return [!i.RowCells ? null : i.RowCells.map((p) => Labelise(p)), (_a = i.IsHeading) == null ? void 0 : _a.toString()];
-  },
-  1549132990: (i) => {
-    var _a;
-    return [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, (_a = i.IsCritical) == null ? void 0 : _a.toString(), i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion];
-  },
-  2771591690: (i) => {
-    var _a;
-    return [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, (_a = i.IsCritical) == null ? void 0 : _a.toString(), i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion, i.Recurrence];
-  },
+  531007025: (i) => [!i.RowCells ? null : i.RowCells.map((p) => Labelise(p)), i.IsHeading == null ? null : { type: 3, value: BooleanConvert(i.IsHeading.value) }],
+  1549132990: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, i.IsCritical == null ? null : { type: 3, value: BooleanConvert(i.IsCritical.value) }, i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion],
+  2771591690: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.DurationType, i.ScheduleDuration, i.ScheduleStart, i.ScheduleFinish, i.EarlyStart, i.EarlyFinish, i.LateStart, i.LateFinish, i.FreeFloat, i.TotalFloat, i.IsCritical == null ? null : { type: 3, value: BooleanConvert(i.IsCritical.value) }, i.StatusTime, i.ActualDuration, i.ActualStart, i.ActualFinish, i.RemainingTime, i.Completion, i.Recurrence],
   912023232: (i) => [i.Purpose, i.Description, i.UserDefinedPurpose, i.TelephoneNumbers, i.FacsimileNumbers, i.PagerNumber, i.ElectronicMailAddresses, i.WWWHomePageURL, i.MessagingIDs],
-  1447204868: (i) => {
-    var _a;
-    return [i.Name, i.TextCharacterAppearance, i.TextStyle, i.TextFontStyle, (_a = i.ModelOrDraughting) == null ? void 0 : _a.toString()];
-  },
+  1447204868: (i) => [i.Name, i.TextCharacterAppearance, i.TextStyle, i.TextFontStyle, i.ModelOrDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelOrDraughting.value) }],
   2636378356: (i) => [i.Colour, i.BackgroundColour],
   1640371178: (i) => [!i.TextIndent ? null : Labelise(i.TextIndent), i.TextAlign, i.TextDecoration, !i.LetterSpacing ? null : Labelise(i.LetterSpacing), !i.WordSpacing ? null : Labelise(i.WordSpacing), i.TextTransform, !i.LineHeight ? null : Labelise(i.LineHeight)],
   280115917: (i) => [i.Maps],
@@ -82061,10 +82180,7 @@ ToRawLineData[3] = {
   3798115385: (i) => [i.ProfileType, i.ProfileName, i.OuterCurve],
   1310608509: (i) => [i.ProfileType, i.ProfileName, i.Curve],
   2705031697: (i) => [i.ProfileType, i.ProfileName, i.OuterCurve, i.InnerCurves],
-  616511568: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter, i.RasterFormat, i.RasterCode];
-  },
+  616511568: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.RasterFormat, i.RasterCode],
   3150382593: (i) => [i.ProfileType, i.ProfileName, i.Curve, i.Thickness],
   747523909: (i) => [i.Source, i.Edition, i.EditionDate, i.Name, i.Description, i.Specification, i.ReferenceTokens],
   647927063: (i) => [i.Location, i.Identification, i.Name, i.ReferencedSource, i.Description, i.Sort],
@@ -82078,10 +82194,7 @@ ToRawLineData[3] = {
   2889183280: (i) => [i.Dimensions, i.UnitType, i.Name, i.ConversionFactor],
   2713554722: (i) => [i.Dimensions, i.UnitType, i.Name, i.ConversionFactor, i.ConversionOffset],
   539742890: (i) => [i.Name, i.Description, i.RelatingMonetaryUnit, i.RelatedMonetaryUnit, i.ExchangeRate, i.RateDateTime, i.RateSource],
-  3800577675: (i) => {
-    var _a;
-    return [i.Name, i.CurveFont, !i.CurveWidth ? null : Labelise(i.CurveWidth), i.CurveColour, (_a = i.ModelOrDraughting) == null ? void 0 : _a.toString()];
-  },
+  3800577675: (i) => [i.Name, i.CurveFont, !i.CurveWidth ? null : Labelise(i.CurveWidth), i.CurveColour, i.ModelOrDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelOrDraughting.value) }],
   1105321065: (i) => [i.Name, i.PatternList],
   2367409068: (i) => [i.Name, i.CurveStyleFont, i.CurveFontScaling],
   3510044353: (i) => [i.VisibleSegmentLength, i.InvisibleSegmentLength],
@@ -82090,44 +82203,23 @@ ToRawLineData[3] = {
   770865208: (i) => [i.Name, i.Description, i.RelatingDocument, i.RelatedDocuments, i.RelationshipType],
   3732053477: (i) => [i.Location, i.Identification, i.Name, i.Description, i.ReferencedDocument],
   3900360178: (i) => [i.EdgeStart, i.EdgeEnd],
-  476780140: (i) => {
-    var _a;
-    return [i.EdgeStart, i.EdgeEnd, i.EdgeGeometry, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  476780140: (i) => [i.EdgeStart, i.EdgeEnd, i.EdgeGeometry, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   211053100: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.ActualDate, i.EarlyDate, i.LateDate, i.ScheduleDate],
   297599258: (i) => [i.Name, i.Description, i.Properties],
   1437805879: (i) => [i.Name, i.Description, i.RelatingReference, i.RelatedResourceObjects],
   2556980723: (i) => [i.Bounds],
-  1809719519: (i) => {
-    var _a;
-    return [i.Bound, (_a = i.Orientation) == null ? void 0 : _a.toString()];
-  },
-  803316827: (i) => {
-    var _a;
-    return [i.Bound, (_a = i.Orientation) == null ? void 0 : _a.toString()];
-  },
-  3008276851: (i) => {
-    var _a;
-    return [i.Bounds, i.FaceSurface, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  1809719519: (i) => [i.Bound, { type: 3, value: BooleanConvert(i.Orientation.value) }],
+  803316827: (i) => [i.Bound, { type: 3, value: BooleanConvert(i.Orientation.value) }],
+  3008276851: (i) => [i.Bounds, i.FaceSurface, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   4219587988: (i) => [i.Name, i.TensionFailureX, i.TensionFailureY, i.TensionFailureZ, i.CompressionFailureX, i.CompressionFailureY, i.CompressionFailureZ],
-  738692330: (i) => {
-    var _a;
-    return [i.Name, i.FillStyles, (_a = i.ModelOrDraughting) == null ? void 0 : _a.toString()];
-  },
+  738692330: (i) => [i.Name, i.FillStyles, i.ModelOrDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelOrDraughting.value) }],
   3448662350: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
   2453401579: (_) => [],
   4142052618: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
   3590301190: (i) => [i.Elements],
   178086475: (i) => [i.PlacementRelTo, i.PlacementLocation, i.PlacementRefDirection],
-  812098782: (i) => {
-    var _a;
-    return [i.BaseSurface, (_a = i.AgreementFlag) == null ? void 0 : _a.toString()];
-  },
-  3905492369: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter, i.URLReference];
-  },
+  812098782: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }],
+  3905492369: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.URLReference],
   3570813810: (i) => [i.MappedTo, i.Opacity, i.Colours, i.ColourIndex],
   1437953363: (i) => [i.Maps, i.MappedTo, i.TexCoords],
   2133299955: (i) => [i.Maps, i.MappedTo, i.TexCoords, i.TexCoordIndex],
@@ -82154,23 +82246,14 @@ ToRawLineData[3] = {
   853536259: (i) => [i.Name, i.Description, i.RelatingMaterial, i.RelatedMaterials, i.MaterialExpression],
   2998442950: (i) => [i.ProfileType, i.ProfileName, i.ParentProfile, i.Operator, i.Label],
   219451334: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
-  182550632: (i) => {
-    var _a;
-    return [i.ProfileType, i.ProfileName, (_a = i.HorizontalWidths) == null ? void 0 : _a.toString(), i.Widths, i.Slopes, i.Tags, i.OffsetPoint];
-  },
+  182550632: (i) => [i.ProfileType, i.ProfileName, { type: 3, value: BooleanConvert(i.HorizontalWidths.value) }, i.Widths, i.Slopes, i.Tags, i.OffsetPoint],
   2665983363: (i) => [i.CfsFaces],
   1411181986: (i) => [i.Name, i.Description, i.RelatingOrganization, i.RelatedOrganizations],
-  1029017970: (i) => {
-    var _a;
-    return [i.EdgeStart, i.EdgeEnd, i.EdgeElement, (_a = i.Orientation) == null ? void 0 : _a.toString()];
-  },
+  1029017970: (i) => [i.EdgeStart, i.EdgeEnd, i.EdgeElement, { type: 3, value: BooleanConvert(i.Orientation.value) }],
   2529465313: (i) => [i.ProfileType, i.ProfileName, i.Position],
   2519244187: (i) => [i.EdgeList],
   3021840470: (i) => [i.Name, i.Description, i.HasQuantities, i.Discrimination, i.Quality, i.Usage],
-  597895409: (i) => {
-    var _a, _b;
-    return [(_a = i.RepeatS) == null ? void 0 : _a.toString(), (_b = i.RepeatT) == null ? void 0 : _b.toString(), i.Mode, i.TextureTransform, i.Parameter, i.Width, i.Height, i.ColourComponents, i.Pixel];
-  },
+  597895409: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.Width, i.Height, i.ColourComponents, i.Pixel],
   2004835150: (i) => [i.Location],
   1663979128: (i) => [i.SizeInX, i.SizeInY],
   2067069095: (_) => [],
@@ -82178,10 +82261,7 @@ ToRawLineData[3] = {
   4022376103: (i) => [i.BasisCurve, i.PointParameter],
   1423911732: (i) => [i.BasisSurface, i.PointParameterU, i.PointParameterV],
   2924175390: (i) => [i.Polygon],
-  2775532180: (i) => {
-    var _a;
-    return [i.BaseSurface, (_a = i.AgreementFlag) == null ? void 0 : _a.toString(), i.Position, i.PolygonalBoundary];
-  },
+  2775532180: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }, i.Position, i.PolygonalBoundary],
   3727388367: (i) => [i.Name],
   3778827333: (_) => [],
   1775413392: (i) => [i.Name],
@@ -82199,10 +82279,7 @@ ToRawLineData[3] = {
   478536968: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   2943643501: (i) => [i.Name, i.Description, i.RelatedResourceObjects, i.RelatingApproval],
   1608871552: (i) => [i.Name, i.Description, i.RelatingConstraint, i.RelatedResourceObjects],
-  1042787934: (i) => {
-    var _a;
-    return [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.ScheduleWork, i.ScheduleUsage, i.ScheduleStart, i.ScheduleFinish, i.ScheduleContour, i.LevelingDelay, (_a = i.IsOverAllocated) == null ? void 0 : _a.toString(), i.StatusTime, i.ActualWork, i.ActualUsage, i.ActualStart, i.ActualFinish, i.RemainingWork, i.RemainingUsage, i.Completion];
-  },
+  1042787934: (i) => [i.Name, i.DataOrigin, i.UserDefinedDataOrigin, i.ScheduleWork, i.ScheduleUsage, i.ScheduleStart, i.ScheduleFinish, i.ScheduleContour, i.LevelingDelay, i.IsOverAllocated == null ? null : { type: 3, value: BooleanConvert(i.IsOverAllocated.value) }, i.StatusTime, i.ActualWork, i.ActualUsage, i.ActualStart, i.ActualFinish, i.RemainingWork, i.RemainingUsage, i.Completion],
   2778083089: (i) => [i.ProfileType, i.ProfileName, i.Position, i.XDim, i.YDim, i.RoundingRadius],
   2042790032: (i) => [i.SectionType, i.StartProfile, i.EndProfile],
   4165799628: (i) => [i.LongitudinalStartPosition, i.LongitudinalEndPosition, i.TransversePosition, i.ReinforcementRole, i.SectionDefinition, i.CrossSectionReinforcementDefinitions],
@@ -82239,10 +82316,7 @@ ToRawLineData[3] = {
   1417489154: (i) => [i.Orientation, i.Magnitude],
   2759199220: (i) => [i.LoopVertex],
   2543172580: (i) => [i.ProfileType, i.ProfileName, i.Position, i.Depth, i.FlangeWidth, i.WebThickness, i.FlangeThickness, i.FilletRadius, i.EdgeRadius],
-  3406155212: (i) => {
-    var _a;
-    return [i.Bounds, i.FaceSurface, (_a = i.SameSense) == null ? void 0 : _a.toString()];
-  },
+  3406155212: (i) => [i.Bounds, i.FaceSurface, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   669184980: (i) => [i.OuterBoundary, i.InnerBoundaries],
   3207858831: (i) => [i.ProfileType, i.ProfileName, i.Position, i.BottomFlangeWidth, i.OverallDepth, i.WebThickness, i.BottomFlangeThickness, i.BottomFlangeFilletRadius, i.TopFlangeWidth, i.TopFlangeThickness, i.TopFlangeFilletRadius, i.BottomFlangeEdgeRadius, i.BottomFlangeSlope, i.TopFlangeEdgeRadius, i.TopFlangeSlope],
   4261334040: (i) => [i.Location, i.Axis],
@@ -82252,10 +82326,7 @@ ToRawLineData[3] = {
   2736907675: (i) => [i.Operator, i.FirstOperand, i.SecondOperand],
   4182860854: (_) => [],
   2581212453: (i) => [i.Corner, i.XDim, i.YDim, i.ZDim],
-  2713105998: (i) => {
-    var _a;
-    return [i.BaseSurface, (_a = i.AgreementFlag) == null ? void 0 : _a.toString(), i.Enclosure];
-  },
+  2713105998: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }, i.Enclosure],
   2898889636: (i) => [i.ProfileType, i.ProfileName, i.Position, i.Depth, i.Width, i.WallThickness, i.Girth, i.InternalFilletRadius],
   1123145078: (i) => [i.Coordinates],
   574549367: (_) => [],
@@ -82270,10 +82341,7 @@ ToRawLineData[3] = {
   2205249479: (i) => [i.CfsFaces],
   776857604: (i) => [i.Name, i.Red, i.Green, i.Blue],
   2542286263: (i) => [i.Name, i.Specification, i.UsageName, i.HasProperties],
-  2485617015: (i) => {
-    var _a;
-    return [i.Transition, (_a = i.SameSense) == null ? void 0 : _a.toString(), i.ParentCurve];
-  },
+  2485617015: (i) => [i.Transition, { type: 3, value: BooleanConvert(i.SameSense.value) }, i.ParentCurve],
   2574617495: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity],
   3419103109: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.LongName, i.Phase, i.RepresentationContexts, i.UnitsInContext],
   1815067380: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
@@ -82281,10 +82349,7 @@ ToRawLineData[3] = {
   2147822146: (i) => [i.TreeRootExpression],
   2601014836: (_) => [],
   2827736869: (i) => [i.BasisSurface, i.OuterBoundary, i.InnerBoundaries],
-  2629017746: (i) => {
-    var _a;
-    return [i.BasisSurface, i.Boundaries, (_a = i.ImplicitOuter) == null ? void 0 : _a.toString()];
-  },
+  2629017746: (i) => [i.BasisSurface, i.Boundaries, { type: 3, value: BooleanConvert(i.ImplicitOuter.value) }],
   4212018352: (i) => [i.Transition, i.Placement, Labelise(i.SegmentStart), Labelise(i.SegmentLength), i.ParentCurve],
   32440307: (i) => [i.DirectionRatios],
   593015953: (i) => [i.SweptArea, i.Position, i.Directrix, !i.StartParam ? null : Labelise(i.StartParam), !i.EndParam ? null : Labelise(i.EndParam)],
@@ -82314,14 +82379,8 @@ ToRawLineData[3] = {
   1425443689: (i) => [i.Outer],
   3888040117: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType],
   590820931: (i) => [i.BasisCurve],
-  3388369263: (i) => {
-    var _a;
-    return [i.BasisCurve, i.Distance, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
-  3505215534: (i) => {
-    var _a;
-    return [i.BasisCurve, i.Distance, (_a = i.SelfIntersect) == null ? void 0 : _a.toString(), i.RefDirection];
-  },
+  3388369263: (i) => [i.BasisCurve, i.Distance, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  3505215534: (i) => [i.BasisCurve, i.Distance, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.RefDirection],
   2485787929: (i) => [i.BasisCurve, i.OffsetValues, i.Tag],
   1682466193: (i) => [i.BasisSurface, i.ReferenceCurve],
   603570806: (i) => [i.SizeInX, i.SizeInY, i.Placement],
@@ -82346,10 +82405,7 @@ ToRawLineData[3] = {
   3521284610: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   2770003689: (i) => [i.ProfileType, i.ProfileName, i.Position, i.XDim, i.YDim, i.WallThickness, i.InnerFilletRadius, i.OuterFilletRadius],
   2798486643: (i) => [i.Position, i.XLength, i.YLength, i.Height],
-  3454111270: (i) => {
-    var _a, _b;
-    return [i.BasisSurface, i.U1, i.V1, i.U2, i.V2, (_a = i.Usense) == null ? void 0 : _a.toString(), (_b = i.Vsense) == null ? void 0 : _b.toString()];
-  },
+  3454111270: (i) => [i.BasisSurface, i.U1, i.V1, i.U2, i.V2, { type: 3, value: BooleanConvert(i.Usense.value) }, { type: 3, value: BooleanConvert(i.Vsense.value) }],
   3765753017: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.DefinitionType, i.ReinforcementSectionDefinitions],
   3939117080: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatedObjectsType],
   1683148259: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatedObjectsType, i.RelatingActor, i.ActingRole],
@@ -82388,10 +82444,7 @@ ToRawLineData[3] = {
   781010003: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatingType],
   3940055652: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingOpeningElement, i.RelatedBuildingElement],
   279856033: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedControlElements, i.RelatingFlowElement],
-  427948657: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingElement, i.RelatedElement, i.InterferenceGeometry, i.InterferenceSpace, i.InterferenceType, (_a = i.ImpliedOrder) == null ? void 0 : _a.toString()];
-  },
+  427948657: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingElement, i.RelatedElement, i.InterferenceGeometry, i.InterferenceSpace, i.InterferenceType, { type: 3, value: BooleanConvert(i.ImpliedOrder.value) }],
   3268803585: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingObject, i.RelatedObjects],
   1441486842: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingPositioningElement, i.RelatedProducts],
   750771296: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingElement, i.RelatedFeatureElement],
@@ -82402,10 +82455,7 @@ ToRawLineData[3] = {
   3523091289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingSpace, i.RelatedBuildingElement, i.ConnectionGeometry, i.PhysicalOrVirtualBoundary, i.InternalOrExternalBoundary, i.ParentBoundary],
   1521410863: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingSpace, i.RelatedBuildingElement, i.ConnectionGeometry, i.PhysicalOrVirtualBoundary, i.InternalOrExternalBoundary, i.ParentBoundary, i.CorrespondingBoundary],
   1401173127: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingBuildingElement, i.RelatedOpeningElement],
-  816062949: (i) => {
-    var _a;
-    return [i.Transition, (_a = i.SameSense) == null ? void 0 : _a.toString(), i.ParentCurve, i.ParamLength];
-  },
+  816062949: (i) => [i.Transition, { type: 3, value: BooleanConvert(i.SameSense.value) }, i.ParentCurve, i.ParamLength],
   2914609552: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription],
   1856042241: (i) => [i.SweptArea, i.Position, i.Axis, i.Angle],
   3243963512: (i) => [i.SweptArea, i.Position, i.Axis, i.Angle, i.EndSweptArea],
@@ -82437,26 +82487,14 @@ ToRawLineData[3] = {
   2809605785: (i) => [i.SweptCurve, i.Position, i.ExtrudedDirection, i.Depth],
   4124788165: (i) => [i.SweptCurve, i.Position, i.AxisPosition],
   1580310250: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  3473067441: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, (_a = i.IsMilestone) == null ? void 0 : _a.toString(), i.Priority, i.TaskTime, i.PredefinedType];
-  },
+  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, { type: 3, value: BooleanConvert(i.IsMilestone.value) }, i.Priority, i.TaskTime, i.PredefinedType],
   3206491090: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ProcessType, i.PredefinedType, i.WorkMethod],
-  2387106220: (i) => {
-    var _a;
-    return [i.Coordinates, (_a = i.Closed) == null ? void 0 : _a.toString()];
-  },
+  2387106220: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }],
   782932809: (i) => [i.Position, i.CubicTerm, i.QuadraticTerm, i.LinearTerm, i.ConstantTerm],
   1935646853: (i) => [i.Position, i.MajorRadius, i.MinorRadius],
   3665877780: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
-  2916149573: (i) => {
-    var _a;
-    return [i.Coordinates, (_a = i.Closed) == null ? void 0 : _a.toString(), i.Normals, i.CoordIndex, i.PnIndex];
-  },
-  1229763772: (i) => {
-    var _a;
-    return [i.Coordinates, (_a = i.Closed) == null ? void 0 : _a.toString(), i.Normals, i.CoordIndex, i.PnIndex, i.Flags];
-  },
+  2916149573: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.Normals, i.CoordIndex, i.PnIndex],
+  1229763772: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.Normals, i.CoordIndex, i.PnIndex, i.Flags],
   3651464721: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   336235671: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.LiningDepth, i.LiningThickness, i.TransomThickness, i.MullionThickness, i.FirstTransomOffset, i.SecondTransomOffset, i.FirstMullionOffset, i.SecondMullionOffset, i.ShapeAspectStyle, i.LiningOffset, i.LiningToPanelOffsetX, i.LiningToPanelOffsetY],
   512836454: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.OperationType, i.PanelPosition, i.FrameDepth, i.FrameThickness, i.ShapeAspectStyle],
@@ -82464,14 +82502,8 @@ ToRawLineData[3] = {
   1635779807: (i) => [i.Outer],
   2603310189: (i) => [i.Outer, i.Voids],
   1674181508: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType],
-  2887950389: (i) => {
-    var _a, _b, _c;
-    return [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, (_a = i.UClosed) == null ? void 0 : _a.toString(), (_b = i.VClosed) == null ? void 0 : _b.toString(), (_c = i.SelfIntersect) == null ? void 0 : _c.toString()];
-  },
-  167062518: (i) => {
-    var _a, _b, _c;
-    return [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, (_a = i.UClosed) == null ? void 0 : _a.toString(), (_b = i.VClosed) == null ? void 0 : _b.toString(), (_c = i.SelfIntersect) == null ? void 0 : _c.toString(), i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec];
-  },
+  2887950389: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  167062518: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec],
   1334484129: (i) => [i.Position, i.XLength, i.YLength, i.ZLength],
   3649129432: (i) => [i.Operator, i.FirstOperand, i.SecondOperand],
   1260505505: (_) => [],
@@ -82483,14 +82515,8 @@ ToRawLineData[3] = {
   3497074424: (i) => [i.Position, i.ClothoidConstant],
   300633059: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3875453745: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.UsageName, i.TemplateType, i.HasPropertyTemplates],
-  3732776249: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
-  15328376: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  3732776249: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  15328376: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   2510884976: (i) => [i.Position],
   2185764099: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
   4105962743: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ResourceType, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
@@ -82511,10 +82537,7 @@ ToRawLineData[3] = {
   3849074793: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   2963535650: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.LiningDepth, i.LiningThickness, i.ThresholdDepth, i.ThresholdThickness, i.TransomThickness, i.TransomOffset, i.LiningOffset, i.ThresholdOffset, i.CasingThickness, i.CasingDepth, i.ShapeAspectStyle, i.LiningToPanelOffsetX, i.LiningToPanelOffsetY],
   1714330368: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.PanelDepth, i.PanelOperation, i.PanelWidth, i.PanelPosition, i.ShapeAspectStyle],
-  2323601079: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.OperationType, (_a = i.ParameterTakesPrecedence) == null ? void 0 : _a.toString(), i.UserDefinedOperationType];
-  },
+  2323601079: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.OperationType, i.ParameterTakesPrecedence == null ? null : { type: 3, value: BooleanConvert(i.ParameterTakesPrecedence.value) }, i.UserDefinedOperationType],
   445594917: (i) => [i.Name],
   4006246654: (i) => [i.Name],
   1758889154: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
@@ -82553,27 +82576,18 @@ ToRawLineData[3] = {
   3493046030: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   4230923436: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
   1594536857: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  2898700619: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString(), i.BaseCurve, i.EndPoint];
-  },
+  2898700619: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.BaseCurve, i.EndPoint],
   2706460486: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType],
   1251058090: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1806887404: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2568555532: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3948183225: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  2571569899: (i) => {
-    var _a;
-    return [i.Points, !i.Segments ? null : i.Segments.map((p) => Labelise(p)), (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  2571569899: (i) => [i.Points, !i.Segments ? null : i.Segments.map((p) => Labelise(p)), { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   3946677679: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3113134337: (i) => [i.Curve3D, i.AssociatedGeometry, i.MasterRepresentation],
   2391368822: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.Jurisdiction, i.ResponsiblePersons, i.LastUpdateDate, i.CurrentValue, i.OriginalValue],
   4288270099: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  679976338: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, (_a = i.Mountable) == null ? void 0 : _a.toString()];
-  },
+  679976338: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, { type: 3, value: BooleanConvert(i.Mountable.value) }],
   3827777499: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Usage, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
   1051575348: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1161773419: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
@@ -82600,10 +82614,7 @@ ToRawLineData[3] = {
   804291784: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   4231323485: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   4017108033: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  2839578677: (i) => {
-    var _a;
-    return [i.Coordinates, (_a = i.Closed) == null ? void 0 : _a.toString(), i.Faces, i.PnIndex];
-  },
+  2839578677: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.Faces, i.PnIndex],
   3724593414: (i) => [i.Points],
   3740093272: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
   1946335990: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
@@ -82618,10 +82629,7 @@ ToRawLineData[3] = {
   1891881377: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.UsageType, i.PredefinedType],
   2324767716: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1469900589: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  683857671: (i) => {
-    var _a, _b, _c;
-    return [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, (_a = i.UClosed) == null ? void 0 : _a.toString(), (_b = i.VClosed) == null ? void 0 : _b.toString(), (_c = i.SelfIntersect) == null ? void 0 : _c.toString(), i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData];
-  },
+  683857671: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData],
   4021432810: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType],
   3027567501: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade],
   964333572: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
@@ -82635,10 +82643,7 @@ ToRawLineData[3] = {
   1768891740: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2157484638: (i) => [i.Curve3D, i.AssociatedGeometry, i.MasterRepresentation],
   3649235739: (i) => [i.Position, i.QuadraticTerm, i.LinearTerm, i.ConstantTerm],
-  544395925: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString(), i.BaseCurve, i.EndPoint];
-  },
+  544395925: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.BaseCurve, i.EndPoint],
   1027922057: (i) => [i.Position, i.SepticTerm, i.SexticTerm, i.QuinticTerm, i.QuarticTerm, i.CubicTerm, i.QuadraticTerm, i.LinearTerm, i.ConstantTerm],
   4074543187: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   33720170: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -82654,38 +82659,20 @@ ToRawLineData[3] = {
   3112655638: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1039846685: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   338393293: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  682877961: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString()];
-  },
+  682877961: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }],
   1179482911: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition],
-  1004757350: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  1004757350: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   4243806635: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition, i.AxisDirection],
   214636428: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType, i.Axis],
   2445595289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType, i.Axis],
   2757150158: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.PredefinedType],
-  1807405624: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  1807405624: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   1252848954: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.ActionType, i.ActionSource, i.Coefficient, i.Purpose],
-  2082059205: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString()];
-  },
+  2082059205: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }],
   734778138: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition, i.ConditionCoordinateSystem],
   1235345126: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal],
-  2986769608: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TheoryType, i.ResultForLoadGroup, (_a = i.IsLinear) == null ? void 0 : _a.toString()];
-  },
-  3657597509: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  2986769608: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TheoryType, i.ResultForLoadGroup, { type: 3, value: BooleanConvert(i.IsLinear.value) }],
+  3657597509: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   1975003073: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedCondition],
   148013059: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Usage, i.BaseCosts, i.BaseQuantity, i.PredefinedType],
   3101698114: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -82703,10 +82690,7 @@ ToRawLineData[3] = {
   1692211062: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2097647324: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1953115116: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
-  3593883385: (i) => {
-    var _a;
-    return [i.BasisCurve, i.Trim1, i.Trim2, (_a = i.SenseAgreement) == null ? void 0 : _a.toString(), i.MasterRepresentation];
-  },
+  3593883385: (i) => [i.BasisCurve, i.Trim1, i.Trim2, { type: 3, value: BooleanConvert(i.SenseAgreement.value) }, i.MasterRepresentation],
   1600972822: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1911125066: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   728799441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
@@ -82719,10 +82703,7 @@ ToRawLineData[3] = {
   926996030: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1898987631: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1133259667: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  4009809668: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.PartitioningType, (_a = i.ParameterTakesPrecedence) == null ? void 0 : _a.toString(), i.UserDefinedPartitioningType];
-  },
+  4009809668: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.PartitioningType, i.ParameterTakesPrecedence == null ? null : { type: 3, value: BooleanConvert(i.ParameterTakesPrecedence.value) }, i.UserDefinedPartitioningType],
   4088093105: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.WorkingTimes, i.ExceptionTimes, i.PredefinedType],
   1028945134: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.CreationDate, i.Creators, i.Purpose, i.Duration, i.TotalFloat, i.StartTime, i.FinishTime],
   4218914973: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.CreationDate, i.Creators, i.Purpose, i.Duration, i.TotalFloat, i.StartTime, i.FinishTime, i.PredefinedType],
@@ -82738,21 +82719,12 @@ ToRawLineData[3] = {
   1662888072: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
   3460190687: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.OriginalValue, i.CurrentValue, i.TotalReplacementCost, i.Owner, i.User, i.ResponsiblePerson, i.IncorporationDate, i.DepreciatedValue],
   1532957894: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1967976161: (i) => {
-    var _a, _b;
-    return [i.Degree, i.ControlPointsList, i.CurveForm, (_a = i.ClosedCurve) == null ? void 0 : _a.toString(), (_b = i.SelfIntersect) == null ? void 0 : _b.toString()];
-  },
-  2461110595: (i) => {
-    var _a, _b;
-    return [i.Degree, i.ControlPointsList, i.CurveForm, (_a = i.ClosedCurve) == null ? void 0 : _a.toString(), (_b = i.SelfIntersect) == null ? void 0 : _b.toString(), i.KnotMultiplicities, i.Knots, i.KnotSpec];
-  },
+  1967976161: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  2461110595: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec],
   819618141: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3649138523: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   231477066: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1136057603: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  1136057603: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   644574406: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.PredefinedType],
   963979645: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.UsageType, i.PredefinedType],
   4031249490: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.ElevationOfRefHeight, i.ElevationOfTerrain, i.BuildingAddress],
@@ -82835,10 +82807,7 @@ ToRawLineData[3] = {
   2068733104: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   4175244083: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   2176052936: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  2696325953: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, (_a = i.Mountable) == null ? void 0 : _a.toString()];
-  },
+  2696325953: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, { type: 3, value: BooleanConvert(i.Mountable.value) }],
   76236018: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   629592764: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1154579445: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
@@ -82849,10 +82818,7 @@ ToRawLineData[3] = {
   234836483: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   2474470126: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   2182337498: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  144952367: (i) => {
-    var _a;
-    return [i.Segments, (_a = i.SelfIntersect) == null ? void 0 : _a.toString()];
-  },
+  144952367: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
   3694346114: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1383356374: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1687234759: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType, i.ConstructionType],
@@ -82866,10 +82832,7 @@ ToRawLineData[3] = {
   2262370178: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3024970846: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3283111854: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  1232101972: (i) => {
-    var _a, _b;
-    return [i.Degree, i.ControlPointsList, i.CurveForm, (_a = i.ClosedCurve) == null ? void 0 : _a.toString(), (_b = i.SelfIntersect) == null ? void 0 : _b.toString(), i.KnotMultiplicities, i.Knots, i.KnotSpec, i.WeightsData];
-  },
+  1232101972: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec, i.WeightsData],
   3798194928: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   979691226: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.PredefinedType, i.BarSurface],
   2572171363: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.BarSurface, i.BendingShapeCode, !i.BendingParameters ? null : i.BendingParameters.map((p) => Labelise(p))],
@@ -82886,10 +82849,7 @@ ToRawLineData[3] = {
   4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRisers, i.NumberOfTreads, i.RiserHeight, i.TreadLength, i.PredefinedType],
   2515109513: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.OrientationOf2DPlane, i.LoadedBy, i.HasResults, i.SharedPlacement],
   385403989: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.ActionType, i.ActionSource, i.Coefficient, i.Purpose, i.SelfWeightCoefficients],
-  1621171031: (i) => {
-    var _a;
-    return [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, (_a = i.DestabilizingLoad) == null ? void 0 : _a.toString(), i.ProjectedOrTrue, i.PredefinedType];
-  },
+  1621171031: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
   1162798199: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   812556717: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3425753595: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -83095,6 +83055,7 @@ var IFC4X3;
   class IfcAbsorbedDoseMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCABSORBEDDOSEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83102,6 +83063,7 @@ var IFC4X3;
   class IfcAccelerationMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCACCELERATIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83109,6 +83071,7 @@ var IFC4X3;
   class IfcAmountOfSubstanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAMOUNTOFSUBSTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83116,6 +83079,7 @@ var IFC4X3;
   class IfcAngularVelocityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCANGULARVELOCITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83130,6 +83094,7 @@ var IFC4X3;
   class IfcAreaDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAREADENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83137,6 +83102,7 @@ var IFC4X3;
   class IfcAreaMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCAREAMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83144,6 +83110,7 @@ var IFC4X3;
   class IfcBinary {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCBINARY";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83151,6 +83118,7 @@ var IFC4X3;
   class IfcBoolean {
     constructor(v) {
       this.type = 3;
+      this.name = "IFCBOOLEAN";
       this.value = v === null ? v : v == "T" ? true : false;
     }
   }
@@ -83159,12 +83127,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCBOXALIGNMENT";
     }
   }
   IFC4X32.IfcBoxAlignment = IfcBoxAlignment;
   class IfcCardinalPointReference {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCCARDINALPOINTREFERENCE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83186,6 +83156,7 @@ var IFC4X3;
   class IfcContextDependentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCONTEXTDEPENDENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83193,6 +83164,7 @@ var IFC4X3;
   class IfcCountMeasure {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCCOUNTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83200,6 +83172,7 @@ var IFC4X3;
   class IfcCurvatureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCCURVATUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83208,6 +83181,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDATE";
     }
   }
   IFC4X32.IfcDate = IfcDate;
@@ -83215,12 +83189,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDATETIME";
     }
   }
   IFC4X32.IfcDateTime = IfcDateTime;
   class IfcDayInMonthNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDAYINMONTHNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83228,6 +83204,7 @@ var IFC4X3;
   class IfcDayInWeekNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDAYINWEEKNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83236,12 +83213,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDESCRIPTIVEMEASURE";
     }
   }
   IFC4X32.IfcDescriptiveMeasure = IfcDescriptiveMeasure;
   class IfcDimensionCount {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCDIMENSIONCOUNT";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83249,6 +83228,7 @@ var IFC4X3;
   class IfcDoseEquivalentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCDOSEEQUIVALENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83257,12 +83237,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCDURATION";
     }
   }
   IFC4X32.IfcDuration = IfcDuration;
   class IfcDynamicViscosityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCDYNAMICVISCOSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83270,6 +83252,7 @@ var IFC4X3;
   class IfcElectricCapacitanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCAPACITANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83277,6 +83260,7 @@ var IFC4X3;
   class IfcElectricChargeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCHARGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83284,6 +83268,7 @@ var IFC4X3;
   class IfcElectricConductanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCONDUCTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83291,6 +83276,7 @@ var IFC4X3;
   class IfcElectricCurrentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICCURRENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83298,6 +83284,7 @@ var IFC4X3;
   class IfcElectricResistanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICRESISTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83305,6 +83292,7 @@ var IFC4X3;
   class IfcElectricVoltageMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCELECTRICVOLTAGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83312,6 +83300,7 @@ var IFC4X3;
   class IfcEnergyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCENERGYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83320,6 +83309,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTSTYLE";
     }
   }
   IFC4X32.IfcFontStyle = IfcFontStyle;
@@ -83327,6 +83317,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTVARIANT";
     }
   }
   IFC4X32.IfcFontVariant = IfcFontVariant;
@@ -83334,12 +83325,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCFONTWEIGHT";
     }
   }
   IFC4X32.IfcFontWeight = IfcFontWeight;
   class IfcForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83347,6 +83340,7 @@ var IFC4X3;
   class IfcFrequencyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCFREQUENCYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83355,12 +83349,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCGLOBALLYUNIQUEID";
     }
   }
   IFC4X32.IfcGloballyUniqueId = IfcGloballyUniqueId;
   class IfcHeatFluxDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCHEATFLUXDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83368,6 +83364,7 @@ var IFC4X3;
   class IfcHeatingValueMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCHEATINGVALUEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83376,12 +83373,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCIDENTIFIER";
     }
   }
   IFC4X32.IfcIdentifier = IfcIdentifier;
   class IfcIlluminanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCILLUMINANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83389,6 +83388,7 @@ var IFC4X3;
   class IfcInductanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCINDUCTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83396,6 +83396,7 @@ var IFC4X3;
   class IfcInteger {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCINTEGER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83403,6 +83404,7 @@ var IFC4X3;
   class IfcIntegerCountRateMeasure {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCINTEGERCOUNTRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83410,6 +83412,7 @@ var IFC4X3;
   class IfcIonConcentrationMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCIONCONCENTRATIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83417,6 +83420,7 @@ var IFC4X3;
   class IfcIsothermalMoistureCapacityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCISOTHERMALMOISTURECAPACITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83424,6 +83428,7 @@ var IFC4X3;
   class IfcKinematicViscosityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCKINEMATICVISCOSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83432,6 +83437,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCLABEL";
     }
   }
   IFC4X32.IfcLabel = IfcLabel;
@@ -83439,12 +83445,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCLANGUAGEID";
     }
   }
   IFC4X32.IfcLanguageId = IfcLanguageId;
   class IfcLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83459,6 +83467,7 @@ var IFC4X3;
   class IfcLinearForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83466,6 +83475,7 @@ var IFC4X3;
   class IfcLinearMomentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARMOMENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83473,6 +83483,7 @@ var IFC4X3;
   class IfcLinearStiffnessMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARSTIFFNESSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83480,6 +83491,7 @@ var IFC4X3;
   class IfcLinearVelocityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLINEARVELOCITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83487,6 +83499,7 @@ var IFC4X3;
   class IfcLogical {
     constructor(v) {
       this.type = 3;
+      this.name = "IFCLOGICAL";
       this.value = v === null ? v : v == "T" ? 1 : v == "F" ? 0 : 2;
     }
   }
@@ -83494,6 +83507,7 @@ var IFC4X3;
   class IfcLuminousFluxMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSFLUXMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83501,6 +83515,7 @@ var IFC4X3;
   class IfcLuminousIntensityDistributionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSINTENSITYDISTRIBUTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83508,6 +83523,7 @@ var IFC4X3;
   class IfcLuminousIntensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCLUMINOUSINTENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83515,6 +83531,7 @@ var IFC4X3;
   class IfcMagneticFluxDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMAGNETICFLUXDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83522,6 +83539,7 @@ var IFC4X3;
   class IfcMagneticFluxMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMAGNETICFLUXMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83529,6 +83547,7 @@ var IFC4X3;
   class IfcMassDensityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSDENSITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83536,6 +83555,7 @@ var IFC4X3;
   class IfcMassFlowRateMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSFLOWRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83543,6 +83563,7 @@ var IFC4X3;
   class IfcMassMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83550,6 +83571,7 @@ var IFC4X3;
   class IfcMassPerLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMASSPERLENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83557,6 +83579,7 @@ var IFC4X3;
   class IfcModulusOfElasticityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFELASTICITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83564,6 +83587,7 @@ var IFC4X3;
   class IfcModulusOfLinearSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFLINEARSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83571,6 +83595,7 @@ var IFC4X3;
   class IfcModulusOfRotationalSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFROTATIONALSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83578,6 +83603,7 @@ var IFC4X3;
   class IfcModulusOfSubgradeReactionMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMODULUSOFSUBGRADEREACTIONMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83585,6 +83611,7 @@ var IFC4X3;
   class IfcMoistureDiffusivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOISTUREDIFFUSIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83592,6 +83619,7 @@ var IFC4X3;
   class IfcMolecularWeightMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOLECULARWEIGHTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83599,6 +83627,7 @@ var IFC4X3;
   class IfcMomentOfInertiaMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMOMENTOFINERTIAMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83606,6 +83635,7 @@ var IFC4X3;
   class IfcMonetaryMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCMONETARYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83613,6 +83643,7 @@ var IFC4X3;
   class IfcMonthInYearNumber {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCMONTHINYEARNUMBER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83620,6 +83651,7 @@ var IFC4X3;
   class IfcNonNegativeLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNONNEGATIVELENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83627,6 +83659,7 @@ var IFC4X3;
   class IfcNormalisedRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNORMALISEDRATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83634,6 +83667,7 @@ var IFC4X3;
   class IfcNumericMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCNUMERICMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83641,6 +83675,7 @@ var IFC4X3;
   class IfcPHMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83648,6 +83683,7 @@ var IFC4X3;
   class IfcParameterValue {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPARAMETERVALUE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83655,6 +83691,7 @@ var IFC4X3;
   class IfcPlanarForceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPLANARFORCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83662,6 +83699,7 @@ var IFC4X3;
   class IfcPlaneAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPLANEANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83669,6 +83707,7 @@ var IFC4X3;
   class IfcPositiveInteger {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCPOSITIVEINTEGER";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83676,6 +83715,7 @@ var IFC4X3;
   class IfcPositiveLengthMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVELENGTHMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83683,6 +83723,7 @@ var IFC4X3;
   class IfcPositivePlaneAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVEPLANEANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83690,6 +83731,7 @@ var IFC4X3;
   class IfcPositiveRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOSITIVERATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83697,6 +83739,7 @@ var IFC4X3;
   class IfcPowerMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPOWERMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83705,12 +83748,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCPRESENTABLETEXT";
     }
   }
   IFC4X32.IfcPresentableText = IfcPresentableText;
   class IfcPressureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCPRESSUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83725,6 +83770,7 @@ var IFC4X3;
   class IfcRadioActivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCRADIOACTIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83732,6 +83778,7 @@ var IFC4X3;
   class IfcRatioMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCRATIOMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83739,6 +83786,7 @@ var IFC4X3;
   class IfcReal {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCREAL";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83746,6 +83794,7 @@ var IFC4X3;
   class IfcRotationalFrequencyMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALFREQUENCYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83753,6 +83802,7 @@ var IFC4X3;
   class IfcRotationalMassMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALMASSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83760,6 +83810,7 @@ var IFC4X3;
   class IfcRotationalStiffnessMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCROTATIONALSTIFFNESSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83767,6 +83818,7 @@ var IFC4X3;
   class IfcSectionModulusMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSECTIONMODULUSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83774,6 +83826,7 @@ var IFC4X3;
   class IfcSectionalAreaIntegralMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSECTIONALAREAINTEGRALMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83781,6 +83834,7 @@ var IFC4X3;
   class IfcShearModulusMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSHEARMODULUSMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83788,6 +83842,7 @@ var IFC4X3;
   class IfcSolidAngleMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOLIDANGLEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83795,6 +83850,7 @@ var IFC4X3;
   class IfcSoundPowerLevelMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPOWERLEVELMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83802,6 +83858,7 @@ var IFC4X3;
   class IfcSoundPowerMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPOWERMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83809,6 +83866,7 @@ var IFC4X3;
   class IfcSoundPressureLevelMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPRESSURELEVELMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83816,6 +83874,7 @@ var IFC4X3;
   class IfcSoundPressureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSOUNDPRESSUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83823,6 +83882,7 @@ var IFC4X3;
   class IfcSpecificHeatCapacityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECIFICHEATCAPACITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83830,6 +83890,7 @@ var IFC4X3;
   class IfcSpecularExponent {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECULAREXPONENT";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83837,6 +83898,7 @@ var IFC4X3;
   class IfcSpecularRoughness {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCSPECULARROUGHNESS";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83844,6 +83906,7 @@ var IFC4X3;
   class IfcTemperatureGradientMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTEMPERATUREGRADIENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83851,6 +83914,7 @@ var IFC4X3;
   class IfcTemperatureRateOfChangeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTEMPERATURERATEOFCHANGEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83859,6 +83923,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXT";
     }
   }
   IFC4X32.IfcText = IfcText;
@@ -83866,6 +83931,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTALIGNMENT";
     }
   }
   IFC4X32.IfcTextAlignment = IfcTextAlignment;
@@ -83873,6 +83939,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTDECORATION";
     }
   }
   IFC4X32.IfcTextDecoration = IfcTextDecoration;
@@ -83880,6 +83947,7 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTFONTNAME";
     }
   }
   IFC4X32.IfcTextFontName = IfcTextFontName;
@@ -83887,12 +83955,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTEXTTRANSFORMATION";
     }
   }
   IFC4X32.IfcTextTransformation = IfcTextTransformation;
   class IfcThermalAdmittanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALADMITTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83900,6 +83970,7 @@ var IFC4X3;
   class IfcThermalConductivityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALCONDUCTIVITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83907,6 +83978,7 @@ var IFC4X3;
   class IfcThermalExpansionCoefficientMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALEXPANSIONCOEFFICIENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83914,6 +83986,7 @@ var IFC4X3;
   class IfcThermalResistanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALRESISTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83921,6 +83994,7 @@ var IFC4X3;
   class IfcThermalTransmittanceMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMALTRANSMITTANCEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83928,6 +84002,7 @@ var IFC4X3;
   class IfcThermodynamicTemperatureMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTHERMODYNAMICTEMPERATUREMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83936,12 +84011,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCTIME";
     }
   }
   IFC4X32.IfcTime = IfcTime;
   class IfcTimeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTIMEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83949,6 +84026,7 @@ var IFC4X3;
   class IfcTimeStamp {
     constructor(v) {
       this.type = 10;
+      this.name = "IFCTIMESTAMP";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83956,6 +84034,7 @@ var IFC4X3;
   class IfcTorqueMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCTORQUEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83964,12 +84043,14 @@ var IFC4X3;
     constructor(value) {
       this.value = value;
       this.type = 1;
+      this.name = "IFCURIREFERENCE";
     }
   }
   IFC4X32.IfcURIReference = IfcURIReference;
   class IfcVaporPermeabilityMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVAPORPERMEABILITYMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83977,6 +84058,7 @@ var IFC4X3;
   class IfcVolumeMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVOLUMEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83984,6 +84066,7 @@ var IFC4X3;
   class IfcVolumetricFlowRateMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCVOLUMETRICFLOWRATEMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83991,6 +84074,7 @@ var IFC4X3;
   class IfcWarpingConstantMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCWARPINGCONSTANTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -83998,6 +84082,7 @@ var IFC4X3;
   class IfcWarpingMomentMeasure {
     constructor(v) {
       this.type = 4;
+      this.name = "IFCWARPINGMOMENTMEASURE";
       this.value = v === null ? v : parseFloat(v);
     }
   }
@@ -99238,43 +99323,37 @@ var Properties = class {
 // dist/helpers/log.ts
 var LogLevel;
 (function(LogLevel2) {
-  LogLevel2[LogLevel2["LOG_LEVEL_DEBUG"] = 0] = "LOG_LEVEL_DEBUG";
-  LogLevel2[LogLevel2["LOG_LEVEL_INFO"] = 1] = "LOG_LEVEL_INFO";
-  LogLevel2[LogLevel2["LOG_LEVEL_WARN"] = 2] = "LOG_LEVEL_WARN";
-  LogLevel2[LogLevel2["LOG_LEVEL_ERROR"] = 3] = "LOG_LEVEL_ERROR";
-  LogLevel2[LogLevel2["LOG_LEVEL_OFF"] = 4] = "LOG_LEVEL_OFF";
+  LogLevel2[LogLevel2["LOG_LEVEL_DEBUG"] = 1] = "LOG_LEVEL_DEBUG";
+  LogLevel2[LogLevel2["LOG_LEVEL_WARN"] = 3] = "LOG_LEVEL_WARN";
+  LogLevel2[LogLevel2["LOG_LEVEL_ERROR"] = 4] = "LOG_LEVEL_ERROR";
+  LogLevel2[LogLevel2["LOG_LEVEL_OFF"] = 6] = "LOG_LEVEL_OFF";
 })(LogLevel || (LogLevel = {}));
 var Log = class {
   static setLogLevel(level) {
     this.logLevel = level;
   }
   static log(msg, ...args) {
-    if (this.logLevel <= 3) {
+    if (this.logLevel <= 4) {
       console.log(msg, ...args);
     }
   }
   static debug(msg, ...args) {
-    if (this.logLevel <= 0) {
+    if (this.logLevel <= 1) {
       console.trace("DEBUG: ", msg, ...args);
     }
   }
-  static info(msg, ...args) {
-    if (this.logLevel <= 1) {
-      console.info("INFO: ", msg, ...args);
-    }
-  }
   static warn(msg, ...args) {
-    if (this.logLevel <= 2) {
+    if (this.logLevel <= 3) {
       console.warn("WARN: ", msg, ...args);
     }
   }
   static error(msg, ...args) {
-    if (this.logLevel <= 3) {
+    if (this.logLevel <= 4) {
       console.error("ERROR: ", msg, ...args);
     }
   }
 };
-Log.logLevel = 1;
+Log.logLevel = 4;
 var WebIFCWasm;
 if (typeof self !== "undefined" && self.crossOriginIsolated) {
   try {
@@ -99322,6 +99401,7 @@ var IfcAPI2 = class {
           return prefix + path;
         };
         this.wasmModule = yield WebIFCWasm({ noInitialRun: true, locateFile: customLocateFileHandler || locateFileHandler });
+        this.SetLogLevel(LogLevel.LOG_LEVEL_ERROR);
       } else {
         Log.error(`Could not find wasm module at './web-ifc' from web-ifc-api.ts`);
       }
@@ -99348,7 +99428,7 @@ var IfcAPI2 = class {
     let deprecated = ["USE_FAST_BOOLS", "CIRCLE_SEGMENTS_LOW", "CIRCLE_SEGMENTS_MEDIUM", "CIRCLE_SEGMENTS_HIGH"];
     for (let d in deprecated) {
       if (d in s) {
-        Log.info("Use of deprecated settings " + d + " detected");
+        Log.warn("Use of deprecated settings " + d + " detected");
       }
     }
     return s;
@@ -99382,7 +99462,7 @@ var IfcAPI2 = class {
       this.CloseModel(result);
       return -1;
     }
-    Log.info("Parsing Model using " + schemaName + " Schema");
+    Log.debug("Parsing Model using " + schemaName + " Schema");
     return result;
   }
   OpenModelFromCallback(callback, settings) {
@@ -99403,7 +99483,7 @@ var IfcAPI2 = class {
       this.CloseModel(result);
       return -1;
     }
-    Log.info("Parsing Model using " + schemaName + " Schema");
+    Log.debug("Parsing Model using " + schemaName + " Schema");
     return result;
   }
   GetModelSchema(modelID) {
@@ -99527,8 +99607,13 @@ var IfcAPI2 = class {
   GetNextExpressID(modelID, expressID) {
     return this.wasmModule.GetNextExpressID(modelID, expressID);
   }
-  GetAndClearErrors(modelID) {
-    return this.wasmModule.GetAndClearErrors(modelID);
+  GetAndClearErrors(_) {
+    Log.warn("GetAndClearErrors is deprecated and will be removed in the next version");
+    return { size: function() {
+      return 0;
+    }, get: function(_2) {
+      return {};
+    } };
   }
   CreateIfcEntity(modelID, type, ...args) {
     return Constructors[this.modelSchemaList[modelID]][type](args);
@@ -99597,7 +99682,7 @@ var IfcAPI2 = class {
       if (property && property.type === 5) {
         if (property.value)
           line[propertyName] = this.GetLine(modelID, property.value, true);
-      } else if (Array.isArray(property) && property.length > 0 && property[0].type === 5) {
+      } else if (Array.isArray(property) && property.length > 0 && property[0] && property[0].type === 5) {
         for (let i = 0; i < property.length; i++) {
           if (property[i].value)
             line[propertyName][i] = this.GetLine(modelID, property[i].value, true);
@@ -99610,6 +99695,11 @@ var IfcAPI2 = class {
   }
   WriteRawLineData(modelID, data) {
     this.wasmModule.WriteLine(modelID, data.ID, data.type, data.arguments);
+  }
+  WriteRawLinesData(modelID, data) {
+    this.wasmModule.ExtendLineStorage(modelID, data.length);
+    for (let rawLine of data)
+      this.wasmModule.WriteLine(modelID, rawLine.ID, rawLine.type, rawLine.arguments);
   }
   GetLineIDsWithType(modelID, type, includeInherited = false) {
     let types = [];
@@ -99684,7 +99774,12 @@ var IfcAPI2 = class {
           const newPoint = { x: pt.x, y: pt.y };
           ptList.push(newPoint);
         }
-        const newCurve = { points: ptList };
+        const dtList = [];
+        for (let p = 0; p < curve.userData.size(); p++) {
+          const dt = curve.userData.get(p);
+          dtList.push(dt);
+        }
+        const newCurve = { points: ptList, data: dtList };
         horList.push(newCurve);
       }
       const verList = [];
@@ -99696,10 +99791,83 @@ var IfcAPI2 = class {
           const newPoint = { x: pt.x, y: pt.y };
           ptList.push(newPoint);
         }
-        const newCurve = { points: ptList };
+        const dtList = [];
+        for (let p = 0; p < curve.userData.size(); p++) {
+          const dt = curve.userData.get(p);
+          dtList.push(dt);
+        }
+        const newCurve = { points: ptList, data: dtList };
         verList.push(newCurve);
       }
-      const align = { origin, horizontal: horList, vertical: verList };
+      const curve3DList = [];
+      if (alignment.Horizontal.curves.size() > 0 && alignment.Vertical.curves.size() > 0) {
+        const startH = { x: 0, y: 0, z: 0 };
+        const startV = { x: 0, y: 0, z: 0 };
+        let lastx = 0;
+        let lasty = 0;
+        let length = 0;
+        for (let j = 0; j < alignment.Horizontal.curves.size(); j++) {
+          const curve = alignment.Horizontal.curves.get(j);
+          const points = [];
+          for (let k = 0; k < curve.points.size(); k++) {
+            let alt = 0;
+            const pt = curve.points.get(k);
+            if (j === 0 && k === 0) {
+              lastx = pt.x;
+              lasty = pt.y;
+            }
+            const valueX = pt.x - lastx;
+            const valueY = pt.y - lasty;
+            lastx = pt.x;
+            lasty = pt.y;
+            length += Math.sqrt(valueX * valueX + valueY * valueY);
+            let first = true;
+            let lastAlt = 0;
+            let lastX = 0;
+            let done = false;
+            for (let ii = 0; ii < alignment.Vertical.curves.size(); ii++) {
+              const curve2 = alignment.Vertical.curves.get(ii);
+              for (let jj = 0; jj < curve2.points.size(); jj++) {
+                const pt2 = curve2.points.get(jj);
+                if (first) {
+                  first = false;
+                  alt = pt2.y;
+                  lastAlt = pt2.y;
+                  if (pt2.x >= length) {
+                    break;
+                  }
+                }
+                if (pt2.x >= length) {
+                  const value1 = pt2.x - lastX;
+                  const value2 = length - lastX;
+                  const value3 = value2 / value1;
+                  alt = lastAlt * (1 - value3) + pt2.y * value3;
+                  done = true;
+                  break;
+                }
+                lastAlt = pt2.y;
+                lastX = pt2.x;
+              }
+              if (done) {
+                break;
+              }
+            }
+            points.push({
+              x: pt.x - startH.x,
+              y: alt - startV.y,
+              z: startH.y - pt.y
+            });
+          }
+          const newCurve = { points };
+          curve3DList.push(newCurve);
+        }
+      }
+      const align = {
+        origin,
+        horizontal: horList,
+        vertical: verList,
+        curve3D: curve3DList
+      };
       alignmentList.push(align);
     }
     return alignmentList;
@@ -104671,24 +104839,27 @@ class DataConverter {
         });
     }
     createAllFragments(geometries, civilItems) {
-        var _a, _b;
         const uniqueItems = {};
-        this._model.ifcCivil = {
-            horizontalAlignments: [],
-            verticalAlignments: [],
-        };
         const matrix = new THREE$1.Matrix4();
         const color = new THREE$1.Color();
+        console.log(civilItems);
         // Add alignments data
         if (civilItems.IfcAlignment) {
-            const dataH = new IfcAlignmentData();
+            const horizontalAlignments = new IfcAlignmentData();
+            const verticalAlignments = new IfcAlignmentData();
+            const realAlignments = new IfcAlignmentData();
             let countH = 0;
+            let countV = 0;
+            let countR = 0;
             const valuesH = [];
+            const valuesV = [];
+            const valuesR = [];
             for (const alignment of civilItems.IfcAlignment) {
-                dataH.CurveLenght.push(countH);
+                horizontalAlignments.alignmentIndex.push(countH);
+                verticalAlignments.alignmentIndex.push(countV);
                 if (alignment.horizontal) {
                     for (const hAlignment of alignment.horizontal) {
-                        dataH.SegmentLenght.push(countH);
+                        horizontalAlignments.curveIndex.push(countH);
                         for (const point of hAlignment.points) {
                             valuesH.push(point.x);
                             valuesH.push(point.y);
@@ -104696,22 +104867,9 @@ class DataConverter {
                         }
                     }
                 }
-            }
-            // Create a new Float32Array with the desired size
-            const resizedCoordinatesH = new Float32Array(valuesH.length);
-            // Set the values from the number[] to the resized Float32Array
-            resizedCoordinatesH.set(valuesH);
-            // Assign the resized Float32Array to dataH.Coordinates
-            dataH.Coordinates = resizedCoordinatesH;
-            (_a = this._model.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments.push(dataH);
-            const dataV = new IfcAlignmentData();
-            let countV = 0;
-            const valuesV = [];
-            for (const alignment of civilItems.IfcAlignment) {
-                dataV.CurveLenght.push(countV);
                 if (alignment.vertical) {
                     for (const vAlignment of alignment.vertical) {
-                        dataV.SegmentLenght.push(countV);
+                        verticalAlignments.curveIndex.push(countV);
                         for (const point of vAlignment.points) {
                             valuesV.push(point.x);
                             valuesV.push(point.y);
@@ -104719,14 +104877,26 @@ class DataConverter {
                         }
                     }
                 }
+                if (alignment.curve3D) {
+                    for (const rAlignment of alignment.curve3D) {
+                        realAlignments.curveIndex.push(countR);
+                        for (const point of rAlignment.points) {
+                            valuesR.push(point.x);
+                            valuesR.push(point.y);
+                            valuesR.push(point.z);
+                            countR++;
+                        }
+                    }
+                }
             }
-            // Create a new Float32Array with the desired size
-            const resizedCoordinatesV = new Float32Array(valuesV.length);
-            // Set the values from the number[] to the resized Float32Array
-            resizedCoordinatesV.set(valuesV);
-            // Assign the resized Float32Array to dataH.Coordinates
-            dataV.Coordinates = resizedCoordinatesV;
-            (_b = this._model.ifcCivil) === null || _b === void 0 ? void 0 : _b.verticalAlignments.push(dataV);
+            horizontalAlignments.coordinates = new Float32Array(valuesH);
+            verticalAlignments.coordinates = new Float32Array(valuesV);
+            realAlignments.coordinates = new Float32Array(valuesR);
+            this._model.ifcCivil = {
+                horizontalAlignments,
+                verticalAlignments,
+                realAlignments,
+            };
         }
         for (const id in geometries) {
             const { buffer, instances } = geometries[id];
@@ -114374,1325 +114544,195 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
-class BufferManager {
-    /** The current size of the buffers. */
-    get size() {
-        const firstAttribute = this.attributes[0];
-        return firstAttribute.count * 3;
-    }
-    get attributes() {
-        return Object.values(this.geometry.attributes);
-    }
-    constructor(geometry) {
-        this.geometry = geometry;
-        /** Buffer increment when geometry size is exceeded, multiple of 3. */
-        this.bufferIncrease = 300;
-        /**
-         * The maximum capacity of the buffers. If exceeded by the {@link size},
-         * the buffers will be rescaled.
-         */
-        this.capacity = 0;
-    }
-    addAttribute(attribute) {
-        this.geometry.setAttribute(attribute.name, attribute);
-    }
-    resetAttributes() {
-        for (const attribute of this.attributes) {
-            this.createAttribute(attribute.name);
-        }
-        this.capacity = 0;
-    }
-    createAttribute(name) {
-        if (this.geometry.hasAttribute(name)) {
-            this.geometry.deleteAttribute(name);
-        }
-        const attribute = new THREE$1.BufferAttribute(new Float32Array(0), 3);
-        attribute.name = name;
-        this.geometry.setAttribute(name, attribute);
-    }
-    updateCount(size) {
-        for (const attribute of this.attributes) {
-            attribute.count = size;
-            attribute.needsUpdate = true;
-        }
-    }
-    resizeIfNeeded(increase) {
-        const newSize = this.size + increase * 3;
-        const difference = newSize - this.capacity;
-        if (difference >= 0) {
-            const increase = Math.max(difference, this.bufferIncrease);
-            const oldCapacity = this.capacity;
-            this.capacity += increase;
-            for (const attribute of this.attributes) {
-                this.resizeBuffers(attribute, oldCapacity);
-            }
-        }
-    }
-    resizeBuffers(attribute, oldCapacity) {
-        this.geometry.deleteAttribute(attribute.name);
-        const array = new Float32Array(this.capacity);
-        const newAttribute = new THREE$1.BufferAttribute(array, 3);
-        newAttribute.name = attribute.name;
-        newAttribute.count = attribute.count;
-        this.geometry.setAttribute(attribute.name, newAttribute);
-        for (let i = 0; i < oldCapacity; i++) {
-            const x = attribute.getX(i);
-            const y = attribute.getY(i);
-            const z = attribute.getZ(i);
-            newAttribute.setXYZ(i, x, y, z);
-        }
-    }
-}
-
-/**
- * An object to keep track of entities and its position in a geometric buffer.
- */
-class IdIndexMap {
-    constructor() {
-        this._idGenerator = 0;
-        this._ids = [];
-        this._indices = [];
-    }
-    /**
-     * The number of items stored in this map
-     */
-    get size() {
-        return this._ids.length;
-    }
-    /**
-     * The list of IDs inside this map. IDs are generated as increasing natural
-     * numbers starting from zero. The position of the ID in the array is
-     * the index of that entity in the geometric buffer.
-     * For instance, the ids of a map with 5 items would look like this:
-     *
-     * - [0, 1, 2, 3, 4]
-     *
-     * If the item with ID = 1 is deleted, the last item will replace the deleted
-     * one to keep the continuity of the geometric buffer, resulting in this:
-     *
-     * - [0, 4, 2, 3]
-     */
-    get ids() {
-        return this._ids;
-    }
-    /**
-     * The list of indices of the geometric buffer. The position of the index in
-     * the array is the ID of that entity. For instance, the ids of a map with 5
-     * items would look like this:
-     *
-     * - [0, 1, 2, 3, 4]
-     *
-     * If the item with ID = 1 is deleted, the last item will replace the
-     * deleted one to keep the continuity of the geometric buffer. The deleted
-     * item will remain as null inside the array:
-     *
-     * - [0, null, 2, 3, 1]
-     */
-    get indices() {
-        return this._indices;
-    }
-    /**
-     * Adds a new item to the map, creating and assigning a new ID and a new index
-     * to it. New items are assumed to be created at the end of the geometric
-     * buffer.
-     */
-    add() {
-        this._ids.push(this._idGenerator++);
-        const index = this._ids.length - 1;
-        this._indices.push(index);
-        return index;
-    }
-    /**
-     * Removes the specified item from the map and rearrange the indices to
-     * keep the continuity of the geometric buffer.
-     */
-    remove(id) {
-        const index = this.getIndex(id);
-        if (index === null || index === undefined)
-            return;
-        const lastID = this._ids.pop();
-        if (lastID === undefined) {
-            throw new Error(`Error while removing item: ${id}`);
-        }
-        this._indices[id] = null;
-        if (id === lastID)
-            return;
-        this._ids[index] = lastID;
-        this._indices[lastID] = index;
-    }
-    /**
-     * Resets this instance to the initial state.
-     */
-    reset() {
-        this._idGenerator = 0;
-        this._ids = [];
-        this._indices = [];
-    }
-    /**
-     * Gets the ID for the given index.
-     * @param index index of the entity whose ID to find out.
-     */
-    getId(index) {
-        return this._ids[index];
-    }
-    /**
-     * Gets the index for the given ID.
-     * @param id ID of the entity whose index to find out.
-     */
-    getIndex(id) {
-        return this._indices[id];
-    }
-    /**
-     * Gets the last index of the geometry buffer.
-     */
-    getLastIndex() {
-        return this.size - 1;
-    }
-    /**
-     * Gets the last ID in the geometry buffer.
-     */
-    getLastID() {
-        return this._ids[this._ids.length - 1];
-    }
-}
-
-class Selector {
-    constructor() {
-        this.data = new Set();
-    }
-    /**
-     * Select or unselects the given faces.
-     * @param active Whether to select or unselect.
-     * @param ids List of faces IDs to select or unselect. If not
-     * defined, all faces will be selected or deselected.
-     * @param allItems all the existing items.
-     */
-    select(active, ids, allItems) {
-        const all = new Set(allItems);
-        const idsToUpdate = [];
-        for (const id of ids) {
-            const exists = all.has(id);
-            if (!exists)
-                continue;
-            const isAlreadySelected = this.data.has(id);
-            if (active) {
-                if (isAlreadySelected)
-                    continue;
-                this.data.add(id);
-                idsToUpdate.push(id);
-            }
-            else {
-                if (!isAlreadySelected)
-                    continue;
-                this.data.delete(id);
-                idsToUpdate.push(id);
-            }
-        }
-        return idsToUpdate;
-    }
-    getUnselected(ids) {
-        const notSelectedIDs = [];
-        for (const id of ids) {
-            if (!this.data.has(id)) {
-                notSelectedIDs.push(id);
-            }
-        }
-        return notSelectedIDs;
-    }
-}
-
-class Primitive {
-    constructor() {
-        /**
-         * All the selected items within this primitive.
-         */
-        this.selected = new Selector();
-        this._baseColor = new THREE$1.Color(0.5, 0.5, 0.5);
-        this._selectColor = new THREE$1.Color(1, 0, 0);
-        this.list = {};
-    }
-    /**
-     * The list of ids of the {@link list} of items.
-     */
-    get ids() {
-        const ids = [];
-        for (const id in this.list) {
-            ids.push(this.list[id].id);
-        }
-        return ids;
-    }
-    /**
-     * The color of all the points.
-     */
-    get baseColor() {
-        return this._baseColor;
-    }
-    /**
-     * The color of all the points.
-     */
-    set baseColor(color) {
-        this._baseColor.copy(color);
-    }
-    /**
-     * The color of all the selected points.
-     */
-    get selectColor() {
-        return this._selectColor;
-    }
-    /**
-     * The color of all the selected points.
-     */
-    set selectColor(color) {
-        this._selectColor.copy(color);
-    }
-    get _positionBuffer() {
-        return this.mesh.geometry.attributes.position;
-    }
-    get _colorBuffer() {
-        return this.mesh.geometry.attributes.color;
-    }
-    get _normalBuffer() {
-        return this.mesh.geometry.attributes.normal;
-    }
-    get _attributes() {
-        return Object.values(this.mesh.geometry.attributes);
-    }
-}
-
-class Vertices extends Primitive {
-    /**
-     * The color of all the points.
-     */
-    set baseColor(color) {
-        super.baseColor = color;
-        const allIDs = this.idMap.ids;
-        const unselected = this.selected.getUnselected(allIDs);
-        this.updateColor(unselected);
-    }
-    /**
-     * The color of all the selected points.
-     */
-    set selectColor(color) {
-        super.selectColor = color;
-        this.updateColor(this.selected.data);
-    }
-    /**
-     * Creates a new instance of vertices
-     * @param size Visualization point size
-     */
-    constructor(size = 0.1) {
-        super();
-        /** The map between each vertex ID and its index. */
-        this.idMap = new IdIndexMap();
-        const geometry = new THREE$1.BufferGeometry();
-        const material = new THREE$1.PointsMaterial({
-            size,
-            vertexColors: true,
-        });
-        this.mesh = new THREE$1.Points(geometry, material);
-        this.mesh.frustumCulled = false;
-        this._buffers = new BufferManager(geometry);
-        this._buffers.createAttribute("position");
-        this._buffers.createAttribute("color");
-    }
-    /**
-     * Gets the coordinates of the vertex with the given ID.
-     * @param id the id of the point to retrieve.
-     */
-    get(id) {
-        const index = this.idMap.getIndex(id);
-        if (index === null)
-            return null;
-        return [
-            this._positionBuffer.getX(index),
-            this._positionBuffer.getY(index),
-            this._positionBuffer.getZ(index),
-        ];
-    }
-    /**
-     * Add new points
-     * @param ids the vertices to edit.
-     * @param coordinates the new coordinates for the vertex.
-     */
-    set(ids, coordinates) {
-        const [x, y, z] = coordinates;
-        for (const id of ids) {
-            const index = this.idMap.getIndex(id);
-            if (index === null)
-                return;
-            this._positionBuffer.setXYZ(index, x, y, z);
-        }
-        this._positionBuffer.needsUpdate = true;
-    }
-    /**
-     * Add new points
-     * @param coordinates Points to add.
-     * @returns the list of ids of the created vertices.
-     */
-    add(coordinates) {
-        this._buffers.resizeIfNeeded(coordinates.length);
-        const ids = [];
-        const { r, g, b } = this._baseColor;
-        for (let i = 0; i < coordinates.length; i++) {
-            const index = this.idMap.add();
-            const id = this.idMap.getId(index);
-            ids.push(id);
-            const [x, y, z] = coordinates[i];
-            this._positionBuffer.setXYZ(index, x, y, z);
-            this._colorBuffer.setXYZ(index, r, g, b);
-        }
-        this._buffers.updateCount(this.idMap.size);
-        this.mesh.geometry.computeBoundingSphere();
-        this.mesh.geometry.computeBoundingBox();
-        return ids;
-    }
-    /**
-     * Select or unselects the given vertices.
-     * @param active Whether to select or unselect.
-     * @param ids List of vertices IDs to select or deselect. If not
-     * defined, all vertices will be selected or deselected.
-     */
-    select(active, ids = this.idMap.ids) {
-        const idsToUpdate = this.selected.select(active, ids, this.idMap.ids);
-        this.updateColor(idsToUpdate);
-    }
-    /**
-     * Applies a transformation to the selected vertices.
-     * @param matrix Transformation matrix to apply.
-     * @param ids IDs of the vertices to transform.
-     */
-    transform(matrix, ids = this.selected.data) {
-        const vector = new THREE$1.Vector3();
-        for (const id of ids) {
-            const index = this.idMap.getIndex(id);
-            if (index === null)
-                continue;
-            const x = this._positionBuffer.getX(index);
-            const y = this._positionBuffer.getY(index);
-            const z = this._positionBuffer.getZ(index);
-            vector.set(x, y, z);
-            vector.applyMatrix4(matrix);
-            this._positionBuffer.setXYZ(index, vector.x, vector.y, vector.z);
-        }
-        this._positionBuffer.needsUpdate = true;
-    }
-    /**
-     * Quickly removes all the points and releases all the memory used.
-     */
-    clear() {
-        this._buffers.resetAttributes();
-        this.selected.data.clear();
-        this.idMap.reset();
-    }
-    /**
-     * Removes the selected points from the list
-     */
-    remove(ids = this.selected.data) {
-        for (const id of ids) {
-            for (const attribute of this._attributes) {
-                this.removeFromBuffer(id, attribute);
-            }
-            this.idMap.remove(id);
-        }
-        this.select(false, ids);
-        this._buffers.updateCount(this.idMap.size);
-    }
-    addAttribute(attribute) {
-        this._buffers.addAttribute(attribute);
-    }
-    removeFromBuffer(id, buffer) {
-        const lastIndex = this.idMap.getLastIndex();
-        const index = this.idMap.getIndex(id);
-        if (index !== null) {
-            buffer.setXYZ(index, buffer.getX(lastIndex), buffer.getY(lastIndex), buffer.getZ(lastIndex));
-        }
-    }
-    updateColor(ids = this.idMap.ids) {
-        const colorBuffer = this._colorBuffer;
-        for (const id of ids) {
-            const isSelected = this.selected.data.has(id);
-            const index = this.idMap.getIndex(id);
-            if (index === null)
-                continue;
-            const color = isSelected ? this._selectColor : this._baseColor;
-            colorBuffer.setXYZ(index, color.r, color.g, color.b);
-        }
-        colorBuffer.needsUpdate = true;
-    }
-}
-
-class Lines extends Primitive {
-    /**
-     * The color of all the points.
-     */
-    set baseColor(color) {
-        super.baseColor = color;
-        const allIDs = this.idMap.ids;
-        const unselected = this.selected.getUnselected(allIDs);
-        this.updateColor(unselected);
-        this.vertices.baseColor = color;
-    }
-    /**
-     * The color of all the selected points.
-     */
-    set selectColor(color) {
-        super.selectColor = color;
-        this.updateColor(this.selected.data);
-        this.vertices.selectColor = color;
-    }
-    constructor() {
-        super();
-        /** {@link Primitive.mesh } */
-        this.mesh = new THREE$1.LineSegments();
-        /**
-         * The list of segments.
-         */
-        this.list = {};
-        /**
-         * The geometric representation of the vertices that define this instance of lines.
-         */
-        this.vertices = new Vertices();
-        /**
-         * The map that keeps track of the segments ID and their position in the geometric buffer.
-         */
-        this.idMap = new IdIndexMap();
-        /**
-         * The list of points that define each line.
-         */
-        this.points = {};
-        const material = new THREE$1.LineBasicMaterial({ vertexColors: true });
-        const geometry = new THREE$1.BufferGeometry();
-        this.mesh = new THREE$1.LineSegments(geometry, material);
-        this._buffers = new BufferManager(geometry);
-        this.setupAttributes();
-    }
-    /**
-     * Quickly removes all the lines and releases all the memory used.
-     */
-    clear() {
-        this.selected.data.clear();
-        this.mesh.geometry.dispose();
-        this.mesh.geometry = new THREE$1.BufferGeometry();
-        this.setupAttributes();
-        this.vertices.clear();
-        this.idMap.reset();
-        this.list = {};
-        this.points = {};
-    }
-    /**
-     * Adds a segment between two {@link points}.
-     * @param ids - the IDs of the {@link points} that define the segments.
-     */
-    add(ids) {
-        const createdIDs = [];
-        const newVerticesCount = (ids.length - 1) * 2;
-        this._buffers.resizeIfNeeded(newVerticesCount);
-        const { r, g, b } = this._baseColor;
-        for (let i = 0; i < ids.length - 1; i++) {
-            const startID = ids[i];
-            const endID = ids[i + 1];
-            const start = this.vertices.get(startID);
-            const end = this.vertices.get(endID);
-            if (start === null || end === null)
-                continue;
-            const index = this.idMap.add();
-            const id = this.idMap.getId(index);
-            createdIDs.push(id);
-            const startPoint = this.points[startID];
-            const endPoint = this.points[endID];
-            startPoint.start.add(id);
-            endPoint.end.add(id);
-            this._positionBuffer.setXYZ(index * 2, start[0], start[1], start[2]);
-            this._positionBuffer.setXYZ(index * 2 + 1, end[0], end[1], end[2]);
-            this._colorBuffer.setXYZ(index * 2, r, g, b);
-            this._colorBuffer.setXYZ(index * 2 + 1, r, g, b);
-            this.list[id] = { id, start: startID, end: endID };
-        }
-        const allVerticesCount = this.idMap.size * 2;
-        this._buffers.updateCount(allVerticesCount);
-        this.mesh.geometry.computeBoundingSphere();
-        this.mesh.geometry.computeBoundingBox();
-        return createdIDs;
-    }
-    get(id) {
-        const line = this.list[id];
-        const start = this.vertices.get(line.start);
-        const end = this.vertices.get(line.end);
-        if (!start || !end)
-            return null;
-        return [start, end];
-    }
-    /**
-     * Adds the points that can be used by one or many lines.
-     * @param points the list of (x, y, z) coordinates of the points.
-     */
-    addPoints(points) {
-        const ids = this.vertices.add(points);
-        for (const id of ids) {
-            this.points[id] = { start: new Set(), end: new Set() };
-        }
-        return ids;
-    }
-    /**
-     * Select or unselects the given lines.
-     * @param active Whether to select or unselect.
-     * @param ids List of lines IDs to select or unselect. If not
-     * defined, all lines will be selected or deselected.
-     */
-    select(active, ids = this.ids) {
-        const allLines = this.idMap.ids;
-        const lineIDs = ids || allLines;
-        const idsToUpdate = this.selected.select(active, lineIDs, allLines);
-        this.updateColor(idsToUpdate);
-        const points = [];
-        for (const id of idsToUpdate) {
-            const line = this.list[id];
-            points.push(line.start);
-            points.push(line.end);
-        }
-        this.selectPoints(active, points);
-    }
-    selectPoints(active, ids) {
-        this.vertices.select(active, ids);
-    }
-    /**
-     * Removes the specified lines.
-     * @param ids List of lines to remove. If no line is specified,
-     * removes all the selected lines.
-     */
-    remove(ids = this.selected.data) {
-        const position = this._positionBuffer;
-        const color = this._colorBuffer;
-        const points = [];
-        for (const id of ids) {
-            const line = this.list[id];
-            if (line === undefined)
-                continue;
-            this.removeFromBuffer(id, position);
-            this.removeFromBuffer(id, color);
-            this.idMap.remove(id);
-            const startPoint = this.points[line.start];
-            points.push(line.start, line.end);
-            startPoint.start.delete(id);
-            const endPoint = this.points[line.end];
-            endPoint.end.delete(id);
-            delete this.list[id];
-            this.selected.data.delete(id);
-        }
-        position.needsUpdate = true;
-        color.needsUpdate = true;
-        this.selectPoints(false, points);
-    }
-    /**
-     * Removes the specified points and all lines that use them.
-     * @param ids List of points to remove. If no point is specified,
-     * removes all the selected points.
-     */
-    removePoints(ids = this.vertices.selected.data) {
-        const lines = new Set();
-        for (const id of ids) {
-            const point = this.points[id];
-            if (!point)
-                continue;
-            for (const id of point.start) {
-                lines.add(id);
-            }
-            for (const id of point.end) {
-                lines.add(id);
-            }
-        }
-        this.vertices.remove(ids);
-        this.remove(lines);
-    }
-    /**
-     * Sets a point of the line to a specific position.
-     * @param id The point whose position to set.
-     * @param coordinates The new coordinates of the point.
-     */
-    setPoint(id, coordinates) {
-        const indices = new Set();
-        this.getPointIndices(id, indices);
-        this.setLines(coordinates, indices);
-        this.vertices.set([id], coordinates);
-    }
-    transform(matrix) {
-        const indices = new Set();
-        const points = new Set();
-        for (const id of this.vertices.selected.data) {
-            points.add(id);
-            this.getPointIndices(id, indices);
-        }
-        this.transformLines(matrix, indices);
-        this.vertices.transform(matrix, points);
-    }
-    getPointIndices(id, indices) {
-        const point = this.points[id];
-        for (const id of point.start) {
-            const index = this.idMap.getIndex(id);
-            if (index === null) {
-                continue;
-            }
-            indices.add(index * 2);
-        }
-        for (const id of point.end) {
-            const index = this.idMap.getIndex(id);
-            if (index === null) {
-                continue;
-            }
-            indices.add(index * 2 + 1);
-        }
-    }
-    setupAttributes() {
-        this._buffers.createAttribute("position");
-        this._buffers.createAttribute("color");
-    }
-    removeFromBuffer(id, buffer) {
-        const index = this.idMap.getIndex(id);
-        if (index === null)
-            return;
-        const lastIndex = this.idMap.getLastIndex();
-        const indices = [index * 2, index * 2 + 1];
-        const lastIndices = [lastIndex * 2, lastIndex * 2 + 1];
-        for (let i = 0; i < 2; i++) {
-            const x = buffer.getX(lastIndices[i]);
-            const y = buffer.getY(lastIndices[i]);
-            const z = buffer.getZ(lastIndices[i]);
-            buffer.setXYZ(indices[i], x, y, z);
-        }
-        buffer.count -= 2;
-    }
-    transformLines(matrix, indices) {
-        const vector = new THREE$1.Vector3();
-        for (const index of indices) {
-            const x = this._positionBuffer.getX(index);
-            const y = this._positionBuffer.getY(index);
-            const z = this._positionBuffer.getZ(index);
-            vector.set(x, y, z);
-            vector.applyMatrix4(matrix);
-            this._positionBuffer.setXYZ(index, vector.x, vector.y, vector.z);
-        }
-        this._positionBuffer.needsUpdate = true;
-    }
-    setLines(coords, indices) {
-        const [x, y, z] = coords;
-        for (const index of indices) {
-            this._positionBuffer.setXYZ(index, x, y, z);
-        }
-        this._positionBuffer.needsUpdate = true;
-    }
-    updateColor(ids = this.ids) {
-        const colorAttribute = this._colorBuffer;
-        for (const id of ids) {
-            const line = this.list[id];
-            const isSelected = this.selected.data.has(line.id);
-            const { r, g, b } = isSelected ? this._selectColor : this._baseColor;
-            const index = this.idMap.getIndex(id);
-            if (index === null)
-                continue;
-            colorAttribute.setXYZ(index * 2, r, g, b);
-            colorAttribute.setXYZ(index * 2 + 1, r, g, b);
-        }
-        colorAttribute.needsUpdate = true;
-    }
-}
-
 class RoadNavigator extends Component {
     constructor(components) {
         super(components);
         this.enabled = true;
         this.uiElement = new UIElement();
-        this.offset = 10;
-        this.planeEnabled = true;
-        this._focusSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry());
-        this._focusBox = new THREE$1.Mesh(new THREE$1.BoxGeometry(1000, 1, 0.2), new THREE$1.MeshBasicMaterial({
-            color: "red",
-            depthTest: false,
-            transparent: true,
-        }));
-        this._basicMaterial = new THREE$1.MeshBasicMaterial({ color: "white" });
-        this._crossSectionLines = {};
-        this._floorPlanElements = {};
-        this._lines = new Lines();
-        // TODO: this should be handled better and allow to define lines per IFC model
-        this._defaultID = "RoadNavigator";
+        this._selected = null;
+        this._anchors = {
+            horizontal: new THREE$1.Vector2(),
+            horizontalIndex: 0,
+            real: new THREE$1.Vector3(),
+        };
+        this._caster = new THREE$1.Raycaster();
+        const threshold = 5;
+        this._caster.params.Line = { threshold };
         this.components.tools.add(RoadNavigator.uuid, this);
-        const raycaster = this.components.raycaster.get();
-        raycaster.params.Points = { threshold: 1 };
-        this._lines.baseColor = new THREE$1.Color("#6528D7");
-        const scene = components.scene.get();
-        scene.add(this._lines.mesh);
-        scene.add(this._lines.vertices.mesh);
-        this.longSection = new Simple2DScene(components);
-        this._longProjection = new Lines();
-        const longSection = this.longSection.get();
-        longSection.add(this._longProjection.mesh, this._longProjection.vertices.mesh);
-        if (components.uiEnabled) {
-            this.setupUI();
-        }
-    }
-    get() {
-        return this._lines;
-    }
-    async updateDrawings() {
-        if (this._scene2dTrans) {
-            await this._scene2dTrans.update();
-        }
-    }
-    async dispose() {
-        if (this._scene2dSide) {
-            await this._scene2dSide.dispose();
-        }
-        if (this._scene2dTrans) {
-            await this._scene2dTrans.dispose();
-        }
-        if (this._scene2dTop) {
-            await this._scene2dTop.dispose();
-        }
-        const disposer = await this.components.tools.get(Disposer);
-        for (const name in this._crossSectionLines) {
-            const { mesh, fill } = this._crossSectionLines[name];
-            disposer.destroy(mesh);
-            disposer.destroy(fill);
-        }
-        this._crossSectionLines = {};
-        for (const id in this._floorPlanElements) {
-            const group = this._floorPlanElements[id];
-            disposer.destroy(group);
-        }
-        disposer.destroy(this._focusSphere);
-        disposer.destroy(this._focusBox);
-        this._floorPlanElements = {};
-        if (this._plane) {
-            await this._plane.dispose();
-        }
-        await this.uiElement.dispose();
-    }
-    drawPoint() {
-        const found = this.components.raycaster.castRay();
-        if (!found)
-            return;
-        const { x, y, z } = found.point;
-        const [id] = this._lines.addPoints([[x, y, z]]);
-        this._lines.vertices.mesh.geometry.computeBoundingSphere();
-        const selected = Array.from(this._lines.vertices.selected.data);
-        if (selected.length) {
-            const previousPoint = selected[0];
-            this._lines.add([previousPoint, id]);
-        }
-        this._lines.selectPoints(false);
-        this._lines.selectPoints(true, [id]);
-        this.updateLongProjection();
-        this.cache();
-    }
-    select(removePrevious = true) {
-        if (removePrevious) {
-            this._lines.selectPoints(false);
-        }
-        // TODO: Fix cast ray type
-        const found = this.components.raycaster.castRay([
-            this._lines.vertices.mesh,
-        ]);
-        if (found && found.index !== undefined) {
-            const id = this._lines.vertices.idMap.getId(found.index);
-            this._lines.selectPoints(true, [id]);
-        }
-    }
-    delete() {
-        this._lines.removePoints();
-        // TODO: Clay bug: The selected point keeps existing in vertices
-        this._lines.vertices.selected.data.clear();
-        this._lines.vertices.mesh.geometry.computeBoundingSphere();
-        this.updateLongProjection();
-        this.cache();
-    }
-    // TODO: All fragment clases should include built-in caching in dexie
-    cache(id = this._defaultID) {
-        const points = [];
-        const lines = [];
-        const newPointIDMap = new Map();
-        let pointCounter = 0;
-        for (const key in this._lines.points) {
-            const pointID = parseInt(key, 10);
-            const coords = this._lines.vertices.get(pointID);
-            if (!coords)
-                continue;
-            points.push(coords);
-            newPointIDMap.set(pointID, pointCounter);
-            pointCounter++;
-        }
-        for (const id in this._lines.list) {
-            const line = this._lines.list[id];
-            const newStart = newPointIDMap.get(line.start);
-            const newEnd = newPointIDMap.get(line.end);
-            if (newStart !== undefined && newEnd !== undefined) {
-                lines.push([newStart, newEnd]);
-            }
-        }
-        localStorage.setItem(id, JSON.stringify({ lines, points }));
-    }
-    loadCached(id = this._defaultID) {
-        const cached = localStorage.getItem(id);
-        if (!cached)
-            return;
-        const parsed = JSON.parse(cached);
-        if (parsed.points && parsed.points.length) {
-            this._lines.addPoints(parsed.points);
-        }
-        if (parsed.lines && parsed.lines.length) {
-            for (const line of parsed.lines) {
-                this._lines.add(line);
-            }
-        }
-        this.updateLongProjection();
-    }
-    // Navigate through road with clipping plane
-    // TODO: 2d window with floorplan
-    async focus(animate = true) {
-        const data = this._roadDiagramData;
-        if (!data)
-            return;
-        const { mousePosition, mouseSegment } = data;
-        if (mousePosition === null || mouseSegment === null) {
-            if (this.planeEnabled && this._plane) {
-                await this._plane.setEnabled(false);
-            }
-            return;
-        }
-        const index = mouseSegment * 6;
-        const position = this._longProjection.mesh.geometry.attributes.position;
-        const x1Diagram = position.array[index];
-        const x2Diagram = position.array[index + 3];
-        const segmentLength = x2Diagram - x1Diagram;
-        const portion = (mousePosition - x1Diagram) / segmentLength;
-        const axis3d = this._lines.mesh.geometry.attributes.position.array;
-        const x1 = axis3d[index];
-        const y1 = axis3d[index + 1];
-        const z1 = axis3d[index + 2];
-        const x2 = axis3d[index + 3];
-        const y2 = axis3d[index + 4];
-        const z2 = axis3d[index + 5];
-        const p1 = new THREE$1.Vector3(x1, y1, z1);
-        const p2 = new THREE$1.Vector3(x2, y2, z2);
-        const vector = p2.sub(p1);
-        vector.normalize();
-        const target = vector.clone().multiplyScalar(segmentLength * portion);
-        target.add(p1);
-        const scale = this.offset;
-        this._focusSphere.scale.set(scale, scale, scale);
-        this._focusSphere.position.copy(target);
-        const camera = this.components.camera;
-        if (this.planeEnabled) {
-            if (!this._plane) {
-                const clipper = await this.components.tools.get(EdgesClipper);
-                clipper.enabled = true;
-                this._plane = clipper.createFromNormalAndCoplanarPoint(vector, target);
-                this._plane.visible = false;
-            }
-            if (!this._plane.enabled) {
-                await this._plane.setEnabled(true);
-            }
-            if (this._plane.edges.fillVisible) {
-                this._plane.edges.fillVisible = false;
-            }
-            this._plane.setFromNormalAndCoplanarPoint(vector, target);
-            if (this._scene2dTop) {
-                this._focusBox.position.copy(target);
-                this._focusBox.rotation.y = Math.atan2(vector.x, vector.z);
-                this._scene2dTop.controls.target.copy(target);
-                this._scene2dTop.camera.position.x = target.x;
-                this._scene2dTop.camera.position.z = target.z;
-                this._scene2dTop.camera.up.copy(vector);
-                await this._scene2dTop.update();
-            }
-        }
-        await camera.controls.fitToSphere(this._focusSphere, animate);
-    }
-    // saveView();
-    // deleteView();
-    // goTo(view: any);
-    setupUI() {
-        const { main, drawer } = this.setupMainMenu();
-        this.setupTransMenu();
-        this.setupTopMenu();
-        this.uiElement.set({ main, window: drawer });
-    }
-    setupTransMenu() {
-        const { scene2d } = this.newFloating2DScene("Section");
-        const gray = new THREE$1.Color(0.05, 0.05, 0.05);
-        const grid2d = new THREE$1.GridHelper(1000, 1000, gray, gray);
-        grid2d.position.z = -20;
-        grid2d.rotation.x = Math.PI / 2;
-        scene2d.camera.add(grid2d);
-        this._scene2dTrans = scene2d;
-    }
-    setupTopMenu() {
-        const { scene2d } = this.newFloating2DScene("Floorplan", true);
-        const { postproduction } = scene2d.renderer;
-        postproduction.overrideClippingPlanes = true;
-        postproduction.overrideScene = scene2d.scene;
-        postproduction.overrideCamera = scene2d.camera;
-        postproduction.enabled = true;
-        scene2d.camera.position.set(0, 20, 0);
-        scene2d.controls.target.set(0, 0, 0);
-        const scene = scene2d.get();
-        const light = new THREE$1.AmbientLight();
-        scene.add(light);
-        this._focusBox.position.y -= 1;
-        scene.add(this._focusBox);
-        this._scene2dTop = scene2d;
-    }
-    newFloating2DScene(title, postproduction = false) {
-        const floatingWindow = new FloatingWindow(this.components);
-        this.components.ui.add(floatingWindow);
-        floatingWindow.title = title;
-        const scene2d = new Simple2DScene(this.components, postproduction);
-        const canvasUIElement = scene2d.uiElement.get("container");
-        floatingWindow.addChild(canvasUIElement);
-        const style = floatingWindow.slots.content.domElement.style;
-        style.padding = "0";
-        style.overflow = "hidden";
-        const { clientHeight, clientWidth } = floatingWindow.domElement;
-        scene2d.setSize(clientHeight, clientWidth);
-        floatingWindow.onResized.add(async () => {
-            const { clientHeight, clientWidth } = floatingWindow.domElement;
-            scene2d.setSize(clientHeight, clientWidth);
-            await scene2d.update();
-        });
-        const canvas = scene2d.uiElement.get("container");
-        canvas.domElement.addEventListener("mousemove", async () => {
-            await scene2d.update();
-        });
-        canvas.domElement.addEventListener("wheel", async () => {
-            await scene2d.update();
-        });
-        return { scene2d, floatingWindow };
-    }
-    setupMainMenu() {
-        const main = new Button(this.components);
-        main.materialIcon = "edit_road";
-        main.tooltip = "Road navigator";
-        const drawer = new Drawer(this.components);
-        this.components.ui.add(drawer);
-        drawer.alignment = "top";
-        const scene2d = new Simple2DScene(this.components);
-        const canvasUIElement = scene2d.uiElement.get("container");
-        drawer.addChild(canvasUIElement);
-        const { clientHeight, clientWidth } = drawer.domElement;
-        const windowStyle = drawer.slots.content.domElement.style;
-        windowStyle.padding = "10px";
-        windowStyle.overflow = "hidden";
-        scene2d.setSize(clientHeight - 20, clientWidth - 20);
-        drawer.onResized.add(async () => {
-            const { clientHeight, clientWidth } = drawer.domElement;
-            scene2d.setSize(clientHeight - 20, clientWidth - 20);
-            await scene2d.update();
-        });
-        this._scene2dSide = scene2d;
-        this._scene2dSide.camera.zoom = 3;
-        // TODO: Make sure all this is disposed
-        const mouse = new THREE$1.Vector2();
-        const canvas = canvasUIElement.domElement;
-        canvas.addEventListener("mousemove", async () => {
-            await scene2d.update();
-        });
-        canvas.addEventListener("wheel", async () => {
-            await scene2d.update();
-        });
-        let mouseDown = false;
-        const raycaster = new THREE$1.Raycaster();
-        const plane = new THREE$1.Mesh(new THREE$1.PlaneGeometry(1000, 1000));
-        plane.rotation.x += Math.PI / 90;
-        plane.position.z = -10;
-        canvas.addEventListener("mousedown", async (event) => {
-            if (event.button !== 0) {
+        this._scenes = {
+            horizontal: new Simple2DScene(this.components, false),
+            vertical: new Simple2DScene(this.components, false),
+        };
+        this._points = {
+            horizontal: new THREE$1.Points(new THREE$1.BufferGeometry(), new THREE$1.PointsMaterial({
+                size: 10,
+            })),
+        };
+        this._points.horizontal.frustumCulled = false;
+        this._scenes.horizontal.scene.add(this._points.horizontal);
+        this._alignments = {
+            horizontal: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
+            vertical: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
+            real: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
+        };
+        this._alignments.real.frustumCulled = false;
+        this._scenes.vertical.get().add(this._alignments.vertical);
+        this._scenes.horizontal.get().add(this._alignments.horizontal);
+        const scene = this.components.scene.get();
+        scene.add(this._alignments.real);
+        const hRenderer = this._scenes.horizontal.renderer.get();
+        const hCamera = this._scenes.horizontal.camera;
+        hRenderer.domElement.addEventListener("click", (event) => {
+            if (!this._selected || !this._selected.ifcCivil)
                 return;
-            }
-            mouseDown = true;
-            if (!this._roadDiagramData || !this._roadDiagramData.mousePosition) {
-                return;
-            }
-            if (this._plane && !this._plane.enabled) {
-                await this._plane.setEnabled(true);
-                await this._plane.edges.setVisible(true);
-            }
-            for (const id in this._crossSectionLines) {
-                const { fill } = this._crossSectionLines[id];
-                fill.visible = false;
+            const lim = hRenderer.domElement.getBoundingClientRect();
+            const y = -((event.clientY - lim.top) / (lim.bottom - lim.top)) * 2 + 1;
+            const x = ((event.clientX - lim.left) / (lim.right - lim.left)) * 2 - 1;
+            const position = new THREE$1.Vector2(x, y);
+            this._caster.setFromCamera(position, hCamera);
+            const result = this._caster.intersectObject(this._alignments.horizontal);
+            if (result.length) {
+                console.log(result);
+                const { index, point } = result[0];
+                if (index === undefined)
+                    return;
+                const geom = this._alignments.horizontal.geometry;
+                if (!geom.index)
+                    return;
+                const pos = geom.attributes.position;
+                const pointIndex1 = geom.index.array[index];
+                const pointIndex2 = geom.index.array[index + 1];
+                const x1 = pos.getX(pointIndex1);
+                const y1 = pos.getY(pointIndex1);
+                const x2 = pos.getX(pointIndex2);
+                const y2 = pos.getY(pointIndex2);
+                const dist1 = new THREE$1.Vector3(x1, y1, 0).distanceTo(point);
+                const dist2 = new THREE$1.Vector3(x2, y2, 0).distanceTo(point);
+                const isFirst = dist1 < dist2;
+                const x = isFirst ? x1 : x2;
+                const y = isFirst ? y1 : y2;
+                this._anchors.horizontal.set(x, y);
+                this._anchors.horizontalIndex = isFirst ? pointIndex1 : pointIndex2;
+                const { horizontal } = this._points;
+                const coordsBuffer = new Float32Array([x, y, 0]);
+                const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
+                horizontal.geometry.setAttribute("position", coordsAttr);
             }
         });
-        canvas.addEventListener("mouseup", async (event) => {
-            if (event.button !== 0) ;
-            mouseDown = false;
-            if (!this._roadDiagramData || !this._roadDiagramData.mousePosition) {
-                if (this._plane) {
-                    await this._plane.setEnabled(false);
-                    await this._plane.edges.setVisible(false);
-                }
-                // return;
-            }
-            if (this._plane) {
-                this._plane.edges.fillVisible = true;
-                await this._plane.updateFill();
-            }
-            for (const id in this._crossSectionLines) {
-                const { fill } = this._crossSectionLines[id];
-                fill.visible = true;
-            }
-            await this.updateCrossSection();
-            await this.updateFloorPlan();
-        });
-        canvas.addEventListener("mousemove", async (event) => {
-            if (!this._roadDiagramData) {
-                return;
-            }
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            raycaster.setFromCamera(mouse, scene2d.camera);
-            const intersects = raycaster.intersectObject(plane);
-            if (intersects.length) {
-                const found = intersects[0];
-                const x = found.point.x;
-                if (x > 0 && x < this._roadDiagramData.length) {
-                    this._roadDiagramData.mousePosition = x;
+        if (this.components.uiEnabled) {
+            this.setUI();
+        }
+    }
+    get() { }
+    select(model) {
+        if (!model.ifcCivil) {
+            console.warn("The provided model doesn't have civil data!");
+            return;
+        }
+        this._selected = model;
+        this.getAlignmentGeometry(model.ifcCivil.horizontalAlignments, this._alignments.horizontal.geometry, false);
+        this.getAlignmentGeometry(model.ifcCivil.verticalAlignments, this._alignments.vertical.geometry, false);
+        this.getAlignmentGeometry(model.ifcCivil.realAlignments, this._alignments.real.geometry, true);
+    }
+    setAnchor() {
+        if (!this._selected || !this._selected.ifcCivil)
+            return;
+        const result = this.components.raycaster.castRay([this._selected]);
+        if (result === null)
+            return;
+        this._anchors.real.copy(result.point);
+        const { horizontal, real, horizontalIndex } = this._anchors;
+        const position = this._alignments.real.position;
+        const geom = this._alignments.real.geometry;
+        const yPosition3D = geom.attributes.position.getY(horizontalIndex);
+        position.x = real.x - horizontal.x;
+        position.z = real.z + horizontal.y;
+        position.y = real.y - yPosition3D;
+    }
+    getAlignmentGeometry(alignment, geometry, is3D) {
+        const data = this.getAlignmentData(alignment, is3D);
+        const coordsBuffer = new Float32Array(data.coords);
+        const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
+        geometry.setAttribute("position", coordsAttr);
+        geometry.setIndex(data.index);
+    }
+    getAlignmentData(alignment, is3D) {
+        const coords = [];
+        const index = [];
+        const { coordinates, curveIndex } = alignment;
+        const offsetX = coordinates[0];
+        const offsetY = coordinates[1];
+        const offsetZ = is3D ? coordinates[2] : 0;
+        let isSegmentStart = true;
+        const factor = is3D ? 3 : 2;
+        const last = coordinates.length / factor - 1;
+        for (let i = 0; i < curveIndex.length; i++) {
+            const start = curveIndex[i];
+            const isLast = i === curveIndex.length - 1;
+            const end = isLast ? last : curveIndex[i + 1];
+            isSegmentStart = true;
+            for (let j = start; j < end; j++) {
+                const x = coordinates[j * factor] - offsetX;
+                const y = coordinates[j * factor + 1] - offsetY;
+                const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
+                coords.push(x, y, z);
+                if (isSegmentStart) {
+                    isSegmentStart = false;
                 }
                 else {
-                    this._roadDiagramData.mousePosition = null;
-                }
-                this.updateMouseMarker();
-            }
-            if (mouseDown) {
-                await this.focus();
-                if (this._scene2dTrans) {
-                    await this._scene2dTrans.update();
+                    index.push(j - 1, j);
                 }
             }
+        }
+        return { coords, index };
+    }
+    setUI() {
+        const horizontalAlignment = new FloatingWindow(this.components);
+        this.components.ui.add(horizontalAlignment);
+        horizontalAlignment.visible = false;
+        const hContainer = this._scenes.horizontal.uiElement.get("container");
+        horizontalAlignment.addChild(hContainer);
+        horizontalAlignment.onResized.add(() => this._scenes.horizontal.grid.regenerate());
+        horizontalAlignment.slots.content.domElement.style.padding = "0";
+        horizontalAlignment.slots.content.domElement.style.overflow = "hidden";
+        horizontalAlignment.onResized.add(() => {
+            const { width, height } = horizontalAlignment.containerSize;
+            this._scenes.horizontal.setSize(height, width);
         });
-        // TODO: make smart 2d grid
-        const gray = new THREE$1.Color(0.05, 0.05, 0.05);
-        const grid2d = new THREE$1.GridHelper(1000, 1000, gray, gray);
-        grid2d.position.z = -10;
-        grid2d.rotation.x = Math.PI / 2;
-        scene2d.camera.add(grid2d);
-        main.onClick.add(() => {
-            drawer.visible = !drawer.visible;
+        horizontalAlignment.domElement.style.width = "20rem";
+        horizontalAlignment.domElement.style.height = "20rem";
+        horizontalAlignment.onVisible.add(() => {
+            if (horizontalAlignment.visible) {
+                this._scenes.horizontal.grid.regenerate();
+            }
         });
-        return { main, drawer };
-    }
-    updateLongProjection() {
-        // Assuming that the lines of the road axis are sorted
-        // TODO: Sort them in case they are not
-        if (this._scene2dSide) {
-            this._longProjection.mesh.removeFromParent();
-            this._longProjection.vertices.mesh.removeFromParent();
-        }
-        this._longProjection.clear();
-        this._longProjection = new Lines();
-        if (this._scene2dSide) {
-            const scene2d = this._scene2dSide.get();
-            scene2d.add(this._longProjection.mesh);
-            scene2d.add(this._longProjection.vertices.mesh);
-        }
-        if (!this._roadDiagramData) {
-            this._roadDiagramData = {
-                length: 0,
-                mousePosition: null,
-                mouseSegment: null,
-            };
-        }
-        const vertices = this._lines.mesh.geometry.attributes.position;
-        const v1 = new THREE$1.Vector3();
-        const v2 = new THREE$1.Vector3();
-        const points = [];
-        let accumulatedX = 0;
-        let minY = Number.MAX_VALUE;
-        for (let i = 0; i < vertices.count * 3 - 5; i += 6) {
-            const x1 = vertices.array[i];
-            const y1 = vertices.array[i + 1];
-            const z1 = vertices.array[i + 2];
-            const x2 = vertices.array[i + 3];
-            const y2 = vertices.array[i + 4];
-            const z2 = vertices.array[i + 5];
-            if (!points.length) {
-                points.push([0, y1, 0]);
-            }
-            v1.set(x1, y1, z1);
-            v2.set(x2, y2, z2);
-            const length = v1.distanceTo(v2);
-            accumulatedX += length;
-            points.push([accumulatedX, y2, 0]);
-            if (y2 < minY) {
-                minY = y2;
-            }
-        }
-        const ids = this._longProjection.addPoints(points);
-        this._longProjection.add(ids);
-        this._roadDiagramData.length = accumulatedX;
-        this.updateSideDiagram(accumulatedX, minY);
-    }
-    updateSideDiagram(distance, minY) {
-        if (!this._scene2dSide)
-            return;
-        const start = new THREE$1.Vector3(0, 0, 0);
-        const one = new THREE$1.Vector3(1, 0, 0);
-        const end = new THREE$1.Vector3(distance, 0, 0);
-        if (!this._sideRoadDiagram) {
-            const regularLine = new THREE$1.LineBasicMaterial({ color: 0xffffff });
-            const dashedLine = new THREE$1.LineDashedMaterial({
-                color: 0xffffff,
-                dashSize: 1,
-                gapSize: 0.5,
+        const verticalAlignment = new Drawer(this.components);
+        this.components.ui.add(verticalAlignment);
+        verticalAlignment.alignment = "top";
+        verticalAlignment.onVisible.add(() => {
+            this._scenes.vertical.grid.regenerate();
+        });
+        verticalAlignment.visible = false;
+        verticalAlignment.slots.content.domElement.style.padding = "0";
+        verticalAlignment.slots.content.domElement.style.overflow = "hidden";
+        const { clientWidth, clientHeight } = verticalAlignment.domElement;
+        this._scenes.vertical.setSize(clientHeight, clientWidth);
+        const vContainer = this._scenes.vertical.uiElement.get("container");
+        verticalAlignment.addChild(vContainer);
+        if (this.components.renderer.isUpdateable()) {
+            this.components.renderer.onAfterUpdate.add(async () => {
+                if (horizontalAlignment.visible) {
+                    await this._scenes.horizontal.update();
+                }
+                if (verticalAlignment.visible) {
+                    await this._scenes.vertical.update();
+                }
             });
-            const sideBottomGeometry = new THREE$1.BufferGeometry().setFromPoints([
-                start,
-                one,
-            ]);
-            const middleGeometry = new THREE$1.BufferGeometry().setFromPoints([
-                start,
-                one,
-            ]);
-            const top = new THREE$1.Line(sideBottomGeometry, regularLine);
-            const middle = new THREE$1.Line(middleGeometry, dashedLine);
-            const bottom = new THREE$1.Line(sideBottomGeometry, regularLine);
-            top.position.y = minY - 6;
-            middle.position.y = minY - 10;
-            bottom.position.y = minY - 13;
-            const scene = this._scene2dSide.get();
-            scene.add(top);
-            scene.add(middle);
-            scene.add(bottom);
-            this._sideRoadDiagram = { top, bottom, middle };
         }
-        const { top, bottom, middle } = this._sideRoadDiagram;
-        top.position.y = minY - 6;
-        middle.position.y = minY - 10;
-        bottom.position.y = minY - 13;
-        top.scale.x = distance;
-        bottom.scale.x = distance;
-        middle.geometry.setFromPoints([start, end]);
-        middle.computeLineDistances();
-    }
-    async updateCrossSection() {
-        if (!this._plane || !this._scene2dTrans)
-            return;
-        const meshes = this._plane.edges.get();
-        const scene = this._scene2dTrans.get();
-        const translate = new THREE$1.Matrix4();
-        const rotate = new THREE$1.Matrix4();
-        const up = new THREE$1.Vector3(0, 1, 0);
-        for (const name in meshes) {
-            if (!this._crossSectionLines[name]) {
-                const mesh = new THREE$1.LineSegments();
-                const fill = new THREE$1.Mesh();
-                this._crossSectionLines[name] = { mesh, fill };
-                scene.add(mesh, fill);
-            }
-            const edge = meshes[name];
-            const { mesh, fill } = this._crossSectionLines[name];
-            mesh.geometry = edge.mesh.geometry;
-            mesh.material = edge.mesh.material;
-            // TODO: This doesn't work well
-            // Bring rotation to center looking at camera
-            mesh.position.set(0, 0, 0);
-            mesh.rotation.set(0, 0, 0);
-            fill.position.set(0, 0, 0);
-            fill.rotation.set(0, 0, 0);
-            mesh.updateMatrix();
-            if (this._plane) {
-                const trans = this._plane.origin;
-                translate.makeTranslation(trans.x, trans.y, trans.z).invert();
-                rotate.lookAt(trans, this._plane.normal, up).invert();
-                mesh.applyMatrix4(translate);
-                mesh.applyMatrix4(rotate);
-                fill.applyMatrix4(translate);
-                fill.applyMatrix4(rotate);
-            }
-            if (edge.fill) {
-                fill.geometry = edge.fill.mesh.geometry;
-                fill.material = edge.fill.mesh.material;
-            }
-            await this._scene2dTrans.update();
-        }
-    }
-    async updateFloorPlan() {
-        var _a, _b;
-        console.log(this);
-        if (!this._plane || !this._scene2dTop)
-            return;
-        const fragments = await this.components.tools.get(FragmentManager);
-        const scene = this._scene2dTop.get();
-        for (const group of fragments.groups) {
-            console.log((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments);
-            console.log((_b = group.ifcCivil) === null || _b === void 0 ? void 0 : _b.verticalAlignments);
-            if (this._floorPlanElements[group.uuid])
-                continue;
-            const newGroup = new THREE$1.Group();
-            this._floorPlanElements[group.uuid] = newGroup;
-            scene.add(newGroup);
-            newGroup.matrix = group.matrix;
-            for (const child of group.children) {
-                const frag = child;
-                const size = frag.fragment.capacity;
-                const newMesh = new THREE$1.InstancedMesh(frag.geometry, this._basicMaterial, size);
-                newMesh.instanceMatrix = frag.instanceMatrix;
-                newMesh.instanceMatrix.needsUpdate = true;
-                newGroup.add(newMesh);
-            }
-        }
-    }
-    updateMouseMarker() {
-        if (!this._scene2dSide || !this._roadDiagramData)
-            return;
-        if (!this._mouseMarker) {
-            const scene = this._scene2dSide.get();
-            const redLineMaterial = new THREE$1.LineBasicMaterial({ color: 0xff0000 });
-            const top = new THREE$1.Vector3(0, 1000, 0);
-            const bottom = new THREE$1.Vector3(0, -1000, 0);
-            const geometry = new THREE$1.BufferGeometry().setFromPoints([top, bottom]);
-            const line = new THREE$1.Line(geometry, redLineMaterial);
-            scene.add(line);
-            const zero = new THREE$1.Vector3();
-            const verticalGeom = new THREE$1.BufferGeometry().setFromPoints([zero]);
-            const verticalMat = new THREE$1.PointsMaterial({
-                color: "red",
-                size: 15,
-            });
-            const verticalMarker = new THREE$1.Points(verticalGeom, verticalMat);
-            scene.add(verticalMarker);
-            this._mouseMarker = { line, verticalMarker };
-        }
-        const { line, verticalMarker } = this._mouseMarker;
-        line.visible = this._roadDiagramData.mousePosition !== null;
-        verticalMarker.visible = this._roadDiagramData.mousePosition !== null;
-        if (this._roadDiagramData.mousePosition !== null) {
-            line.position.x = this._roadDiagramData.mousePosition;
-            verticalMarker.position.x = this._roadDiagramData.mousePosition;
-            verticalMarker.position.y = this.getCurrentVerticalProjectionHeight();
-        }
-    }
-    getCurrentVerticalProjectionHeight() {
-        if (!this._roadDiagramData)
-            return 0;
-        if (this._roadDiagramData.mousePosition === null)
-            return 0;
-        const { mousePosition } = this._roadDiagramData;
-        const geometry = this._longProjection.mesh.geometry;
-        const position = geometry.attributes.position;
-        const size = position.count * 3;
-        let segmentIndex = 0;
-        for (let i = 0; i < size - 5; i += 6) {
-            const x1 = position.array[i];
-            const y1 = position.array[i + 1];
-            const x2 = position.array[i + 3];
-            const y2 = position.array[i + 4];
-            if (mousePosition > x1 && mousePosition < x2) {
-                this._roadDiagramData.mouseSegment = segmentIndex;
-                const slope = (y2 - y1) / (x2 - x1);
-                const originY = (mousePosition - x1) * slope;
-                return originY + y1;
-            }
-            segmentIndex++;
-        }
-        return 0;
+        this.uiElement.set({
+            horizontalAlignment,
+            verticalAlignment,
+        });
     }
 }
 /** {@link Component.uuid} */
