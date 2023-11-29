@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, HalfFloatType, DepthTexture, UnsignedInt248Type, UnsignedIntType, DepthStencilFormat, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, HalfFloatType, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -1042,8 +1042,6 @@ class SimpleRenderer extends BaseRenderer {
         this._renderer2D.domElement.style.pointerEvents = "none";
         if (this.container) {
             this.container.appendChild(this._renderer.domElement);
-        }
-        if (this.container) {
             this.container.appendChild(this._renderer2D.domElement);
         }
         this.updateContainer();
@@ -3351,12 +3349,13 @@ class SimpleRaycaster extends BaseRaycaster {
     castRay(items = this.components.meshes) {
         const camera = this.components.camera.get();
         this._raycaster.setFromCamera(this.mouse.position, camera);
-        const result = this._raycaster.intersectObjects(items);
-        const filtered = this.filterClippingPlanes(result);
-        return filtered.length > 0 ? filtered[0] : null;
+        return this.intersect(items);
     }
     castRayFromVector(origin, direction, items = this.components.meshes) {
         this._raycaster.set(origin, direction);
+        return this.intersect(items);
+    }
+    intersect(items = this.components.meshes) {
         const result = this._raycaster.intersectObjects(items);
         const filtered = this.filterClippingPlanes(result);
         return filtered.length > 0 ? filtered[0] : null;
@@ -10002,7 +10001,7 @@ class Toolbar extends SimpleUIComponent {
 }
 Toolbar.Class = {
     Base: `flex shadow-md w-fit h-fit gap-x-2 gap-y-2 p-2 text-white rounded pointer-events-auto backdrop-blur-xl 
-           bg-ifcjs-100 z-50 backdrop-blur-xl`,
+           bg-ifcjs-100 z-50`,
 };
 
 class Button extends SimpleUIComponent {
@@ -10461,6 +10460,7 @@ class UIManager extends Component {
     init() {
         this.setupEvents(true);
         this.viewerContainer.append(this._containers.top, this._containers.right, this._containers.bottom, this._containers.left, this._contextMenuContainer);
+        this.viewerContainer.style.position = "relative";
     }
     add(...uiComponents) {
         for (const component of uiComponents) {
@@ -10627,7 +10627,7 @@ class FloatingWindow extends SimpleUIComponent {
     <div class="${FloatingWindow.Class.Base}">
       <div id="title-container" class="z-10 flex justify-between items-center top-0 select-none cursor-move px-6 py-3 border-b-2 border-solid border-[#3A444E]">
         <div class="flex flex-col">
-          <h3 id="title">Tooeen Floating Window</h3>
+          <h3 class="text-3xl text-ifcjs-200 font-medium" id="title">Tooeen Floating Window</h3>
           <p id="description" class="${FloatingWindow.Class.Description}"></p>
         </div>
         <span id="close" class="material-icons text-2xl ml-4 text-gray-400 z-20 hover:cursor-pointer hover:text-ifcjs-200">close</span>
@@ -10798,7 +10798,7 @@ class Dropdown extends SimpleUIComponent {
       <button
       id="button"
       data-dropdown-toggle="dropdown"
-      class="text-white w-full ring-1 ring-gray-500 focus:outline-none focus:ring-ifcjs-200 rounded-md text-base p-3 text-center inline-flex items-center"
+      class="text-white bg-transparent w-full ring-1 ring-gray-500 focus:outline-none focus:ring-ifcjs-200 rounded-md text-base p-3 text-center inline-flex items-center"
       type="button">
         <svg class="w-2.5 h-2.5 ml-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
           <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
@@ -11417,7 +11417,7 @@ class Drawer extends SimpleUIComponent {
     }
     constructor(components) {
         const template = `
-        <div class="fixed bg-ifcjs-100 backdrop-blur-xl shadow-md overflow-auto shadow-lg z-20 top-0 left-0 h-full transition-all duration-500 transform text-white">
+        <div class="fixed bg-ifcjs-100 backdrop-blur-xl shadow-md overflow-auto z-20 top-0 left-0 h-full transition-all duration-500 transform text-white">
             <div data-tooeen-slot="content"></div>
         </div>
     `;
@@ -11485,10 +11485,10 @@ class Modal extends SimpleUIComponent {
     }
     constructor(components, title = "Tooeen Modal") {
         const template = `
-    <dialog>
+    <dialog class="thatopen-dialog overflow-visible bg-transparent m-auto backdrop:backdrop-blur-md">
       <div class="flex flex-col backdrop-blur-xl w-[350px] h-fit text-white bg-ifcjs-100 rounded-md">
         <div class="flex justify-between items-center top-0 select-none px-6 py-3 border-b-2 border-solid border-[#3A444E]">
-          <h3 id="title">${title}</h3>
+          <h3 class="text-3xl text-ifcjs-200 font-medium" id="title">${title}</h3>
           <p id="description" class="text-base text-gray-400"></p>
         </div>
         <div data-tooeen-slot="content"></div>
@@ -30685,7 +30685,7 @@ class RenderPass extends Pass {
 }
 
 /**
- * postprocessing v6.33.3 build Mon Oct 30 2023
+ * postprocessing v6.33.1 build Tue Sep 19 2023
  * https://github.com/pmndrs/postprocessing
  * Copyright 2015-2023 Raoul van Rüschen
  * @license Zlib
@@ -30776,6 +30776,9 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
         "samples": {
             value: []
         },
+        "samplesR": {
+            value: []
+        },
         "bluenoise": {
             value: null
         },
@@ -30824,6 +30827,7 @@ uniform vec3 cameraPos;
 uniform vec2 resolution;
 uniform float time;
 uniform vec3[SAMPLES] samples;
+uniform float[SAMPLES] samplesR;
 uniform float radius;
 uniform float distanceFalloff;
 uniform float near;
@@ -30905,14 +30909,6 @@ uniform sampler2D bluenoise;
     return normalize(cross(dpdx, dpdy));
 }
 
-mat3 makeRotationZ(float theta) {
-	float c = cos(theta);
-	float s = sin(theta);
-	return mat3(c, - s, 0,
-			s,  c, 0,
-			0,  0, 1);
-  }
-
 void main() {
       vec4 diffuse = texture2D(sceneDiffuse, vUv);
       float depth = texture2D(sceneDepth, vUv).x;
@@ -30921,22 +30917,29 @@ void main() {
         return;
       }
       vec3 worldPos = getWorldPos(depth, vUv);
+    //  vec3 normal = texture2D(sceneNormal, vUv).rgb;//computeNormal(worldPos, vUv);
       #ifdef HALFRES
         vec3 normal = texture2D(sceneNormal, vUv).rgb;
       #else
         vec3 normal = computeNormal(worldPos, vUv);
       #endif
       vec4 noise = texture2D(bluenoise, gl_FragCoord.xy / 128.0);
-        vec3 helperVec = vec3(0.0, 1.0, 0.0);
-        if (dot(helperVec, normal) > 0.99) {
-          helperVec = vec3(1.0, 0.0, 0.0);
-        }
-        vec3 tangent = normalize(cross(helperVec, normal));
-        vec3 bitangent = cross(normal, tangent);
-        mat3 tbn = mat3(tangent, bitangent, normal) *  makeRotationZ(noise.r * 2.0 * 3.1415962) ;
-
+      vec3 randomVec = normalize(noise.rgb * 2.0 - 1.0);
+      vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+      vec3 bitangent = cross(normal, tangent);
+      mat3 tbn = mat3(tangent, bitangent, normal);
       float occluded = 0.0;
       float totalWeight = 0.0;
+     /* float radiusScreen = distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(48.0, 0.0) / resolution)
+      );/*vUv.x < 0.5 ? radius : min(distance(
+        worldPos,
+        getWorldPos(depth, vUv + 
+          vec2(100.0, 0.0) / resolution)
+      ), radius);
+      float distanceFalloffScreen = radiusScreen * 0.2;*/
       float radiusToUse = screenSpaceRadius ? distance(
         worldPos,
         getWorldPos(depth, vUv +
@@ -30944,53 +30947,44 @@ void main() {
       ) : radius;
       float distanceFalloffToUse =screenSpaceRadius ?
           radiusToUse * distanceFalloff
-      : radiusToUse * distanceFalloff * 0.2;
-      float bias = (min(
-        0.1,
-        distanceFalloffToUse * 0.1
-      ) / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
-      float phi = 1.61803398875;
-      float offsetMove = 0.0;
-      float offsetMoveInv = 1.0 / FSAMPLES;
+      : distanceFalloff;
+      float bias = (0.1 / near) * fwidth(distance(worldPos, cameraPos)) / radiusToUse;
       for(float i = 0.0; i < FSAMPLES; i++) {
-        vec3 sampleDirection = tbn * samples[int(i)];
-
-        float moveAmt = fract(noise.g + offsetMove);
-        offsetMove += offsetMoveInv;
-
+        vec3 sampleDirection = 
+        tbn * 
+        samples[int(i)];
+        ;
+        float moveAmt = samplesR[int(mod(i + noise.a * FSAMPLES, FSAMPLES))];
         vec3 samplePos = worldPos + radiusToUse * moveAmt * sampleDirection;
         vec4 offset = projMat * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5 + 0.5;
-        
-        vec2 diff = gl_FragCoord.xy - floor(offset.xy * resolution);
-        // From Rabbid76's hbao
-        vec2 clipRangeCheck = step(vec2(0.0),offset.xy) * step(offset.xy, vec2(1.0));
-          float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
-
-          #ifdef LOGDEPTH
-
-          float distSample = linearize_depth_log(sampleDepth, near, far);
-
-          #else
-
-          float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
-
-          #endif
-
-          float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
-          
-          float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
-          
-          float sampleValid = (clipRangeCheck.x * clipRangeCheck.y);
-          occluded += rangeCheck * float(sampleDepth != depth) * float(distSample + bias < distWorld) * step(
-            1.0,
-            dot(diff, diff)
-          ) * sampleValid;
-          
-          totalWeight += sampleValid;
+        float sampleDepth = textureLod(sceneDepth, offset.xy, 0.0).x;
+        /*float distSample = logDepth ? linearize_depth_log(sampleDepth, near, far) 
+         (ortho ?  linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far));*/
+        #ifdef LOGDEPTH
+        float distSample = linearize_depth_log(sampleDepth, near, far);
+        #else
+        float distSample = ortho ? linearize_depth_ortho(sampleDepth, near, far) : linearize_depth(sampleDepth, near, far);
+        #endif
+        float distWorld = ortho ? linearize_depth_ortho(offset.z, near, far) : linearize_depth(offset.z, near, far);
+        float rangeCheck = smoothstep(0.0, 1.0, distanceFalloffToUse / (abs(distSample - distWorld)));
+        vec2 diff = gl_FragCoord.xy - ( offset.xy * resolution);
+        float weight = dot(sampleDirection, normal);
+          occluded += rangeCheck * weight * 
+            (distSample + bias
+               < distWorld ? 1.0 : 0.0) * (
+          (dot(
+            diff,
+            diff
+             
+            ) < 1.0 || (sampleDepth == depth) || (
+              offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0
+            ) ? 0.0 : 1.0)
+          );
+          totalWeight += weight;
       }
-      float occ = clamp(1.0 - occluded / (totalWeight == 0.0 ? 1.0 : totalWeight), 0.0, 1.0);
+      float occ = clamp(1.0 - occluded / totalWeight, 0.0, 1.0);
       gl_FragColor = vec4(0.5 + 0.5 * normal, occ);
 }`
 };
@@ -31007,18 +31001,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
         },
         "tDiffuse": {
             value: null
-        },
-        "transparencyDWFalse": {
-            value: null
-        },
-        "transparencyDWTrue": {
-            value: null
-        },
-        "transparencyDWTrueDepth": {
-            value: null
-        },
-        "transparencyAware": {
-            value: false
         },
         "projMat": {
             value: new Matrix4()
@@ -31111,9 +31093,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
 		uniform sampler2D sceneDiffuse;
     uniform highp sampler2D sceneDepth;
     uniform highp sampler2D downsampledDepth;
-    uniform highp sampler2D transparencyDWFalse;
-    uniform highp sampler2D transparencyDWTrue;
-    uniform highp sampler2D transparencyDWTrueDepth;
     uniform sampler2D tDiffuse;
     uniform sampler2D blueNoise;
     uniform vec2 resolution;
@@ -31131,7 +31110,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
     uniform bool fog;
     uniform bool fogExp;
     uniform bool colorMultiply;
-    uniform bool transparencyAware;
     uniform float fogDensity;
     uniform float fogNear;
     uniform float fogFar;
@@ -31250,7 +31228,7 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
                 vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
                 vec3 normalSample = sampleInfo.xyz * 2.0 - 1.0;
                 vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
-                float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
+                float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
                 float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
                 float weight = rangeCheck;
                 totalWeight += weight;
@@ -31286,16 +31264,6 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             } else {
                 fogFactor = smoothstep( fogNear, fogFar, fogDepth );
             }
-        }
-        if (transparencyAware) {
-            float transparencyDWOff = texture2D(transparencyDWFalse, vUv).a;
-            float transparencyDWOn = texture2D(transparencyDWTrue, vUv).a;
-            float adjustmentFactorOff = transparencyDWOff;
-            float adjustmentFactorOn = (1.0 - transparencyDWOn) * (
-                texture2D(transparencyDWTrueDepth, vUv).r == texture2D(sceneDepth, vUv).r ? 1.0 : 0.0
-            );
-            float adjustmentFactor = max(adjustmentFactorOff, adjustmentFactorOn);
-            finalAo = mix(finalAo, 1.0, adjustmentFactor);
         }
         finalAo = mix(finalAo, 1.0, fogFactor);
         vec3 aoApplied = color * mix(vec3(1.0), sceneTexel.rgb, float(colorMultiply));
@@ -31503,8 +31471,8 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             vec2(worldRadius, 0.0) / resolution)
         ) : worldRadius;
         float distanceFalloffToUse =screenSpaceRadius ?
-        radiusToUse * distanceFalloff
-    : radiusToUse * distanceFalloff * 0.2;
+            radiusToUse * distanceFalloff
+        : distanceFalloff;
 
 
         for(int i = 0; i < NUM_SAMPLES; i++) {
@@ -31514,7 +31482,7 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             vec3 normalSample = dataSample.rgb * 2.0 - 1.0;
             float dSample = texture2D(sceneDepth, uv + offset).x;
             vec3 worldPosSample = getWorldPos(dSample, uv + offset);
-            float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
+            float tangentPlaneDist = abs(dot(worldPos - worldPosSample, normal));
             float rangeCheck = dSample == 1.0 ? 0.0 :exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0) * (1.0 - abs(occSample - baseOcc));
             occlusion += occSample * rangeCheck;
             count += rangeCheck;
@@ -31661,6 +31629,47 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
         gNormal = vec4(computeNormal(
             getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]), uvSamples[chosenIndex]
         ), 0.0);
+       /* float[] samples = float[4](depth00, depth10, depth01, depth11);
+        float c = 0.25 * (depth00 + depth10 + depth01 + depth11);
+        float[] distances = float[4](depth00, depth10, depth01, depth11);
+        float maxDistance = max(max(distances[0], distances[1]), max(distances[2], distances[3]));
+
+        int remaining[3];
+        int rejected[3];
+        int i, j, k;
+
+        for(i = 0, j = 0, k = 0; i < 4; ++i) {
+            if (distances[i] < maxDistance) {
+                remaining[j++] = i;
+            } else {
+                rejected[k++] = i;
+            }
+        }
+        for(;j < 3;++j) {
+            remaining[j] = rejected[--k];
+        }
+        vec3 s = vec3(
+            samples[remaining[0]],
+            samples[remaining[1]],
+            samples[remaining[2]]
+        );
+        c = (s.x + s.y + s.z) / 3.0;
+
+        distances[0] = abs(c - s.x);
+        distances[1] = abs(c - s.y);
+        distances[2] = abs(c - s.z);
+
+        float minDistance = min(min(distances[0], distances[1]), distances[2]);
+
+        for(i = 0; i < 3; ++i) {
+            if (distances[i] == minDistance) {
+                break;
+            }
+        }*/
+      /*  gl_FragColor = vec4(samples[remaining[i]], 0.0, 0.0, 0.0);
+        gNormal = vec4(computeNormal(
+            getWorldPos(samples[remaining[i]], uvSamples[remaining[i]]), uvSamples[remaining[i]]
+        ), 0.0);*/
     }`
 };
 
@@ -31750,9 +31759,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             halfRes: false,
             depthAwareUpsampling: true,
             autoRenderBeauty: true,
-            colorMultiply: true,
-            transparencyAware: false,
-            stencil: false
+            colorMultiply: true
         }, {
             set: (target, propName, value)=>{
                 const oldProp = target[propName];
@@ -31766,46 +31773,21 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
                     this.setSize(this.width, this.height);
                 }
                 if (propName === "depthAwareUpsampling" && oldProp !== value) this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
-                if (propName === "transparencyAware" && oldProp !== value) {
-                    this.autoDetectTransparency = false;
-                    this.configureTransparencyTarget();
-                }
-                if (propName === "stencil" && oldProp !== value) {
-                    /*  this.beautyRenderTarget.stencilBuffer = value;
-                      this.beautyRenderTarget.depthTexture.format = value ? THREE.DepthStencilFormat : THREE.DepthFormat;
-                      this.beautyRenderTarget.depthTexture.type = value ? THREE.UnsignedInt248Type : THREE.UnsignedIntType;
-                      this.beautyRenderTarget.depthTexture.needsUpdate = true;
-                      this.beautyRenderTarget.needsUpdate = true;*/ this.beautyRenderTarget.dispose();
-                    this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
-                        minFilter: LinearFilter,
-                        magFilter: NearestFilter,
-                        type: HalfFloatType,
-                        format: RGBAFormat,
-                        stencilBuffer: value
-                    });
-                    this.beautyRenderTarget.depthTexture = new DepthTexture(this.width, this.height, value ? UnsignedInt248Type : UnsignedIntType);
-                    this.beautyRenderTarget.depthTexture.format = value ? DepthStencilFormat : DepthFormat;
-                }
                 return true;
             }
         });
         /** @type {THREE.Vector3[]} */ this.samples = [];
+        /** @type {number[]} */ this.samplesR = [];
         /** @type {THREE.Vector2[]} */ this.samplesDenoise = [];
-        this.autoDetectTransparency = true;
-        this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
-            minFilter: LinearFilter,
-            magFilter: NearestFilter,
-            type: HalfFloatType,
-            format: RGBAFormat,
-            stencilBuffer: false
-        });
-        this.beautyRenderTarget.depthTexture = new DepthTexture(this.width, this.height, UnsignedIntType);
-        this.beautyRenderTarget.depthTexture.format = DepthFormat;
         this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
         this.configureSampleDependentPasses();
         this.configureHalfResTargets();
-        this.detectTransparency();
-        this.configureTransparencyTarget();
+        this.beautyRenderTarget = new WebGLRenderTarget(this.width, this.height, {
+            minFilter: LinearFilter,
+            magFilter: NearestFilter
+        });
+        this.beautyRenderTarget.depthTexture = new DepthTexture(this.width, this.height, UnsignedIntType);
+        this.beautyRenderTarget.depthTexture.format = DepthFormat;
         this.writeTargetInternal = new WebGLRenderTarget(this.width, this.height, {
             minFilter: LinearFilter,
             magFilter: LinearFilter,
@@ -31858,110 +31840,13 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             }
         }
     }
-    detectTransparency() {
-        if (this.autoDetectTransparency) {
-            let isTransparency = false;
-            this.scene.traverse((obj)=>{
-                if (obj.material && obj.material.transparent) isTransparency = true;
-            });
-            this.configuration.transparencyAware = isTransparency;
-        }
-    }
-    configureTransparencyTarget() {
-        if (this.configuration.transparencyAware) {
-            this.transparencyRenderTargetDWFalse = new WebGLRenderTarget(this.width, this.height, {
-                minFilter: LinearFilter,
-                magFilter: NearestFilter,
-                type: HalfFloatType,
-                format: RGBAFormat
-            });
-            this.transparencyRenderTargetDWTrue = new WebGLRenderTarget(this.width, this.height, {
-                minFilter: LinearFilter,
-                magFilter: NearestFilter,
-                type: HalfFloatType,
-                format: RGBAFormat
-            });
-            this.transparencyRenderTargetDWTrue.depthTexture = new DepthTexture(this.width, this.height, UnsignedIntType);
-            this.depthCopyPass = new ($e4ca8dcb0218f846$export$dcd670d73db751f5)(new ShaderMaterial({
-                uniforms: {
-                    depthTexture: {
-                        value: this.beautyRenderTarget.depthTexture
-                    }
-                },
-                vertexShader: /* glsl */ `
-            varying vec2 vUv;
-            void main() {
-                vUv = uv;
-                gl_Position = vec4(position, 1);
-            }`,
-                fragmentShader: /* glsl */ `
-            uniform sampler2D depthTexture;
-            varying vec2 vUv;
-            void main() {
-               gl_FragDepth = texture2D(depthTexture, vUv).r + 0.00001;
-               gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-            }
-            `
-            }));
-        } else {
-            if (this.transparencyRenderTargetDWFalse) {
-                this.transparencyRenderTargetDWFalse.dispose();
-                this.transparencyRenderTargetDWFalse = null;
-            }
-            if (this.transparencyRenderTargetDWTrue) {
-                this.transparencyRenderTargetDWTrue.dispose();
-                this.transparencyRenderTargetDWTrue = null;
-            }
-            if (this.depthCopyPass) {
-                this.depthCopyPass.dispose();
-                this.depthCopyPass = null;
-            }
-        }
-    }
-    renderTransparency(renderer) {
-        const oldBackground = this.scene.background;
-        const oldClearColor = renderer.getClearColor(new Color());
-        const oldClearAlpha = renderer.getClearAlpha();
-        const oldVisibility = new Map();
-        const oldAutoClearDepth = renderer.autoClearDepth;
-        this.scene.traverse((obj)=>{
-            oldVisibility.set(obj, obj.visible);
-        });
-        // Override the state
-        this.scene.background = null;
-        renderer.autoClearDepth = false;
-        renderer.setClearColor(new Color(0, 0, 0), 0);
-        this.depthCopyPass.material.uniforms.depthTexture.value = this.beautyRenderTarget.depthTexture;
-        // Render out transparent objects WITHOUT depth write
-        renderer.setRenderTarget(this.transparencyRenderTargetDWFalse);
-        this.scene.traverse((obj)=>{
-            if (obj.material) obj.visible = oldVisibility.get(obj) && obj.material.transparent && !obj.material.depthWrite && !obj.userData.treatAsOpaque;
-        });
-        renderer.clear(true, true, true);
-        this.depthCopyPass.render(renderer);
-        renderer.render(this.scene, this.camera);
-        // Render out transparent objects WITH depth write
-        renderer.setRenderTarget(this.transparencyRenderTargetDWTrue);
-        this.scene.traverse((obj)=>{
-            if (obj.material) obj.visible = oldVisibility.get(obj) && obj.material.transparent && obj.material.depthWrite && !obj.userData.treatAsOpaque;
-        });
-        renderer.clear(true, true, true);
-        this.depthCopyPass.render(renderer);
-        renderer.render(this.scene, this.camera);
-        // Restore
-        this.scene.traverse((obj)=>{
-            obj.visible = oldVisibility.get(obj);
-        });
-        renderer.setClearColor(oldClearColor, oldClearAlpha);
-        this.scene.background = oldBackground;
-        renderer.autoClearDepth = oldAutoClearDepth;
-    }
     configureSampleDependentPasses() {
         this.configureAOPass(this.configuration.logarithmicDepthBuffer);
         this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
     }
     configureAOPass(logarithmicDepthBuffer = false) {
         this.samples = this.generateHemisphereSamples(this.configuration.aoSamples);
+        this.samplesR = this.generateHemisphereSamplesR(this.configuration.aoSamples);
         const e = {
             ...($1ed45968c1160c3c$export$c9b263b9a17dffd7)
         };
@@ -32004,7 +31889,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         const points = [];
         for(let k = 0; k < n; k++){
             const theta = 2.399963 * k;
-            let r = Math.sqrt(k + 0.5) / Math.sqrt(n);
+            const r = Math.sqrt(k + 0.5) / Math.sqrt(n);
             const x = r * Math.cos(theta);
             const y = r * Math.sin(theta);
             // Project to hemisphere
@@ -32012,6 +31897,15 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             points.push(new Vector3$1(x, y, z));
         }
         return points;
+    }
+    /**
+         * 
+         * @param {number} n 
+         * @returns {number[]}
+         */ generateHemisphereSamplesR(n) {
+        let samplesR = [];
+        for(let i = 0; i < n; i++)samplesR.push((i + 1) / n);
+        return samplesR;
     }
     /**
          * 
@@ -32040,10 +31934,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.writeTargetInternal.setSize(width * c, height * c);
         this.readTargetInternal.setSize(width * c, height * c);
         if (this.configuration.halfRes) this.depthDownsampleTarget.setSize(width * c, height * c);
-        if (this.configuration.transparencyAware) {
-            this.transparencyRenderTargetDWFalse.setSize(width, height);
-            this.transparencyRenderTargetDWTrue.setSize(width, height);
-        }
     }
     render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
         if (renderer.capabilities.logarithmicDepthBuffer !== this.configuration.logarithmicDepthBuffer) {
@@ -32052,7 +31942,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             this.configureDenoisePass(this.configuration.logarithmicDepthBuffer);
             this.configureEffectCompositer(this.configuration.logarithmicDepthBuffer);
         }
-        this.detectTransparency();
         let gl;
         let ext;
         let timerQuery;
@@ -32067,7 +31956,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         if (this.configuration.autoRenderBeauty) {
             renderer.setRenderTarget(this.beautyRenderTarget);
             renderer.render(this.scene, this.camera);
-            if (this.configuration.transparencyAware) this.renderTransparency(renderer);
         }
         if (this.debugMode) {
             timerQuery = gl.createQuery();
@@ -32102,6 +31990,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.effectShaderQuad.material.uniforms["resolution"].value = this.configuration.halfRes ? this._r.clone().multiplyScalar(0.5).floor() : this._r;
         this.effectShaderQuad.material.uniforms["time"].value = performance.now() / 1000;
         this.effectShaderQuad.material.uniforms["samples"].value = this.samples;
+        this.effectShaderQuad.material.uniforms["samplesR"].value = this.samplesR;
         this.effectShaderQuad.material.uniforms["bluenoise"].value = this.bluenoise;
         this.effectShaderQuad.material.uniforms["radius"].value = trueRadius;
         this.effectShaderQuad.material.uniforms["distanceFalloff"].value = this.configuration.distanceFalloff;
@@ -32145,12 +32034,6 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         // Now, we have the blurred AO in writeTargetInternal
         // End the blur
         // Start the composition
-        if (this.configuration.transparencyAware) {
-            this.effectCompositerQuad.material.uniforms["transparencyDWFalse"].value = this.transparencyRenderTargetDWFalse.texture;
-            this.effectCompositerQuad.material.uniforms["transparencyDWTrue"].value = this.transparencyRenderTargetDWTrue.texture;
-            this.effectCompositerQuad.material.uniforms["transparencyDWTrueDepth"].value = this.transparencyRenderTargetDWTrue.depthTexture;
-            this.effectCompositerQuad.material.uniforms["transparencyAware"].value = true;
-        }
         this.effectCompositerQuad.material.uniforms["sceneDiffuse"].value = this.beautyRenderTarget.texture;
         this.effectCompositerQuad.material.uniforms["sceneDepth"].value = this.beautyRenderTarget.depthTexture;
         this.effectCompositerQuad.material.uniforms["near"].value = this.camera.near;
