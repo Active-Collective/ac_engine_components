@@ -23080,6 +23080,7 @@ class ProjectionManager {
     constructor(components, camera) {
         this.components = components;
         this._previousDistance = -1;
+        this.matchOrthoDistanceEnabled = false;
         this._camera = camera;
         const perspective = "Perspective";
         this._currentCamera = camera.get(perspective);
@@ -23155,6 +23156,18 @@ class ProjectionManager {
         oCamera.quaternion.copy(pCamera.quaternion);
         this._camera.controls.camera = oCamera;
     }
+    getDistance() {
+        // this handles ortho zoom to perpective distance
+        const pCamera = this._camera.get("Perspective");
+        const oCamera = this._camera.get("Orthographic");
+        // this is the reverse of
+        // const height = depth * 2 * Math.atan((pCamera.fov * (Math.PI / 180)) / 2);
+        // accounting for zoom
+        const depth = (oCamera.top - oCamera.bottom) /
+            oCamera.zoom /
+            (2 * Math.atan((pCamera.fov * (Math.PI / 180)) / 2));
+        return depth;
+    }
     async setPerspectiveCamera() {
         this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
         this._camera.controls.mouseButtons.middle = CameraControls.ACTION.DOLLY;
@@ -23163,7 +23176,12 @@ class ProjectionManager {
         pCamera.position.copy(oCamera.position);
         pCamera.quaternion.copy(oCamera.quaternion);
         this._camera.controls.mouseButtons.wheel = CameraControls.ACTION.DOLLY;
-        this._camera.controls.distance = this._previousDistance;
+        if (this.matchOrthoDistanceEnabled) {
+            this._camera.controls.distance = this.getDistance();
+        }
+        else {
+            this._camera.controls.distance = this._previousDistance;
+        }
         await this._camera.controls.zoomTo(1);
         pCamera.updateProjectionMatrix();
         this._camera.controls.camera = pCamera;
@@ -23379,6 +23397,10 @@ class OrthoPerspectiveCamera extends SimpleCamera {
     /** Returns the current {@link CameraProjection}. */
     getProjection() {
         return this._projectionManager.projection;
+    }
+    /** Match Ortho zoom with Perspective distance when changing projection mode */
+    set matchOrthoDistanceEnabled(value) {
+        this._projectionManager.matchOrthoDistanceEnabled = value;
     }
     /**
      * Changes the current {@link CameraProjection} from Ortographic to Perspective
