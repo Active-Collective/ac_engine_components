@@ -9715,12 +9715,14 @@ class VertexPicker extends Component {
         return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
     }
     setupEvents(active) {
-        const container = this._components.ui.viewerContainer;
+        const container = this.components.renderer.get().domElement.parentElement;
+        if (!container)
+            return;
         if (active) {
             container.addEventListener("mousemove", this.update);
         }
         else {
-            container.addEventListener("mousemove", this.update);
+            container.removeEventListener("mousemove", this.update);
         }
     }
 }
@@ -23332,7 +23334,8 @@ class OrthoPerspectiveCamera extends SimpleCamera {
         this.toggleEvents(true);
         this._projectionManager = new ProjectionManager(components, this);
         components.onInitialized.add(() => {
-            this.setUI();
+            if (components.uiEnabled)
+                this.setUI();
         });
         this.onAspectUpdated.add(() => this.setOrthoCameraAspect());
     }
@@ -101580,12 +101583,18 @@ class IfcPropertiesProcessor extends Component {
         });
     }
     async cleanPropertiesList() {
-        if (this._propertiesManager) {
-            const button = this._propertiesManager.uiElement.get("exportButton");
-            button.removeFromParent();
+        this._currentUI = {};
+        if (this.components.uiEnabled) {
+            if (this._propertiesManager) {
+                const button = this._propertiesManager.uiElement.get("exportButton");
+                button.removeFromParent();
+            }
+            const propsList = this.uiElement.get("propsList");
+            await propsList.dispose(true);
+            const propsWindow = this.uiElement.get("propertiesWindow");
+            propsWindow.description = null;
+            propsList.children = [];
         }
-        const propsList = this.uiElement.get("propsList");
-        await propsList.dispose(true);
         // for (const child of this._propsList.children) {
         //   if (child instanceof TreeView) {
         //     this._entityUIPool.return(child);
@@ -101593,10 +101602,6 @@ class IfcPropertiesProcessor extends Component {
         //   }
         //   child.dispose();
         // }
-        const propsWindow = this.uiElement.get("propertiesWindow");
-        propsWindow.description = null;
-        propsList.children = [];
-        this._currentUI = {};
     }
     get() {
         return this._indexMap;
@@ -101624,6 +101629,8 @@ class IfcPropertiesProcessor extends Component {
         }
     }
     async renderProperties(model, expressID) {
+        if (!this.components.uiEnabled)
+            return;
         await this.cleanPropertiesList();
         const topToolbar = this.uiElement.get("topToolbar");
         const propsList = this.uiElement.get("propsList");
