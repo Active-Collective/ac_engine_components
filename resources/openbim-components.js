@@ -9856,6 +9856,8 @@ class SimpleUIComponent extends Component {
     async dispose(onlyChildren = false) {
         for (const name in this.slots) {
             const slot = this.slots[name];
+            if (!slot)
+                continue;
             await slot.dispose();
         }
         for (const child of this.children) {
@@ -32715,6 +32717,7 @@ class FragmentManager extends Component {
         this.groups = [];
         this.baseCoordinationModel = "";
         this.onFragmentsLoaded = new Event();
+        this.onFragmentsDisposed = new Event();
         this.uiElement = new UIElement();
         this.commands = [];
         this._loader = new Serializer();
@@ -32731,7 +32734,6 @@ class FragmentManager extends Component {
     /** {@link Component.get} */
     async dispose(disposeUI = false) {
         if (disposeUI) {
-            this.onFragmentsLoaded.reset();
             this.uiElement.dispose();
         }
         for (const group of this.groups) {
@@ -32745,8 +32747,12 @@ class FragmentManager extends Component {
         }
         this.groups = [];
         this.list = {};
+        this.onFragmentsLoaded.reset();
+        this.onFragmentsDisposed.reset();
     }
     async disposeGroup(group) {
+        const { uuid: groupID } = group;
+        const fragmentIDs = group.items.map((fragment) => fragment.id);
         for (const fragment of group.items) {
             this.removeFragmentMesh(fragment);
             delete this.list[fragment.id];
@@ -32754,6 +32760,10 @@ class FragmentManager extends Component {
         group.dispose(true);
         const index = this.groups.indexOf(group);
         this.groups.splice(index, 1);
+        await this.onFragmentsDisposed.trigger({
+            groupID,
+            fragmentIDs,
+        });
         await this.updateWindow();
     }
     /** Disposes all existing fragments */
@@ -101474,9 +101484,14 @@ class IfcPropertiesProcessor extends Component {
         this._propertiesManager = null;
         this._currentUI = {};
         this.onPropertiesManagerSet = new Event();
+        this.onFragmentsDisposed = (data) => {
+            delete this._indexMap[data.groupID];
+        };
         this.components.tools.add(IfcPropertiesProcessor.uuid, this);
         // this._entityUIPool = new UIPool(this._components, TreeView);
         this._renderFunctions = this.getRenderFunctions();
+        const fragmentManager = components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.add(this.onFragmentsDisposed);
         if (components.uiEnabled) {
             this.setUI();
         }
@@ -101497,6 +101512,8 @@ class IfcPropertiesProcessor extends Component {
         }
         this._currentUI = {};
         this.onPropertiesManagerSet.reset();
+        const fragmentManager = this.components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
     }
     getProperties(model, id) {
         if (!model.properties)
@@ -102141,7 +102158,12 @@ class IfcPropertiesFinder extends Component {
         this._localStorageID = "IfcPropertiesFinder";
         this._indexedModels = {};
         this._noHandleAttributes = ["type"];
+        this.onFragmentsDisposed = (data) => {
+            delete this._indexedModels[data.groupID];
+        };
         this._conditionFunctions = this.getConditionFunctions();
+        const fragmentManager = components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.add(this.onFragmentsDisposed);
     }
     init() {
         if (this.components.uiEnabled) {
@@ -103427,6 +103449,9 @@ class FragmentHighlighter extends Component {
             down: false,
             moved: false,
         };
+        this.onFragmentsDisposed = (data) => {
+            this.disposeOutlinedMeshes(data.fragmentIDs);
+        };
         this.onSetup = new Event();
         this.onMouseDown = () => {
             if (!this.enabled)
@@ -103458,9 +103483,20 @@ class FragmentHighlighter extends Component {
             await this.highlight(this.config.hoverName, true, false);
         };
         this.components.tools.add(FragmentHighlighter.uuid, this);
+        const fragmentManager = components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.add(this.onFragmentsDisposed);
     }
     get() {
         return this.highlightMats;
+    }
+    disposeOutlinedMeshes(fragmentIDs) {
+        for (const id of fragmentIDs) {
+            const mesh = this._outlinedMeshes[id];
+            if (!mesh)
+                continue;
+            mesh.geometry.dispose();
+            delete this._outlinedMeshes[id];
+        }
     }
     async dispose() {
         this.setupEvents(false);
@@ -103472,10 +103508,7 @@ class FragmentHighlighter extends Component {
                 mat.dispose();
             }
         }
-        for (const id in this._outlinedMeshes) {
-            const mesh = this._outlinedMeshes[id];
-            mesh.geometry.dispose();
-        }
+        this.disposeOutlinedMeshes(Object.keys(this._outlinedMeshes));
         this.outlineMaterial.dispose();
         this._invisibleMaterial.dispose();
         this.highlightMats = {};
@@ -103485,6 +103518,8 @@ class FragmentHighlighter extends Component {
             this.events[name].onHighlight.reset();
         }
         this.onSetup.reset();
+        const fragmentManager = this.components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
         this.events = {};
     }
     async add(name, material) {
@@ -103899,7 +103934,33 @@ class FragmentClassifier extends Component {
         /** {@link Component.enabled} */
         this.enabled = true;
         this._groupSystems = {};
+        this.onFragmentsDisposed = (data) => {
+            const { groupID, fragmentIDs } = data;
+            for (const systemName in this._groupSystems) {
+                const system = this._groupSystems[systemName];
+                const groupNames = Object.keys(system);
+                if (groupNames.includes(groupID)) {
+                    delete system[groupID];
+                    if (Object.values(system).length === 0) {
+                        delete this._groupSystems[systemName];
+                    }
+                }
+                else {
+                    for (const groupName of groupNames) {
+                        const group = system[groupName];
+                        for (const fragmentID of fragmentIDs) {
+                            delete group[fragmentID];
+                        }
+                        if (Object.values(group).length === 0) {
+                            delete system[groupName];
+                        }
+                    }
+                }
+            }
+        };
         components.tools.add(FragmentClassifier.uuid, this);
+        const fragmentManager = components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.add(this.onFragmentsDisposed);
     }
     /** {@link Component.get} */
     get() {
@@ -103907,6 +103968,8 @@ class FragmentClassifier extends Component {
     }
     async dispose() {
         this._groupSystems = {};
+        const fragmentManager = this.components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
     }
     remove(guid) {
         for (const systemName in this._groupSystems) {
