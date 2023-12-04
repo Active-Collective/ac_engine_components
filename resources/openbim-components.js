@@ -134,6 +134,8 @@ class Mouse {
     constructor(dom) {
         this.dom = dom;
         this._position = new THREE$1.Vector2();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.updateMouseInfo = (event) => {
             this._event = event;
         };
@@ -153,6 +155,8 @@ class Mouse {
     /** {@link Disposable.dispose} */
     async dispose() {
         this.setupEvents(false);
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     getPositionY(bound, event) {
         return -((event.clientY - bound.top) / (bound.bottom - bound.top)) * 2 + 1;
@@ -321,6 +325,8 @@ class BaseSVGAnnotation extends Component {
     constructor() {
         super(...arguments);
         this.id = tooeenRandomId();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._enabled = false;
         this._isDrawing = false;
         this._svgViewport = null;
@@ -392,6 +398,8 @@ class BaseSVGAnnotation extends Component {
         if (this.svgViewport) {
             this.svgViewport.remove();
         }
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     setupEvents(active) {
         if (active) {
@@ -469,6 +477,8 @@ class ToolComponent extends Component {
         super(...arguments);
         /** The list of components created in this app. */
         this.list = {};
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** The auth token to get tools from That Open Platform. */
         this.token = "";
         /** {@link Component.uuid} */
@@ -546,6 +556,8 @@ class ToolComponent extends Component {
                 await tool.dispose();
             }
         }
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     validateUUID(uuid) {
         if (!this._uuidv4Pattern.test(uuid))
@@ -684,6 +696,8 @@ class SimpleScene extends Component {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.config = {
             directionalLight: {
                 color: new THREE$1.Color("white"),
@@ -713,6 +727,8 @@ class SimpleScene extends Component {
             }
         }
         this._scene.children = [];
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     /** Creates a simple and nice default set up for the scene (e.g. lighting). */
     async setup(config) {
@@ -943,6 +959,8 @@ class SimpleRenderer extends BaseRenderer {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Updateable.onBeforeUpdate} */
         this.onBeforeUpdate = new Event();
         /** {@link Updateable.onAfterUpdate} */
@@ -1022,6 +1040,8 @@ class SimpleRenderer extends BaseRenderer {
         this.onResize.reset();
         this.onAfterUpdate.reset();
         this.onBeforeUpdate.reset();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     /** {@link Resizeable.getSize}. */
     getSize() {
@@ -3224,6 +3244,8 @@ class SimpleCamera extends Component {
         /** {@link Updateable.onAfterUpdate} */
         this.onAfterUpdate = new Event();
         this.onAspectUpdated = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /**
          * Updates the aspect of the camera to match the size of the
          * {@link Components.renderer}.
@@ -3256,6 +3278,8 @@ class SimpleCamera extends Component {
         this.onAfterUpdate.reset();
         this._perspectiveCamera.removeFromParent();
         this.controls.dispose();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     /** {@link Updateable.update} */
     async update(_delta) {
@@ -3312,6 +3336,11 @@ class SimpleCamera extends Component {
  * generally to pick objects with the mouse.
  */
 class BaseRaycaster extends Component {
+    constructor() {
+        super(...arguments);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+    }
 }
 
 /**
@@ -3324,6 +3353,8 @@ class SimpleRaycaster extends BaseRaycaster {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._raycaster = new THREE$1.Raycaster();
         const renderer = components.renderer.get();
         const dom = renderer.domElement;
@@ -3336,6 +3367,8 @@ class SimpleRaycaster extends BaseRaycaster {
     /** {@link Disposable.dispose} */
     async dispose() {
         this.mouse.dispose();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     /**
      * Throws a ray from the camera to the mouse or touch event point and returns
@@ -3414,6 +3447,8 @@ class SimpleGrid extends Component {
     }
     constructor(components, color = new THREE$1.Color(0xbbbbbb), size1 = 1, size2 = 10, distance = 500) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
         this._fade = 3;
@@ -3530,6 +3565,8 @@ class SimpleGrid extends Component {
         this.setupEvents(false);
         const disposer = this.components.tools.get(Disposer);
         disposer.destroy(this._grid);
+        await this.onDisposed.trigger(SimpleGrid.uuid);
+        this.onDisposed.reset();
     }
     setupEvents(active) {
         const camera = this.components.camera;
@@ -9445,6 +9482,8 @@ class LineIntersectionPicker extends Component {
         this.name = "LineIntersectionPicker";
         this.onAfterUpdate = new Event();
         this.onBeforeUpdate = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._pickedPoint = null;
         this._raycaster = new Raycaster();
         this._originVector = new Vector3$1();
@@ -9468,6 +9507,8 @@ class LineIntersectionPicker extends Component {
         this.onBeforeUpdate.reset();
         this._marker.removeFromParent();
         this._marker.element.remove();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     /** {@link Updateable.update} */
     update() {
@@ -9561,11 +9602,14 @@ class Simple2DMarker extends Component {
     get visible() {
         return this._visible;
     }
+    // Define marker as setup configuration?
     constructor(components, marker) {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
         this._visible = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         let _marker;
         if (marker) {
             _marker = marker;
@@ -9589,6 +9633,8 @@ class Simple2DMarker extends Component {
     async dispose() {
         this._marker.removeFromParent();
         this._marker.element.remove();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
 }
 
@@ -9614,6 +9660,8 @@ class VertexPicker extends Component {
         this._pickedPoint = null;
         this._enabled = false;
         this._workingPlane = null;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.update = () => {
             if (!this.enabled)
                 return;
@@ -9674,6 +9722,8 @@ class VertexPicker extends Component {
         this.afterUpdate.reset();
         this.beforeUpdate.reset();
         this._components = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     get() {
         return this._pickedPoint;
@@ -9740,6 +9790,8 @@ class GeometryVerticesMarker extends Component {
         super(components);
         this.name = "GeometryVerticesMarker";
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._markers = [];
         this._visible = true;
         const position = geometry.getAttribute("position");
@@ -9756,6 +9808,8 @@ class GeometryVerticesMarker extends Component {
             await marker.dispose();
         }
         this._markers = [];
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     get() {
         return this._markers;
@@ -9830,6 +9884,8 @@ class SimpleUIComponent extends Component {
     constructor(components, template, id) {
         super(components);
         this.name = "SimpleUIComponent";
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         // TODO: Remove children and leave only slots?
         this.children = [];
         this.data = {};
@@ -9885,6 +9941,8 @@ class SimpleUIComponent extends Component {
             this.slots = {};
             this.parent = null;
         }
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     addChild(...items) {
         for (const item of items) {
@@ -10360,6 +10418,8 @@ class UIManager extends Component {
         this.toolbars = [];
         this.tooltipsEnabled = true;
         this.children = [];
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._mouseMoved = false;
         this._mouseDown = false;
         this._containers = {
@@ -10460,6 +10520,8 @@ class UIManager extends Component {
         this._components = null;
         this.contextMenu = null;
         this._contextMenuContainer = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     init() {
         this.setupEvents(true);
@@ -11626,6 +11688,8 @@ class Components {
          * ready to work (scene, camera and renderer are ready).
          */
         this.onInitialized = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = false;
         /** Whether UI components should be created. */
         this.uiEnabled = true;
@@ -11699,6 +11763,8 @@ class Components {
         if (this.raycaster.isDisposeable()) {
             await this.raycaster.dispose();
         }
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     static async update(component, delta) {
         if (component.isUpdateable() && component.enabled) {
@@ -13298,6 +13364,8 @@ class SimplePlane extends Component {
         this.onDraggingStarted = new Event();
         /** Event that fires when the user stops dragging a clipping plane. */
         this.onDraggingEnded = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._plane = new THREE$1.Plane();
         // TODO: Make all planes share the same geometry
         // TODO: Clean up unnecessary attributes, clean up constructor
@@ -13354,6 +13422,8 @@ class SimplePlane extends Component {
         this._planeMesh.geometry.dispose();
         this._controls.removeFromParent();
         this._controls.dispose();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     toggleControls(state) {
         if (state) {
@@ -13507,6 +13577,8 @@ class SimpleClipper extends Component {
          */
         this.toleranceOrthogonalY = 0.7;
         this._planes = [];
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** The material used in all the clipping planes. */
         this._material = new THREE$1.MeshBasicMaterial({
             color: 0xffff00,
@@ -13516,7 +13588,7 @@ class SimpleClipper extends Component {
         });
         this._size = 5;
         this._enabled = false;
-        this._visible = true;
+        this._visible = false;
         this._onStartDragging = () => {
             this.onBeforeDrag.trigger();
         };
@@ -13552,6 +13624,8 @@ class SimpleClipper extends Component {
         this.onAfterCancel.reset();
         this.onAfterDelete.reset();
         this.onAfterDrag.reset();
+        await this.onDisposed.trigger(SimpleClipper.uuid);
+        this.onDisposed.reset();
     }
     /** {@link Createable.create} */
     create() {
@@ -13613,10 +13687,10 @@ class SimpleClipper extends Component {
         const main = new Button(components);
         main.materialIcon = "content_cut";
         main.onClick.add(() => {
-            this.enabled = !this.enabled;
-            this.visible = !this.visible;
+            main.active = !main.active;
+            this.enabled = main.active;
+            this.visible = main.active;
         });
-        main.active = this.enabled;
         this.uiElement.set({ main });
     }
     pickPlane() {
@@ -13755,6 +13829,8 @@ class ScreenCuller extends Component {
         this.rtWidth = rtWidth;
         this.rtHeight = rtHeight;
         this.autoUpdate = autoUpdate;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** Fires after hiding the objects that were not visible to the camera. */
         this.onViewUpdated = new Event();
         /** {@link Component.enabled} */
@@ -13897,6 +13973,8 @@ class ScreenCuller extends Component {
         }
         this._colorMeshes.clear();
         this._meshes.clear();
+        await this.onDisposed.trigger(ScreenCuller.uuid);
+        this.onDisposed.reset();
     }
     /**
      * Adds a new mesh to be processed and managed by the culler.
@@ -19139,6 +19217,8 @@ class LocalCacher extends Component {
         this.onFileLoaded = new Event();
         /** Fires when a file has been saved into cache. */
         this.onItemSaved = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
         /** {@link UI.uiElement} */
@@ -19220,6 +19300,8 @@ class LocalCacher extends Component {
         this.cards = [];
         await this.uiElement.dispose();
         this._db = null;
+        await this.onDisposed.trigger(LocalCacher.uuid);
+        this.onDisposed.reset();
     }
     setUI(components) {
         const main = new Button(components);
@@ -19393,6 +19475,8 @@ class SimpleSVGViewport extends Component {
         this.uiElement = new UIElement();
         this.id = generateUUID().toLowerCase();
         this._enabled = false;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._viewport = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         this._size = new Vector2$1();
         this._undoList = [];
@@ -19422,6 +19506,8 @@ class SimpleSVGViewport extends Component {
     async dispose() {
         this._undoList = [];
         this.uiElement.dispose();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     get() {
         return this._viewport;
@@ -19545,6 +19631,8 @@ class MaterialManager extends Component {
         /** {@link Component.enabled} */
         this.enabled = true;
         this._originalBackground = null;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._originals = {};
         this._list = {};
         this.components.tools.add(MaterialManager.uuid, this);
@@ -19596,6 +19684,8 @@ class MaterialManager extends Component {
         }
         this._list = {};
         this._originals = {};
+        await this.onDisposed.trigger(MaterialManager.uuid);
+        this.onDisposed.reset();
     }
     /**
      * Sets the color of the background of the scene.
@@ -24525,6 +24615,8 @@ class Simple2DScene extends Component {
         this.onResize = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link UI.uiElement} */
         this.uiElement = new UIElement();
         this._scaleX = 1;
@@ -24597,6 +24689,8 @@ class Simple2DScene extends Component {
         }
         await this.renderer.dispose();
         await this.uiElement.dispose();
+        await this.onDisposed.trigger(Simple2DScene.uuid);
+        this.onDisposed.reset();
     }
     /** {@link Updateable.update} */
     async update() {
@@ -32713,6 +32807,8 @@ class FragmentManager extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
         /** All the created [fragments](https://github.com/ifcjs/fragment). */
@@ -32752,6 +32848,8 @@ class FragmentManager extends Component {
         this.list = {};
         this.onFragmentsLoaded.reset();
         this.onFragmentsDisposed.reset();
+        await this.onDisposed.trigger(FragmentManager.uuid);
+        this.onDisposed.reset();
     }
     async disposeGroup(group) {
         const { uuid: groupID } = group;
@@ -100893,6 +100991,8 @@ class PropActionsUI extends SimpleUIComponent {
 class IfcPropertiesManager extends Component {
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.onRequestFile = new Event();
         this.ifcToExport = null;
         this.onElementToPset = new Event();
@@ -100933,6 +101033,8 @@ class IfcPropertiesManager extends Component {
         this.onPsetRemoved.reset();
         this.onDataChanged.reset();
         await this.uiElement.dispose();
+        await this.onDisposed.trigger(IfcPropertiesManager.uuid);
+        this.onDisposed.reset();
     }
     setUI(components) {
         const exportButton = new Button(components);
@@ -101465,6 +101567,8 @@ class IfcPropertiesProcessor extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this.uiElement = new UIElement();
         this.relationsToProcess = [
@@ -101517,6 +101621,8 @@ class IfcPropertiesProcessor extends Component {
         this.onPropertiesManagerSet.reset();
         const fragmentManager = this.components.tools.get(FragmentManager);
         fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
+        await this.onDisposed.trigger(IfcPropertiesProcessor.uuid);
+        this.onDisposed.reset();
     }
     getProperties(model, id) {
         if (!model.properties)
@@ -102160,6 +102266,8 @@ class IfcPropertiesFinder extends Component {
     constructor(components) {
         super(components);
         this.onFound = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this.uiElement = new UIElement();
         this._localStorageID = "IfcPropertiesFinder";
@@ -102184,6 +102292,8 @@ class IfcPropertiesFinder extends Component {
         this._indexedModels = {};
         this.onFound.reset();
         this.uiElement.dispose();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     loadCached(id) {
         if (id) {
@@ -102686,6 +102796,8 @@ class FragmentBoundingBox extends Component {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._meshes = [];
         this.components.tools.add(FragmentBoundingBox.uuid, this);
         this._absoluteMin = FragmentBoundingBox.newBound(true);
@@ -102730,6 +102842,8 @@ class FragmentBoundingBox extends Component {
             disposer.destroy(mesh);
         }
         this._meshes = [];
+        await this.onDisposed.trigger(FragmentBoundingBox.uuid);
+        this.onDisposed.reset();
     }
     get() {
         const min = this._absoluteMin.clone();
@@ -103240,6 +103354,8 @@ class GeometryReader {
 class FragmentIfcLoader extends Component {
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this.uiElement = new UIElement();
         this.onIfcLoaded = new Event();
@@ -103270,6 +103386,8 @@ class FragmentIfcLoader extends Component {
         this._webIfc = null;
         this._geometry = null;
         this._converter = null;
+        await this.onDisposed.trigger(FragmentIfcLoader.uuid);
+        this.onDisposed.reset();
     }
     /** Loads the IFC file and converts it to a set of fragments. */
     async load(data, name) {
@@ -103415,6 +103533,8 @@ class FragmentHighlighter extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this.highlightMats = {};
         this.events = {};
@@ -103528,6 +103648,8 @@ class FragmentHighlighter extends Component {
         const fragmentManager = this.components.tools.get(FragmentManager);
         fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
         this.events = {};
+        await this.onDisposed.trigger(FragmentHighlighter.uuid);
+        this.onDisposed.reset();
     }
     async add(name, material) {
         if (this.highlightMats[name]) {
@@ -103941,6 +104063,8 @@ class FragmentClassifier extends Component {
         /** {@link Component.enabled} */
         this.enabled = true;
         this._groupSystems = {};
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.onFragmentsDisposed = (data) => {
             const { groupID, fragmentIDs } = data;
             for (const systemName in this._groupSystems) {
@@ -103977,6 +104101,8 @@ class FragmentClassifier extends Component {
         this._groupSystems = {};
         const fragmentManager = this.components.tools.get(FragmentManager);
         fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
+        await this.onDisposed.trigger(FragmentClassifier.uuid);
+        this.onDisposed.reset();
     }
     remove(guid) {
         for (const systemName in this._groupSystems) {
@@ -104168,6 +104294,8 @@ ToolComponent.libraryUUIDs.add(FragmentClassifier.uuid);
 class FragmentTree extends Component {
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this.onSelected = new Event();
         this.onHovered = new Event();
@@ -104196,6 +104324,8 @@ class FragmentTree extends Component {
         if (this._tree) {
             await this._tree.dispose();
         }
+        await this.onDisposed.trigger(FragmentTree.uuid);
+        this.onDisposed.reset();
     }
     async update(groupSystems) {
         if (!this._tree)
@@ -104258,6 +104388,8 @@ ToolComponent.libraryUUIDs.add(FragmentTree.uuid);
 class FragmentHider extends Component {
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this.uiElement = new UIElement();
         this._localStorageID = "FragmentHiderCache";
@@ -104295,6 +104427,8 @@ class FragmentHider extends Component {
     }
     async dispose() {
         this.uiElement.dispose();
+        await this.onDisposed.trigger(FragmentHider.uuid);
+        this.onDisposed.reset();
     }
     set(visible, items) {
         const fragments = this.components.tools.get(FragmentManager);
@@ -104649,6 +104783,8 @@ class FragmentExploder extends Component {
         this.height = 10;
         this.groupName = "storeys";
         this.uiElement = new UIElement();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._explodedFragments = new Set();
         components.tools.add(FragmentExploder.uuid, this);
         if (components.uiEnabled) {
@@ -104658,6 +104794,8 @@ class FragmentExploder extends Component {
     async dispose() {
         this._explodedFragments.clear();
         this.uiElement.dispose();
+        await this.onDisposed.trigger(FragmentExploder.uuid);
+        this.onDisposed.reset();
     }
     explode() {
         this.enabled = true;
@@ -106013,6 +106151,8 @@ class ClippingEdges extends Component {
     }
     constructor(components, plane, styles) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Updateable.onAfterUpdate} */
         this.onAfterUpdate = new Event();
         /** {@link Updateable.onBeforeUpdate} */
@@ -106059,8 +106199,10 @@ class ClippingEdges extends Component {
     async dispose() {
         const names = Object.keys(this._edges);
         for (const name of names) {
-            await this.disposeEdge(name);
+            this.disposeEdge(name);
         }
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     newEdgesMesh(styleName) {
         const styles = this._styles.get();
@@ -106341,6 +106483,11 @@ class EdgesPlane extends SimplePlane {
         this.onDraggingStarted.add(this.hideFills);
     }
     /** {@link Component.enabled} */
+    set enabled(state) {
+        this._enabled = state;
+        this.components.renderer.togglePlane(state, this._plane);
+    }
+    /** {@link Component.enabled} */
     get enabled() {
         return super.enabled;
     }
@@ -106367,6 +106514,8 @@ class EdgesStyles extends Component {
     constructor(components) {
         super(components);
         this.name = "EdgesStyles";
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this._styles = {};
         this._defaultLineMaterial = new LineBasicMaterial({
@@ -106408,6 +106557,8 @@ class EdgesStyles extends Component {
             this.deleteStyle(style);
         }
         this._styles = {};
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     deleteStyle(id, disposeMaterials = true) {
         var _a, _b;
@@ -106473,6 +106624,8 @@ class FragmentPlans extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.onNavigated = new Event();
         this.onExited = new Event();
         /** {@link Component.enabled} */
@@ -106510,6 +106663,8 @@ class FragmentPlans extends Component {
         this._plans = [];
         await this.objects.dispose();
         await this.uiElement.dispose();
+        await this.onDisposed.trigger(FragmentPlans.uuid);
+        this.onDisposed.reset();
     }
     // TODO: Compute georreference matrix when generating fragmentsgroup
     // so that we can correctly add floors in georreferenced models
@@ -106805,6 +106960,8 @@ class FragmentClipStyler extends Component {
     constructor(components) {
         super(components);
         this.onChange = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         this.localStorageID = "FragmentClipStyler";
         this.styleCards = {};
@@ -106860,6 +107017,8 @@ class FragmentClipStyler extends Component {
         }
         await this.uiElement.dispose();
         this.onChange.reset();
+        await this.onDisposed.trigger(FragmentClipStyler.uuid);
+        this.onDisposed.reset();
     }
     async update(ids = Object.keys(this.styleCards)) {
         const clipper = this.components.tools.get(EdgesClipper);
@@ -108322,6 +108481,8 @@ const VerticalBlurShader = {
 class ShadowDropper extends Component {
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.enabled = true;
         // Controls how far away the shadow is computed
         this.cameraHeight = 10;
@@ -108350,6 +108511,8 @@ class ShadowDropper extends Component {
         this.tempMaterial.dispose();
         this.depthMaterial.dispose();
         this.components = null;
+        await this.onDisposed.trigger(ShadowDropper.uuid);
+        this.onDisposed.reset();
     }
     /**
      * Creates a blurred dropped shadow of the given mesh.
@@ -108731,6 +108894,8 @@ class LengthMeasurement extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Updateable.onBeforeUpdate} */
         this.onBeforeUpdate = new Event();
         /** {@link Updateable.onAfterUpdate} */
@@ -108847,6 +109012,8 @@ class LengthMeasurement extends Component {
         this._lineMaterial.dispose();
         this._measurements = [];
         await this._vertexPicker.dispose();
+        await this.onDisposed.trigger(LengthMeasurement.uuid);
+        this.onDisposed.reset();
     }
     /** {@link Updateable.update} */
     async update(_delta) {
@@ -109140,6 +109307,8 @@ class CubeMap extends Component {
     constructor(components) {
         var _a;
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
         /** {@link Updateable.onAfterUpdate} */
@@ -109225,6 +109394,8 @@ class CubeMap extends Component {
         this._cube.remove();
         this._cubeWrapper.remove();
         this.components = null;
+        await this.onDisposed.trigger(CubeMap.uuid);
+        this.onDisposed.reset();
     }
     setSize(value = "350") {
         this._cubeWrapper.style.perspective = `${value}px`;
@@ -109335,6 +109506,8 @@ class MiniMap extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.uiElement = new UIElement();
         this.onAfterUpdate = new Event();
         this.onBeforeUpdate = new Event();
@@ -109391,6 +109564,8 @@ class MiniMap extends Component {
         this.onResize.reset();
         this.overrideMaterial.dispose();
         this._renderer.dispose();
+        await this.onDisposed.trigger(MiniMap.uuid);
+        this.onDisposed.reset();
     }
     get() {
         return this._camera;
@@ -109454,6 +109629,8 @@ class SVGArrow extends Component {
         this.name = "SVGRectangle";
         this.enabled = true;
         this.id = tooeenRandomId();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         this._polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
         this._marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
@@ -109483,6 +109660,8 @@ class SVGArrow extends Component {
         this._polygon.remove();
         this._line.remove();
         this.components = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     setStyle(style) {
         var _a, _b, _c, _d;
@@ -109605,6 +109784,8 @@ class SVGCircle extends Component {
         this.id = tooeenRandomId();
         this.name = "SVGRectangle";
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         this._centerPoint = new Vector2$1();
         this._radius = 20;
@@ -109616,6 +109797,8 @@ class SVGCircle extends Component {
     async dispose() {
         this._circle.remove();
         this.components = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     setStyle(style) {
         var _a, _b, _c, _d;
@@ -109729,6 +109912,8 @@ class SVGText extends Component {
         this.id = tooeenRandomId();
         this.name = "SVGRectangle";
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._startPoint = new Vector2$1();
         this._text = document.createElementNS("http://www.w3.org/2000/svg", "text");
         this._text.setAttribute("fill", "red");
@@ -109739,6 +109924,8 @@ class SVGText extends Component {
     }
     async dispose() {
         this._text.remove();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     setStyle(style) {
         var _a;
@@ -109853,6 +110040,8 @@ class SVGRectangle extends Component {
         this.id = tooeenRandomId();
         this.name = "SVGRectangle";
         this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._startPoint = new Vector2$1();
         this._endPoint = new Vector2$1();
         this._dimensions = new Vector2$1();
@@ -109866,6 +110055,8 @@ class SVGRectangle extends Component {
     async dispose() {
         this._rect.remove();
         this.components = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     setStyle(style) {
         var _a, _b, _c, _d;
@@ -110028,13 +110219,18 @@ class DrawManager extends Component {
     constructor(components) {
         super(components);
         this.name = "DrawManager";
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.uiElement = new UIElement();
         this.drawingTools = {};
         this.drawings = {};
         this._enabled = false;
         this._isDrawing = false;
+        components.tools.add(DrawManager.uuid, this);
         this.viewport = new SimpleSVGViewport(components);
-        this.setUI();
+        if (components.uiEnabled) {
+            this.setUI();
+        }
         this.enabled = false;
     }
     async dispose() {
@@ -110045,6 +110241,8 @@ class DrawManager extends Component {
         }
         this.drawings = {};
         this.components = null;
+        await this.onDisposed.trigger(DrawManager.uuid);
+        this.onDisposed.reset();
     }
     saveDrawing(name) {
         const currentDrawing = this.drawings[name];
@@ -110086,6 +110284,7 @@ class DrawManager extends Component {
         throw new Error("Method not implemented.");
     }
 }
+DrawManager.uuid = "4ab8b0f4-665d-4ea2-8f6e-66c98ed04392";
 
 var mapboxGl = {exports: {}};
 
@@ -110149,6 +110348,8 @@ var mapboxGlExports = mapboxGl.exports;
 class MapboxRenderer extends BaseRenderer {
     constructor(components, map, coords, rotation = new THREE$1.Vector3(Math.PI / 2, 0, 0)) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
         /** {@link Updateable.onBeforeUpdate} */
@@ -110197,6 +110398,8 @@ class MapboxRenderer extends BaseRenderer {
         this._renderer.dispose();
         this._map.remove();
         this._map = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     initialize(context) {
         const canvas = this._map.getCanvas();
@@ -110506,6 +110709,8 @@ class AreaMeasureElement extends Component {
         this.visible = true;
         this.points = [];
         this.workingPlane = null;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._rotationMatrix = null;
         this._dimensionLines = [];
         this._defaultLineMaterial = new THREE$1.LineBasicMaterial({ color: "red" });
@@ -110638,6 +110843,8 @@ class AreaMeasureElement extends Component {
         this.workingPlane = null;
         this._defaultLineMaterial.dispose();
         this.components = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     get() {
         return {
@@ -110671,6 +110878,8 @@ class AreaMeasurement extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.uiElement = new UIElement();
         this._enabled = false;
         this._currentAreaElement = null;
@@ -110750,6 +110959,8 @@ class AreaMeasurement extends Component {
             await measure.dispose();
         }
         this.components = null;
+        await this.onDisposed.trigger(AreaMeasurement.uuid);
+        this.onDisposed.reset();
     }
     setUI() {
         const main = new Button(this.components);
@@ -112197,6 +112408,8 @@ class AngleMeasureElement extends Component {
         this.enabled = true;
         this.visible = true;
         this.points = [];
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this._lineMaterial = new LineMaterial({
             color: 0x6528d7,
             linewidth: 2,
@@ -112267,6 +112480,8 @@ class AngleMeasureElement extends Component {
         this._lineMaterial.dispose();
         this._lineGeometry.dispose();
         this._components = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
     get() {
         return {
@@ -112307,6 +112522,8 @@ class AngleMeasurement extends Component {
     }
     constructor(components) {
         super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
         this.uiElement = new UIElement();
         this._enabled = false;
         this._currentAngleElement = null;
@@ -112371,7 +112588,7 @@ class AngleMeasurement extends Component {
         }
     }
     async dispose() {
-        await this.setupEvents(false);
+        this.setupEvents(false);
         this.onBeforeCreate.reset();
         this.onAfterCreate.reset();
         this.onBeforeCancel.reset();
@@ -112388,6 +112605,8 @@ class AngleMeasurement extends Component {
             await this._currentAngleElement.dispose();
         }
         this.components = null;
+        await this.onDisposed.trigger(AngleMeasurement.uuid);
+        this.onDisposed.reset();
     }
     delete() { }
     /** Deletes all the dimensions that have been previously created. */
