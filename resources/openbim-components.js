@@ -99481,6 +99481,1622 @@ class IfcCategories {
     }
 }
 
+const GeometryTypes = new Set([
+    1123145078, 574549367, 1675464909, 2059837836, 3798115385, 32440307,
+    3125803723, 3207858831, 2740243338, 2624227202, 4240577450, 3615266464,
+    3724593414, 220341763, 477187591, 1878645084, 1300840506, 3303107099,
+    1607154358, 1878645084, 846575682, 1351298697, 2417041796, 3049322572,
+    3331915920, 1416205885, 776857604, 3285139300, 3958052878, 2827736869,
+    2732653382, 673634403, 3448662350, 4142052618, 2924175390, 803316827,
+    2556980723, 1809719519, 2205249479, 807026263, 3737207727, 1660063152,
+    2347385850, 3940055652, 2705031697, 3732776249, 2485617015, 2611217952,
+    1704287377, 2937912522, 2770003689, 1281925730, 1484403080, 3448662350,
+    4142052618, 3800577675, 4006246654, 3590301190, 1383045692, 2775532180,
+    2047409740, 370225590, 3593883385, 2665983363, 4124623270, 812098782,
+    3649129432, 987898635, 1105321065, 3510044353, 1635779807, 2603310189,
+    3406155212, 1310608509, 4261334040, 2736907675, 3649129432, 1136057603,
+    1260505505, 4182860854, 2713105998, 2898889636, 59481748, 3749851601,
+    3486308946, 3150382593, 1062206242, 3264961684, 15328376, 1485152156,
+    370225590, 1981873012, 2859738748, 45288368, 2614616156, 2732653382,
+    775493141, 2147822146, 2601014836, 2629017746, 1186437898, 2367409068,
+    1213902940, 3632507154, 3900360178, 476780140, 1472233963, 2804161546,
+    3008276851, 738692330, 374418227, 315944413, 3905492369, 3570813810,
+    2571569899, 178912537, 2294589976, 1437953363, 2133299955, 572779678,
+    3092502836, 388784114, 2624227202, 1425443689, 3057273783, 2347385850,
+    1682466193, 2519244187, 2839578677, 3958567839, 2513912981, 2830218821,
+    427810014,
+]);
+
+/**
+ * Object to export all the properties from an IFC to a JS object.
+ */
+class IfcJsonExporter {
+    constructor() {
+        this.onLoadProgress = new Event();
+        this.onPropertiesSerialized = new Event();
+        this._progress = 0;
+    }
+    /**
+     * Exports all the properties of an IFC into an array of JS objects.
+     * @webIfc The instance of [web-ifc]{@link https://github.com/ifcjs/web-ifc} to use.
+     * @modelID ID of the IFC model whose properties to extract.
+     */
+    async export(webIfc, modelID) {
+        const geometriesIDs = await this.getAllGeometriesIDs(modelID, webIfc);
+        let properties = {};
+        properties.coordinationMatrix = webIfc.GetCoordinationMatrix(modelID);
+        const allLinesIDs = await webIfc.GetAllLines(modelID);
+        const linesCount = allLinesIDs.size();
+        this._progress = 0.1;
+        let counter = 0;
+        for (let i = 0; i < linesCount; i++) {
+            const id = allLinesIDs.get(i);
+            if (!geometriesIDs.has(id)) {
+                try {
+                    properties[id] = await webIfc.GetLine(modelID, id);
+                }
+                catch (e) {
+                    console.log(`Properties of the element ${id} could not be processed`);
+                }
+                counter++;
+            }
+            if (this.size !== undefined && counter > this.size) {
+                await this.onPropertiesSerialized.trigger(properties);
+                properties = null;
+                properties = {};
+                counter = 0;
+            }
+            if (i / linesCount > this._progress) {
+                await this.onLoadProgress.trigger({
+                    progress: i,
+                    total: linesCount,
+                });
+                this._progress += 0.1;
+            }
+        }
+        await this.onPropertiesSerialized.trigger(properties);
+        properties = null;
+    }
+    async getAllGeometriesIDs(modelID, webIfc) {
+        // Exclude location info of spatial structure
+        const placementIDs = new Set();
+        const structures = new Set();
+        this.getStructure(IFCPROJECT, structures, webIfc);
+        this.getStructure(IFCSITE, structures, webIfc);
+        this.getStructure(IFCBUILDING, structures, webIfc);
+        this.getStructure(IFCBUILDINGSTOREY, structures, webIfc);
+        this.getStructure(IFCSPACE, structures, webIfc);
+        for (const id of structures) {
+            const properties = webIfc.GetLine(0, id);
+            const placementRef = properties.ObjectPlacement;
+            if (!placementRef || placementRef.value === null) {
+                continue;
+            }
+            const placementID = placementRef.value;
+            placementIDs.add(placementID);
+            const placementProps = webIfc.GetLine(0, placementID);
+            const relPlacementID = placementProps.RelativePlacement;
+            if (!relPlacementID || relPlacementID.value === null) {
+                continue;
+            }
+            placementIDs.add(relPlacementID.value);
+            const relPlacement = webIfc.GetLine(0, relPlacementID.value);
+            const location = relPlacement.Location;
+            if (location && location.value !== null) {
+                placementIDs.add(location.value);
+            }
+        }
+        const geometriesIDs = new Set();
+        const geomTypesArray = Array.from(GeometryTypes);
+        for (let i = 0; i < geomTypesArray.length; i++) {
+            const category = geomTypesArray[i];
+            // eslint-disable-next-line no-await-in-loop
+            const ids = await webIfc.GetLineIDsWithType(modelID, category);
+            const idsSize = ids.size();
+            for (let j = 0; j < idsSize; j++) {
+                const id = ids.get(j);
+                if (placementIDs.has(id)) {
+                    continue;
+                }
+                geometriesIDs.add(id);
+            }
+        }
+        return geometriesIDs;
+    }
+    getStructure(type, result, webIfc) {
+        const found = webIfc.GetLineIDsWithType(0, type);
+        const size = found.size();
+        for (let i = 0; i < size; i++) {
+            const id = found.get(i);
+            result.add(id);
+        }
+    }
+}
+
+class Units {
+    constructor() {
+        this.factor = 1;
+        this.complement = 1;
+    }
+    apply(matrix) {
+        const scale = this.getScaleMatrix();
+        const result = scale.multiply(matrix);
+        matrix.copy(result);
+    }
+    setUp(webIfc) {
+        var _a;
+        this.factor = 1;
+        const length = this.getLengthUnits(webIfc);
+        if (!length) {
+            return;
+        }
+        const isLengthNull = length === undefined || length === null;
+        const isValueNull = length.Name === undefined || length.Name === null;
+        if (isLengthNull || isValueNull) {
+            return;
+        }
+        if (length.Name.value === "FOOT") {
+            this.factor = 0.3048;
+        }
+        else if (((_a = length.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI") {
+            this.complement = 0.001;
+        }
+    }
+    getLengthUnits(webIfc) {
+        try {
+            const allUnitsAssigns = webIfc.GetLineIDsWithType(0, IFCUNITASSIGNMENT);
+            const unitsAssign = allUnitsAssigns.get(0);
+            const unitsAssignProps = webIfc.GetLine(0, unitsAssign);
+            for (const units of unitsAssignProps.Units) {
+                if (!units || units.value === null || units.value === undefined) {
+                    continue;
+                }
+                const unitsProps = webIfc.GetLine(0, units.value);
+                if (unitsProps.UnitType && unitsProps.UnitType.value === "LENGTHUNIT") {
+                    return unitsProps;
+                }
+            }
+            return null;
+        }
+        catch (e) {
+            console.log("Could not get units");
+            return null;
+        }
+    }
+    getScaleMatrix() {
+        const f = this.factor;
+        // prettier-ignore
+        return new THREE$1.Matrix4().fromArray([
+            f, 0, 0, 0,
+            0, f, 0, 0,
+            0, 0, f, 0,
+            0, 0, 0, 1,
+        ]);
+    }
+}
+
+class SpatialStructure {
+    constructor() {
+        this.itemsByFloor = {};
+        this._units = new Units();
+    }
+    // TODO: Maybe make this more flexible so that it also support more exotic spatial structures?
+    async setUp(webIfc) {
+        this._units.setUp(webIfc);
+        this.cleanUp();
+        try {
+            const spatialRels = webIfc.GetLineIDsWithType(0, IFCRELCONTAINEDINSPATIALSTRUCTURE);
+            const allRooms = new Set();
+            const rooms = webIfc.GetLineIDsWithType(0, IFCSPACE);
+            for (let i = 0; i < rooms.size(); i++) {
+                allRooms.add(rooms.get(i));
+            }
+            // First add rooms (if any) to floors
+            const aggregates = webIfc.GetLineIDsWithType(0, IFCRELAGGREGATES);
+            const aggregatesSize = aggregates.size();
+            for (let i = 0; i < aggregatesSize; i++) {
+                const id = aggregates.get(i);
+                const properties = webIfc.GetLine(0, id);
+                if (!properties ||
+                    !properties.RelatingObject ||
+                    !properties.RelatedObjects) {
+                    continue;
+                }
+                const parentID = properties.RelatingObject.value;
+                const childsIDs = properties.RelatedObjects;
+                for (const child of childsIDs) {
+                    const childID = child.value;
+                    if (allRooms.has(childID)) {
+                        this.itemsByFloor[childID] = parentID;
+                    }
+                }
+            }
+            // Now add items contained in floors and rooms
+            // If items contained in room, look for the floor where that room is and assign it to it
+            const itemsContainedInRooms = {};
+            const spatialRelsSize = spatialRels.size();
+            for (let i = 0; i < spatialRelsSize; i++) {
+                const id = spatialRels.get(i);
+                const properties = webIfc.GetLine(0, id);
+                if (!properties ||
+                    !properties.RelatingStructure ||
+                    !properties.RelatedElements) {
+                    continue;
+                }
+                const structureID = properties.RelatingStructure.value;
+                const relatedItems = properties.RelatedElements;
+                if (allRooms.has(structureID)) {
+                    for (const related of relatedItems) {
+                        if (!itemsContainedInRooms[structureID]) {
+                            itemsContainedInRooms[structureID] = [];
+                        }
+                        const id = related.value;
+                        itemsContainedInRooms[structureID].push(id);
+                    }
+                }
+                else {
+                    for (const related of relatedItems) {
+                        const id = related.value;
+                        this.itemsByFloor[id] = structureID;
+                    }
+                }
+            }
+            for (const roomID in itemsContainedInRooms) {
+                const roomFloor = this.itemsByFloor[roomID];
+                if (roomFloor !== undefined) {
+                    const items = itemsContainedInRooms[roomID];
+                    for (const item of items) {
+                        this.itemsByFloor[item] = roomFloor;
+                    }
+                }
+            }
+            // Finally, add nested items (e.g. elements of curtain walls)
+            for (let i = 0; i < aggregatesSize; i++) {
+                const id = aggregates.get(i);
+                const properties = webIfc.GetLine(0, id);
+                if (!properties ||
+                    !properties.RelatingObject ||
+                    !properties.RelatedObjects) {
+                    continue;
+                }
+                const parentID = properties.RelatingObject.value;
+                const childsIDs = properties.RelatedObjects;
+                for (const child of childsIDs) {
+                    const childID = child.value;
+                    const parentStructure = this.itemsByFloor[parentID];
+                    if (parentStructure !== undefined) {
+                        this.itemsByFloor[childID] = parentStructure;
+                    }
+                }
+            }
+        }
+        catch (e) {
+            console.log("Could not get floors.");
+        }
+    }
+    cleanUp() {
+        this.itemsByFloor = {};
+    }
+}
+
+/** Configuration of the IFC-fragment conversion. */
+class IfcFragmentSettings {
+    constructor() {
+        /** Whether to extract the IFC properties into a JSON. */
+        this.includeProperties = true;
+        /**
+         * Generate the geometry for categories that are not included by default,
+         * like IFCSPACE.
+         */
+        this.optionalCategories = [IFCSPACE];
+        /** Whether to use the coordination data coming from the IFC files. */
+        this.coordinate = true;
+        /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
+        this.wasm = {
+            path: "",
+            absolute: false,
+        };
+        /** List of categories that won't be converted to fragments. */
+        this.excludedCategories = new Set();
+        /** Whether to save the absolute location of all IFC items. */
+        this.saveLocations = false;
+        /** Loader settings for [web-ifc](https://github.com/ifcjs/web-ifc). */
+        this.webIfc = {
+            COORDINATE_TO_ORIGIN: true,
+            USE_FAST_BOOLS: true,
+            OPTIMIZE_PROFILES: true,
+        };
+    }
+}
+
+/**
+ * A simple implementation of bounding box that works for fragments. The resulting bbox is not 100% precise, but
+ * it's fast, and should suffice for general use cases such as camera zooming or general boundary determination.
+ */
+class FragmentBoundingBox extends Component {
+    constructor(components) {
+        super(components);
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this._meshes = [];
+        this.components.tools.add(FragmentBoundingBox.uuid, this);
+        this._absoluteMin = FragmentBoundingBox.newBound(true);
+        this._absoluteMax = FragmentBoundingBox.newBound(false);
+    }
+    static getDimensions(bbox) {
+        const { min, max } = bbox;
+        const width = Math.abs(max.x - min.x);
+        const height = Math.abs(max.y - min.y);
+        const depth = Math.abs(max.z - min.z);
+        const center = new THREE$1.Vector3();
+        center.subVectors(max, min).divideScalar(2).add(min);
+        return { width, height, depth, center };
+    }
+    static newBound(positive) {
+        const factor = positive ? 1 : -1;
+        return new THREE$1.Vector3(factor * Number.MAX_VALUE, factor * Number.MAX_VALUE, factor * Number.MAX_VALUE);
+    }
+    static getBounds(points, min, max) {
+        const maxPoint = max || this.newBound(false);
+        const minPoint = min || this.newBound(true);
+        for (const point of points) {
+            if (point.x < minPoint.x)
+                minPoint.x = point.x;
+            if (point.y < minPoint.y)
+                minPoint.y = point.y;
+            if (point.z < minPoint.z)
+                minPoint.z = point.z;
+            if (point.x > maxPoint.x)
+                maxPoint.x = point.x;
+            if (point.y > maxPoint.y)
+                maxPoint.y = point.y;
+            if (point.z > maxPoint.z)
+                maxPoint.z = point.z;
+        }
+        return new THREE$1.Box3(min, max);
+    }
+    /** {@link Disposable.dispose} */
+    async dispose() {
+        const disposer = this.components.tools.get(Disposer);
+        for (const mesh of this._meshes) {
+            disposer.destroy(mesh);
+        }
+        this._meshes = [];
+        await this.onDisposed.trigger(FragmentBoundingBox.uuid);
+        this.onDisposed.reset();
+    }
+    get() {
+        const min = this._absoluteMin.clone();
+        const max = this._absoluteMax.clone();
+        return new THREE$1.Box3(min, max);
+    }
+    getSphere() {
+        const min = this._absoluteMin.clone();
+        const max = this._absoluteMax.clone();
+        const dx = Math.abs((max.x - min.x) / 2);
+        const dy = Math.abs((max.y - min.y) / 2);
+        const dz = Math.abs((max.z - min.z) / 2);
+        const center = new THREE$1.Vector3(min.x + dx, min.y + dy, min.z + dz);
+        const radius = center.distanceTo(min);
+        return new THREE$1.Sphere(center, radius);
+    }
+    getMesh() {
+        const bbox = new THREE$1.Box3(this._absoluteMin, this._absoluteMax);
+        const dimensions = FragmentBoundingBox.getDimensions(bbox);
+        const { width, height, depth, center } = dimensions;
+        const box = new THREE$1.BoxGeometry(width, height, depth);
+        const mesh = new THREE$1.Mesh(box);
+        this._meshes.push(mesh);
+        mesh.position.copy(center);
+        return mesh;
+    }
+    reset() {
+        this._absoluteMin = FragmentBoundingBox.newBound(true);
+        this._absoluteMax = FragmentBoundingBox.newBound(false);
+    }
+    add(group) {
+        for (const frag of group.items) {
+            this.addMesh(frag.mesh);
+        }
+    }
+    addMesh(mesh) {
+        if (!mesh.geometry.index) {
+            return;
+        }
+        const bbox = FragmentBoundingBox.getFragmentBounds(mesh);
+        mesh.updateMatrix();
+        const meshTransform = mesh.matrix;
+        const instanceTransform = new THREE$1.Matrix4();
+        for (let i = 0; i < mesh.count; i++) {
+            mesh.getMatrixAt(i, instanceTransform);
+            const min = bbox.min.clone();
+            const max = bbox.max.clone();
+            min.applyMatrix4(instanceTransform);
+            min.applyMatrix4(meshTransform);
+            max.applyMatrix4(instanceTransform);
+            max.applyMatrix4(meshTransform);
+            if (min.x < this._absoluteMin.x)
+                this._absoluteMin.x = min.x;
+            if (min.y < this._absoluteMin.y)
+                this._absoluteMin.y = min.y;
+            if (min.z < this._absoluteMin.z)
+                this._absoluteMin.z = min.z;
+            if (min.x > this._absoluteMax.x)
+                this._absoluteMax.x = min.x;
+            if (min.y > this._absoluteMax.y)
+                this._absoluteMax.y = min.y;
+            if (min.z > this._absoluteMax.z)
+                this._absoluteMax.z = min.z;
+            if (max.x > this._absoluteMax.x)
+                this._absoluteMax.x = max.x;
+            if (max.y > this._absoluteMax.y)
+                this._absoluteMax.y = max.y;
+            if (max.z > this._absoluteMax.z)
+                this._absoluteMax.z = max.z;
+            if (max.x < this._absoluteMin.x)
+                this._absoluteMin.x = max.x;
+            if (max.y < this._absoluteMin.y)
+                this._absoluteMin.y = max.y;
+            if (max.z < this._absoluteMin.z)
+                this._absoluteMin.z = max.z;
+        }
+    }
+    static getFragmentBounds(mesh) {
+        const position = mesh.geometry.attributes.position;
+        const maxNum = Number.MAX_VALUE;
+        const minNum = -maxNum;
+        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
+        const max = new THREE$1.Vector3(minNum, minNum, minNum);
+        if (!mesh.geometry.index) {
+            throw new Error("Geometry must be indexed!");
+        }
+        const indices = Array.from(mesh.geometry.index.array);
+        for (const index of indices) {
+            const x = position.getX(index);
+            const y = position.getY(index);
+            const z = position.getZ(index);
+            if (x < min.x)
+                min.x = x;
+            if (y < min.y)
+                min.y = y;
+            if (z < min.z)
+                min.z = z;
+            if (x > max.x)
+                max.x = x;
+            if (y > max.y)
+                max.y = y;
+            if (z > max.z)
+                max.z = z;
+        }
+        return new THREE$1.Box3(min, max);
+    }
+}
+FragmentBoundingBox.uuid = "d1444724-dba6-4cdd-a0c7-68ee1450d166";
+ToolComponent.libraryUUIDs.add(FragmentBoundingBox.uuid);
+
+class DataConverter {
+    constructor(components) {
+        this.settings = new IfcFragmentSettings();
+        this.categories = {};
+        this._model = new FragmentsGroup();
+        this._ifcCategories = new IfcCategories();
+        this._fragmentKey = 0;
+        this._keyFragmentMap = {};
+        this._itemKeyMap = {};
+        this._propertyExporter = new IfcJsonExporter();
+        this._spatialTree = new SpatialStructure();
+        this.components = components;
+    }
+    cleanUp() {
+        this._fragmentKey = 0;
+        this._spatialTree.cleanUp();
+        this.categories = {};
+        this._model = new FragmentsGroup();
+        this._ifcCategories = new IfcCategories();
+        this._propertyExporter = new IfcJsonExporter();
+        this._keyFragmentMap = {};
+        this._itemKeyMap = {};
+    }
+    saveIfcCategories(webIfc) {
+        this.categories = this._ifcCategories.getAll(webIfc, 0);
+    }
+    async generate(webIfc, geometries, civilItems) {
+        await this._spatialTree.setUp(webIfc);
+        this.createAllFragments(geometries, civilItems);
+        await this.saveModelData(webIfc);
+        return this._model;
+    }
+    async saveModelData(webIfc) {
+        const itemsData = this.getFragmentsGroupData();
+        this._model.keyFragments = this._keyFragmentMap;
+        this._model.data = itemsData;
+        this._model.coordinationMatrix = this.getCoordinationMatrix(webIfc);
+        this._model.properties = await this.getModelProperties(webIfc);
+        this._model.uuid = this.getProjectID(webIfc) || this._model.uuid;
+        this._model.ifcMetadata = this.getIfcMetadata(webIfc);
+        this._model.boundingBox = await this.getBoundingBox();
+    }
+    async getBoundingBox() {
+        const bbox = await this.components.tools.get(FragmentBoundingBox);
+        bbox.reset();
+        bbox.add(this._model);
+        return bbox.get();
+    }
+    getIfcMetadata(webIfc) {
+        const { FILE_NAME, FILE_DESCRIPTION } = WEBIFC;
+        const name = this.getMetadataEntry(webIfc, FILE_NAME);
+        const description = this.getMetadataEntry(webIfc, FILE_DESCRIPTION);
+        const schema = webIfc.GetModelSchema(0) || "IFC2X3";
+        const maxExpressID = webIfc.GetMaxExpressID(0);
+        return { name, description, schema, maxExpressID };
+    }
+    getMetadataEntry(webIfc, type) {
+        let description = "";
+        const descriptionData = webIfc.GetHeaderLine(0, type) || "";
+        if (!descriptionData)
+            return description;
+        for (const arg of descriptionData.arguments) {
+            if (arg === null || arg === undefined) {
+                continue;
+            }
+            if (Array.isArray(arg)) {
+                for (const subArg of arg) {
+                    description += `${subArg.value}|`;
+                }
+            }
+            else {
+                description += `${arg.value}|`;
+            }
+        }
+        return description;
+    }
+    getProjectID(webIfc) {
+        const projectsIDs = webIfc.GetLineIDsWithType(0, IFCPROJECT);
+        const projectID = projectsIDs.get(0);
+        const project = webIfc.GetLine(0, projectID);
+        return project.GlobalId.value;
+    }
+    getCoordinationMatrix(webIfc) {
+        const coordArray = webIfc.GetCoordinationMatrix(0);
+        return new THREE$1.Matrix4().fromArray(coordArray);
+    }
+    async getModelProperties(webIfc) {
+        if (!this.settings.includeProperties) {
+            return {};
+        }
+        return new Promise((resolve) => {
+            this._propertyExporter.onPropertiesSerialized.add((properties) => {
+                resolve(properties);
+            });
+            this._propertyExporter.export(webIfc, 0);
+        });
+    }
+    createAllFragments(geometries, civilItems) {
+        const uniqueItems = {};
+        const matrix = new THREE$1.Matrix4();
+        const color = new THREE$1.Color();
+        console.log(civilItems);
+        // Add alignments data
+        if (civilItems.IfcAlignment) {
+            const horizontalAlignments = new IfcAlignmentData();
+            const verticalAlignments = new IfcAlignmentData();
+            const realAlignments = new IfcAlignmentData();
+            let countH = 0;
+            let countV = 0;
+            let countR = 0;
+            const valuesH = [];
+            const valuesV = [];
+            const valuesR = [];
+            for (const alignment of civilItems.IfcAlignment) {
+                horizontalAlignments.alignmentIndex.push(countH);
+                verticalAlignments.alignmentIndex.push(countV);
+                if (alignment.horizontal) {
+                    for (const hAlignment of alignment.horizontal) {
+                        horizontalAlignments.curveIndex.push(countH);
+                        for (const point of hAlignment.points) {
+                            valuesH.push(point.x);
+                            valuesH.push(point.y);
+                            countH++;
+                        }
+                    }
+                }
+                if (alignment.vertical) {
+                    for (const vAlignment of alignment.vertical) {
+                        verticalAlignments.curveIndex.push(countV);
+                        for (const point of vAlignment.points) {
+                            valuesV.push(point.x);
+                            valuesV.push(point.y);
+                            countV++;
+                        }
+                    }
+                }
+                if (alignment.curve3D) {
+                    for (const rAlignment of alignment.curve3D) {
+                        realAlignments.curveIndex.push(countR);
+                        for (const point of rAlignment.points) {
+                            valuesR.push(point.x);
+                            valuesR.push(point.y);
+                            valuesR.push(point.z);
+                            countR++;
+                        }
+                    }
+                }
+            }
+            horizontalAlignments.coordinates = new Float32Array(valuesH);
+            verticalAlignments.coordinates = new Float32Array(valuesV);
+            realAlignments.coordinates = new Float32Array(valuesR);
+            this._model.ifcCivil = {
+                horizontalAlignments,
+                verticalAlignments,
+                realAlignments,
+            };
+        }
+        for (const id in geometries) {
+            const { buffer, instances } = geometries[id];
+            const transparent = instances[0].color.w !== 1;
+            const opacity = transparent ? 0.4 : 1;
+            const material = new THREE$1.MeshLambertMaterial({ transparent, opacity });
+            // This prevents z-fighting for ifc spaces
+            if (opacity !== 1) {
+                material.depthWrite = false;
+                material.polygonOffset = true;
+                material.polygonOffsetFactor = 5;
+                material.polygonOffsetUnits = 1;
+            }
+            if (instances.length === 1) {
+                const instance = instances[0];
+                const { x, y, z, w } = instance.color;
+                const matID = `${x}-${y}-${z}-${w}`;
+                if (!uniqueItems[matID]) {
+                    material.color = new THREE$1.Color().setRGB(x, y, z, "srgb");
+                    uniqueItems[matID] = { material, geometries: [], expressIDs: [] };
+                }
+                matrix.fromArray(instance.matrix);
+                buffer.applyMatrix4(matrix);
+                uniqueItems[matID].geometries.push(buffer);
+                uniqueItems[matID].expressIDs.push(instance.expressID.toString());
+                continue;
+            }
+            const fragment = new Fragment$1(buffer, material, instances.length);
+            this._keyFragmentMap[this._fragmentKey] = fragment.id;
+            const previousIDs = new Set();
+            for (let i = 0; i < instances.length; i++) {
+                const instance = instances[i];
+                matrix.fromArray(instance.matrix);
+                const { expressID } = instance;
+                let instanceID = expressID.toString();
+                let isComposite = false;
+                if (!previousIDs.has(expressID)) {
+                    previousIDs.add(expressID);
+                }
+                else {
+                    if (!fragment.composites[expressID]) {
+                        fragment.composites[expressID] = 1;
+                    }
+                    const count = fragment.composites[expressID];
+                    instanceID = toCompositeID(expressID, count);
+                    isComposite = true;
+                    fragment.composites[expressID]++;
+                }
+                fragment.setInstance(i, {
+                    ids: [instanceID],
+                    transform: matrix,
+                });
+                const { x, y, z } = instance.color;
+                color.setRGB(x, y, z, "srgb");
+                fragment.mesh.setColorAt(i, color);
+                if (!isComposite) {
+                    this.saveExpressID(expressID.toString());
+                }
+            }
+            fragment.mesh.updateMatrix();
+            this._model.items.push(fragment);
+            this._model.add(fragment.mesh);
+            this._fragmentKey++;
+        }
+        const transform = new THREE$1.Matrix4();
+        for (const matID in uniqueItems) {
+            const { material, geometries, expressIDs } = uniqueItems[matID];
+            const geometriesByItem = {};
+            for (let i = 0; i < expressIDs.length; i++) {
+                const id = expressIDs[i];
+                if (!geometriesByItem[id]) {
+                    geometriesByItem[id] = [];
+                }
+                geometriesByItem[id].push(geometries[i]);
+            }
+            const sortedGeometries = [];
+            const sortedIDs = [];
+            for (const id in geometriesByItem) {
+                sortedIDs.push(id);
+                const geometries = geometriesByItem[id];
+                if (geometries.length) {
+                    const merged = mergeGeometries(geometries);
+                    sortedGeometries.push(merged);
+                }
+                else {
+                    sortedGeometries.push(geometries[0]);
+                }
+                for (const geometry of geometries) {
+                    geometry.dispose();
+                }
+            }
+            const geometry = GeometryUtils.merge([sortedGeometries], true);
+            const fragment = new Fragment$1(geometry, material, 1);
+            this._keyFragmentMap[this._fragmentKey] = fragment.id;
+            for (const id of sortedIDs) {
+                this.saveExpressID(id);
+            }
+            this._fragmentKey++;
+            fragment.setInstance(0, { ids: sortedIDs, transform });
+            this._model.items.push(fragment);
+            this._model.add(fragment.mesh);
+        }
+    }
+    saveExpressID(expressID) {
+        if (!this._itemKeyMap[expressID]) {
+            this._itemKeyMap[expressID] = [];
+        }
+        this._itemKeyMap[expressID].push(this._fragmentKey);
+    }
+    getFragmentsGroupData() {
+        const itemsData = {};
+        for (const id in this._itemKeyMap) {
+            const keys = [];
+            const rels = [];
+            const idNum = parseInt(id, 10);
+            const level = this._spatialTree.itemsByFloor[idNum] || 0;
+            const category = this.categories[idNum] || 0;
+            rels.push(level, category);
+            for (const key of this._itemKeyMap[id]) {
+                keys.push(key);
+            }
+            itemsData[idNum] = [keys, rels];
+        }
+        return itemsData;
+    }
+}
+
+class GeometryReader {
+    constructor() {
+        this.saveLocations = false;
+        this.items = {};
+        this.locations = {};
+        this.CivilItems = {
+            IfcAlignment: [],
+            IfcCrossSection2D: [],
+            IfcCrossSection3D: [],
+        };
+    }
+    get webIfc() {
+        if (!this._webIfc) {
+            throw new Error("web-ifc not found!");
+        }
+        return this._webIfc;
+    }
+    cleanUp() {
+        this.items = {};
+        this.locations = {};
+        this._webIfc = null;
+    }
+    streamMesh(webifc, mesh, forceTransparent = false) {
+        this._webIfc = webifc;
+        const size = mesh.geometries.size();
+        const totalTransform = new THREE$1.Vector3();
+        const tempMatrix = new THREE$1.Matrix4();
+        const tempVector = new THREE$1.Vector3();
+        for (let i = 0; i < size; i++) {
+            const geometry = mesh.geometries.get(i);
+            const geometryID = geometry.geometryExpressID;
+            if (this.saveLocations) {
+                tempVector.set(0, 0, 0);
+                tempMatrix.fromArray(geometry.flatTransformation);
+                tempVector.applyMatrix4(tempMatrix);
+                totalTransform.add(tempVector);
+            }
+            // Transparent geometries need to be separated
+            const isColorTransparent = geometry.color.w !== 1;
+            const isTransparent = isColorTransparent || forceTransparent;
+            const prefix = isTransparent ? "-" : "+";
+            const idWithTransparency = prefix + geometryID;
+            if (forceTransparent)
+                geometry.color.w = 0.1;
+            if (!this.items[idWithTransparency]) {
+                const buffer = this.newBufferGeometry(geometryID);
+                if (!buffer)
+                    continue;
+                this.items[idWithTransparency] = { buffer, instances: [] };
+            }
+            this.items[idWithTransparency].instances.push({
+                color: { ...geometry.color },
+                matrix: geometry.flatTransformation,
+                expressID: mesh.expressID,
+            });
+        }
+        if (this.saveLocations) {
+            const { x, y, z } = totalTransform.divideScalar(size);
+            this.locations[mesh.expressID] = [x, y, z];
+        }
+    }
+    streamAlignment(webifc) {
+        this.CivilItems.IfcAlignment = webifc.GetAllAlignments(0);
+    }
+    streamCrossSection(webifc) {
+        this.CivilItems.IfcCrossSection2D = webifc.GetAllCrossSections2D(0);
+        this.CivilItems.IfcCrossSection3D = webifc.GetAllCrossSections3D(0);
+    }
+    newBufferGeometry(geometryID) {
+        const geometry = this.webIfc.GetGeometry(0, geometryID);
+        const verts = this.getVertices(geometry);
+        if (!verts.length)
+            return null;
+        const indices = this.getIndices(geometry);
+        if (!indices.length)
+            return null;
+        const buffer = this.constructBuffer(verts, indices);
+        // @ts-ignore
+        geometry.delete();
+        return buffer;
+    }
+    getIndices(geometryData) {
+        const indices = this.webIfc.GetIndexArray(geometryData.GetIndexData(), geometryData.GetIndexDataSize());
+        return indices;
+    }
+    getVertices(geometryData) {
+        const verts = this.webIfc.GetVertexArray(geometryData.GetVertexData(), geometryData.GetVertexDataSize());
+        return verts;
+    }
+    constructBuffer(vertexData, indexData) {
+        const geometry = new THREE$1.BufferGeometry();
+        const posFloats = new Float32Array(vertexData.length / 2);
+        const normFloats = new Float32Array(vertexData.length / 2);
+        for (let i = 0; i < vertexData.length; i += 6) {
+            posFloats[i / 2] = vertexData[i];
+            posFloats[i / 2 + 1] = vertexData[i + 1];
+            posFloats[i / 2 + 2] = vertexData[i + 2];
+            normFloats[i / 2] = vertexData[i + 3];
+            normFloats[i / 2 + 1] = vertexData[i + 4];
+            normFloats[i / 2 + 2] = vertexData[i + 5];
+        }
+        geometry.setAttribute("position", new THREE$1.BufferAttribute(posFloats, 3));
+        geometry.setAttribute("normal", new THREE$1.BufferAttribute(normFloats, 3));
+        geometry.setIndex(new THREE$1.BufferAttribute(indexData, 1));
+        return geometry;
+    }
+}
+
+/**
+ * Reads all the geometry of the IFC file and generates a set of
+ * [fragments](https://github.com/ifcjs/fragment). It can also return the
+ * properties as a JSON file, as well as other sets of information within
+ * the IFC file.
+ */
+class FragmentIfcLoader extends Component {
+    constructor(components) {
+        super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this.enabled = true;
+        this.uiElement = new UIElement();
+        this.onIfcLoaded = new Event();
+        // For debugging purposes
+        // isolatedItems = new Set<number>();
+        this.onLocationsSaved = new Event();
+        this._webIfc = new IfcAPI2();
+        this._geometry = new GeometryReader();
+        this._converter = new DataConverter(components);
+        this.components.tools.add(FragmentIfcLoader.uuid, this);
+        if (components.uiEnabled) {
+            this.setupUI();
+        }
+    }
+    get() {
+        return this._webIfc;
+    }
+    get settings() {
+        return this._converter.settings;
+    }
+    /** {@link Disposable.dispose} */
+    async dispose() {
+        this._geometry.cleanUp();
+        this._converter.cleanUp();
+        this.onIfcLoaded.reset();
+        this.onLocationsSaved.reset();
+        this.uiElement.dispose();
+        this._webIfc = null;
+        this._geometry = null;
+        this._converter = null;
+        await this.onDisposed.trigger(FragmentIfcLoader.uuid);
+        this.onDisposed.reset();
+    }
+    /** Loads the IFC file and converts it to a set of fragments. */
+    async load(data, name) {
+        if (this.settings.saveLocations) {
+            this._geometry.saveLocations = true;
+        }
+        const before = performance.now();
+        await this.readIfcFile(data);
+        await this.readAllGeometries();
+        await this._geometry.streamAlignment(this._webIfc);
+        await this._geometry.streamCrossSection(this._webIfc);
+        const items = this._geometry.items;
+        const civItems = this._geometry.CivilItems;
+        const model = await this._converter.generate(this._webIfc, items, civItems);
+        model.name = name;
+        if (this.settings.saveLocations) {
+            await this.onLocationsSaved.trigger(this._geometry.locations);
+        }
+        const fragments = this.components.tools.get(FragmentManager);
+        if (this.settings.coordinate) {
+            const isFirstModel = fragments.groups.length === 0;
+            if (isFirstModel) {
+                fragments.baseCoordinationModel = model.uuid;
+            }
+            else {
+                fragments.coordinate([model]);
+            }
+        }
+        this.cleanUp();
+        fragments.groups.push(model);
+        for (const fragment of model.items) {
+            fragment.group = model;
+            fragments.list[fragment.id] = fragment;
+            this.components.meshes.push(fragment.mesh);
+        }
+        await this.onIfcLoaded.trigger(model);
+        console.log(`Loading the IFC took ${performance.now() - before} ms!`);
+        return model;
+    }
+    setupUI() {
+        const main = new Button(this.components);
+        main.materialIcon = "upload_file";
+        main.tooltip = "Load IFC";
+        const toast = new ToastNotification(this.components, {
+            message: "IFC model successfully loaded!",
+        });
+        main.onClick.add(() => {
+            const fileOpener = document.createElement("input");
+            fileOpener.type = "file";
+            fileOpener.accept = ".ifc";
+            fileOpener.style.display = "none";
+            fileOpener.onchange = async () => {
+                const fragments = this.components.tools.get(FragmentManager);
+                if (fileOpener.files === null || fileOpener.files.length === 0)
+                    return;
+                const file = fileOpener.files[0];
+                const buffer = await file.arrayBuffer();
+                const data = new Uint8Array(buffer);
+                const model = await this.load(data, file.name);
+                const scene = this.components.scene.get();
+                scene.add(model);
+                toast.visible = true;
+                await fragments.updateWindow();
+                fileOpener.remove();
+            };
+            fileOpener.click();
+        });
+        this.components.ui.add(toast);
+        toast.visible = false;
+        this.uiElement.set({ main, toast });
+    }
+    async readIfcFile(data) {
+        const { path, absolute } = this.settings.wasm;
+        this._webIfc.SetWasmPath(path, absolute);
+        await this._webIfc.Init();
+        return this._webIfc.OpenModel(data, this.settings.webIfc);
+    }
+    async readAllGeometries() {
+        this._converter.saveIfcCategories(this._webIfc);
+        // Some categories (like IfcSpace) need to be created explicitly
+        const optionals = this.settings.optionalCategories;
+        // Force IFC space to be transparent
+        if (optionals.includes(IFCSPACE)) {
+            const index = optionals.indexOf(IFCSPACE);
+            optionals.splice(index, 1);
+            this._webIfc.StreamAllMeshesWithTypes(0, [IFCSPACE], (mesh) => {
+                if (this.isExcluded(mesh.expressID)) {
+                    return;
+                }
+                this._geometry.streamMesh(this._webIfc, mesh, true);
+            });
+        }
+        // Load rest of optional categories (if any)
+        if (optionals.length) {
+            this._webIfc.StreamAllMeshesWithTypes(0, optionals, (mesh) => {
+                if (this.isExcluded(mesh.expressID)) {
+                    return;
+                }
+                this._geometry.streamMesh(this._webIfc, mesh);
+            });
+        }
+        // Load common categories
+        this._webIfc.StreamAllMeshes(0, (mesh) => {
+            if (this.isExcluded(mesh.expressID)) {
+                return;
+            }
+            this._geometry.streamMesh(this._webIfc, mesh);
+        });
+        // Load civil items
+        this._geometry.streamAlignment(this._webIfc);
+        this._geometry.streamCrossSection(this._webIfc);
+    }
+    cleanIfcApi() {
+        this._webIfc = null;
+        this._webIfc = new IfcAPI2();
+    }
+    cleanUp() {
+        this.cleanIfcApi();
+        this._geometry.cleanUp();
+        this._converter.cleanUp();
+    }
+    isExcluded(id) {
+        const category = this._converter.categories[id];
+        return this.settings.excludedCategories.has(category);
+    }
+}
+FragmentIfcLoader.uuid = "a659add7-1418-4771-a0d6-7d4d438e4624";
+ToolComponent.libraryUUIDs.add(FragmentIfcLoader.uuid);
+
+class FragmentHighlighter extends Component {
+    get outlineEnabled() {
+        return this._outlineEnabled;
+    }
+    set outlineEnabled(value) {
+        this._outlineEnabled = value;
+        if (!value) {
+            delete this._postproduction.customEffects.outlinedMeshes.fragments;
+        }
+    }
+    get _postproduction() {
+        if (!(this.components.renderer instanceof PostproductionRenderer)) {
+            throw new Error("Postproduction renderer is needed for outlines!");
+        }
+        const renderer = this.components.renderer;
+        return renderer.postproduction;
+    }
+    constructor(components) {
+        super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        /** {@link Updateable.onBeforeUpdate} */
+        this.onBeforeUpdate = new Event();
+        /** {@link Updateable.onAfterUpdate} */
+        this.onAfterUpdate = new Event();
+        this.enabled = true;
+        this.highlightMats = {};
+        this.events = {};
+        this.multiple = "ctrlKey";
+        this.zoomFactor = 1.5;
+        this.zoomToSelection = false;
+        this.selection = {};
+        this.excludeOutline = new Set();
+        this.fillEnabled = true;
+        this.outlineMaterial = new THREE$1.MeshBasicMaterial({
+            color: "white",
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            opacity: 0.4,
+        });
+        this._eventsActive = false;
+        this._outlineEnabled = true;
+        this._outlinedMeshes = {};
+        this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
+        this._tempMatrix = new THREE$1.Matrix4();
+        this.config = {
+            selectName: "select",
+            hoverName: "hover",
+            selectionMaterial: new THREE$1.MeshBasicMaterial({
+                color: "#BCF124",
+                transparent: true,
+                opacity: 0.85,
+                depthTest: true,
+            }),
+            hoverMaterial: new THREE$1.MeshBasicMaterial({
+                color: "#6528D7",
+                transparent: true,
+                opacity: 0.2,
+                depthTest: true,
+            }),
+            autoHighlightOnClick: true,
+        };
+        this._mouseState = {
+            down: false,
+            moved: false,
+        };
+        this.onFragmentsDisposed = (data) => {
+            this.disposeOutlinedMeshes(data.fragmentIDs);
+        };
+        this.onSetup = new Event();
+        this.onMouseDown = () => {
+            if (!this.enabled)
+                return;
+            this._mouseState.down = true;
+        };
+        this.onMouseUp = async (event) => {
+            if (!this.enabled)
+                return;
+            if (event.target !== this.components.renderer.get().domElement)
+                return;
+            this._mouseState.down = false;
+            if (this._mouseState.moved || event.button !== 0) {
+                this._mouseState.moved = false;
+                return;
+            }
+            this._mouseState.moved = false;
+            if (this.config.autoHighlightOnClick) {
+                const mult = this.multiple === "none" ? true : !event[this.multiple];
+                await this.highlight(this.config.selectName, mult, this.zoomToSelection);
+            }
+        };
+        this.onMouseMove = async () => {
+            if (!this.enabled)
+                return;
+            if (this._mouseState.moved) {
+                await this.clearFills(this.config.hoverName);
+                return;
+            }
+            this._mouseState.moved = this._mouseState.down;
+            await this.highlight(this.config.hoverName, true, false);
+        };
+        this.components.tools.add(FragmentHighlighter.uuid, this);
+        const fragmentManager = components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.add(this.onFragmentsDisposed);
+    }
+    get() {
+        return this.highlightMats;
+    }
+    getHoveredSelection() {
+        return this.selection[this.config.hoverName];
+    }
+    disposeOutlinedMeshes(fragmentIDs) {
+        for (const id of fragmentIDs) {
+            const mesh = this._outlinedMeshes[id];
+            if (!mesh)
+                continue;
+            mesh.geometry.dispose();
+            delete this._outlinedMeshes[id];
+        }
+    }
+    async dispose() {
+        this.setupEvents(false);
+        this.config.hoverMaterial.dispose();
+        this.config.selectionMaterial.dispose();
+        this.onBeforeUpdate.reset();
+        this.onAfterUpdate.reset();
+        for (const matID in this.highlightMats) {
+            const mats = this.highlightMats[matID] || [];
+            for (const mat of mats) {
+                mat.dispose();
+            }
+        }
+        this.disposeOutlinedMeshes(Object.keys(this._outlinedMeshes));
+        this.outlineMaterial.dispose();
+        this._invisibleMaterial.dispose();
+        this.highlightMats = {};
+        this.selection = {};
+        for (const name in this.events) {
+            this.events[name].onClear.reset();
+            this.events[name].onHighlight.reset();
+        }
+        this.onSetup.reset();
+        const fragmentManager = this.components.tools.get(FragmentManager);
+        fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
+        this.events = {};
+        await this.onDisposed.trigger(FragmentHighlighter.uuid);
+        this.onDisposed.reset();
+    }
+    async add(name, material) {
+        if (this.highlightMats[name]) {
+            throw new Error("A highlight with this name already exists.");
+        }
+        this.highlightMats[name] = material;
+        this.selection[name] = {};
+        this.events[name] = {
+            onHighlight: new Event(),
+            onClear: new Event(),
+        };
+        await this.update();
+    }
+    /** {@link Updateable.update} */
+    async update() {
+        if (!this.fillEnabled) {
+            return;
+        }
+        this.onBeforeUpdate.trigger(this);
+        const fragments = this.components.tools.get(FragmentManager);
+        for (const fragmentID in fragments.list) {
+            const fragment = fragments.list[fragmentID];
+            this.addHighlightToFragment(fragment);
+            const outlinedMesh = this._outlinedMeshes[fragmentID];
+            if (outlinedMesh) {
+                fragment.mesh.updateMatrixWorld(true);
+                outlinedMesh.applyMatrix4(fragment.mesh.matrixWorld);
+            }
+        }
+        this.onAfterUpdate.trigger(this);
+    }
+    async highlight(name, removePrevious = true, zoomToSelection = this.zoomToSelection) {
+        var _a;
+        if (!this.enabled)
+            return null;
+        this.checkSelection(name);
+        const fragments = this.components.tools.get(FragmentManager);
+        const fragList = [];
+        const meshes = fragments.meshes;
+        const result = this.components.raycaster.castRay(meshes);
+        if (!result) {
+            await this.clear(name);
+            return null;
+        }
+        const mesh = result.object;
+        const geometry = mesh.geometry;
+        const index = (_a = result.face) === null || _a === void 0 ? void 0 : _a.a;
+        const instanceID = result.instanceId;
+        if (!geometry || index === undefined || instanceID === undefined) {
+            return null;
+        }
+        if (removePrevious) {
+            await this.clear(name);
+        }
+        if (!this.selection[name][mesh.uuid]) {
+            this.selection[name][mesh.uuid] = new Set();
+        }
+        fragList.push(mesh.fragment);
+        const blockID = mesh.fragment.getVertexBlockID(geometry, index);
+        const itemID = mesh.fragment
+            .getItemID(instanceID, blockID)
+            .replace(/\..*/, "");
+        const idNum = parseInt(itemID, 10);
+        this.selection[name][mesh.uuid].add(itemID);
+        this.addComposites(mesh, idNum, name);
+        await this.regenerate(name, mesh.uuid);
+        const group = mesh.fragment.group;
+        if (group) {
+            const keys = group.data[idNum][0];
+            for (let i = 0; i < keys.length; i++) {
+                const fragKey = keys[i];
+                const fragID = group.keyFragments[fragKey];
+                const fragment = fragments.list[fragID];
+                fragList.push(fragment);
+                if (!this.selection[name][fragID]) {
+                    this.selection[name][fragID] = new Set();
+                }
+                this.selection[name][fragID].add(itemID);
+                this.addComposites(fragment.mesh, idNum, name);
+                await this.regenerate(name, fragID);
+            }
+        }
+        await this.events[name].onHighlight.trigger(this.selection[name]);
+        if (zoomToSelection) {
+            await this.zoomSelection(name);
+        }
+        return { id: itemID, fragments: fragList };
+    }
+    async highlightByID(name, ids, removePrevious = true, zoomToSelection = this.zoomToSelection) {
+        if (!this.enabled)
+            return;
+        if (removePrevious) {
+            await this.clear(name);
+        }
+        const styles = this.selection[name];
+        for (const fragID in ids) {
+            if (!styles[fragID]) {
+                styles[fragID] = new Set();
+            }
+            const fragments = this.components.tools.get(FragmentManager);
+            const fragment = fragments.list[fragID];
+            const idsNum = new Set();
+            for (const id of ids[fragID]) {
+                styles[fragID].add(id);
+                idsNum.add(parseInt(id, 10));
+            }
+            for (const id of idsNum) {
+                this.addComposites(fragment.mesh, id, name);
+            }
+            await this.regenerate(name, fragID);
+        }
+        await this.events[name].onHighlight.trigger(this.selection[name]);
+        if (zoomToSelection) {
+            await this.zoomSelection(name);
+        }
+    }
+    /**
+     * Clears any selection previously made by calling {@link highlight}.
+     */
+    async clear(name) {
+        await this.clearFills(name);
+        if (!name || !this.excludeOutline.has(name)) {
+            await this.clearOutlines();
+        }
+    }
+    async setup(config) {
+        if (config === null || config === void 0 ? void 0 : config.selectionMaterial) {
+            this.config.selectionMaterial.dispose();
+        }
+        if (config === null || config === void 0 ? void 0 : config.hoverMaterial) {
+            this.config.hoverMaterial.dispose();
+        }
+        this.config = { ...this.config, ...config };
+        this.outlineMaterial.color.set(0xf0ff7a);
+        this.excludeOutline.add(this.config.hoverName);
+        await this.add(this.config.selectName, [this.config.selectionMaterial]);
+        await this.add(this.config.hoverName, [this.config.hoverMaterial]);
+        this.setupEvents(true);
+        this.enabled = true;
+        this.onSetup.trigger(this);
+    }
+    async regenerate(name, fragID) {
+        if (this.fillEnabled) {
+            await this.updateFragmentFill(name, fragID);
+        }
+        if (this._outlineEnabled) {
+            await this.updateFragmentOutline(name, fragID);
+        }
+    }
+    async zoomSelection(name) {
+        if (!this.fillEnabled && !this._outlineEnabled) {
+            return;
+        }
+        const bbox = this.components.tools.get(FragmentBoundingBox);
+        const fragments = this.components.tools.get(FragmentManager);
+        bbox.reset();
+        const selected = this.selection[name];
+        if (!Object.keys(selected).length) {
+            return;
+        }
+        for (const fragID in selected) {
+            const fragment = fragments.list[fragID];
+            if (this.fillEnabled) {
+                const highlight = fragment.fragments[name];
+                if (highlight) {
+                    bbox.addMesh(highlight.mesh);
+                }
+            }
+            if (this._outlineEnabled && this._outlinedMeshes[fragID]) {
+                bbox.addMesh(this._outlinedMeshes[fragID]);
+            }
+        }
+        const sphere = bbox.getSphere();
+        sphere.radius *= this.zoomFactor;
+        const camera = this.components.camera;
+        await camera.controls.fitToSphere(sphere, true);
+    }
+    addComposites(mesh, itemID, name) {
+        const composites = mesh.fragment.composites[itemID];
+        if (composites) {
+            for (let i = 1; i < composites; i++) {
+                const compositeID = toCompositeID(itemID, i);
+                this.selection[name][mesh.uuid].add(compositeID);
+            }
+        }
+    }
+    async clearStyle(name) {
+        const fragments = this.components.tools.get(FragmentManager);
+        for (const fragID in this.selection[name]) {
+            const fragment = fragments.list[fragID];
+            if (!fragment)
+                continue;
+            const selection = fragment.fragments[name];
+            if (selection) {
+                selection.mesh.removeFromParent();
+            }
+        }
+        await this.events[name].onClear.trigger(null);
+        this.selection[name] = {};
+    }
+    async updateFragmentFill(name, fragmentID) {
+        const fragments = this.components.tools.get(FragmentManager);
+        const ids = this.selection[name][fragmentID];
+        const fragment = fragments.list[fragmentID];
+        if (!fragment)
+            return;
+        const selection = fragment.fragments[name];
+        if (!selection)
+            return;
+        const fragmentParent = fragment.mesh.parent;
+        if (!fragmentParent)
+            return;
+        fragmentParent.add(selection.mesh);
+        const isBlockFragment = selection.blocks.count > 1;
+        if (isBlockFragment) {
+            fragment.getInstance(0, this._tempMatrix);
+            selection.setInstance(0, {
+                ids: Array.from(fragment.ids),
+                transform: this._tempMatrix,
+            });
+            selection.blocks.setVisibility(true, ids, true);
+        }
+        else {
+            let i = 0;
+            for (const id of ids) {
+                selection.mesh.count = i + 1;
+                const { instanceID } = fragment.getInstanceAndBlockID(id);
+                fragment.getInstance(instanceID, this._tempMatrix);
+                selection.setInstance(i, { ids: [id], transform: this._tempMatrix });
+                i++;
+            }
+        }
+    }
+    checkSelection(name) {
+        if (!this.selection[name]) {
+            throw new Error(`Selection ${name} does not exist.`);
+        }
+    }
+    addHighlightToFragment(fragment) {
+        for (const name in this.highlightMats) {
+            if (!fragment.fragments[name]) {
+                const material = this.highlightMats[name];
+                const subFragment = fragment.addFragment(name, material);
+                if (fragment.blocks.count > 1) {
+                    subFragment.setInstance(0, {
+                        ids: Array.from(fragment.ids),
+                        transform: this._tempMatrix,
+                    });
+                    subFragment.blocks.setVisibility(false);
+                }
+                subFragment.mesh.renderOrder = 2;
+                subFragment.mesh.frustumCulled = false;
+            }
+        }
+    }
+    async clearFills(name) {
+        const names = name ? [name] : Object.keys(this.selection);
+        for (const name of names) {
+            await this.clearStyle(name);
+        }
+    }
+    async clearOutlines() {
+        const fragments = this.components.tools.get(FragmentManager);
+        const effects = this._postproduction.customEffects;
+        const fragmentsOutline = effects.outlinedMeshes.fragments;
+        if (fragmentsOutline) {
+            fragmentsOutline.meshes.clear();
+        }
+        for (const fragID in this._outlinedMeshes) {
+            const fragment = fragments.list[fragID];
+            const isBlockFragment = fragment.blocks.count > 1;
+            const mesh = this._outlinedMeshes[fragID];
+            if (isBlockFragment) {
+                mesh.geometry.setIndex([]);
+            }
+            else {
+                mesh.count = 0;
+            }
+        }
+    }
+    async updateFragmentOutline(name, fragmentID) {
+        const fragments = this.components.tools.get(FragmentManager);
+        if (!this.selection[name][fragmentID]) {
+            return;
+        }
+        if (this.excludeOutline.has(name)) {
+            return;
+        }
+        const ids = this.selection[name][fragmentID];
+        const fragment = fragments.list[fragmentID];
+        if (!fragment)
+            return;
+        const geometry = fragment.mesh.geometry;
+        const customEffects = this._postproduction.customEffects;
+        if (!customEffects.outlinedMeshes.fragments) {
+            customEffects.outlinedMeshes.fragments = {
+                meshes: new Set(),
+                material: this.outlineMaterial,
+            };
+        }
+        const outlineEffect = customEffects.outlinedMeshes.fragments;
+        // Create a copy of the original fragment mesh for outline
+        if (!this._outlinedMeshes[fragmentID]) {
+            const newGeometry = new THREE$1.BufferGeometry();
+            newGeometry.attributes = geometry.attributes;
+            newGeometry.index = geometry.index;
+            const newMesh = new THREE$1.InstancedMesh(newGeometry, this._invisibleMaterial, fragment.capacity);
+            newMesh.frustumCulled = false;
+            newMesh.renderOrder = 999;
+            fragment.mesh.updateMatrixWorld(true);
+            newMesh.applyMatrix4(fragment.mesh.matrixWorld);
+            this._outlinedMeshes[fragmentID] = newMesh;
+            const scene = this.components.scene.get();
+            scene.add(newMesh);
+        }
+        const outlineMesh = this._outlinedMeshes[fragmentID];
+        outlineEffect.meshes.add(outlineMesh);
+        const isBlockFragment = fragment.blocks.count > 1;
+        if (isBlockFragment) {
+            const indices = fragment.mesh.geometry.index.array;
+            const newIndex = [];
+            const idsSet = new Set(ids);
+            for (let i = 0; i < indices.length - 2; i += 3) {
+                const index = indices[i];
+                const blockID = fragment.mesh.geometry.attributes.blockID.array;
+                const block = blockID[index];
+                const itemID = fragment.mesh.fragment.getItemID(0, block);
+                if (idsSet.has(itemID)) {
+                    newIndex.push(indices[i], indices[i + 1], indices[i + 2]);
+                }
+            }
+            outlineMesh.geometry.setIndex(newIndex);
+        }
+        else {
+            let counter = 0;
+            for (const id of ids) {
+                const { instanceID } = fragment.getInstanceAndBlockID(id);
+                fragment.mesh.getMatrixAt(instanceID, this._tempMatrix);
+                outlineMesh.setMatrixAt(counter++, this._tempMatrix);
+            }
+            outlineMesh.count = counter;
+            outlineMesh.instanceMatrix.needsUpdate = true;
+        }
+    }
+    setupEvents(active) {
+        const container = this.components.renderer.get().domElement;
+        if (active === this._eventsActive) {
+            return;
+        }
+        this._eventsActive = active;
+        if (active) {
+            container.addEventListener("mousedown", this.onMouseDown);
+            container.addEventListener("mouseup", this.onMouseUp);
+            container.addEventListener("mousemove", this.onMouseMove);
+        }
+        else {
+            container.removeEventListener("mousedown", this.onMouseDown);
+            container.removeEventListener("mouseup", this.onMouseUp);
+            container.removeEventListener("mousemove", this.onMouseMove);
+        }
+    }
+}
+FragmentHighlighter.uuid = "cb8a76f2-654a-4b50-80c6-66fd83cafd77";
+ToolComponent.libraryUUIDs.add(FragmentHighlighter.uuid);
+
+class FragmentTreeItem extends Component {
+    get children() {
+        return this._children;
+    }
+    set children(children) {
+        this._children = children;
+        children.forEach((child) => {
+            const subTree = child.uiElement.get("tree");
+            this.uiElement.get("tree").addChild(subTree);
+        });
+    }
+    constructor(components, classifier, content) {
+        super(components);
+        this.name = "FragmentTreeItem";
+        this.enabled = true;
+        this.filter = {};
+        this.uiElement = new UIElement();
+        this.onSelected = new Event();
+        this.onHovered = new Event();
+        this._children = [];
+        const main = new Button(components);
+        const tree = new TreeView(components, content);
+        this.uiElement.set({ main, tree });
+        tree.onClick.add(async () => {
+            const found = await classifier.find(this.filter);
+            await this.onSelected.trigger(found);
+        });
+        tree.get().onmouseenter = async () => {
+            const found = await classifier.find(this.filter);
+            await this.onHovered.trigger(found);
+        };
+    }
+    async dispose() {
+        this.uiElement.dispose();
+        this.onSelected.reset();
+        this.onHovered.reset();
+        for (const child of this.children) {
+            await child.dispose();
+        }
+    }
+    get() {
+        return { name: this.name, filter: this.filter, children: this.children };
+    }
+}
+
 const IfcCategoryMap = {
     3821786052: "IFCACTIONREQUEST",
     2296667514: "IFCACTOR",
@@ -100300,138 +101916,6 @@ const IfcCategoryMap = {
     1033361043: "IFCZONE",
 };
 
-const GeometryTypes = new Set([
-    1123145078, 574549367, 1675464909, 2059837836, 3798115385, 32440307,
-    3125803723, 3207858831, 2740243338, 2624227202, 4240577450, 3615266464,
-    3724593414, 220341763, 477187591, 1878645084, 1300840506, 3303107099,
-    1607154358, 1878645084, 846575682, 1351298697, 2417041796, 3049322572,
-    3331915920, 1416205885, 776857604, 3285139300, 3958052878, 2827736869,
-    2732653382, 673634403, 3448662350, 4142052618, 2924175390, 803316827,
-    2556980723, 1809719519, 2205249479, 807026263, 3737207727, 1660063152,
-    2347385850, 3940055652, 2705031697, 3732776249, 2485617015, 2611217952,
-    1704287377, 2937912522, 2770003689, 1281925730, 1484403080, 3448662350,
-    4142052618, 3800577675, 4006246654, 3590301190, 1383045692, 2775532180,
-    2047409740, 370225590, 3593883385, 2665983363, 4124623270, 812098782,
-    3649129432, 987898635, 1105321065, 3510044353, 1635779807, 2603310189,
-    3406155212, 1310608509, 4261334040, 2736907675, 3649129432, 1136057603,
-    1260505505, 4182860854, 2713105998, 2898889636, 59481748, 3749851601,
-    3486308946, 3150382593, 1062206242, 3264961684, 15328376, 1485152156,
-    370225590, 1981873012, 2859738748, 45288368, 2614616156, 2732653382,
-    775493141, 2147822146, 2601014836, 2629017746, 1186437898, 2367409068,
-    1213902940, 3632507154, 3900360178, 476780140, 1472233963, 2804161546,
-    3008276851, 738692330, 374418227, 315944413, 3905492369, 3570813810,
-    2571569899, 178912537, 2294589976, 1437953363, 2133299955, 572779678,
-    3092502836, 388784114, 2624227202, 1425443689, 3057273783, 2347385850,
-    1682466193, 2519244187, 2839578677, 3958567839, 2513912981, 2830218821,
-    427810014,
-]);
-
-/**
- * Object to export all the properties from an IFC to a JS object.
- */
-class IfcJsonExporter {
-    constructor() {
-        this.onLoadProgress = new Event();
-        this.onPropertiesSerialized = new Event();
-        this._progress = 0;
-    }
-    /**
-     * Exports all the properties of an IFC into an array of JS objects.
-     * @webIfc The instance of [web-ifc]{@link https://github.com/ifcjs/web-ifc} to use.
-     * @modelID ID of the IFC model whose properties to extract.
-     */
-    async export(webIfc, modelID) {
-        const geometriesIDs = await this.getAllGeometriesIDs(modelID, webIfc);
-        let properties = {};
-        properties.coordinationMatrix = webIfc.GetCoordinationMatrix(modelID);
-        const allLinesIDs = await webIfc.GetAllLines(modelID);
-        const linesCount = allLinesIDs.size();
-        this._progress = 0.1;
-        let counter = 0;
-        for (let i = 0; i < linesCount; i++) {
-            const id = allLinesIDs.get(i);
-            if (!geometriesIDs.has(id)) {
-                try {
-                    properties[id] = await webIfc.GetLine(modelID, id);
-                }
-                catch (e) {
-                    console.log(`Properties of the element ${id} could not be processed`);
-                }
-                counter++;
-            }
-            if (this.size !== undefined && counter > this.size) {
-                await this.onPropertiesSerialized.trigger(properties);
-                properties = null;
-                properties = {};
-                counter = 0;
-            }
-            if (i / linesCount > this._progress) {
-                await this.onLoadProgress.trigger({
-                    progress: i,
-                    total: linesCount,
-                });
-                this._progress += 0.1;
-            }
-        }
-        await this.onPropertiesSerialized.trigger(properties);
-        properties = null;
-    }
-    async getAllGeometriesIDs(modelID, webIfc) {
-        // Exclude location info of spatial structure
-        const placementIDs = new Set();
-        const structures = new Set();
-        this.getStructure(IFCPROJECT, structures, webIfc);
-        this.getStructure(IFCSITE, structures, webIfc);
-        this.getStructure(IFCBUILDING, structures, webIfc);
-        this.getStructure(IFCBUILDINGSTOREY, structures, webIfc);
-        this.getStructure(IFCSPACE, structures, webIfc);
-        for (const id of structures) {
-            const properties = webIfc.GetLine(0, id);
-            const placementRef = properties.ObjectPlacement;
-            if (!placementRef || placementRef.value === null) {
-                continue;
-            }
-            const placementID = placementRef.value;
-            placementIDs.add(placementID);
-            const placementProps = webIfc.GetLine(0, placementID);
-            const relPlacementID = placementProps.RelativePlacement;
-            if (!relPlacementID || relPlacementID.value === null) {
-                continue;
-            }
-            placementIDs.add(relPlacementID.value);
-            const relPlacement = webIfc.GetLine(0, relPlacementID.value);
-            const location = relPlacement.Location;
-            if (location && location.value !== null) {
-                placementIDs.add(location.value);
-            }
-        }
-        const geometriesIDs = new Set();
-        const geomTypesArray = Array.from(GeometryTypes);
-        for (let i = 0; i < geomTypesArray.length; i++) {
-            const category = geomTypesArray[i];
-            // eslint-disable-next-line no-await-in-loop
-            const ids = await webIfc.GetLineIDsWithType(modelID, category);
-            const idsSize = ids.size();
-            for (let j = 0; j < idsSize; j++) {
-                const id = ids.get(j);
-                if (placementIDs.has(id)) {
-                    continue;
-                }
-                geometriesIDs.add(id);
-            }
-        }
-        return geometriesIDs;
-    }
-    getStructure(type, result, webIfc) {
-        const found = webIfc.GetLineIDsWithType(0, type);
-        const size = found.size();
-        for (let i = 0; i < size; i++) {
-            const id = found.get(i);
-            result.add(id);
-        }
-    }
-}
-
 class IfcPropertiesUtils {
     static getUnits(properties) {
         var _a;
@@ -100671,28 +102155,24 @@ class PsetActionsUI extends SimpleUIComponent {
         this.onRemovePset = new Event();
         this.onNewProp = new Event();
         this.data = {};
+        this._modal = new Modal(components, "New Property Set");
+        this._components.ui.add(this._modal);
+        this._modal.visible = false;
+        this._modal.onHidden.add(() => this.removeFromParent());
+        this._modal.onCancel.add(() => {
+            this._modal.visible = false;
+            this._modal.slots.content.dispose(true);
+        });
         this.editPsetBtn = new Button(this._components);
         this.editPsetBtn.materialIcon = "edit";
-        this.setEditUI();
+        this.editPsetBtn.onClick.add(() => this.setEditUI());
         this.removePsetBtn = new Button(this._components);
         this.removePsetBtn.materialIcon = "delete";
-        this.setRemoveUI();
+        this.removePsetBtn.onClick.add(() => this.setRemoveUI());
         this.addPropBtn = new Button(this._components);
         this.addPropBtn.materialIcon = "add";
-        this.setAddPropUI();
+        this.addPropBtn.onClick.add(() => this.setAddPropUI());
         this.addChild(this.addPropBtn, this.editPsetBtn, this.removePsetBtn);
-        this._modal = new SimpleUIComponent(components, `<dialog></dialog>`);
-        this._components.ui.add(this._modal);
-        this._modal.get().addEventListener("close", () => {
-            this.removeFromParent();
-            this.modalVisible = false;
-            this._modalWindow.visible = false;
-        });
-        this._modalWindow = new FloatingWindow(this._components);
-        this._modalWindow.get().className =
-            "overflow-auto text-white bg-ifcjs-100 rounded-md w-[350px]";
-        this._modalWindow.onHidden.add(() => this._modal.get().close());
-        this._modal.addChild(this._modalWindow);
     }
     async dispose(onlyChildren = false) {
         await super.dispose(onlyChildren);
@@ -100700,28 +102180,26 @@ class PsetActionsUI extends SimpleUIComponent {
         await this.removePsetBtn.dispose();
         await this.addPropBtn.dispose();
         await this._modal.dispose();
-        await this._modalWindow.dispose();
         this.onEditPset.reset();
         this.onRemovePset.reset();
         this.onNewProp.reset();
         this.data = {};
     }
     setEditUI() {
+        var _a, _b, _c, _d;
+        const { model, psetID } = this.data;
+        const properties = model === null || model === void 0 ? void 0 : model.properties;
+        if (!model || !psetID || !properties)
+            return;
+        this._modal.onAccept.reset();
+        this._modal.title = "Edit Property Set";
         const editUI = new SimpleUIComponent(this._components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`);
         const nameInput = new TextInput(this._components);
         nameInput.label = "Name";
         const descriptionInput = new TextInput(this._components);
         descriptionInput.label = "Description";
-        const acceptBtn = new Button(this._components);
-        acceptBtn.materialIcon = "check";
-        acceptBtn.label = "Accept";
-        acceptBtn.get().classList.remove("hover:bg-ifcjs-200");
-        acceptBtn.get().classList.add("hover:bg-success");
-        acceptBtn.onClick.add(async () => {
-            this._modal.get().close();
-            const { model, psetID } = this.data;
-            if (!model || !psetID)
-                return;
+        this._modal.onAccept.add(async () => {
+            this._modal.visible = false;
             await this.onEditPset.trigger({
                 model,
                 psetID,
@@ -100729,68 +102207,39 @@ class PsetActionsUI extends SimpleUIComponent {
                 description: descriptionInput.value,
             });
         });
-        const cancelBtn = new Button(this._components);
-        cancelBtn.materialIcon = "close";
-        cancelBtn.label = "Cancel";
-        cancelBtn.get().classList.remove("hover:bg-ifcjs-200");
-        cancelBtn.get().classList.add("hover:bg-error");
-        cancelBtn.onClick.add(() => this._modal.get().close());
-        const actionBtns = new SimpleUIComponent(this._components, `<div class="flex gap-x-2 justify-end"></div>`);
-        actionBtns.addChild(cancelBtn, acceptBtn);
-        editUI.addChild(nameInput, descriptionInput, actionBtns);
-        this.editPsetBtn.onClick.add(async () => {
-            var _a, _b, _c, _d;
-            const { model, psetID } = this.data;
-            const properties = model === null || model === void 0 ? void 0 : model.properties;
-            if (!model || !psetID || !properties)
-                return;
-            const entity = properties[psetID];
-            nameInput.value = (_b = (_a = entity.Name) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
-            descriptionInput.value = (_d = (_c = entity.Description) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
-            this._modalWindow.title = "Edit Property Set";
-            this._modalWindow.setSlot("content", editUI);
-            this.showModal();
-        });
+        editUI.addChild(nameInput, descriptionInput);
+        const entity = properties[psetID];
+        nameInput.value = (_b = (_a = entity.Name) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
+        descriptionInput.value = (_d = (_c = entity.Description) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
+        this._modal.setSlot("content", editUI);
+        this._modal.visible = true;
     }
     setRemoveUI() {
+        const { model, psetID } = this.data;
+        if (!model || !psetID)
+            return;
+        this._modal.onAccept.reset();
+        this._modal.title = "Remove Property Set";
         const removeUI = new SimpleUIComponent(this._components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`);
         const warningText = document.createElement("div");
         warningText.className = "text-base text-center";
         warningText.textContent =
             "Are you sure to delete this property set? This action can't be undone.";
         removeUI.get().append(warningText);
-        const acceptBtn = new Button(this._components);
-        acceptBtn.materialIcon = "check";
-        acceptBtn.label = "Accept";
-        acceptBtn.get().classList.remove("hover:bg-ifcjs-200");
-        acceptBtn.get().classList.add("hover:bg-success");
-        acceptBtn.onClick.add(async () => {
-            this._modal.get().close();
-            const { model, psetID } = this.data;
-            if (!model || !psetID)
-                return;
+        this._modal.onAccept.add(async () => {
+            this._modal.visible = false;
             this.removeFromParent(); // As the psetUI is going to be disposed, then we need to first remove the action buttons so they do not become disposed as well.
             await this.onRemovePset.trigger({ model, psetID });
         });
-        const cancelBtn = new Button(this._components);
-        cancelBtn.materialIcon = "close";
-        cancelBtn.label = "Cancel";
-        cancelBtn.get().classList.remove("hover:bg-ifcjs-200");
-        cancelBtn.get().classList.add("hover:bg-error");
-        cancelBtn.onClick.add(() => this._modal.get().close());
-        const actionBtns = new SimpleUIComponent(this._components, `<div class="flex gap-x-2 justify-end"></div>`);
-        actionBtns.addChild(cancelBtn, acceptBtn);
-        removeUI.addChild(actionBtns);
-        this.removePsetBtn.onClick.add(async () => {
-            const { model, psetID } = this.data;
-            if (!model || !psetID)
-                return;
-            this._modalWindow.title = "Remove Property Set";
-            this._modalWindow.setSlot("content", removeUI);
-            this.showModal();
-        });
+        this._modal.setSlot("content", removeUI);
+        this._modal.visible = true;
     }
     setAddPropUI() {
+        const { model, psetID } = this.data;
+        if (!model || !psetID)
+            return;
+        this._modal.onAccept.reset();
+        this._modal.title = "New Property";
         const addPropUI = new SimpleUIComponent(this._components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`);
         const nameInput = new TextInput(this._components);
         nameInput.label = "Name";
@@ -100800,16 +102249,8 @@ class PsetActionsUI extends SimpleUIComponent {
         typeInput.value = "IfcText";
         const valueInput = new TextInput(this._components);
         valueInput.label = "Value";
-        const acceptBtn = new Button(this._components);
-        acceptBtn.materialIcon = "check";
-        acceptBtn.label = "Accept";
-        acceptBtn.get().classList.remove("hover:bg-ifcjs-200");
-        acceptBtn.get().classList.add("hover:bg-success");
-        acceptBtn.onClick.add(async () => {
-            this._modal.get().close();
-            const { model, psetID } = this.data;
-            if (!model || !psetID)
-                return;
+        this._modal.onAccept.add(async () => {
+            this._modal.visible = false;
             const name = nameInput.value;
             const type = typeInput.value;
             if (name === "" || !type)
@@ -100822,28 +102263,9 @@ class PsetActionsUI extends SimpleUIComponent {
                 value: valueInput.value,
             });
         });
-        const cancelBtn = new Button(this._components);
-        cancelBtn.materialIcon = "close";
-        cancelBtn.label = "Cancel";
-        cancelBtn.get().classList.remove("hover:bg-ifcjs-200");
-        cancelBtn.get().classList.add("hover:bg-error");
-        cancelBtn.onClick.add(() => this._modal.get().close());
-        const actionBtns = new SimpleUIComponent(this._components, `<div class="flex gap-x-2 justify-end"></div>`);
-        actionBtns.addChild(cancelBtn, acceptBtn);
-        addPropUI.addChild(nameInput, typeInput, valueInput, actionBtns);
-        this.addPropBtn.onClick.add(async () => {
-            const { model, psetID } = this.data;
-            if (!model || !psetID)
-                return;
-            this._modalWindow.title = "New Property";
-            this._modalWindow.setSlot("content", addPropUI);
-            this.showModal();
-        });
-    }
-    showModal() {
-        this.modalVisible = true;
-        this._modalWindow.visible = true;
-        this._modal.get().showModal();
+        addPropUI.addChild(nameInput, typeInput, valueInput);
+        this._modal.setSlot("content", addPropUI);
+        this._modal.visible = true;
     }
 }
 
@@ -100856,25 +102278,21 @@ class PropActionsUI extends SimpleUIComponent {
         this.onEditProp = new Event();
         this.onRemoveProp = new Event();
         this.data = {};
+        this._modal = new Modal(components, "New Property Set");
+        this._components.ui.add(this._modal);
+        this._modal.visible = false;
+        this._modal.onHidden.add(() => this.removeFromParent());
+        this._modal.onCancel.add(() => {
+            this._modal.visible = false;
+            this._modal.slots.content.dispose(true);
+        });
         this.editPropBtn = new Button(this._components);
         this.editPropBtn.materialIcon = "edit";
-        this.setEditUI();
+        this.editPropBtn.onClick.add(() => this.setEditUI());
         this.removePropBtn = new Button(this._components);
         this.removePropBtn.materialIcon = "delete";
-        this.setRemoveUI();
+        this.removePropBtn.onClick.add(() => this.setRemoveUI());
         this.addChild(this.editPropBtn, this.removePropBtn);
-        this._modal = new SimpleUIComponent(components, `<dialog></dialog>`);
-        this._components.ui.add(this._modal);
-        this._modal.get().addEventListener("close", () => {
-            this.removeFromParent();
-            this.modalVisible = false;
-            this._modalWindow.visible = false;
-        });
-        this._modalWindow = new FloatingWindow(this._components);
-        this._modalWindow.get().className =
-            "overflow-auto text-white bg-ifcjs-100 rounded-md w-[350px]";
-        this._modalWindow.onHidden.add(() => this._modal.get().close());
-        this._modal.addChild(this._modalWindow);
     }
     async dispose(onlyChildren = false) {
         await super.dispose(onlyChildren);
@@ -100882,25 +102300,23 @@ class PropActionsUI extends SimpleUIComponent {
         await this.editPropBtn.dispose();
         await this.removePropBtn.dispose();
         await this._modal.dispose();
-        await this._modalWindow.dispose();
         this.data = {};
     }
     setEditUI() {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        const { model, expressID } = this.data;
+        const properties = model === null || model === void 0 ? void 0 : model.properties;
+        if (!model || !expressID || !properties)
+            return;
+        this._modal.onAccept.reset();
+        this._modal.title = "Edit Property";
         const editUI = new SimpleUIComponent(this._components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`);
         const nameInput = new TextInput(this._components);
         nameInput.label = "Name";
         const valueInput = new TextInput(this._components);
         valueInput.label = "Value";
-        const acceptBtn = new Button(this._components);
-        acceptBtn.materialIcon = "check";
-        acceptBtn.label = "Accept";
-        acceptBtn.get().classList.remove("hover:bg-ifcjs-200");
-        acceptBtn.get().classList.add("hover:bg-success");
-        acceptBtn.onClick.add(async () => {
-            this._modal.get().close();
-            const { model, expressID } = this.data;
-            if (!model || !expressID)
-                return;
+        this._modal.onAccept.add(async () => {
+            this._modal.visible = false;
             await this.onEditProp.trigger({
                 model,
                 expressID,
@@ -100908,83 +102324,42 @@ class PropActionsUI extends SimpleUIComponent {
                 value: valueInput.value,
             });
         });
-        const cancelBtn = new Button(this._components);
-        cancelBtn.materialIcon = "close";
-        cancelBtn.label = "Cancel";
-        cancelBtn.get().classList.remove("hover:bg-ifcjs-200");
-        cancelBtn.get().classList.add("hover:bg-error");
-        cancelBtn.onClick.add(() => this._modal.get().close());
-        const actionBtns = new SimpleUIComponent(this._components, `<div class="flex gap-x-2 justify-end"></div>`);
-        actionBtns.addChild(cancelBtn, acceptBtn);
-        editUI.addChild(nameInput, valueInput, actionBtns);
-        this.editPropBtn.onClick.add(async () => {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
-            const { model, expressID } = this.data;
-            const properties = model === null || model === void 0 ? void 0 : model.properties;
-            if (!model || !expressID || !properties)
-                return;
-            const prop = properties[expressID];
-            const { key: nameKey } = IfcPropertiesUtils.getEntityName(properties, expressID);
-            if (nameKey) {
-                nameInput.value = (_b = (_a = prop[nameKey]) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
-            }
-            else {
-                nameInput.value = (_d = (_c = prop.Name) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
-            }
-            const { key: valueKey } = IfcPropertiesUtils.getQuantityValue(properties, expressID);
-            if (valueKey) {
-                valueInput.value = (_f = (_e = prop[valueKey]) === null || _e === void 0 ? void 0 : _e.value) !== null && _f !== void 0 ? _f : "";
-            }
-            else {
-                valueInput.value = (_h = (_g = prop.NominalValue) === null || _g === void 0 ? void 0 : _g.value) !== null && _h !== void 0 ? _h : "";
-            }
-            this._modalWindow.title = "Edit Property";
-            this._modalWindow.setSlot("content", editUI);
-            this.showModal();
-        });
+        editUI.addChild(nameInput, valueInput);
+        const prop = properties[expressID];
+        const { key: nameKey } = IfcPropertiesUtils.getEntityName(properties, expressID);
+        if (nameKey) {
+            nameInput.value = (_b = (_a = prop[nameKey]) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
+        }
+        else {
+            nameInput.value = (_d = (_c = prop.Name) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
+        }
+        const { key: valueKey } = IfcPropertiesUtils.getQuantityValue(properties, expressID);
+        if (valueKey) {
+            valueInput.value = (_f = (_e = prop[valueKey]) === null || _e === void 0 ? void 0 : _e.value) !== null && _f !== void 0 ? _f : "";
+        }
+        else {
+            valueInput.value = (_h = (_g = prop.NominalValue) === null || _g === void 0 ? void 0 : _g.value) !== null && _h !== void 0 ? _h : "";
+        }
+        this._modal.setSlot("content", editUI);
+        this._modal.visible = true;
     }
     setRemoveUI() {
+        const { model, expressID, setID } = this.data;
+        if (!model || !expressID || !setID)
+            return;
         const removeUI = new SimpleUIComponent(this._components, `<div class="flex flex-col gap-y-4 p-4 overflow-auto"></div>`);
         const warningText = document.createElement("div");
         warningText.className = "text-base text-center";
         warningText.textContent =
             "Are you sure to delete this property? This action can't be undone.";
         removeUI.get().append(warningText);
-        const acceptBtn = new Button(this._components);
-        acceptBtn.materialIcon = "check";
-        acceptBtn.label = "Accept";
-        acceptBtn.get().classList.remove("hover:bg-ifcjs-200");
-        acceptBtn.get().classList.add("hover:bg-success");
-        acceptBtn.onClick.add(async () => {
-            this._modal.get().close();
-            const { model, expressID, setID } = this.data;
-            if (!model || !expressID || !setID)
-                return;
+        this._modal.onAccept.add(async () => {
+            this._modal.visible = false;
             this.removeFromParent(); // As the psetUI is going to be disposed, then we need to first remove the action buttons so they do not become disposed as well.
             await this.onRemoveProp.trigger({ model, expressID, setID });
         });
-        const cancelBtn = new Button(this._components);
-        cancelBtn.materialIcon = "close";
-        cancelBtn.label = "Cancel";
-        cancelBtn.get().classList.remove("hover:bg-ifcjs-200");
-        cancelBtn.get().classList.add("hover:bg-error");
-        cancelBtn.onClick.add(() => this._modal.get().close());
-        const actionBtns = new SimpleUIComponent(this._components, `<div class="flex gap-x-2 justify-end"></div>`);
-        actionBtns.addChild(cancelBtn, acceptBtn);
-        removeUI.addChild(actionBtns);
-        this.removePropBtn.onClick.add(async () => {
-            const { model, expressID, setID } = this.data;
-            if (!model || !expressID || !setID)
-                return;
-            this._modalWindow.title = "Remove Property";
-            this._modalWindow.setSlot("content", removeUI);
-            this.showModal();
-        });
-    }
-    showModal() {
-        this.modalVisible = true;
-        this._modalWindow.visible = true;
-        this._modal.get().showModal();
+        this._modal.setSlot("content", removeUI);
+        this._modal.visible = true;
     }
 }
 
@@ -101008,7 +102383,6 @@ class IfcPropertiesManager extends Component {
         this.uiElement = new UIElement();
         this._changeMap = {};
         this.components.tools.add(IfcPropertiesManager.uuid, this);
-        this._ifcApi = new IfcAPI2();
         // TODO: Save original IFC file so that opening it again is not necessary
         if (components.uiEnabled) {
             this.setUI(components);
@@ -101018,13 +102392,7 @@ class IfcPropertiesManager extends Component {
     get() {
         return this._changeMap;
     }
-    async init() {
-        const { path, absolute } = this.wasm;
-        this._ifcApi.SetWasmPath(path, absolute);
-        await this._ifcApi.Init();
-    }
     async dispose() {
-        this._ifcApi = null;
         this.selectedModel = undefined;
         this.attributeListeners = {};
         this._changeMap = {};
@@ -101133,6 +102501,7 @@ class IfcPropertiesManager extends Component {
     }
     increaseMaxID(model) {
         model.ifcMetadata.maxExpressID++;
+        return model.ifcMetadata.maxExpressID;
     }
     static getIFCInfo(model) {
         const properties = model.properties;
@@ -101178,17 +102547,17 @@ class IfcPropertiesManager extends Component {
         const { schema } = IfcPropertiesManager.getIFCInfo(model);
         const { ownerHistoryHandle } = this.getOwnerHistory(model);
         // Create the Pset
-        this.increaseMaxID(model);
         const psetGlobalId = this.newGUID(model);
         const psetName = new WEBIFC[schema].IfcLabel(name);
         const psetDescription = description
             ? new WEBIFC[schema].IfcText(description)
             : null;
         const pset = new WEBIFC[schema].IfcPropertySet(psetGlobalId, ownerHistoryHandle, psetName, psetDescription, []);
+        pset.expressID = this.increaseMaxID(model);
         // Create the Pset relation
-        this.increaseMaxID(model);
         const relGlobalId = this.newGUID(model);
         const rel = new WEBIFC[schema].IfcRelDefinesByProperties(relGlobalId, ownerHistoryHandle, null, null, [], new Handle$4(pset.expressID));
+        rel.expressID = this.increaseMaxID(model);
         await this.setData(model, pset, rel);
         return { pset, rel };
     }
@@ -101214,11 +102583,11 @@ class IfcPropertiesManager extends Component {
     }
     async newSingleProperty(model, type, name, value) {
         const { schema } = IfcPropertiesManager.getIFCInfo(model);
-        this.increaseMaxID(model);
         const propName = new WEBIFC[schema].IfcIdentifier(name);
         // @ts-ignore
         const propValue = new WEBIFC[schema][type](value);
         const prop = new WEBIFC[schema].IfcPropertySingleValue(propName, null, propValue, null);
+        prop.expressID = this.increaseMaxID(model);
         await this.setData(model, prop);
         return prop;
     }
@@ -101266,6 +102635,9 @@ class IfcPropertiesManager extends Component {
         if (!pset)
             return;
         for (const expressID of propID) {
+            if (pset.HasProperties.includes(expressID)) {
+                continue;
+            }
             const elementHandle = new Handle$4(expressID);
             pset.HasProperties.push(elementHandle);
             await this.onPropToPset.trigger({ model, psetID, propID: expressID });
@@ -101275,24 +102647,32 @@ class IfcPropertiesManager extends Component {
     async saveToIfc(model, ifcToSaveOn) {
         var _a;
         const { properties } = IfcPropertiesManager.getIFCInfo(model);
-        const modelID = this._ifcApi.OpenModel(ifcToSaveOn);
+        const ifcLoader = this.components.tools.get(FragmentIfcLoader);
+        const ifcApi = ifcLoader.get();
+        const modelID = await ifcLoader.readIfcFile(ifcToSaveOn);
         const changes = (_a = this._changeMap[model.uuid]) !== null && _a !== void 0 ? _a : [];
         for (const expressID of changes) {
             const data = properties[expressID];
             if (!data) {
-                this._ifcApi.DeleteLine(modelID, expressID);
+                try {
+                    ifcApi.DeleteLine(modelID, expressID);
+                }
+                catch (err) {
+                    // Nothing here...
+                }
             }
             else {
-                this._ifcApi.WriteLine(modelID, data);
+                try {
+                    ifcApi.WriteLine(modelID, data);
+                }
+                catch (err) {
+                    // Nothing here...
+                }
             }
         }
-        const modifiedIFC = this._ifcApi.SaveModel(modelID);
-        this._ifcApi.CloseModel(modelID);
-        this._ifcApi = null;
-        this._ifcApi = new IfcAPI2();
-        const { path, absolute } = this.wasm;
-        this._ifcApi.SetWasmPath(path, absolute);
-        await this._ifcApi.Init();
+        const modifiedIFC = ifcApi.SaveModel(modelID);
+        ifcLoader.get().CloseModel(modelID);
+        ifcLoader.cleanIfcApi();
         return modifiedIFC;
     }
     setAttributeListener(model, expressID, attributeName) {
@@ -102588,1472 +103968,6 @@ class IfcPropertiesFinder extends Component {
                 return regex.test(leftValue.toString());
             },
         };
-    }
-}
-
-class Units {
-    constructor() {
-        this.factor = 1;
-        this.complement = 1;
-    }
-    apply(matrix) {
-        const scale = this.getScaleMatrix();
-        const result = scale.multiply(matrix);
-        matrix.copy(result);
-    }
-    setUp(webIfc) {
-        var _a;
-        this.factor = 1;
-        const length = this.getLengthUnits(webIfc);
-        if (!length) {
-            return;
-        }
-        const isLengthNull = length === undefined || length === null;
-        const isValueNull = length.Name === undefined || length.Name === null;
-        if (isLengthNull || isValueNull) {
-            return;
-        }
-        if (length.Name.value === "FOOT") {
-            this.factor = 0.3048;
-        }
-        else if (((_a = length.Prefix) === null || _a === void 0 ? void 0 : _a.value) === "MILLI") {
-            this.complement = 0.001;
-        }
-    }
-    getLengthUnits(webIfc) {
-        try {
-            const allUnitsAssigns = webIfc.GetLineIDsWithType(0, IFCUNITASSIGNMENT);
-            const unitsAssign = allUnitsAssigns.get(0);
-            const unitsAssignProps = webIfc.GetLine(0, unitsAssign);
-            for (const units of unitsAssignProps.Units) {
-                if (!units || units.value === null || units.value === undefined) {
-                    continue;
-                }
-                const unitsProps = webIfc.GetLine(0, units.value);
-                if (unitsProps.UnitType && unitsProps.UnitType.value === "LENGTHUNIT") {
-                    return unitsProps;
-                }
-            }
-            return null;
-        }
-        catch (e) {
-            console.log("Could not get units");
-            return null;
-        }
-    }
-    getScaleMatrix() {
-        const f = this.factor;
-        // prettier-ignore
-        return new THREE$1.Matrix4().fromArray([
-            f, 0, 0, 0,
-            0, f, 0, 0,
-            0, 0, f, 0,
-            0, 0, 0, 1,
-        ]);
-    }
-}
-
-class SpatialStructure {
-    constructor() {
-        this.itemsByFloor = {};
-        this._units = new Units();
-    }
-    // TODO: Maybe make this more flexible so that it also support more exotic spatial structures?
-    async setUp(webIfc) {
-        this._units.setUp(webIfc);
-        this.cleanUp();
-        try {
-            const spatialRels = webIfc.GetLineIDsWithType(0, IFCRELCONTAINEDINSPATIALSTRUCTURE);
-            const allRooms = new Set();
-            const rooms = webIfc.GetLineIDsWithType(0, IFCSPACE);
-            for (let i = 0; i < rooms.size(); i++) {
-                allRooms.add(rooms.get(i));
-            }
-            // First add rooms (if any) to floors
-            const aggregates = webIfc.GetLineIDsWithType(0, IFCRELAGGREGATES);
-            const aggregatesSize = aggregates.size();
-            for (let i = 0; i < aggregatesSize; i++) {
-                const id = aggregates.get(i);
-                const properties = webIfc.GetLine(0, id);
-                if (!properties ||
-                    !properties.RelatingObject ||
-                    !properties.RelatedObjects) {
-                    continue;
-                }
-                const parentID = properties.RelatingObject.value;
-                const childsIDs = properties.RelatedObjects;
-                for (const child of childsIDs) {
-                    const childID = child.value;
-                    if (allRooms.has(childID)) {
-                        this.itemsByFloor[childID] = parentID;
-                    }
-                }
-            }
-            // Now add items contained in floors and rooms
-            // If items contained in room, look for the floor where that room is and assign it to it
-            const itemsContainedInRooms = {};
-            const spatialRelsSize = spatialRels.size();
-            for (let i = 0; i < spatialRelsSize; i++) {
-                const id = spatialRels.get(i);
-                const properties = webIfc.GetLine(0, id);
-                if (!properties ||
-                    !properties.RelatingStructure ||
-                    !properties.RelatedElements) {
-                    continue;
-                }
-                const structureID = properties.RelatingStructure.value;
-                const relatedItems = properties.RelatedElements;
-                if (allRooms.has(structureID)) {
-                    for (const related of relatedItems) {
-                        if (!itemsContainedInRooms[structureID]) {
-                            itemsContainedInRooms[structureID] = [];
-                        }
-                        const id = related.value;
-                        itemsContainedInRooms[structureID].push(id);
-                    }
-                }
-                else {
-                    for (const related of relatedItems) {
-                        const id = related.value;
-                        this.itemsByFloor[id] = structureID;
-                    }
-                }
-            }
-            for (const roomID in itemsContainedInRooms) {
-                const roomFloor = this.itemsByFloor[roomID];
-                if (roomFloor !== undefined) {
-                    const items = itemsContainedInRooms[roomID];
-                    for (const item of items) {
-                        this.itemsByFloor[item] = roomFloor;
-                    }
-                }
-            }
-            // Finally, add nested items (e.g. elements of curtain walls)
-            for (let i = 0; i < aggregatesSize; i++) {
-                const id = aggregates.get(i);
-                const properties = webIfc.GetLine(0, id);
-                if (!properties ||
-                    !properties.RelatingObject ||
-                    !properties.RelatedObjects) {
-                    continue;
-                }
-                const parentID = properties.RelatingObject.value;
-                const childsIDs = properties.RelatedObjects;
-                for (const child of childsIDs) {
-                    const childID = child.value;
-                    const parentStructure = this.itemsByFloor[parentID];
-                    if (parentStructure !== undefined) {
-                        this.itemsByFloor[childID] = parentStructure;
-                    }
-                }
-            }
-        }
-        catch (e) {
-            console.log("Could not get floors.");
-        }
-    }
-    cleanUp() {
-        this.itemsByFloor = {};
-    }
-}
-
-/** Configuration of the IFC-fragment conversion. */
-class IfcFragmentSettings {
-    constructor() {
-        /** Whether to extract the IFC properties into a JSON. */
-        this.includeProperties = true;
-        /**
-         * Generate the geometry for categories that are not included by default,
-         * like IFCSPACE.
-         */
-        this.optionalCategories = [IFCSPACE];
-        /** Whether to use the coordination data coming from the IFC files. */
-        this.coordinate = true;
-        /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
-        this.wasm = {
-            path: "",
-            absolute: false,
-        };
-        /** List of categories that won't be converted to fragments. */
-        this.excludedCategories = new Set();
-        /** Whether to save the absolute location of all IFC items. */
-        this.saveLocations = false;
-        /** Loader settings for [web-ifc](https://github.com/ifcjs/web-ifc). */
-        this.webIfc = {
-            COORDINATE_TO_ORIGIN: true,
-            USE_FAST_BOOLS: true,
-            OPTIMIZE_PROFILES: true,
-        };
-    }
-}
-
-/**
- * A simple implementation of bounding box that works for fragments. The resulting bbox is not 100% precise, but
- * it's fast, and should suffice for general use cases such as camera zooming or general boundary determination.
- */
-class FragmentBoundingBox extends Component {
-    constructor(components) {
-        super(components);
-        /** {@link Component.enabled} */
-        this.enabled = true;
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this._meshes = [];
-        this.components.tools.add(FragmentBoundingBox.uuid, this);
-        this._absoluteMin = FragmentBoundingBox.newBound(true);
-        this._absoluteMax = FragmentBoundingBox.newBound(false);
-    }
-    static getDimensions(bbox) {
-        const { min, max } = bbox;
-        const width = Math.abs(max.x - min.x);
-        const height = Math.abs(max.y - min.y);
-        const depth = Math.abs(max.z - min.z);
-        const center = new THREE$1.Vector3();
-        center.subVectors(max, min).divideScalar(2).add(min);
-        return { width, height, depth, center };
-    }
-    static newBound(positive) {
-        const factor = positive ? 1 : -1;
-        return new THREE$1.Vector3(factor * Number.MAX_VALUE, factor * Number.MAX_VALUE, factor * Number.MAX_VALUE);
-    }
-    static getBounds(points, min, max) {
-        const maxPoint = max || this.newBound(false);
-        const minPoint = min || this.newBound(true);
-        for (const point of points) {
-            if (point.x < minPoint.x)
-                minPoint.x = point.x;
-            if (point.y < minPoint.y)
-                minPoint.y = point.y;
-            if (point.z < minPoint.z)
-                minPoint.z = point.z;
-            if (point.x > maxPoint.x)
-                maxPoint.x = point.x;
-            if (point.y > maxPoint.y)
-                maxPoint.y = point.y;
-            if (point.z > maxPoint.z)
-                maxPoint.z = point.z;
-        }
-        return new THREE$1.Box3(min, max);
-    }
-    /** {@link Disposable.dispose} */
-    async dispose() {
-        const disposer = this.components.tools.get(Disposer);
-        for (const mesh of this._meshes) {
-            disposer.destroy(mesh);
-        }
-        this._meshes = [];
-        await this.onDisposed.trigger(FragmentBoundingBox.uuid);
-        this.onDisposed.reset();
-    }
-    get() {
-        const min = this._absoluteMin.clone();
-        const max = this._absoluteMax.clone();
-        return new THREE$1.Box3(min, max);
-    }
-    getSphere() {
-        const min = this._absoluteMin.clone();
-        const max = this._absoluteMax.clone();
-        const dx = Math.abs((max.x - min.x) / 2);
-        const dy = Math.abs((max.y - min.y) / 2);
-        const dz = Math.abs((max.z - min.z) / 2);
-        const center = new THREE$1.Vector3(min.x + dx, min.y + dy, min.z + dz);
-        const radius = center.distanceTo(min);
-        return new THREE$1.Sphere(center, radius);
-    }
-    getMesh() {
-        const bbox = new THREE$1.Box3(this._absoluteMin, this._absoluteMax);
-        const dimensions = FragmentBoundingBox.getDimensions(bbox);
-        const { width, height, depth, center } = dimensions;
-        const box = new THREE$1.BoxGeometry(width, height, depth);
-        const mesh = new THREE$1.Mesh(box);
-        this._meshes.push(mesh);
-        mesh.position.copy(center);
-        return mesh;
-    }
-    reset() {
-        this._absoluteMin = FragmentBoundingBox.newBound(true);
-        this._absoluteMax = FragmentBoundingBox.newBound(false);
-    }
-    add(group) {
-        for (const frag of group.items) {
-            this.addMesh(frag.mesh);
-        }
-    }
-    addMesh(mesh) {
-        if (!mesh.geometry.index) {
-            return;
-        }
-        const bbox = FragmentBoundingBox.getFragmentBounds(mesh);
-        mesh.updateMatrix();
-        const meshTransform = mesh.matrix;
-        const instanceTransform = new THREE$1.Matrix4();
-        for (let i = 0; i < mesh.count; i++) {
-            mesh.getMatrixAt(i, instanceTransform);
-            const min = bbox.min.clone();
-            const max = bbox.max.clone();
-            min.applyMatrix4(instanceTransform);
-            min.applyMatrix4(meshTransform);
-            max.applyMatrix4(instanceTransform);
-            max.applyMatrix4(meshTransform);
-            if (min.x < this._absoluteMin.x)
-                this._absoluteMin.x = min.x;
-            if (min.y < this._absoluteMin.y)
-                this._absoluteMin.y = min.y;
-            if (min.z < this._absoluteMin.z)
-                this._absoluteMin.z = min.z;
-            if (min.x > this._absoluteMax.x)
-                this._absoluteMax.x = min.x;
-            if (min.y > this._absoluteMax.y)
-                this._absoluteMax.y = min.y;
-            if (min.z > this._absoluteMax.z)
-                this._absoluteMax.z = min.z;
-            if (max.x > this._absoluteMax.x)
-                this._absoluteMax.x = max.x;
-            if (max.y > this._absoluteMax.y)
-                this._absoluteMax.y = max.y;
-            if (max.z > this._absoluteMax.z)
-                this._absoluteMax.z = max.z;
-            if (max.x < this._absoluteMin.x)
-                this._absoluteMin.x = max.x;
-            if (max.y < this._absoluteMin.y)
-                this._absoluteMin.y = max.y;
-            if (max.z < this._absoluteMin.z)
-                this._absoluteMin.z = max.z;
-        }
-    }
-    static getFragmentBounds(mesh) {
-        const position = mesh.geometry.attributes.position;
-        const maxNum = Number.MAX_VALUE;
-        const minNum = -maxNum;
-        const min = new THREE$1.Vector3(maxNum, maxNum, maxNum);
-        const max = new THREE$1.Vector3(minNum, minNum, minNum);
-        if (!mesh.geometry.index) {
-            throw new Error("Geometry must be indexed!");
-        }
-        const indices = Array.from(mesh.geometry.index.array);
-        for (const index of indices) {
-            const x = position.getX(index);
-            const y = position.getY(index);
-            const z = position.getZ(index);
-            if (x < min.x)
-                min.x = x;
-            if (y < min.y)
-                min.y = y;
-            if (z < min.z)
-                min.z = z;
-            if (x > max.x)
-                max.x = x;
-            if (y > max.y)
-                max.y = y;
-            if (z > max.z)
-                max.z = z;
-        }
-        return new THREE$1.Box3(min, max);
-    }
-}
-FragmentBoundingBox.uuid = "d1444724-dba6-4cdd-a0c7-68ee1450d166";
-ToolComponent.libraryUUIDs.add(FragmentBoundingBox.uuid);
-
-class DataConverter {
-    constructor(components) {
-        this.settings = new IfcFragmentSettings();
-        this.categories = {};
-        this._model = new FragmentsGroup();
-        this._ifcCategories = new IfcCategories();
-        this._fragmentKey = 0;
-        this._keyFragmentMap = {};
-        this._itemKeyMap = {};
-        this._propertyExporter = new IfcJsonExporter();
-        this._spatialTree = new SpatialStructure();
-        this.components = components;
-    }
-    cleanUp() {
-        this._fragmentKey = 0;
-        this._spatialTree.cleanUp();
-        this.categories = {};
-        this._model = new FragmentsGroup();
-        this._ifcCategories = new IfcCategories();
-        this._propertyExporter = new IfcJsonExporter();
-        this._keyFragmentMap = {};
-        this._itemKeyMap = {};
-    }
-    saveIfcCategories(webIfc) {
-        this.categories = this._ifcCategories.getAll(webIfc, 0);
-    }
-    async generate(webIfc, geometries, civilItems) {
-        await this._spatialTree.setUp(webIfc);
-        this.createAllFragments(geometries, civilItems);
-        await this.saveModelData(webIfc);
-        return this._model;
-    }
-    async saveModelData(webIfc) {
-        const itemsData = this.getFragmentsGroupData();
-        this._model.keyFragments = this._keyFragmentMap;
-        this._model.data = itemsData;
-        this._model.coordinationMatrix = this.getCoordinationMatrix(webIfc);
-        this._model.properties = await this.getModelProperties(webIfc);
-        this._model.uuid = this.getProjectID(webIfc) || this._model.uuid;
-        this._model.ifcMetadata = this.getIfcMetadata(webIfc);
-        this._model.boundingBox = await this.getBoundingBox();
-    }
-    async getBoundingBox() {
-        const bbox = await this.components.tools.get(FragmentBoundingBox);
-        bbox.reset();
-        bbox.add(this._model);
-        return bbox.get();
-    }
-    getIfcMetadata(webIfc) {
-        const { FILE_NAME, FILE_DESCRIPTION } = WEBIFC;
-        const name = this.getMetadataEntry(webIfc, FILE_NAME);
-        const description = this.getMetadataEntry(webIfc, FILE_DESCRIPTION);
-        const schema = webIfc.GetModelSchema(0) || "IFC2X3";
-        const maxExpressID = webIfc.GetMaxExpressID(0);
-        return { name, description, schema, maxExpressID };
-    }
-    getMetadataEntry(webIfc, type) {
-        let description = "";
-        const descriptionData = webIfc.GetHeaderLine(0, type) || "";
-        if (!descriptionData)
-            return description;
-        for (const arg of descriptionData.arguments) {
-            if (arg === null || arg === undefined) {
-                continue;
-            }
-            if (Array.isArray(arg)) {
-                for (const subArg of arg) {
-                    description += `${subArg.value}|`;
-                }
-            }
-            else {
-                description += `${arg.value}|`;
-            }
-        }
-        return description;
-    }
-    getProjectID(webIfc) {
-        const projectsIDs = webIfc.GetLineIDsWithType(0, IFCPROJECT);
-        const projectID = projectsIDs.get(0);
-        const project = webIfc.GetLine(0, projectID);
-        return project.GlobalId.value;
-    }
-    getCoordinationMatrix(webIfc) {
-        const coordArray = webIfc.GetCoordinationMatrix(0);
-        return new THREE$1.Matrix4().fromArray(coordArray);
-    }
-    async getModelProperties(webIfc) {
-        if (!this.settings.includeProperties) {
-            return {};
-        }
-        return new Promise((resolve) => {
-            this._propertyExporter.onPropertiesSerialized.add((properties) => {
-                resolve(properties);
-            });
-            this._propertyExporter.export(webIfc, 0);
-        });
-    }
-    createAllFragments(geometries, civilItems) {
-        const uniqueItems = {};
-        const matrix = new THREE$1.Matrix4();
-        const color = new THREE$1.Color();
-        console.log(civilItems);
-        // Add alignments data
-        if (civilItems.IfcAlignment) {
-            const horizontalAlignments = new IfcAlignmentData();
-            const verticalAlignments = new IfcAlignmentData();
-            const realAlignments = new IfcAlignmentData();
-            let countH = 0;
-            let countV = 0;
-            let countR = 0;
-            const valuesH = [];
-            const valuesV = [];
-            const valuesR = [];
-            for (const alignment of civilItems.IfcAlignment) {
-                horizontalAlignments.alignmentIndex.push(countH);
-                verticalAlignments.alignmentIndex.push(countV);
-                if (alignment.horizontal) {
-                    for (const hAlignment of alignment.horizontal) {
-                        horizontalAlignments.curveIndex.push(countH);
-                        for (const point of hAlignment.points) {
-                            valuesH.push(point.x);
-                            valuesH.push(point.y);
-                            countH++;
-                        }
-                    }
-                }
-                if (alignment.vertical) {
-                    for (const vAlignment of alignment.vertical) {
-                        verticalAlignments.curveIndex.push(countV);
-                        for (const point of vAlignment.points) {
-                            valuesV.push(point.x);
-                            valuesV.push(point.y);
-                            countV++;
-                        }
-                    }
-                }
-                if (alignment.curve3D) {
-                    for (const rAlignment of alignment.curve3D) {
-                        realAlignments.curveIndex.push(countR);
-                        for (const point of rAlignment.points) {
-                            valuesR.push(point.x);
-                            valuesR.push(point.y);
-                            valuesR.push(point.z);
-                            countR++;
-                        }
-                    }
-                }
-            }
-            horizontalAlignments.coordinates = new Float32Array(valuesH);
-            verticalAlignments.coordinates = new Float32Array(valuesV);
-            realAlignments.coordinates = new Float32Array(valuesR);
-            this._model.ifcCivil = {
-                horizontalAlignments,
-                verticalAlignments,
-                realAlignments,
-            };
-        }
-        for (const id in geometries) {
-            const { buffer, instances } = geometries[id];
-            const transparent = instances[0].color.w !== 1;
-            const opacity = transparent ? 0.4 : 1;
-            const material = new THREE$1.MeshLambertMaterial({ transparent, opacity });
-            // This prevents z-fighting for ifc spaces
-            if (opacity !== 1) {
-                material.depthWrite = false;
-                material.polygonOffset = true;
-                material.polygonOffsetFactor = 5;
-                material.polygonOffsetUnits = 1;
-            }
-            if (instances.length === 1) {
-                const instance = instances[0];
-                const { x, y, z, w } = instance.color;
-                const matID = `${x}-${y}-${z}-${w}`;
-                if (!uniqueItems[matID]) {
-                    material.color = new THREE$1.Color().setRGB(x, y, z, "srgb");
-                    uniqueItems[matID] = { material, geometries: [], expressIDs: [] };
-                }
-                matrix.fromArray(instance.matrix);
-                buffer.applyMatrix4(matrix);
-                uniqueItems[matID].geometries.push(buffer);
-                uniqueItems[matID].expressIDs.push(instance.expressID.toString());
-                continue;
-            }
-            const fragment = new Fragment$1(buffer, material, instances.length);
-            this._keyFragmentMap[this._fragmentKey] = fragment.id;
-            const previousIDs = new Set();
-            for (let i = 0; i < instances.length; i++) {
-                const instance = instances[i];
-                matrix.fromArray(instance.matrix);
-                const { expressID } = instance;
-                let instanceID = expressID.toString();
-                let isComposite = false;
-                if (!previousIDs.has(expressID)) {
-                    previousIDs.add(expressID);
-                }
-                else {
-                    if (!fragment.composites[expressID]) {
-                        fragment.composites[expressID] = 1;
-                    }
-                    const count = fragment.composites[expressID];
-                    instanceID = toCompositeID(expressID, count);
-                    isComposite = true;
-                    fragment.composites[expressID]++;
-                }
-                fragment.setInstance(i, {
-                    ids: [instanceID],
-                    transform: matrix,
-                });
-                const { x, y, z } = instance.color;
-                color.setRGB(x, y, z, "srgb");
-                fragment.mesh.setColorAt(i, color);
-                if (!isComposite) {
-                    this.saveExpressID(expressID.toString());
-                }
-            }
-            fragment.mesh.updateMatrix();
-            this._model.items.push(fragment);
-            this._model.add(fragment.mesh);
-            this._fragmentKey++;
-        }
-        const transform = new THREE$1.Matrix4();
-        for (const matID in uniqueItems) {
-            const { material, geometries, expressIDs } = uniqueItems[matID];
-            const geometriesByItem = {};
-            for (let i = 0; i < expressIDs.length; i++) {
-                const id = expressIDs[i];
-                if (!geometriesByItem[id]) {
-                    geometriesByItem[id] = [];
-                }
-                geometriesByItem[id].push(geometries[i]);
-            }
-            const sortedGeometries = [];
-            const sortedIDs = [];
-            for (const id in geometriesByItem) {
-                sortedIDs.push(id);
-                const geometries = geometriesByItem[id];
-                if (geometries.length) {
-                    const merged = mergeGeometries(geometries);
-                    sortedGeometries.push(merged);
-                }
-                else {
-                    sortedGeometries.push(geometries[0]);
-                }
-                for (const geometry of geometries) {
-                    geometry.dispose();
-                }
-            }
-            const geometry = GeometryUtils.merge([sortedGeometries], true);
-            const fragment = new Fragment$1(geometry, material, 1);
-            this._keyFragmentMap[this._fragmentKey] = fragment.id;
-            for (const id of sortedIDs) {
-                this.saveExpressID(id);
-            }
-            this._fragmentKey++;
-            fragment.setInstance(0, { ids: sortedIDs, transform });
-            this._model.items.push(fragment);
-            this._model.add(fragment.mesh);
-        }
-    }
-    saveExpressID(expressID) {
-        if (!this._itemKeyMap[expressID]) {
-            this._itemKeyMap[expressID] = [];
-        }
-        this._itemKeyMap[expressID].push(this._fragmentKey);
-    }
-    getFragmentsGroupData() {
-        const itemsData = {};
-        for (const id in this._itemKeyMap) {
-            const keys = [];
-            const rels = [];
-            const idNum = parseInt(id, 10);
-            const level = this._spatialTree.itemsByFloor[idNum] || 0;
-            const category = this.categories[idNum] || 0;
-            rels.push(level, category);
-            for (const key of this._itemKeyMap[id]) {
-                keys.push(key);
-            }
-            itemsData[idNum] = [keys, rels];
-        }
-        return itemsData;
-    }
-}
-
-class GeometryReader {
-    constructor() {
-        this.saveLocations = false;
-        this.items = {};
-        this.locations = {};
-        this.CivilItems = {
-            IfcAlignment: [],
-            IfcCrossSection2D: [],
-            IfcCrossSection3D: [],
-        };
-    }
-    get webIfc() {
-        if (!this._webIfc) {
-            throw new Error("web-ifc not found!");
-        }
-        return this._webIfc;
-    }
-    cleanUp() {
-        this.items = {};
-        this.locations = {};
-        this._webIfc = null;
-    }
-    streamMesh(webifc, mesh, forceTransparent = false) {
-        this._webIfc = webifc;
-        const size = mesh.geometries.size();
-        const totalTransform = new THREE$1.Vector3();
-        const tempMatrix = new THREE$1.Matrix4();
-        const tempVector = new THREE$1.Vector3();
-        for (let i = 0; i < size; i++) {
-            const geometry = mesh.geometries.get(i);
-            const geometryID = geometry.geometryExpressID;
-            if (this.saveLocations) {
-                tempVector.set(0, 0, 0);
-                tempMatrix.fromArray(geometry.flatTransformation);
-                tempVector.applyMatrix4(tempMatrix);
-                totalTransform.add(tempVector);
-            }
-            // Transparent geometries need to be separated
-            const isColorTransparent = geometry.color.w !== 1;
-            const isTransparent = isColorTransparent || forceTransparent;
-            const prefix = isTransparent ? "-" : "+";
-            const idWithTransparency = prefix + geometryID;
-            if (forceTransparent)
-                geometry.color.w = 0.1;
-            if (!this.items[idWithTransparency]) {
-                const buffer = this.newBufferGeometry(geometryID);
-                if (!buffer)
-                    continue;
-                this.items[idWithTransparency] = { buffer, instances: [] };
-            }
-            this.items[idWithTransparency].instances.push({
-                color: { ...geometry.color },
-                matrix: geometry.flatTransformation,
-                expressID: mesh.expressID,
-            });
-        }
-        if (this.saveLocations) {
-            const { x, y, z } = totalTransform.divideScalar(size);
-            this.locations[mesh.expressID] = [x, y, z];
-        }
-    }
-    streamAlignment(webifc) {
-        this.CivilItems.IfcAlignment = webifc.GetAllAlignments(0);
-    }
-    streamCrossSection(webifc) {
-        this.CivilItems.IfcCrossSection2D = webifc.GetAllCrossSections2D(0);
-        this.CivilItems.IfcCrossSection3D = webifc.GetAllCrossSections3D(0);
-    }
-    newBufferGeometry(geometryID) {
-        const geometry = this.webIfc.GetGeometry(0, geometryID);
-        const verts = this.getVertices(geometry);
-        if (!verts.length)
-            return null;
-        const indices = this.getIndices(geometry);
-        if (!indices.length)
-            return null;
-        const buffer = this.constructBuffer(verts, indices);
-        // @ts-ignore
-        geometry.delete();
-        return buffer;
-    }
-    getIndices(geometryData) {
-        const indices = this.webIfc.GetIndexArray(geometryData.GetIndexData(), geometryData.GetIndexDataSize());
-        return indices;
-    }
-    getVertices(geometryData) {
-        const verts = this.webIfc.GetVertexArray(geometryData.GetVertexData(), geometryData.GetVertexDataSize());
-        return verts;
-    }
-    constructBuffer(vertexData, indexData) {
-        const geometry = new THREE$1.BufferGeometry();
-        const posFloats = new Float32Array(vertexData.length / 2);
-        const normFloats = new Float32Array(vertexData.length / 2);
-        for (let i = 0; i < vertexData.length; i += 6) {
-            posFloats[i / 2] = vertexData[i];
-            posFloats[i / 2 + 1] = vertexData[i + 1];
-            posFloats[i / 2 + 2] = vertexData[i + 2];
-            normFloats[i / 2] = vertexData[i + 3];
-            normFloats[i / 2 + 1] = vertexData[i + 4];
-            normFloats[i / 2 + 2] = vertexData[i + 5];
-        }
-        geometry.setAttribute("position", new THREE$1.BufferAttribute(posFloats, 3));
-        geometry.setAttribute("normal", new THREE$1.BufferAttribute(normFloats, 3));
-        geometry.setIndex(new THREE$1.BufferAttribute(indexData, 1));
-        return geometry;
-    }
-}
-
-/**
- * Reads all the geometry of the IFC file and generates a set of
- * [fragments](https://github.com/ifcjs/fragment). It can also return the
- * properties as a JSON file, as well as other sets of information within
- * the IFC file.
- */
-class FragmentIfcLoader extends Component {
-    constructor(components) {
-        super(components);
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this.enabled = true;
-        this.uiElement = new UIElement();
-        this.onIfcLoaded = new Event();
-        // For debugging purposes
-        // isolatedItems = new Set<number>();
-        this.onLocationsSaved = new Event();
-        this._webIfc = new IfcAPI2();
-        this._geometry = new GeometryReader();
-        this._converter = new DataConverter(components);
-        this.components.tools.add(FragmentIfcLoader.uuid, this);
-        if (components.uiEnabled) {
-            this.setupUI();
-        }
-    }
-    get() {
-        return this._webIfc;
-    }
-    get settings() {
-        return this._converter.settings;
-    }
-    /** {@link Disposable.dispose} */
-    async dispose() {
-        this._geometry.cleanUp();
-        this._converter.cleanUp();
-        this.onIfcLoaded.reset();
-        this.onLocationsSaved.reset();
-        this.uiElement.dispose();
-        this._webIfc = null;
-        this._geometry = null;
-        this._converter = null;
-        await this.onDisposed.trigger(FragmentIfcLoader.uuid);
-        this.onDisposed.reset();
-    }
-    /** Loads the IFC file and converts it to a set of fragments. */
-    async load(data, name) {
-        if (this.settings.saveLocations) {
-            this._geometry.saveLocations = true;
-        }
-        const before = performance.now();
-        await this.readIfcFile(data);
-        await this.readAllGeometries();
-        await this._geometry.streamAlignment(this._webIfc);
-        await this._geometry.streamCrossSection(this._webIfc);
-        const items = this._geometry.items;
-        const civItems = this._geometry.CivilItems;
-        const model = await this._converter.generate(this._webIfc, items, civItems);
-        model.name = name;
-        if (this.settings.saveLocations) {
-            await this.onLocationsSaved.trigger(this._geometry.locations);
-        }
-        const fragments = this.components.tools.get(FragmentManager);
-        if (this.settings.coordinate) {
-            const isFirstModel = fragments.groups.length === 0;
-            if (isFirstModel) {
-                fragments.baseCoordinationModel = model.uuid;
-            }
-            else {
-                fragments.coordinate([model]);
-            }
-        }
-        this.cleanUp();
-        fragments.groups.push(model);
-        for (const fragment of model.items) {
-            fragment.group = model;
-            fragments.list[fragment.id] = fragment;
-            this.components.meshes.push(fragment.mesh);
-        }
-        await this.onIfcLoaded.trigger(model);
-        console.log(`Loading the IFC took ${performance.now() - before} ms!`);
-        return model;
-    }
-    setupUI() {
-        const main = new Button(this.components);
-        main.materialIcon = "upload_file";
-        main.tooltip = "Load IFC";
-        const toast = new ToastNotification(this.components, {
-            message: "IFC model successfully loaded!",
-        });
-        main.onClick.add(() => {
-            const fileOpener = document.createElement("input");
-            fileOpener.type = "file";
-            fileOpener.accept = ".ifc";
-            fileOpener.style.display = "none";
-            fileOpener.onchange = async () => {
-                const fragments = this.components.tools.get(FragmentManager);
-                if (fileOpener.files === null || fileOpener.files.length === 0)
-                    return;
-                const file = fileOpener.files[0];
-                const buffer = await file.arrayBuffer();
-                const data = new Uint8Array(buffer);
-                const model = await this.load(data, file.name);
-                const scene = this.components.scene.get();
-                scene.add(model);
-                toast.visible = true;
-                await fragments.updateWindow();
-                fileOpener.remove();
-            };
-            fileOpener.click();
-        });
-        this.components.ui.add(toast);
-        toast.visible = false;
-        this.uiElement.set({ main, toast });
-    }
-    async readIfcFile(data) {
-        const { path, absolute } = this.settings.wasm;
-        this._webIfc.SetWasmPath(path, absolute);
-        await this._webIfc.Init();
-        this._webIfc.OpenModel(data, this.settings.webIfc);
-    }
-    async readAllGeometries() {
-        this._converter.saveIfcCategories(this._webIfc);
-        // Some categories (like IfcSpace) need to be created explicitly
-        const optionals = this.settings.optionalCategories;
-        // Force IFC space to be transparent
-        if (optionals.includes(IFCSPACE)) {
-            const index = optionals.indexOf(IFCSPACE);
-            optionals.splice(index, 1);
-            this._webIfc.StreamAllMeshesWithTypes(0, [IFCSPACE], (mesh) => {
-                if (this.isExcluded(mesh.expressID)) {
-                    return;
-                }
-                this._geometry.streamMesh(this._webIfc, mesh, true);
-            });
-        }
-        // Load rest of optional categories (if any)
-        if (optionals.length) {
-            this._webIfc.StreamAllMeshesWithTypes(0, optionals, (mesh) => {
-                if (this.isExcluded(mesh.expressID)) {
-                    return;
-                }
-                this._geometry.streamMesh(this._webIfc, mesh);
-            });
-        }
-        // Load common categories
-        this._webIfc.StreamAllMeshes(0, (mesh) => {
-            if (this.isExcluded(mesh.expressID)) {
-                return;
-            }
-            this._geometry.streamMesh(this._webIfc, mesh);
-        });
-        // Load civil items
-        this._geometry.streamAlignment(this._webIfc);
-        this._geometry.streamCrossSection(this._webIfc);
-    }
-    cleanUp() {
-        this._webIfc = null;
-        this._webIfc = new IfcAPI2();
-        this._geometry.cleanUp();
-        this._converter.cleanUp();
-    }
-    isExcluded(id) {
-        const category = this._converter.categories[id];
-        return this.settings.excludedCategories.has(category);
-    }
-}
-FragmentIfcLoader.uuid = "a659add7-1418-4771-a0d6-7d4d438e4624";
-ToolComponent.libraryUUIDs.add(FragmentIfcLoader.uuid);
-
-class FragmentHighlighter extends Component {
-    get outlineEnabled() {
-        return this._outlineEnabled;
-    }
-    set outlineEnabled(value) {
-        this._outlineEnabled = value;
-        if (!value) {
-            delete this._postproduction.customEffects.outlinedMeshes.fragments;
-        }
-    }
-    get _postproduction() {
-        if (!(this.components.renderer instanceof PostproductionRenderer)) {
-            throw new Error("Postproduction renderer is needed for outlines!");
-        }
-        const renderer = this.components.renderer;
-        return renderer.postproduction;
-    }
-    constructor(components) {
-        super(components);
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this.enabled = true;
-        this.highlightMats = {};
-        this.events = {};
-        this.multiple = "ctrlKey";
-        this.zoomFactor = 1.5;
-        this.zoomToSelection = false;
-        this.selection = {};
-        this.excludeOutline = new Set();
-        this.fillEnabled = true;
-        this.outlineMaterial = new THREE$1.MeshBasicMaterial({
-            color: "white",
-            transparent: true,
-            depthTest: false,
-            depthWrite: false,
-            opacity: 0.4,
-        });
-        this._eventsActive = false;
-        this._outlineEnabled = true;
-        this._outlinedMeshes = {};
-        this._invisibleMaterial = new THREE$1.MeshBasicMaterial({ visible: false });
-        this._tempMatrix = new THREE$1.Matrix4();
-        this.config = {
-            selectName: "select",
-            hoverName: "hover",
-            selectionMaterial: new THREE$1.MeshBasicMaterial({
-                color: "#BCF124",
-                transparent: true,
-                opacity: 0.85,
-                depthTest: true,
-            }),
-            hoverMaterial: new THREE$1.MeshBasicMaterial({
-                color: "#6528D7",
-                transparent: true,
-                opacity: 0.2,
-                depthTest: true,
-            }),
-        };
-        this._mouseState = {
-            down: false,
-            moved: false,
-        };
-        this.onFragmentsDisposed = (data) => {
-            this.disposeOutlinedMeshes(data.fragmentIDs);
-        };
-        this.onSetup = new Event();
-        this.onMouseDown = () => {
-            if (!this.enabled)
-                return;
-            this._mouseState.down = true;
-        };
-        this.onMouseUp = async (event) => {
-            if (!this.enabled)
-                return;
-            if (event.target !== this.components.renderer.get().domElement)
-                return;
-            this._mouseState.down = false;
-            if (this._mouseState.moved || event.button !== 0) {
-                this._mouseState.moved = false;
-                return;
-            }
-            this._mouseState.moved = false;
-            const mult = this.multiple === "none" ? true : !event[this.multiple];
-            await this.highlight(this.config.selectName, mult, this.zoomToSelection);
-        };
-        this.onMouseMove = async () => {
-            if (!this.enabled)
-                return;
-            if (this._mouseState.moved) {
-                await this.clearFills(this.config.hoverName);
-                return;
-            }
-            this._mouseState.moved = this._mouseState.down;
-            await this.highlight(this.config.hoverName, true, false);
-        };
-        this.components.tools.add(FragmentHighlighter.uuid, this);
-        const fragmentManager = components.tools.get(FragmentManager);
-        fragmentManager.onFragmentsDisposed.add(this.onFragmentsDisposed);
-    }
-    get() {
-        return this.highlightMats;
-    }
-    disposeOutlinedMeshes(fragmentIDs) {
-        for (const id of fragmentIDs) {
-            const mesh = this._outlinedMeshes[id];
-            if (!mesh)
-                continue;
-            mesh.geometry.dispose();
-            delete this._outlinedMeshes[id];
-        }
-    }
-    async dispose() {
-        this.setupEvents(false);
-        this.config.hoverMaterial.dispose();
-        this.config.selectionMaterial.dispose();
-        for (const matID in this.highlightMats) {
-            const mats = this.highlightMats[matID] || [];
-            for (const mat of mats) {
-                mat.dispose();
-            }
-        }
-        this.disposeOutlinedMeshes(Object.keys(this._outlinedMeshes));
-        this.outlineMaterial.dispose();
-        this._invisibleMaterial.dispose();
-        this.highlightMats = {};
-        this.selection = {};
-        for (const name in this.events) {
-            this.events[name].onClear.reset();
-            this.events[name].onHighlight.reset();
-        }
-        this.onSetup.reset();
-        const fragmentManager = this.components.tools.get(FragmentManager);
-        fragmentManager.onFragmentsDisposed.remove(this.onFragmentsDisposed);
-        this.events = {};
-        await this.onDisposed.trigger(FragmentHighlighter.uuid);
-        this.onDisposed.reset();
-    }
-    async add(name, material) {
-        if (this.highlightMats[name]) {
-            throw new Error("A highlight with this name already exists.");
-        }
-        this.highlightMats[name] = material;
-        this.selection[name] = {};
-        this.events[name] = {
-            onHighlight: new Event(),
-            onClear: new Event(),
-        };
-        await this.update();
-    }
-    async update() {
-        if (!this.fillEnabled) {
-            return;
-        }
-        const fragments = this.components.tools.get(FragmentManager);
-        for (const fragmentID in fragments.list) {
-            const fragment = fragments.list[fragmentID];
-            this.addHighlightToFragment(fragment);
-            const outlinedMesh = this._outlinedMeshes[fragmentID];
-            if (outlinedMesh) {
-                fragment.mesh.updateMatrixWorld(true);
-                outlinedMesh.applyMatrix4(fragment.mesh.matrixWorld);
-            }
-        }
-    }
-    async highlight(name, removePrevious = true, zoomToSelection = this.zoomToSelection) {
-        var _a;
-        if (!this.enabled)
-            return null;
-        this.checkSelection(name);
-        const fragments = this.components.tools.get(FragmentManager);
-        const fragList = [];
-        const meshes = fragments.meshes;
-        const result = this.components.raycaster.castRay(meshes);
-        if (!result) {
-            await this.clear(name);
-            return null;
-        }
-        const mesh = result.object;
-        const geometry = mesh.geometry;
-        const index = (_a = result.face) === null || _a === void 0 ? void 0 : _a.a;
-        const instanceID = result.instanceId;
-        if (!geometry || index === undefined || instanceID === undefined) {
-            return null;
-        }
-        if (removePrevious) {
-            await this.clear(name);
-        }
-        if (!this.selection[name][mesh.uuid]) {
-            this.selection[name][mesh.uuid] = new Set();
-        }
-        fragList.push(mesh.fragment);
-        const blockID = mesh.fragment.getVertexBlockID(geometry, index);
-        const itemID = mesh.fragment
-            .getItemID(instanceID, blockID)
-            .replace(/\..*/, "");
-        const idNum = parseInt(itemID, 10);
-        this.selection[name][mesh.uuid].add(itemID);
-        this.addComposites(mesh, idNum, name);
-        await this.regenerate(name, mesh.uuid);
-        const group = mesh.fragment.group;
-        if (group) {
-            const keys = group.data[idNum][0];
-            for (let i = 0; i < keys.length; i++) {
-                const fragKey = keys[i];
-                const fragID = group.keyFragments[fragKey];
-                const fragment = fragments.list[fragID];
-                fragList.push(fragment);
-                if (!this.selection[name][fragID]) {
-                    this.selection[name][fragID] = new Set();
-                }
-                this.selection[name][fragID].add(itemID);
-                this.addComposites(fragment.mesh, idNum, name);
-                await this.regenerate(name, fragID);
-            }
-        }
-        await this.events[name].onHighlight.trigger(this.selection[name]);
-        if (zoomToSelection) {
-            await this.zoomSelection(name);
-        }
-        return { id: itemID, fragments: fragList };
-    }
-    async highlightByID(name, ids, removePrevious = true, zoomToSelection = this.zoomToSelection) {
-        if (!this.enabled)
-            return;
-        if (removePrevious) {
-            await this.clear(name);
-        }
-        const styles = this.selection[name];
-        for (const fragID in ids) {
-            if (!styles[fragID]) {
-                styles[fragID] = new Set();
-            }
-            const fragments = this.components.tools.get(FragmentManager);
-            const fragment = fragments.list[fragID];
-            const idsNum = new Set();
-            for (const id of ids[fragID]) {
-                styles[fragID].add(id);
-                idsNum.add(parseInt(id, 10));
-            }
-            for (const id of idsNum) {
-                this.addComposites(fragment.mesh, id, name);
-            }
-            await this.regenerate(name, fragID);
-        }
-        await this.events[name].onHighlight.trigger(this.selection[name]);
-        if (zoomToSelection) {
-            await this.zoomSelection(name);
-        }
-    }
-    /**
-     * Clears any selection previously made by calling {@link highlight}.
-     */
-    async clear(name) {
-        await this.clearFills(name);
-        if (!name || !this.excludeOutline.has(name)) {
-            await this.clearOutlines();
-        }
-    }
-    async setup(config) {
-        if (config === null || config === void 0 ? void 0 : config.selectionMaterial) {
-            this.config.selectionMaterial.dispose();
-        }
-        if (config === null || config === void 0 ? void 0 : config.hoverMaterial) {
-            this.config.hoverMaterial.dispose();
-        }
-        this.config = { ...this.config, ...config };
-        this.outlineMaterial.color.set(0xf0ff7a);
-        this.excludeOutline.add(this.config.hoverName);
-        await this.add(this.config.selectName, [this.config.selectionMaterial]);
-        await this.add(this.config.hoverName, [this.config.hoverMaterial]);
-        this.setupEvents(true);
-        this.enabled = true;
-        this.onSetup.trigger(this);
-    }
-    async regenerate(name, fragID) {
-        if (this.fillEnabled) {
-            await this.updateFragmentFill(name, fragID);
-        }
-        if (this._outlineEnabled) {
-            await this.updateFragmentOutline(name, fragID);
-        }
-    }
-    async zoomSelection(name) {
-        if (!this.fillEnabled && !this._outlineEnabled) {
-            return;
-        }
-        const bbox = this.components.tools.get(FragmentBoundingBox);
-        const fragments = this.components.tools.get(FragmentManager);
-        bbox.reset();
-        const selected = this.selection[name];
-        if (!Object.keys(selected).length) {
-            return;
-        }
-        for (const fragID in selected) {
-            const fragment = fragments.list[fragID];
-            if (this.fillEnabled) {
-                const highlight = fragment.fragments[name];
-                if (highlight) {
-                    bbox.addMesh(highlight.mesh);
-                }
-            }
-            if (this._outlineEnabled && this._outlinedMeshes[fragID]) {
-                bbox.addMesh(this._outlinedMeshes[fragID]);
-            }
-        }
-        const sphere = bbox.getSphere();
-        sphere.radius *= this.zoomFactor;
-        const camera = this.components.camera;
-        await camera.controls.fitToSphere(sphere, true);
-    }
-    addComposites(mesh, itemID, name) {
-        const composites = mesh.fragment.composites[itemID];
-        if (composites) {
-            for (let i = 1; i < composites; i++) {
-                const compositeID = toCompositeID(itemID, i);
-                this.selection[name][mesh.uuid].add(compositeID);
-            }
-        }
-    }
-    async clearStyle(name) {
-        const fragments = this.components.tools.get(FragmentManager);
-        for (const fragID in this.selection[name]) {
-            const fragment = fragments.list[fragID];
-            if (!fragment)
-                continue;
-            const selection = fragment.fragments[name];
-            if (selection) {
-                selection.mesh.removeFromParent();
-            }
-        }
-        await this.events[name].onClear.trigger(null);
-        this.selection[name] = {};
-    }
-    async updateFragmentFill(name, fragmentID) {
-        const fragments = this.components.tools.get(FragmentManager);
-        const ids = this.selection[name][fragmentID];
-        const fragment = fragments.list[fragmentID];
-        if (!fragment)
-            return;
-        const selection = fragment.fragments[name];
-        if (!selection)
-            return;
-        const fragmentParent = fragment.mesh.parent;
-        if (!fragmentParent)
-            return;
-        fragmentParent.add(selection.mesh);
-        const isBlockFragment = selection.blocks.count > 1;
-        if (isBlockFragment) {
-            fragment.getInstance(0, this._tempMatrix);
-            selection.setInstance(0, {
-                ids: Array.from(fragment.ids),
-                transform: this._tempMatrix,
-            });
-            selection.blocks.setVisibility(true, ids, true);
-        }
-        else {
-            let i = 0;
-            for (const id of ids) {
-                selection.mesh.count = i + 1;
-                const { instanceID } = fragment.getInstanceAndBlockID(id);
-                fragment.getInstance(instanceID, this._tempMatrix);
-                selection.setInstance(i, { ids: [id], transform: this._tempMatrix });
-                i++;
-            }
-        }
-    }
-    checkSelection(name) {
-        if (!this.selection[name]) {
-            throw new Error(`Selection ${name} does not exist.`);
-        }
-    }
-    addHighlightToFragment(fragment) {
-        for (const name in this.highlightMats) {
-            if (!fragment.fragments[name]) {
-                const material = this.highlightMats[name];
-                const subFragment = fragment.addFragment(name, material);
-                if (fragment.blocks.count > 1) {
-                    subFragment.setInstance(0, {
-                        ids: Array.from(fragment.ids),
-                        transform: this._tempMatrix,
-                    });
-                    subFragment.blocks.setVisibility(false);
-                }
-                subFragment.mesh.renderOrder = 2;
-                subFragment.mesh.frustumCulled = false;
-            }
-        }
-    }
-    async clearFills(name) {
-        const names = name ? [name] : Object.keys(this.selection);
-        for (const name of names) {
-            await this.clearStyle(name);
-        }
-    }
-    async clearOutlines() {
-        const fragments = this.components.tools.get(FragmentManager);
-        const effects = this._postproduction.customEffects;
-        const fragmentsOutline = effects.outlinedMeshes.fragments;
-        if (fragmentsOutline) {
-            fragmentsOutline.meshes.clear();
-        }
-        for (const fragID in this._outlinedMeshes) {
-            const fragment = fragments.list[fragID];
-            const isBlockFragment = fragment.blocks.count > 1;
-            const mesh = this._outlinedMeshes[fragID];
-            if (isBlockFragment) {
-                mesh.geometry.setIndex([]);
-            }
-            else {
-                mesh.count = 0;
-            }
-        }
-    }
-    async updateFragmentOutline(name, fragmentID) {
-        const fragments = this.components.tools.get(FragmentManager);
-        if (!this.selection[name][fragmentID]) {
-            return;
-        }
-        if (this.excludeOutline.has(name)) {
-            return;
-        }
-        const ids = this.selection[name][fragmentID];
-        const fragment = fragments.list[fragmentID];
-        if (!fragment)
-            return;
-        const geometry = fragment.mesh.geometry;
-        const customEffects = this._postproduction.customEffects;
-        if (!customEffects.outlinedMeshes.fragments) {
-            customEffects.outlinedMeshes.fragments = {
-                meshes: new Set(),
-                material: this.outlineMaterial,
-            };
-        }
-        const outlineEffect = customEffects.outlinedMeshes.fragments;
-        // Create a copy of the original fragment mesh for outline
-        if (!this._outlinedMeshes[fragmentID]) {
-            const newGeometry = new THREE$1.BufferGeometry();
-            newGeometry.attributes = geometry.attributes;
-            newGeometry.index = geometry.index;
-            const newMesh = new THREE$1.InstancedMesh(newGeometry, this._invisibleMaterial, fragment.capacity);
-            newMesh.frustumCulled = false;
-            newMesh.renderOrder = 999;
-            fragment.mesh.updateMatrixWorld(true);
-            newMesh.applyMatrix4(fragment.mesh.matrixWorld);
-            this._outlinedMeshes[fragmentID] = newMesh;
-            const scene = this.components.scene.get();
-            scene.add(newMesh);
-        }
-        const outlineMesh = this._outlinedMeshes[fragmentID];
-        outlineEffect.meshes.add(outlineMesh);
-        const isBlockFragment = fragment.blocks.count > 1;
-        if (isBlockFragment) {
-            const indices = fragment.mesh.geometry.index.array;
-            const newIndex = [];
-            const idsSet = new Set(ids);
-            for (let i = 0; i < indices.length - 2; i += 3) {
-                const index = indices[i];
-                const blockID = fragment.mesh.geometry.attributes.blockID.array;
-                const block = blockID[index];
-                const itemID = fragment.mesh.fragment.getItemID(0, block);
-                if (idsSet.has(itemID)) {
-                    newIndex.push(indices[i], indices[i + 1], indices[i + 2]);
-                }
-            }
-            outlineMesh.geometry.setIndex(newIndex);
-        }
-        else {
-            let counter = 0;
-            for (const id of ids) {
-                const { instanceID } = fragment.getInstanceAndBlockID(id);
-                fragment.mesh.getMatrixAt(instanceID, this._tempMatrix);
-                outlineMesh.setMatrixAt(counter++, this._tempMatrix);
-            }
-            outlineMesh.count = counter;
-            outlineMesh.instanceMatrix.needsUpdate = true;
-        }
-    }
-    setupEvents(active) {
-        const container = this.components.renderer.get().domElement;
-        if (active === this._eventsActive) {
-            return;
-        }
-        this._eventsActive = active;
-        if (active) {
-            container.addEventListener("mousedown", this.onMouseDown);
-            container.addEventListener("mouseup", this.onMouseUp);
-            container.addEventListener("mousemove", this.onMouseMove);
-        }
-        else {
-            container.removeEventListener("mousedown", this.onMouseDown);
-            container.removeEventListener("mouseup", this.onMouseUp);
-            container.removeEventListener("mousemove", this.onMouseMove);
-        }
-    }
-}
-FragmentHighlighter.uuid = "cb8a76f2-654a-4b50-80c6-66fd83cafd77";
-ToolComponent.libraryUUIDs.add(FragmentHighlighter.uuid);
-
-class FragmentTreeItem extends Component {
-    get children() {
-        return this._children;
-    }
-    set children(children) {
-        this._children = children;
-        children.forEach((child) => {
-            const subTree = child.uiElement.get("tree");
-            this.uiElement.get("tree").addChild(subTree);
-        });
-    }
-    constructor(components, classifier, content) {
-        super(components);
-        this.name = "FragmentTreeItem";
-        this.enabled = true;
-        this.filter = {};
-        this.uiElement = new UIElement();
-        this.onSelected = new Event();
-        this.onHovered = new Event();
-        this._children = [];
-        const main = new Button(components);
-        const tree = new TreeView(components, content);
-        this.uiElement.set({ main, tree });
-        tree.onClick.add(async () => {
-            const found = await classifier.find(this.filter);
-            await this.onSelected.trigger(found);
-        });
-        tree.get().onmouseenter = async () => {
-            const found = await classifier.find(this.filter);
-            await this.onHovered.trigger(found);
-        };
-    }
-    async dispose() {
-        this.uiElement.dispose();
-        this.onSelected.reset();
-        this.onHovered.reset();
-        for (const child of this.children) {
-            await child.dispose();
-        }
-    }
-    get() {
-        return { name: this.name, filter: this.filter, children: this.children };
     }
 }
 
@@ -109038,6 +108952,14 @@ class LengthMeasurement extends Component {
             const index = this._measurements.indexOf(dimension);
             this._measurements.splice(index, 1);
             await dimension.dispose();
+            await this.onAfterDelete.trigger(this);
+        }
+    }
+    async deleteMeasurement(measurement) {
+        if (measurement) {
+            const index = this._measurements.indexOf(measurement);
+            this._measurements.splice(index, 1);
+            await measurement.dispose();
             await this.onAfterDelete.trigger(this);
         }
     }
