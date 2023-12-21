@@ -100043,6 +100043,8 @@ class DataConverter {
             }
             if (Array.isArray(arg)) {
                 for (const subArg of arg) {
+                    if (!subArg)
+                        continue;
                     description += `${subArg.value}|`;
                 }
             }
