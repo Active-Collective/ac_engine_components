@@ -10527,6 +10527,7 @@ class UIManager extends Component {
         this.setupEvents(true);
         this.viewerContainer.append(this._containers.top, this._containers.right, this._containers.bottom, this._containers.left, this._contextMenuContainer);
         this.viewerContainer.style.position = "relative";
+        this.viewerContainer.classList.add("obc-viewer");
     }
     add(...uiComponents) {
         for (const component of uiComponents) {
