@@ -23311,7 +23311,15 @@ class OrbitMode {
         const controls = this.camera.controls;
         controls.minDistance = 1;
         controls.maxDistance = 300;
+        const position = new THREE$1.Vector3();
+        controls.getPosition(position);
+        const distance = position.length();
+        controls.distance = distance;
         controls.truckSpeed = 2;
+        const { rotation } = this.camera.get();
+        const direction = new THREE$1.Vector3(0, 0, -1).applyEuler(rotation);
+        const target = position.addScaledVector(direction, distance);
+        controls.moveTo(target.x, target.y, target.z);
     }
 }
 
@@ -23343,11 +23351,9 @@ class FirstPersonMode {
     }
     setupFirstPersonCamera() {
         const controls = this.camera.controls;
-        const cameraPosition = new THREE$1.Vector3();
-        controls.camera.getWorldPosition(cameraPosition);
         const newTargetPosition = new THREE$1.Vector3();
         controls.distance--;
-        controls.camera.getWorldPosition(newTargetPosition);
+        controls.getPosition(newTargetPosition);
         controls.minDistance = 1;
         controls.maxDistance = 1;
         controls.distance = 1;
