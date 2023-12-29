@@ -100610,6 +100610,7 @@ class FragmentHighlighter extends Component {
                 depthTest: true,
             }),
             autoHighlightOnClick: true,
+            cullHighlightMesh: true,
         };
         this._mouseState = {
             down: false,
@@ -100939,6 +100940,13 @@ class FragmentHighlighter extends Component {
             if (!fragment.fragments[name]) {
                 const material = this.highlightMats[name];
                 const subFragment = fragment.addFragment(name, material);
+                if (this.config.cullHighlightMesh) {
+                    const culler = this.components.tools.get(ScreenCuller);
+                    if (name !== this.config.selectName &&
+                        name !== this.config.hoverName) {
+                        culler.add(subFragment.mesh);
+                    }
+                }
                 if (fragment.blocks.count > 1) {
                     subFragment.setInstance(0, {
                         ids: Array.from(fragment.ids),
