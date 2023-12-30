@@ -1,5 +1,5 @@
 import * as THREE$1 from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, Color, REVISION, LinearFilter, NearestFilter, HalfFloatType, RGBAFormat, DepthTexture, UnsignedInt248Type, UnsignedIntType, DepthStencilFormat, DepthFormat, DataTexture, NoColorSpace, RepeatWrapping, WebGLMultipleRenderTargets, RedFormat, FloatType, PropertyBinding, InterpolateLinear, Source, MathUtils, InterpolateDiscrete, Scene, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, BackSide, DoubleSide, Box3, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, Color, PropertyBinding, InterpolateLinear, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, Scene, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, SRGBColorSpace, InstancedMesh, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, Clock, REVISION, HalfFloatType, DepthTexture, UnsignedInt248Type, UnsignedIntType, DepthStencilFormat, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -13779,6 +13779,8176 @@ class SimpleClipper extends Component {
 SimpleClipper.uuid = "66290bc5-18c4-4cd1-9379-2e17a0617611";
 ToolComponent.libraryUUIDs.add(SimpleClipper.uuid);
 
+/**
+ * @param  {Array<BufferGeometry>} geometries
+ * @param  {Boolean} useGroups
+ * @return {BufferGeometry}
+ */
+function mergeGeometries( geometries, useGroups = false ) {
+
+	const isIndexed = geometries[ 0 ].index !== null;
+
+	const attributesUsed = new Set( Object.keys( geometries[ 0 ].attributes ) );
+	const morphAttributesUsed = new Set( Object.keys( geometries[ 0 ].morphAttributes ) );
+
+	const attributes = {};
+	const morphAttributes = {};
+
+	const morphTargetsRelative = geometries[ 0 ].morphTargetsRelative;
+
+	const mergedGeometry = new BufferGeometry();
+
+	let offset = 0;
+
+	for ( let i = 0; i < geometries.length; ++ i ) {
+
+		const geometry = geometries[ i ];
+		let attributesCount = 0;
+
+		// ensure that all geometries are indexed, or none
+
+		if ( isIndexed !== ( geometry.index !== null ) ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.' );
+			return null;
+
+		}
+
+		// gather attributes, exit early if they're different
+
+		for ( const name in geometry.attributes ) {
+
+			if ( ! attributesUsed.has( name ) ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.' );
+				return null;
+
+			}
+
+			if ( attributes[ name ] === undefined ) attributes[ name ] = [];
+
+			attributes[ name ].push( geometry.attributes[ name ] );
+
+			attributesCount ++;
+
+		}
+
+		// ensure geometries have the same number of attributes
+
+		if ( attributesCount !== attributesUsed.size ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. Make sure all geometries have the same number of attributes.' );
+			return null;
+
+		}
+
+		// gather morph attributes, exit early if they're different
+
+		if ( morphTargetsRelative !== geometry.morphTargetsRelative ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. .morphTargetsRelative must be consistent throughout all geometries.' );
+			return null;
+
+		}
+
+		for ( const name in geometry.morphAttributes ) {
+
+			if ( ! morphAttributesUsed.has( name ) ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '.  .morphAttributes must be consistent throughout all geometries.' );
+				return null;
+
+			}
+
+			if ( morphAttributes[ name ] === undefined ) morphAttributes[ name ] = [];
+
+			morphAttributes[ name ].push( geometry.morphAttributes[ name ] );
+
+		}
+
+		if ( useGroups ) {
+
+			let count;
+
+			if ( isIndexed ) {
+
+				count = geometry.index.count;
+
+			} else if ( geometry.attributes.position !== undefined ) {
+
+				count = geometry.attributes.position.count;
+
+			} else {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. The geometry must have either an index or a position attribute' );
+				return null;
+
+			}
+
+			mergedGeometry.addGroup( offset, count, i );
+
+			offset += count;
+
+		}
+
+	}
+
+	// merge indices
+
+	if ( isIndexed ) {
+
+		let indexOffset = 0;
+		const mergedIndex = [];
+
+		for ( let i = 0; i < geometries.length; ++ i ) {
+
+			const index = geometries[ i ].index;
+
+			for ( let j = 0; j < index.count; ++ j ) {
+
+				mergedIndex.push( index.getX( j ) + indexOffset );
+
+			}
+
+			indexOffset += geometries[ i ].attributes.position.count;
+
+		}
+
+		mergedGeometry.setIndex( mergedIndex );
+
+	}
+
+	// merge attributes
+
+	for ( const name in attributes ) {
+
+		const mergedAttribute = mergeAttributes( attributes[ name ] );
+
+		if ( ! mergedAttribute ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' attribute.' );
+			return null;
+
+		}
+
+		mergedGeometry.setAttribute( name, mergedAttribute );
+
+	}
+
+	// merge morph attributes
+
+	for ( const name in morphAttributes ) {
+
+		const numMorphTargets = morphAttributes[ name ][ 0 ].length;
+
+		if ( numMorphTargets === 0 ) break;
+
+		mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
+		mergedGeometry.morphAttributes[ name ] = [];
+
+		for ( let i = 0; i < numMorphTargets; ++ i ) {
+
+			const morphAttributesToMerge = [];
+
+			for ( let j = 0; j < morphAttributes[ name ].length; ++ j ) {
+
+				morphAttributesToMerge.push( morphAttributes[ name ][ j ][ i ] );
+
+			}
+
+			const mergedMorphAttribute = mergeAttributes( morphAttributesToMerge );
+
+			if ( ! mergedMorphAttribute ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' morphAttribute.' );
+				return null;
+
+			}
+
+			mergedGeometry.morphAttributes[ name ].push( mergedMorphAttribute );
+
+		}
+
+	}
+
+	return mergedGeometry;
+
+}
+
+/**
+ * @param {Array<BufferAttribute>} attributes
+ * @return {BufferAttribute}
+ */
+function mergeAttributes( attributes ) {
+
+	let TypedArray;
+	let itemSize;
+	let normalized;
+	let arrayLength = 0;
+
+	for ( let i = 0; i < attributes.length; ++ i ) {
+
+		const attribute = attributes[ i ];
+
+		if ( attribute.isInterleavedBufferAttribute ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. InterleavedBufferAttributes are not supported.' );
+			return null;
+
+		}
+
+		if ( TypedArray === undefined ) TypedArray = attribute.array.constructor;
+		if ( TypedArray !== attribute.array.constructor ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.' );
+			return null;
+
+		}
+
+		if ( itemSize === undefined ) itemSize = attribute.itemSize;
+		if ( itemSize !== attribute.itemSize ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.' );
+			return null;
+
+		}
+
+		if ( normalized === undefined ) normalized = attribute.normalized;
+		if ( normalized !== attribute.normalized ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.' );
+			return null;
+
+		}
+
+		arrayLength += attribute.array.length;
+
+	}
+
+	const array = new TypedArray( arrayLength );
+	let offset = 0;
+
+	for ( let i = 0; i < attributes.length; ++ i ) {
+
+		array.set( attributes[ i ].array, offset );
+
+		offset += attributes[ i ].array.length;
+
+	}
+
+	return new BufferAttribute$1( array, itemSize, normalized );
+
+}
+
+class GeometryUtils {
+    static merge(geometriesByMaterial, splitByBlocks = false) {
+        const geometriesByMat = [];
+        const sizes = [];
+        for (const geometries of geometriesByMaterial) {
+            const merged = this.mergeGeomsOfSameMaterial(geometries, splitByBlocks);
+            geometriesByMat.push(merged);
+            sizes.push(merged.index.count);
+        }
+        const geometry = mergeGeometries(geometriesByMat);
+        this.setupMaterialGroups(sizes, geometry);
+        this.cleanUp(geometriesByMat);
+        return geometry;
+    }
+    // When Three.js exports to glTF, it generates one separate mesh per material. All meshes
+    // share the same BufferAttributes and have different indices
+    static async mergeGltfMeshes(meshes) {
+        const geometry = new BufferGeometry();
+        const attributes = meshes[0].geometry.attributes;
+        this.getMeshesAttributes(geometry, attributes);
+        this.getMeshesIndices(geometry, meshes);
+        return geometry;
+    }
+    static getMeshesAttributes(geometry, attributes) {
+        // Three.js GLTFExporter exports custom BufferAttributes as underscore lowercase
+        // eslint-disable-next-line no-underscore-dangle
+        geometry.setAttribute("blockID", attributes._blockid);
+        geometry.setAttribute("position", attributes.position);
+        geometry.setAttribute("normal", attributes.normal);
+        geometry.groups = [];
+    }
+    static getMeshesIndices(geometry, meshes) {
+        const counter = { index: 0, material: 0 };
+        const indices = [];
+        for (const mesh of meshes) {
+            const index = mesh.geometry.index;
+            this.getIndicesOfMesh(index, indices);
+            this.getMeshGroup(geometry, counter, index);
+            this.cleanUpMesh(mesh);
+        }
+        geometry.setIndex(indices);
+    }
+    static getMeshGroup(geometry, counter, index) {
+        geometry.groups.push({
+            start: counter.index,
+            count: index.count,
+            materialIndex: counter.material++,
+        });
+        counter.index += index.count;
+    }
+    static cleanUpMesh(mesh) {
+        mesh.geometry.setIndex([]);
+        mesh.geometry.attributes = {};
+        mesh.geometry.dispose();
+    }
+    static getIndicesOfMesh(index, indices) {
+        for (const number of index.array) {
+            indices.push(number);
+        }
+    }
+    static cleanUp(geometries) {
+        geometries.forEach((geometry) => geometry.dispose());
+        geometries.length = 0;
+    }
+    static setupMaterialGroups(sizes, geometry) {
+        let vertexCounter = 0;
+        let counter = 0;
+        for (const size of sizes) {
+            const group = {
+                start: vertexCounter,
+                count: size,
+                materialIndex: counter++,
+            };
+            geometry.groups.push(group);
+            vertexCounter += size;
+        }
+    }
+    static mergeGeomsOfSameMaterial(geometries, splitByBlocks) {
+        this.checkAllGeometriesAreIndexed(geometries);
+        if (splitByBlocks) {
+            this.splitByBlocks(geometries);
+        }
+        const merged = mergeGeometries(geometries);
+        this.cleanUp(geometries);
+        return merged;
+    }
+    static splitByBlocks(geometries) {
+        let i = 0;
+        for (const geometry of geometries) {
+            const size = geometry.attributes.position.count;
+            // TODO: Substitute blockID attribute by block id map
+            const array = new Uint16Array(size).fill(i++);
+            geometry.setAttribute("blockID", new BufferAttribute$1(array, 1));
+        }
+    }
+    static checkAllGeometriesAreIndexed(geometries) {
+        for (const geometry of geometries) {
+            if (!geometry.index) {
+                throw new Error("All geometries must be indexed!");
+            }
+        }
+    }
+}
+
+/**
+ * The KHR_mesh_quantization extension allows these extra attribute component types
+ *
+ * @see https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md#extending-mesh-attributes
+ */
+const KHR_mesh_quantization_ExtraAttrTypes = {
+	POSITION: [
+		'byte',
+		'byte normalized',
+		'unsigned byte',
+		'unsigned byte normalized',
+		'short',
+		'short normalized',
+		'unsigned short',
+		'unsigned short normalized',
+	],
+	NORMAL: [
+		'byte normalized',
+		'short normalized',
+	],
+	TANGENT: [
+		'byte normalized',
+		'short normalized',
+	],
+	TEXCOORD: [
+		'byte',
+		'byte normalized',
+		'unsigned byte',
+		'short',
+		'short normalized',
+		'unsigned short',
+	],
+};
+
+
+class GLTFExporter {
+
+	constructor() {
+
+		this.pluginCallbacks = [];
+
+		this.register( function ( writer ) {
+
+			return new GLTFLightExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsUnlitExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsTransmissionExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsVolumeExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsIorExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsSpecularExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsClearcoatExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsIridescenceExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsSheenExtension( writer );
+
+		} );
+
+		this.register( function ( writer ) {
+
+			return new GLTFMaterialsEmissiveStrengthExtension( writer );
+
+		} );
+
+	}
+
+	register( callback ) {
+
+		if ( this.pluginCallbacks.indexOf( callback ) === - 1 ) {
+
+			this.pluginCallbacks.push( callback );
+
+		}
+
+		return this;
+
+	}
+
+	unregister( callback ) {
+
+		if ( this.pluginCallbacks.indexOf( callback ) !== - 1 ) {
+
+			this.pluginCallbacks.splice( this.pluginCallbacks.indexOf( callback ), 1 );
+
+		}
+
+		return this;
+
+	}
+
+	/**
+	 * Parse scenes and generate GLTF output
+	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
+	 * @param  {Function} onDone  Callback on completed
+	 * @param  {Function} onError  Callback on errors
+	 * @param  {Object} options options
+	 */
+	parse( input, onDone, onError, options ) {
+
+		const writer = new GLTFWriter();
+		const plugins = [];
+
+		for ( let i = 0, il = this.pluginCallbacks.length; i < il; i ++ ) {
+
+			plugins.push( this.pluginCallbacks[ i ]( writer ) );
+
+		}
+
+		writer.setPlugins( plugins );
+		writer.write( input, onDone, options ).catch( onError );
+
+	}
+
+	parseAsync( input, options ) {
+
+		const scope = this;
+
+		return new Promise( function ( resolve, reject ) {
+
+			scope.parse( input, resolve, reject, options );
+
+		} );
+
+	}
+
+}
+
+//------------------------------------------------------------------------------
+// Constants
+//------------------------------------------------------------------------------
+
+const WEBGL_CONSTANTS = {
+	POINTS: 0x0000,
+	LINES: 0x0001,
+	LINE_LOOP: 0x0002,
+	LINE_STRIP: 0x0003,
+	TRIANGLES: 0x0004,
+	TRIANGLE_STRIP: 0x0005,
+	TRIANGLE_FAN: 0x0006,
+
+	BYTE: 0x1400,
+	UNSIGNED_BYTE: 0x1401,
+	SHORT: 0x1402,
+	UNSIGNED_SHORT: 0x1403,
+	INT: 0x1404,
+	UNSIGNED_INT: 0x1405,
+	FLOAT: 0x1406,
+
+	ARRAY_BUFFER: 0x8892,
+	ELEMENT_ARRAY_BUFFER: 0x8893,
+
+	NEAREST: 0x2600,
+	LINEAR: 0x2601,
+	NEAREST_MIPMAP_NEAREST: 0x2700,
+	LINEAR_MIPMAP_NEAREST: 0x2701,
+	NEAREST_MIPMAP_LINEAR: 0x2702,
+	LINEAR_MIPMAP_LINEAR: 0x2703,
+
+	CLAMP_TO_EDGE: 33071,
+	MIRRORED_REPEAT: 33648,
+	REPEAT: 10497
+};
+
+const KHR_MESH_QUANTIZATION = 'KHR_mesh_quantization';
+
+const THREE_TO_WEBGL = {};
+
+THREE_TO_WEBGL[ NearestFilter ] = WEBGL_CONSTANTS.NEAREST;
+THREE_TO_WEBGL[ NearestMipmapNearestFilter ] = WEBGL_CONSTANTS.NEAREST_MIPMAP_NEAREST;
+THREE_TO_WEBGL[ NearestMipmapLinearFilter ] = WEBGL_CONSTANTS.NEAREST_MIPMAP_LINEAR;
+THREE_TO_WEBGL[ LinearFilter ] = WEBGL_CONSTANTS.LINEAR;
+THREE_TO_WEBGL[ LinearMipmapNearestFilter ] = WEBGL_CONSTANTS.LINEAR_MIPMAP_NEAREST;
+THREE_TO_WEBGL[ LinearMipmapLinearFilter ] = WEBGL_CONSTANTS.LINEAR_MIPMAP_LINEAR;
+
+THREE_TO_WEBGL[ ClampToEdgeWrapping ] = WEBGL_CONSTANTS.CLAMP_TO_EDGE;
+THREE_TO_WEBGL[ RepeatWrapping ] = WEBGL_CONSTANTS.REPEAT;
+THREE_TO_WEBGL[ MirroredRepeatWrapping ] = WEBGL_CONSTANTS.MIRRORED_REPEAT;
+
+const PATH_PROPERTIES = {
+	scale: 'scale',
+	position: 'translation',
+	quaternion: 'rotation',
+	morphTargetInfluences: 'weights'
+};
+
+const DEFAULT_SPECULAR_COLOR = new Color();
+
+// GLB constants
+// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
+
+const GLB_HEADER_BYTES = 12;
+const GLB_HEADER_MAGIC = 0x46546C67;
+const GLB_VERSION = 2;
+
+const GLB_CHUNK_PREFIX_BYTES = 8;
+const GLB_CHUNK_TYPE_JSON = 0x4E4F534A;
+const GLB_CHUNK_TYPE_BIN = 0x004E4942;
+
+//------------------------------------------------------------------------------
+// Utility functions
+//------------------------------------------------------------------------------
+
+/**
+ * Compare two arrays
+ * @param  {Array} array1 Array 1 to compare
+ * @param  {Array} array2 Array 2 to compare
+ * @return {Boolean}        Returns true if both arrays are equal
+ */
+function equalArray( array1, array2 ) {
+
+	return ( array1.length === array2.length ) && array1.every( function ( element, index ) {
+
+		return element === array2[ index ];
+
+	} );
+
+}
+
+/**
+ * Converts a string to an ArrayBuffer.
+ * @param  {string} text
+ * @return {ArrayBuffer}
+ */
+function stringToArrayBuffer( text ) {
+
+	return new TextEncoder().encode( text ).buffer;
+
+}
+
+/**
+ * Is identity matrix
+ *
+ * @param {Matrix4} matrix
+ * @returns {Boolean} Returns true, if parameter is identity matrix
+ */
+function isIdentityMatrix( matrix ) {
+
+	return equalArray( matrix.elements, [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] );
+
+}
+
+/**
+ * Get the min and max vectors from the given attribute
+ * @param  {BufferAttribute} attribute Attribute to find the min/max in range from start to start + count
+ * @param  {Integer} start
+ * @param  {Integer} count
+ * @return {Object} Object containing the `min` and `max` values (As an array of attribute.itemSize components)
+ */
+function getMinMax( attribute, start, count ) {
+
+	const output = {
+
+		min: new Array( attribute.itemSize ).fill( Number.POSITIVE_INFINITY ),
+		max: new Array( attribute.itemSize ).fill( Number.NEGATIVE_INFINITY )
+
+	};
+
+	for ( let i = start; i < start + count; i ++ ) {
+
+		for ( let a = 0; a < attribute.itemSize; a ++ ) {
+
+			let value;
+
+			if ( attribute.itemSize > 4 ) {
+
+				 // no support for interleaved data for itemSize > 4
+
+				value = attribute.array[ i * attribute.itemSize + a ];
+
+			} else {
+
+				if ( a === 0 ) value = attribute.getX( i );
+				else if ( a === 1 ) value = attribute.getY( i );
+				else if ( a === 2 ) value = attribute.getZ( i );
+				else if ( a === 3 ) value = attribute.getW( i );
+
+				if ( attribute.normalized === true ) {
+
+					value = MathUtils.normalize( value, attribute.array );
+
+				}
+
+			}
+
+			output.min[ a ] = Math.min( output.min[ a ], value );
+			output.max[ a ] = Math.max( output.max[ a ], value );
+
+		}
+
+	}
+
+	return output;
+
+}
+
+/**
+ * Get the required size + padding for a buffer, rounded to the next 4-byte boundary.
+ * https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#data-alignment
+ *
+ * @param {Integer} bufferSize The size the original buffer.
+ * @returns {Integer} new buffer size with required padding.
+ *
+ */
+function getPaddedBufferSize( bufferSize ) {
+
+	return Math.ceil( bufferSize / 4 ) * 4;
+
+}
+
+/**
+ * Returns a buffer aligned to 4-byte boundary.
+ *
+ * @param {ArrayBuffer} arrayBuffer Buffer to pad
+ * @param {Integer} paddingByte (Optional)
+ * @returns {ArrayBuffer} The same buffer if it's already aligned to 4-byte boundary or a new buffer
+ */
+function getPaddedArrayBuffer( arrayBuffer, paddingByte = 0 ) {
+
+	const paddedLength = getPaddedBufferSize( arrayBuffer.byteLength );
+
+	if ( paddedLength !== arrayBuffer.byteLength ) {
+
+		const array = new Uint8Array( paddedLength );
+		array.set( new Uint8Array( arrayBuffer ) );
+
+		if ( paddingByte !== 0 ) {
+
+			for ( let i = arrayBuffer.byteLength; i < paddedLength; i ++ ) {
+
+				array[ i ] = paddingByte;
+
+			}
+
+		}
+
+		return array.buffer;
+
+	}
+
+	return arrayBuffer;
+
+}
+
+function getCanvas() {
+
+	if ( typeof document === 'undefined' && typeof OffscreenCanvas !== 'undefined' ) {
+
+		return new OffscreenCanvas( 1, 1 );
+
+	}
+
+	return document.createElement( 'canvas' );
+
+}
+
+function getToBlobPromise( canvas, mimeType ) {
+
+	if ( canvas.toBlob !== undefined ) {
+
+		return new Promise( ( resolve ) => canvas.toBlob( resolve, mimeType ) );
+
+	}
+
+	let quality;
+
+	// Blink's implementation of convertToBlob seems to default to a quality level of 100%
+	// Use the Blink default quality levels of toBlob instead so that file sizes are comparable.
+	if ( mimeType === 'image/jpeg' ) {
+
+		quality = 0.92;
+
+	} else if ( mimeType === 'image/webp' ) {
+
+		quality = 0.8;
+
+	}
+
+	return canvas.convertToBlob( {
+
+		type: mimeType,
+		quality: quality
+
+	} );
+
+}
+
+/**
+ * Writer
+ */
+class GLTFWriter {
+
+	constructor() {
+
+		this.plugins = [];
+
+		this.options = {};
+		this.pending = [];
+		this.buffers = [];
+
+		this.byteOffset = 0;
+		this.buffers = [];
+		this.nodeMap = new Map();
+		this.skins = [];
+
+		this.extensionsUsed = {};
+		this.extensionsRequired = {};
+
+		this.uids = new Map();
+		this.uid = 0;
+
+		this.json = {
+			asset: {
+				version: '2.0',
+				generator: 'THREE.GLTFExporter'
+			}
+		};
+
+		this.cache = {
+			meshes: new Map(),
+			attributes: new Map(),
+			attributesNormalized: new Map(),
+			materials: new Map(),
+			textures: new Map(),
+			images: new Map()
+		};
+
+	}
+
+	setPlugins( plugins ) {
+
+		this.plugins = plugins;
+
+	}
+
+	/**
+	 * Parse scenes and generate GLTF output
+	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
+	 * @param  {Function} onDone  Callback on completed
+	 * @param  {Object} options options
+	 */
+	async write( input, onDone, options = {} ) {
+
+		this.options = Object.assign( {
+			// default options
+			binary: false,
+			trs: false,
+			onlyVisible: true,
+			maxTextureSize: Infinity,
+			animations: [],
+			includeCustomExtensions: false
+		}, options );
+
+		if ( this.options.animations.length > 0 ) {
+
+			// Only TRS properties, and not matrices, may be targeted by animation.
+			this.options.trs = true;
+
+		}
+
+		this.processInput( input );
+
+		await Promise.all( this.pending );
+
+		const writer = this;
+		const buffers = writer.buffers;
+		const json = writer.json;
+		options = writer.options;
+
+		const extensionsUsed = writer.extensionsUsed;
+		const extensionsRequired = writer.extensionsRequired;
+
+		// Merge buffers.
+		const blob = new Blob( buffers, { type: 'application/octet-stream' } );
+
+		// Declare extensions.
+		const extensionsUsedList = Object.keys( extensionsUsed );
+		const extensionsRequiredList = Object.keys( extensionsRequired );
+
+		if ( extensionsUsedList.length > 0 ) json.extensionsUsed = extensionsUsedList;
+		if ( extensionsRequiredList.length > 0 ) json.extensionsRequired = extensionsRequiredList;
+
+		// Update bytelength of the single buffer.
+		if ( json.buffers && json.buffers.length > 0 ) json.buffers[ 0 ].byteLength = blob.size;
+
+		if ( options.binary === true ) {
+
+			// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
+
+			const reader = new FileReader();
+			reader.readAsArrayBuffer( blob );
+			reader.onloadend = function () {
+
+				// Binary chunk.
+				const binaryChunk = getPaddedArrayBuffer( reader.result );
+				const binaryChunkPrefix = new DataView( new ArrayBuffer( GLB_CHUNK_PREFIX_BYTES ) );
+				binaryChunkPrefix.setUint32( 0, binaryChunk.byteLength, true );
+				binaryChunkPrefix.setUint32( 4, GLB_CHUNK_TYPE_BIN, true );
+
+				// JSON chunk.
+				const jsonChunk = getPaddedArrayBuffer( stringToArrayBuffer( JSON.stringify( json ) ), 0x20 );
+				const jsonChunkPrefix = new DataView( new ArrayBuffer( GLB_CHUNK_PREFIX_BYTES ) );
+				jsonChunkPrefix.setUint32( 0, jsonChunk.byteLength, true );
+				jsonChunkPrefix.setUint32( 4, GLB_CHUNK_TYPE_JSON, true );
+
+				// GLB header.
+				const header = new ArrayBuffer( GLB_HEADER_BYTES );
+				const headerView = new DataView( header );
+				headerView.setUint32( 0, GLB_HEADER_MAGIC, true );
+				headerView.setUint32( 4, GLB_VERSION, true );
+				const totalByteLength = GLB_HEADER_BYTES
+					+ jsonChunkPrefix.byteLength + jsonChunk.byteLength
+					+ binaryChunkPrefix.byteLength + binaryChunk.byteLength;
+				headerView.setUint32( 8, totalByteLength, true );
+
+				const glbBlob = new Blob( [
+					header,
+					jsonChunkPrefix,
+					jsonChunk,
+					binaryChunkPrefix,
+					binaryChunk
+				], { type: 'application/octet-stream' } );
+
+				const glbReader = new FileReader();
+				glbReader.readAsArrayBuffer( glbBlob );
+				glbReader.onloadend = function () {
+
+					onDone( glbReader.result );
+
+				};
+
+			};
+
+		} else {
+
+			if ( json.buffers && json.buffers.length > 0 ) {
+
+				const reader = new FileReader();
+				reader.readAsDataURL( blob );
+				reader.onloadend = function () {
+
+					const base64data = reader.result;
+					json.buffers[ 0 ].uri = base64data;
+					onDone( json );
+
+				};
+
+			} else {
+
+				onDone( json );
+
+			}
+
+		}
+
+
+	}
+
+	/**
+	 * Serializes a userData.
+	 *
+	 * @param {THREE.Object3D|THREE.Material} object
+	 * @param {Object} objectDef
+	 */
+	serializeUserData( object, objectDef ) {
+
+		if ( Object.keys( object.userData ).length === 0 ) return;
+
+		const options = this.options;
+		const extensionsUsed = this.extensionsUsed;
+
+		try {
+
+			const json = JSON.parse( JSON.stringify( object.userData ) );
+
+			if ( options.includeCustomExtensions && json.gltfExtensions ) {
+
+				if ( objectDef.extensions === undefined ) objectDef.extensions = {};
+
+				for ( const extensionName in json.gltfExtensions ) {
+
+					objectDef.extensions[ extensionName ] = json.gltfExtensions[ extensionName ];
+					extensionsUsed[ extensionName ] = true;
+
+				}
+
+				delete json.gltfExtensions;
+
+			}
+
+			if ( Object.keys( json ).length > 0 ) objectDef.extras = json;
+
+		} catch ( error ) {
+
+			console.warn( 'THREE.GLTFExporter: userData of \'' + object.name + '\' ' +
+				'won\'t be serialized because of JSON.stringify error - ' + error.message );
+
+		}
+
+	}
+
+	/**
+	 * Returns ids for buffer attributes.
+	 * @param  {Object} object
+	 * @return {Integer}
+	 */
+	getUID( attribute, isRelativeCopy = false ) {
+
+		if ( this.uids.has( attribute ) === false ) {
+
+			const uids = new Map();
+
+			uids.set( true, this.uid ++ );
+			uids.set( false, this.uid ++ );
+
+			this.uids.set( attribute, uids );
+
+		}
+
+		const uids = this.uids.get( attribute );
+
+		return uids.get( isRelativeCopy );
+
+	}
+
+	/**
+	 * Checks if normal attribute values are normalized.
+	 *
+	 * @param {BufferAttribute} normal
+	 * @returns {Boolean}
+	 */
+	isNormalizedNormalAttribute( normal ) {
+
+		const cache = this.cache;
+
+		if ( cache.attributesNormalized.has( normal ) ) return false;
+
+		const v = new Vector3$1();
+
+		for ( let i = 0, il = normal.count; i < il; i ++ ) {
+
+			// 0.0005 is from glTF-validator
+			if ( Math.abs( v.fromBufferAttribute( normal, i ).length() - 1.0 ) > 0.0005 ) return false;
+
+		}
+
+		return true;
+
+	}
+
+	/**
+	 * Creates normalized normal buffer attribute.
+	 *
+	 * @param {BufferAttribute} normal
+	 * @returns {BufferAttribute}
+	 *
+	 */
+	createNormalizedNormalAttribute( normal ) {
+
+		const cache = this.cache;
+
+		if ( cache.attributesNormalized.has( normal ) )	return cache.attributesNormalized.get( normal );
+
+		const attribute = normal.clone();
+		const v = new Vector3$1();
+
+		for ( let i = 0, il = attribute.count; i < il; i ++ ) {
+
+			v.fromBufferAttribute( attribute, i );
+
+			if ( v.x === 0 && v.y === 0 && v.z === 0 ) {
+
+				// if values can't be normalized set (1, 0, 0)
+				v.setX( 1.0 );
+
+			} else {
+
+				v.normalize();
+
+			}
+
+			attribute.setXYZ( i, v.x, v.y, v.z );
+
+		}
+
+		cache.attributesNormalized.set( normal, attribute );
+
+		return attribute;
+
+	}
+
+	/**
+	 * Applies a texture transform, if present, to the map definition. Requires
+	 * the KHR_texture_transform extension.
+	 *
+	 * @param {Object} mapDef
+	 * @param {THREE.Texture} texture
+	 */
+	applyTextureTransform( mapDef, texture ) {
+
+		let didTransform = false;
+		const transformDef = {};
+
+		if ( texture.offset.x !== 0 || texture.offset.y !== 0 ) {
+
+			transformDef.offset = texture.offset.toArray();
+			didTransform = true;
+
+		}
+
+		if ( texture.rotation !== 0 ) {
+
+			transformDef.rotation = texture.rotation;
+			didTransform = true;
+
+		}
+
+		if ( texture.repeat.x !== 1 || texture.repeat.y !== 1 ) {
+
+			transformDef.scale = texture.repeat.toArray();
+			didTransform = true;
+
+		}
+
+		if ( didTransform ) {
+
+			mapDef.extensions = mapDef.extensions || {};
+			mapDef.extensions[ 'KHR_texture_transform' ] = transformDef;
+			this.extensionsUsed[ 'KHR_texture_transform' ] = true;
+
+		}
+
+	}
+
+	buildMetalRoughTexture( metalnessMap, roughnessMap ) {
+
+		if ( metalnessMap === roughnessMap ) return metalnessMap;
+
+		function getEncodingConversion( map ) {
+
+			if ( map.colorSpace === SRGBColorSpace ) {
+
+				return function SRGBToLinear( c ) {
+
+					return ( c < 0.04045 ) ? c * 0.0773993808 : Math.pow( c * 0.9478672986 + 0.0521327014, 2.4 );
+
+				};
+
+			}
+
+			return function LinearToLinear( c ) {
+
+				return c;
+
+			};
+
+		}
+
+		console.warn( 'THREE.GLTFExporter: Merged metalnessMap and roughnessMap textures.' );
+
+		const metalness = metalnessMap ? metalnessMap.image : null;
+		const roughness = roughnessMap ? roughnessMap.image : null;
+
+		const width = Math.max( metalness ? metalness.width : 0, roughness ? roughness.width : 0 );
+		const height = Math.max( metalness ? metalness.height : 0, roughness ? roughness.height : 0 );
+
+		const canvas = getCanvas();
+		canvas.width = width;
+		canvas.height = height;
+
+		const context = canvas.getContext( '2d' );
+		context.fillStyle = '#00ffff';
+		context.fillRect( 0, 0, width, height );
+
+		const composite = context.getImageData( 0, 0, width, height );
+
+		if ( metalness ) {
+
+			context.drawImage( metalness, 0, 0, width, height );
+
+			const convert = getEncodingConversion( metalnessMap );
+			const data = context.getImageData( 0, 0, width, height ).data;
+
+			for ( let i = 2; i < data.length; i += 4 ) {
+
+				composite.data[ i ] = convert( data[ i ] / 256 ) * 256;
+
+			}
+
+		}
+
+		if ( roughness ) {
+
+			context.drawImage( roughness, 0, 0, width, height );
+
+			const convert = getEncodingConversion( roughnessMap );
+			const data = context.getImageData( 0, 0, width, height ).data;
+
+			for ( let i = 1; i < data.length; i += 4 ) {
+
+				composite.data[ i ] = convert( data[ i ] / 256 ) * 256;
+
+			}
+
+		}
+
+		context.putImageData( composite, 0, 0 );
+
+		//
+
+		const reference = metalnessMap || roughnessMap;
+
+		const texture = reference.clone();
+
+		texture.source = new Source( canvas );
+		texture.colorSpace = NoColorSpace;
+		texture.channel = ( metalnessMap || roughnessMap ).channel;
+
+		if ( metalnessMap && roughnessMap && metalnessMap.channel !== roughnessMap.channel ) {
+
+			console.warn( 'THREE.GLTFExporter: UV channels for metalnessMap and roughnessMap textures must match.' );
+
+		}
+
+		return texture;
+
+	}
+
+	/**
+	 * Process a buffer to append to the default one.
+	 * @param  {ArrayBuffer} buffer
+	 * @return {Integer}
+	 */
+	processBuffer( buffer ) {
+
+		const json = this.json;
+		const buffers = this.buffers;
+
+		if ( ! json.buffers ) json.buffers = [ { byteLength: 0 } ];
+
+		// All buffers are merged before export.
+		buffers.push( buffer );
+
+		return 0;
+
+	}
+
+	/**
+	 * Process and generate a BufferView
+	 * @param  {BufferAttribute} attribute
+	 * @param  {number} componentType
+	 * @param  {number} start
+	 * @param  {number} count
+	 * @param  {number} target (Optional) Target usage of the BufferView
+	 * @return {Object}
+	 */
+	processBufferView( attribute, componentType, start, count, target ) {
+
+		const json = this.json;
+
+		if ( ! json.bufferViews ) json.bufferViews = [];
+
+		// Create a new dataview and dump the attribute's array into it
+
+		let componentSize;
+
+		switch ( componentType ) {
+
+			case WEBGL_CONSTANTS.BYTE:
+			case WEBGL_CONSTANTS.UNSIGNED_BYTE:
+
+				componentSize = 1;
+
+				break;
+
+			case WEBGL_CONSTANTS.SHORT:
+			case WEBGL_CONSTANTS.UNSIGNED_SHORT:
+
+				componentSize = 2;
+
+				break;
+
+			default:
+
+				componentSize = 4;
+
+		}
+
+		const byteLength = getPaddedBufferSize( count * attribute.itemSize * componentSize );
+		const dataView = new DataView( new ArrayBuffer( byteLength ) );
+		let offset = 0;
+
+		for ( let i = start; i < start + count; i ++ ) {
+
+			for ( let a = 0; a < attribute.itemSize; a ++ ) {
+
+				let value;
+
+				if ( attribute.itemSize > 4 ) {
+
+					 // no support for interleaved data for itemSize > 4
+
+					value = attribute.array[ i * attribute.itemSize + a ];
+
+				} else {
+
+					if ( a === 0 ) value = attribute.getX( i );
+					else if ( a === 1 ) value = attribute.getY( i );
+					else if ( a === 2 ) value = attribute.getZ( i );
+					else if ( a === 3 ) value = attribute.getW( i );
+
+					if ( attribute.normalized === true ) {
+
+						value = MathUtils.normalize( value, attribute.array );
+
+					}
+
+				}
+
+				if ( componentType === WEBGL_CONSTANTS.FLOAT ) {
+
+					dataView.setFloat32( offset, value, true );
+
+				} else if ( componentType === WEBGL_CONSTANTS.INT ) {
+
+					dataView.setInt32( offset, value, true );
+
+				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_INT ) {
+
+					dataView.setUint32( offset, value, true );
+
+				} else if ( componentType === WEBGL_CONSTANTS.SHORT ) {
+
+					dataView.setInt16( offset, value, true );
+
+				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_SHORT ) {
+
+					dataView.setUint16( offset, value, true );
+
+				} else if ( componentType === WEBGL_CONSTANTS.BYTE ) {
+
+					dataView.setInt8( offset, value );
+
+				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_BYTE ) {
+
+					dataView.setUint8( offset, value );
+
+				}
+
+				offset += componentSize;
+
+			}
+
+		}
+
+		const bufferViewDef = {
+
+			buffer: this.processBuffer( dataView.buffer ),
+			byteOffset: this.byteOffset,
+			byteLength: byteLength
+
+		};
+
+		if ( target !== undefined ) bufferViewDef.target = target;
+
+		if ( target === WEBGL_CONSTANTS.ARRAY_BUFFER ) {
+
+			// Only define byteStride for vertex attributes.
+			bufferViewDef.byteStride = attribute.itemSize * componentSize;
+
+		}
+
+		this.byteOffset += byteLength;
+
+		json.bufferViews.push( bufferViewDef );
+
+		// @TODO Merge bufferViews where possible.
+		const output = {
+
+			id: json.bufferViews.length - 1,
+			byteLength: 0
+
+		};
+
+		return output;
+
+	}
+
+	/**
+	 * Process and generate a BufferView from an image Blob.
+	 * @param {Blob} blob
+	 * @return {Promise<Integer>}
+	 */
+	processBufferViewImage( blob ) {
+
+		const writer = this;
+		const json = writer.json;
+
+		if ( ! json.bufferViews ) json.bufferViews = [];
+
+		return new Promise( function ( resolve ) {
+
+			const reader = new FileReader();
+			reader.readAsArrayBuffer( blob );
+			reader.onloadend = function () {
+
+				const buffer = getPaddedArrayBuffer( reader.result );
+
+				const bufferViewDef = {
+					buffer: writer.processBuffer( buffer ),
+					byteOffset: writer.byteOffset,
+					byteLength: buffer.byteLength
+				};
+
+				writer.byteOffset += buffer.byteLength;
+				resolve( json.bufferViews.push( bufferViewDef ) - 1 );
+
+			};
+
+		} );
+
+	}
+
+	/**
+	 * Process attribute to generate an accessor
+	 * @param  {BufferAttribute} attribute Attribute to process
+	 * @param  {THREE.BufferGeometry} geometry (Optional) Geometry used for truncated draw range
+	 * @param  {Integer} start (Optional)
+	 * @param  {Integer} count (Optional)
+	 * @return {Integer|null} Index of the processed accessor on the "accessors" array
+	 */
+	processAccessor( attribute, geometry, start, count ) {
+
+		const json = this.json;
+
+		const types = {
+
+			1: 'SCALAR',
+			2: 'VEC2',
+			3: 'VEC3',
+			4: 'VEC4',
+			9: 'MAT3',
+			16: 'MAT4'
+
+		};
+
+		let componentType;
+
+		// Detect the component type of the attribute array
+		if ( attribute.array.constructor === Float32Array ) {
+
+			componentType = WEBGL_CONSTANTS.FLOAT;
+
+		} else if ( attribute.array.constructor === Int32Array ) {
+
+			componentType = WEBGL_CONSTANTS.INT;
+
+		} else if ( attribute.array.constructor === Uint32Array ) {
+
+			componentType = WEBGL_CONSTANTS.UNSIGNED_INT;
+
+		} else if ( attribute.array.constructor === Int16Array ) {
+
+			componentType = WEBGL_CONSTANTS.SHORT;
+
+		} else if ( attribute.array.constructor === Uint16Array ) {
+
+			componentType = WEBGL_CONSTANTS.UNSIGNED_SHORT;
+
+		} else if ( attribute.array.constructor === Int8Array ) {
+
+			componentType = WEBGL_CONSTANTS.BYTE;
+
+		} else if ( attribute.array.constructor === Uint8Array ) {
+
+			componentType = WEBGL_CONSTANTS.UNSIGNED_BYTE;
+
+		} else {
+
+			throw new Error( 'THREE.GLTFExporter: Unsupported bufferAttribute component type.' );
+
+		}
+
+		if ( start === undefined ) start = 0;
+		if ( count === undefined ) count = attribute.count;
+
+		// Skip creating an accessor if the attribute doesn't have data to export
+		if ( count === 0 ) return null;
+
+		const minMax = getMinMax( attribute, start, count );
+		let bufferViewTarget;
+
+		// If geometry isn't provided, don't infer the target usage of the bufferView. For
+		// animation samplers, target must not be set.
+		if ( geometry !== undefined ) {
+
+			bufferViewTarget = attribute === geometry.index ? WEBGL_CONSTANTS.ELEMENT_ARRAY_BUFFER : WEBGL_CONSTANTS.ARRAY_BUFFER;
+
+		}
+
+		const bufferView = this.processBufferView( attribute, componentType, start, count, bufferViewTarget );
+
+		const accessorDef = {
+
+			bufferView: bufferView.id,
+			byteOffset: bufferView.byteOffset,
+			componentType: componentType,
+			count: count,
+			max: minMax.max,
+			min: minMax.min,
+			type: types[ attribute.itemSize ]
+
+		};
+
+		if ( attribute.normalized === true ) accessorDef.normalized = true;
+		if ( ! json.accessors ) json.accessors = [];
+
+		return json.accessors.push( accessorDef ) - 1;
+
+	}
+
+	/**
+	 * Process image
+	 * @param  {Image} image to process
+	 * @param  {Integer} format of the image (RGBAFormat)
+	 * @param  {Boolean} flipY before writing out the image
+	 * @param  {String} mimeType export format
+	 * @return {Integer}     Index of the processed texture in the "images" array
+	 */
+	processImage( image, format, flipY, mimeType = 'image/png' ) {
+
+		if ( image !== null ) {
+
+			const writer = this;
+			const cache = writer.cache;
+			const json = writer.json;
+			const options = writer.options;
+			const pending = writer.pending;
+
+			if ( ! cache.images.has( image ) ) cache.images.set( image, {} );
+
+			const cachedImages = cache.images.get( image );
+
+			const key = mimeType + ':flipY/' + flipY.toString();
+
+			if ( cachedImages[ key ] !== undefined ) return cachedImages[ key ];
+
+			if ( ! json.images ) json.images = [];
+
+			const imageDef = { mimeType: mimeType };
+
+			const canvas = getCanvas();
+
+			canvas.width = Math.min( image.width, options.maxTextureSize );
+			canvas.height = Math.min( image.height, options.maxTextureSize );
+
+			const ctx = canvas.getContext( '2d' );
+
+			if ( flipY === true ) {
+
+				ctx.translate( 0, canvas.height );
+				ctx.scale( 1, - 1 );
+
+			}
+
+			if ( image.data !== undefined ) { // THREE.DataTexture
+
+				if ( format !== RGBAFormat ) {
+
+					console.error( 'GLTFExporter: Only RGBAFormat is supported.' );
+
+				}
+
+				if ( image.width > options.maxTextureSize || image.height > options.maxTextureSize ) {
+
+					console.warn( 'GLTFExporter: Image size is bigger than maxTextureSize', image );
+
+				}
+
+				const data = new Uint8ClampedArray( image.height * image.width * 4 );
+
+				for ( let i = 0; i < data.length; i += 4 ) {
+
+					data[ i + 0 ] = image.data[ i + 0 ];
+					data[ i + 1 ] = image.data[ i + 1 ];
+					data[ i + 2 ] = image.data[ i + 2 ];
+					data[ i + 3 ] = image.data[ i + 3 ];
+
+				}
+
+				ctx.putImageData( new ImageData( data, image.width, image.height ), 0, 0 );
+
+			} else {
+
+				ctx.drawImage( image, 0, 0, canvas.width, canvas.height );
+
+			}
+
+			if ( options.binary === true ) {
+
+				pending.push(
+
+					getToBlobPromise( canvas, mimeType )
+						.then( blob => writer.processBufferViewImage( blob ) )
+						.then( bufferViewIndex => {
+
+							imageDef.bufferView = bufferViewIndex;
+
+						} )
+
+				);
+
+			} else {
+
+				if ( canvas.toDataURL !== undefined ) {
+
+					imageDef.uri = canvas.toDataURL( mimeType );
+
+				} else {
+
+					pending.push(
+
+						getToBlobPromise( canvas, mimeType )
+							.then( blob => new FileReader().readAsDataURL( blob ) )
+							.then( dataURL => {
+
+								imageDef.uri = dataURL;
+
+							} )
+
+					);
+
+				}
+
+			}
+
+			const index = json.images.push( imageDef ) - 1;
+			cachedImages[ key ] = index;
+			return index;
+
+		} else {
+
+			throw new Error( 'THREE.GLTFExporter: No valid image data found. Unable to process texture.' );
+
+		}
+
+	}
+
+	/**
+	 * Process sampler
+	 * @param  {Texture} map Texture to process
+	 * @return {Integer}     Index of the processed texture in the "samplers" array
+	 */
+	processSampler( map ) {
+
+		const json = this.json;
+
+		if ( ! json.samplers ) json.samplers = [];
+
+		const samplerDef = {
+			magFilter: THREE_TO_WEBGL[ map.magFilter ],
+			minFilter: THREE_TO_WEBGL[ map.minFilter ],
+			wrapS: THREE_TO_WEBGL[ map.wrapS ],
+			wrapT: THREE_TO_WEBGL[ map.wrapT ]
+		};
+
+		return json.samplers.push( samplerDef ) - 1;
+
+	}
+
+	/**
+	 * Process texture
+	 * @param  {Texture} map Map to process
+	 * @return {Integer} Index of the processed texture in the "textures" array
+	 */
+	processTexture( map ) {
+
+		const cache = this.cache;
+		const json = this.json;
+
+		if ( cache.textures.has( map ) ) return cache.textures.get( map );
+
+		if ( ! json.textures ) json.textures = [];
+
+		let mimeType = map.userData.mimeType;
+
+		if ( mimeType === 'image/webp' ) mimeType = 'image/png';
+
+		const textureDef = {
+			sampler: this.processSampler( map ),
+			source: this.processImage( map.image, map.format, map.flipY, mimeType )
+		};
+
+		if ( map.name ) textureDef.name = map.name;
+
+		this._invokeAll( function ( ext ) {
+
+			ext.writeTexture && ext.writeTexture( map, textureDef );
+
+		} );
+
+		const index = json.textures.push( textureDef ) - 1;
+		cache.textures.set( map, index );
+		return index;
+
+	}
+
+	/**
+	 * Process material
+	 * @param  {THREE.Material} material Material to process
+	 * @return {Integer|null} Index of the processed material in the "materials" array
+	 */
+	processMaterial( material ) {
+
+		const cache = this.cache;
+		const json = this.json;
+
+		if ( cache.materials.has( material ) ) return cache.materials.get( material );
+
+		if ( material.isShaderMaterial ) {
+
+			console.warn( 'GLTFExporter: THREE.ShaderMaterial not supported.' );
+			return null;
+
+		}
+
+		if ( ! json.materials ) json.materials = [];
+
+		// @QUESTION Should we avoid including any attribute that has the default value?
+		const materialDef = {	pbrMetallicRoughness: {} };
+
+		if ( material.isMeshStandardMaterial !== true && material.isMeshBasicMaterial !== true ) {
+
+			console.warn( 'GLTFExporter: Use MeshStandardMaterial or MeshBasicMaterial for best results.' );
+
+		}
+
+		// pbrMetallicRoughness.baseColorFactor
+		const color = material.color.toArray().concat( [ material.opacity ] );
+
+		if ( ! equalArray( color, [ 1, 1, 1, 1 ] ) ) {
+
+			materialDef.pbrMetallicRoughness.baseColorFactor = color;
+
+		}
+
+		if ( material.isMeshStandardMaterial ) {
+
+			materialDef.pbrMetallicRoughness.metallicFactor = material.metalness;
+			materialDef.pbrMetallicRoughness.roughnessFactor = material.roughness;
+
+		} else {
+
+			materialDef.pbrMetallicRoughness.metallicFactor = 0.5;
+			materialDef.pbrMetallicRoughness.roughnessFactor = 0.5;
+
+		}
+
+		// pbrMetallicRoughness.metallicRoughnessTexture
+		if ( material.metalnessMap || material.roughnessMap ) {
+
+			const metalRoughTexture = this.buildMetalRoughTexture( material.metalnessMap, material.roughnessMap );
+
+			const metalRoughMapDef = {
+				index: this.processTexture( metalRoughTexture ),
+				channel: metalRoughTexture.channel
+			};
+			this.applyTextureTransform( metalRoughMapDef, metalRoughTexture );
+			materialDef.pbrMetallicRoughness.metallicRoughnessTexture = metalRoughMapDef;
+
+		}
+
+		// pbrMetallicRoughness.baseColorTexture
+		if ( material.map ) {
+
+			const baseColorMapDef = {
+				index: this.processTexture( material.map ),
+				texCoord: material.map.channel
+			};
+			this.applyTextureTransform( baseColorMapDef, material.map );
+			materialDef.pbrMetallicRoughness.baseColorTexture = baseColorMapDef;
+
+		}
+
+		if ( material.emissive ) {
+
+			const emissive = material.emissive;
+			const maxEmissiveComponent = Math.max( emissive.r, emissive.g, emissive.b );
+
+			if ( maxEmissiveComponent > 0 ) {
+
+				materialDef.emissiveFactor = material.emissive.toArray();
+
+			}
+
+			// emissiveTexture
+			if ( material.emissiveMap ) {
+
+				const emissiveMapDef = {
+					index: this.processTexture( material.emissiveMap ),
+					texCoord: material.emissiveMap.channel
+				};
+				this.applyTextureTransform( emissiveMapDef, material.emissiveMap );
+				materialDef.emissiveTexture = emissiveMapDef;
+
+			}
+
+		}
+
+		// normalTexture
+		if ( material.normalMap ) {
+
+			const normalMapDef = {
+				index: this.processTexture( material.normalMap ),
+				texCoord: material.normalMap.channel
+			};
+
+			if ( material.normalScale && material.normalScale.x !== 1 ) {
+
+				// glTF normal scale is univariate. Ignore `y`, which may be flipped.
+				// Context: https://github.com/mrdoob/three.js/issues/11438#issuecomment-507003995
+				normalMapDef.scale = material.normalScale.x;
+
+			}
+
+			this.applyTextureTransform( normalMapDef, material.normalMap );
+			materialDef.normalTexture = normalMapDef;
+
+		}
+
+		// occlusionTexture
+		if ( material.aoMap ) {
+
+			const occlusionMapDef = {
+				index: this.processTexture( material.aoMap ),
+				texCoord: material.aoMap.channel
+			};
+
+			if ( material.aoMapIntensity !== 1.0 ) {
+
+				occlusionMapDef.strength = material.aoMapIntensity;
+
+			}
+
+			this.applyTextureTransform( occlusionMapDef, material.aoMap );
+			materialDef.occlusionTexture = occlusionMapDef;
+
+		}
+
+		// alphaMode
+		if ( material.transparent ) {
+
+			materialDef.alphaMode = 'BLEND';
+
+		} else {
+
+			if ( material.alphaTest > 0.0 ) {
+
+				materialDef.alphaMode = 'MASK';
+				materialDef.alphaCutoff = material.alphaTest;
+
+			}
+
+		}
+
+		// doubleSided
+		if ( material.side === DoubleSide ) materialDef.doubleSided = true;
+		if ( material.name !== '' ) materialDef.name = material.name;
+
+		this.serializeUserData( material, materialDef );
+
+		this._invokeAll( function ( ext ) {
+
+			ext.writeMaterial && ext.writeMaterial( material, materialDef );
+
+		} );
+
+		const index = json.materials.push( materialDef ) - 1;
+		cache.materials.set( material, index );
+		return index;
+
+	}
+
+	/**
+	 * Process mesh
+	 * @param  {THREE.Mesh} mesh Mesh to process
+	 * @return {Integer|null} Index of the processed mesh in the "meshes" array
+	 */
+	processMesh( mesh ) {
+
+		const cache = this.cache;
+		const json = this.json;
+
+		const meshCacheKeyParts = [ mesh.geometry.uuid ];
+
+		if ( Array.isArray( mesh.material ) ) {
+
+			for ( let i = 0, l = mesh.material.length; i < l; i ++ ) {
+
+				meshCacheKeyParts.push( mesh.material[ i ].uuid	);
+
+			}
+
+		} else {
+
+			meshCacheKeyParts.push( mesh.material.uuid );
+
+		}
+
+		const meshCacheKey = meshCacheKeyParts.join( ':' );
+
+		if ( cache.meshes.has( meshCacheKey ) ) return cache.meshes.get( meshCacheKey );
+
+		const geometry = mesh.geometry;
+
+		let mode;
+
+		// Use the correct mode
+		if ( mesh.isLineSegments ) {
+
+			mode = WEBGL_CONSTANTS.LINES;
+
+		} else if ( mesh.isLineLoop ) {
+
+			mode = WEBGL_CONSTANTS.LINE_LOOP;
+
+		} else if ( mesh.isLine ) {
+
+			mode = WEBGL_CONSTANTS.LINE_STRIP;
+
+		} else if ( mesh.isPoints ) {
+
+			mode = WEBGL_CONSTANTS.POINTS;
+
+		} else {
+
+			mode = mesh.material.wireframe ? WEBGL_CONSTANTS.LINES : WEBGL_CONSTANTS.TRIANGLES;
+
+		}
+
+		const meshDef = {};
+		const attributes = {};
+		const primitives = [];
+		const targets = [];
+
+		// Conversion between attributes names in threejs and gltf spec
+		const nameConversion = {
+			uv: 'TEXCOORD_0',
+			uv1: 'TEXCOORD_1',
+			color: 'COLOR_0',
+			skinWeight: 'WEIGHTS_0',
+			skinIndex: 'JOINTS_0'
+		};
+
+		const originalNormal = geometry.getAttribute( 'normal' );
+
+		if ( originalNormal !== undefined && ! this.isNormalizedNormalAttribute( originalNormal ) ) {
+
+			console.warn( 'THREE.GLTFExporter: Creating normalized normal attribute from the non-normalized one.' );
+
+			geometry.setAttribute( 'normal', this.createNormalizedNormalAttribute( originalNormal ) );
+
+		}
+
+		// @QUESTION Detect if .vertexColors = true?
+		// For every attribute create an accessor
+		let modifiedAttribute = null;
+
+		for ( let attributeName in geometry.attributes ) {
+
+			// Ignore morph target attributes, which are exported later.
+			if ( attributeName.slice( 0, 5 ) === 'morph' ) continue;
+
+			const attribute = geometry.attributes[ attributeName ];
+			attributeName = nameConversion[ attributeName ] || attributeName.toUpperCase();
+
+			// Prefix all geometry attributes except the ones specifically
+			// listed in the spec; non-spec attributes are considered custom.
+			const validVertexAttributes =
+					/^(POSITION|NORMAL|TANGENT|TEXCOORD_\d+|COLOR_\d+|JOINTS_\d+|WEIGHTS_\d+)$/;
+
+			if ( ! validVertexAttributes.test( attributeName ) ) attributeName = '_' + attributeName;
+
+			if ( cache.attributes.has( this.getUID( attribute ) ) ) {
+
+				attributes[ attributeName ] = cache.attributes.get( this.getUID( attribute ) );
+				continue;
+
+			}
+
+			// JOINTS_0 must be UNSIGNED_BYTE or UNSIGNED_SHORT.
+			modifiedAttribute = null;
+			const array = attribute.array;
+
+			if ( attributeName === 'JOINTS_0' &&
+				! ( array instanceof Uint16Array ) &&
+				! ( array instanceof Uint8Array ) ) {
+
+				console.warn( 'GLTFExporter: Attribute "skinIndex" converted to type UNSIGNED_SHORT.' );
+				modifiedAttribute = new BufferAttribute$1( new Uint16Array( array ), attribute.itemSize, attribute.normalized );
+
+			}
+
+			const accessor = this.processAccessor( modifiedAttribute || attribute, geometry );
+
+			if ( accessor !== null ) {
+
+				if ( ! attributeName.startsWith( '_' ) ) {
+
+					this.detectMeshQuantization( attributeName, attribute );
+
+				}
+
+				attributes[ attributeName ] = accessor;
+				cache.attributes.set( this.getUID( attribute ), accessor );
+
+			}
+
+		}
+
+		if ( originalNormal !== undefined ) geometry.setAttribute( 'normal', originalNormal );
+
+		// Skip if no exportable attributes found
+		if ( Object.keys( attributes ).length === 0 ) return null;
+
+		// Morph targets
+		if ( mesh.morphTargetInfluences !== undefined && mesh.morphTargetInfluences.length > 0 ) {
+
+			const weights = [];
+			const targetNames = [];
+			const reverseDictionary = {};
+
+			if ( mesh.morphTargetDictionary !== undefined ) {
+
+				for ( const key in mesh.morphTargetDictionary ) {
+
+					reverseDictionary[ mesh.morphTargetDictionary[ key ] ] = key;
+
+				}
+
+			}
+
+			for ( let i = 0; i < mesh.morphTargetInfluences.length; ++ i ) {
+
+				const target = {};
+				let warned = false;
+
+				for ( const attributeName in geometry.morphAttributes ) {
+
+					// glTF 2.0 morph supports only POSITION/NORMAL/TANGENT.
+					// Three.js doesn't support TANGENT yet.
+
+					if ( attributeName !== 'position' && attributeName !== 'normal' ) {
+
+						if ( ! warned ) {
+
+							console.warn( 'GLTFExporter: Only POSITION and NORMAL morph are supported.' );
+							warned = true;
+
+						}
+
+						continue;
+
+					}
+
+					const attribute = geometry.morphAttributes[ attributeName ][ i ];
+					const gltfAttributeName = attributeName.toUpperCase();
+
+					// Three.js morph attribute has absolute values while the one of glTF has relative values.
+					//
+					// glTF 2.0 Specification:
+					// https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#morph-targets
+
+					const baseAttribute = geometry.attributes[ attributeName ];
+
+					if ( cache.attributes.has( this.getUID( attribute, true ) ) ) {
+
+						target[ gltfAttributeName ] = cache.attributes.get( this.getUID( attribute, true ) );
+						continue;
+
+					}
+
+					// Clones attribute not to override
+					const relativeAttribute = attribute.clone();
+
+					if ( ! geometry.morphTargetsRelative ) {
+
+						for ( let j = 0, jl = attribute.count; j < jl; j ++ ) {
+
+							for ( let a = 0; a < attribute.itemSize; a ++ ) {
+
+								if ( a === 0 ) relativeAttribute.setX( j, attribute.getX( j ) - baseAttribute.getX( j ) );
+								if ( a === 1 ) relativeAttribute.setY( j, attribute.getY( j ) - baseAttribute.getY( j ) );
+								if ( a === 2 ) relativeAttribute.setZ( j, attribute.getZ( j ) - baseAttribute.getZ( j ) );
+								if ( a === 3 ) relativeAttribute.setW( j, attribute.getW( j ) - baseAttribute.getW( j ) );
+
+							}
+
+						}
+
+					}
+
+					target[ gltfAttributeName ] = this.processAccessor( relativeAttribute, geometry );
+					cache.attributes.set( this.getUID( baseAttribute, true ), target[ gltfAttributeName ] );
+
+				}
+
+				targets.push( target );
+
+				weights.push( mesh.morphTargetInfluences[ i ] );
+
+				if ( mesh.morphTargetDictionary !== undefined ) targetNames.push( reverseDictionary[ i ] );
+
+			}
+
+			meshDef.weights = weights;
+
+			if ( targetNames.length > 0 ) {
+
+				meshDef.extras = {};
+				meshDef.extras.targetNames = targetNames;
+
+			}
+
+		}
+
+		const isMultiMaterial = Array.isArray( mesh.material );
+
+		if ( isMultiMaterial && geometry.groups.length === 0 ) return null;
+
+		const materials = isMultiMaterial ? mesh.material : [ mesh.material ];
+		const groups = isMultiMaterial ? geometry.groups : [ { materialIndex: 0, start: undefined, count: undefined } ];
+
+		for ( let i = 0, il = groups.length; i < il; i ++ ) {
+
+			const primitive = {
+				mode: mode,
+				attributes: attributes,
+			};
+
+			this.serializeUserData( geometry, primitive );
+
+			if ( targets.length > 0 ) primitive.targets = targets;
+
+			if ( geometry.index !== null ) {
+
+				let cacheKey = this.getUID( geometry.index );
+
+				if ( groups[ i ].start !== undefined || groups[ i ].count !== undefined ) {
+
+					cacheKey += ':' + groups[ i ].start + ':' + groups[ i ].count;
+
+				}
+
+				if ( cache.attributes.has( cacheKey ) ) {
+
+					primitive.indices = cache.attributes.get( cacheKey );
+
+				} else {
+
+					primitive.indices = this.processAccessor( geometry.index, geometry, groups[ i ].start, groups[ i ].count );
+					cache.attributes.set( cacheKey, primitive.indices );
+
+				}
+
+				if ( primitive.indices === null ) delete primitive.indices;
+
+			}
+
+			const material = this.processMaterial( materials[ groups[ i ].materialIndex ] );
+
+			if ( material !== null ) primitive.material = material;
+
+			primitives.push( primitive );
+
+		}
+
+		meshDef.primitives = primitives;
+
+		if ( ! json.meshes ) json.meshes = [];
+
+		this._invokeAll( function ( ext ) {
+
+			ext.writeMesh && ext.writeMesh( mesh, meshDef );
+
+		} );
+
+		const index = json.meshes.push( meshDef ) - 1;
+		cache.meshes.set( meshCacheKey, index );
+		return index;
+
+	}
+
+	/**
+	 * If a vertex attribute with a
+	 * [non-standard data type](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes-overview)
+	 * is used, it is checked whether it is a valid data type according to the
+	 * [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
+	 * extension.
+	 * In this case the extension is automatically added to the list of used extensions.
+	 *
+	 * @param {string} attributeName
+	 * @param {THREE.BufferAttribute} attribute
+	 */
+	detectMeshQuantization( attributeName, attribute ) {
+
+		if ( this.extensionsUsed[ KHR_MESH_QUANTIZATION ] ) return;
+
+		let attrType = undefined;
+
+		switch ( attribute.array.constructor ) {
+
+			case Int8Array:
+
+				attrType = 'byte';
+
+				break;
+
+			case Uint8Array:
+
+				attrType = 'unsigned byte';
+
+				break;
+
+			case Int16Array:
+
+				attrType = 'short';
+
+				break;
+
+			case Uint16Array:
+
+				attrType = 'unsigned short';
+
+				break;
+
+			default:
+
+				return;
+
+		}
+
+		if ( attribute.normalized ) attrType += ' normalized';
+
+		const attrNamePrefix = attributeName.split( '_', 1 )[ 0 ];
+
+		if ( KHR_mesh_quantization_ExtraAttrTypes[ attrNamePrefix ] && KHR_mesh_quantization_ExtraAttrTypes[ attrNamePrefix ].includes( attrType ) ) {
+
+			this.extensionsUsed[ KHR_MESH_QUANTIZATION ] = true;
+			this.extensionsRequired[ KHR_MESH_QUANTIZATION ] = true;
+
+		}
+
+	}
+
+	/**
+	 * Process camera
+	 * @param  {THREE.Camera} camera Camera to process
+	 * @return {Integer}      Index of the processed mesh in the "camera" array
+	 */
+	processCamera( camera ) {
+
+		const json = this.json;
+
+		if ( ! json.cameras ) json.cameras = [];
+
+		const isOrtho = camera.isOrthographicCamera;
+
+		const cameraDef = {
+			type: isOrtho ? 'orthographic' : 'perspective'
+		};
+
+		if ( isOrtho ) {
+
+			cameraDef.orthographic = {
+				xmag: camera.right * 2,
+				ymag: camera.top * 2,
+				zfar: camera.far <= 0 ? 0.001 : camera.far,
+				znear: camera.near < 0 ? 0 : camera.near
+			};
+
+		} else {
+
+			cameraDef.perspective = {
+				aspectRatio: camera.aspect,
+				yfov: MathUtils.degToRad( camera.fov ),
+				zfar: camera.far <= 0 ? 0.001 : camera.far,
+				znear: camera.near < 0 ? 0 : camera.near
+			};
+
+		}
+
+		// Question: Is saving "type" as name intentional?
+		if ( camera.name !== '' ) cameraDef.name = camera.type;
+
+		return json.cameras.push( cameraDef ) - 1;
+
+	}
+
+	/**
+	 * Creates glTF animation entry from AnimationClip object.
+	 *
+	 * Status:
+	 * - Only properties listed in PATH_PROPERTIES may be animated.
+	 *
+	 * @param {THREE.AnimationClip} clip
+	 * @param {THREE.Object3D} root
+	 * @return {number|null}
+	 */
+	processAnimation( clip, root ) {
+
+		const json = this.json;
+		const nodeMap = this.nodeMap;
+
+		if ( ! json.animations ) json.animations = [];
+
+		clip = GLTFExporter.Utils.mergeMorphTargetTracks( clip.clone(), root );
+
+		const tracks = clip.tracks;
+		const channels = [];
+		const samplers = [];
+
+		for ( let i = 0; i < tracks.length; ++ i ) {
+
+			const track = tracks[ i ];
+			const trackBinding = PropertyBinding.parseTrackName( track.name );
+			let trackNode = PropertyBinding.findNode( root, trackBinding.nodeName );
+			const trackProperty = PATH_PROPERTIES[ trackBinding.propertyName ];
+
+			if ( trackBinding.objectName === 'bones' ) {
+
+				if ( trackNode.isSkinnedMesh === true ) {
+
+					trackNode = trackNode.skeleton.getBoneByName( trackBinding.objectIndex );
+
+				} else {
+
+					trackNode = undefined;
+
+				}
+
+			}
+
+			if ( ! trackNode || ! trackProperty ) {
+
+				console.warn( 'THREE.GLTFExporter: Could not export animation track "%s".', track.name );
+				return null;
+
+			}
+
+			const inputItemSize = 1;
+			let outputItemSize = track.values.length / track.times.length;
+
+			if ( trackProperty === PATH_PROPERTIES.morphTargetInfluences ) {
+
+				outputItemSize /= trackNode.morphTargetInfluences.length;
+
+			}
+
+			let interpolation;
+
+			// @TODO export CubicInterpolant(InterpolateSmooth) as CUBICSPLINE
+
+			// Detecting glTF cubic spline interpolant by checking factory method's special property
+			// GLTFCubicSplineInterpolant is a custom interpolant and track doesn't return
+			// valid value from .getInterpolation().
+			if ( track.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline === true ) {
+
+				interpolation = 'CUBICSPLINE';
+
+				// itemSize of CUBICSPLINE keyframe is 9
+				// (VEC3 * 3: inTangent, splineVertex, and outTangent)
+				// but needs to be stored as VEC3 so dividing by 3 here.
+				outputItemSize /= 3;
+
+			} else if ( track.getInterpolation() === InterpolateDiscrete ) {
+
+				interpolation = 'STEP';
+
+			} else {
+
+				interpolation = 'LINEAR';
+
+			}
+
+			samplers.push( {
+				input: this.processAccessor( new BufferAttribute$1( track.times, inputItemSize ) ),
+				output: this.processAccessor( new BufferAttribute$1( track.values, outputItemSize ) ),
+				interpolation: interpolation
+			} );
+
+			channels.push( {
+				sampler: samplers.length - 1,
+				target: {
+					node: nodeMap.get( trackNode ),
+					path: trackProperty
+				}
+			} );
+
+		}
+
+		json.animations.push( {
+			name: clip.name || 'clip_' + json.animations.length,
+			samplers: samplers,
+			channels: channels
+		} );
+
+		return json.animations.length - 1;
+
+	}
+
+	/**
+	 * @param {THREE.Object3D} object
+	 * @return {number|null}
+	 */
+	 processSkin( object ) {
+
+		const json = this.json;
+		const nodeMap = this.nodeMap;
+
+		const node = json.nodes[ nodeMap.get( object ) ];
+
+		const skeleton = object.skeleton;
+
+		if ( skeleton === undefined ) return null;
+
+		const rootJoint = object.skeleton.bones[ 0 ];
+
+		if ( rootJoint === undefined ) return null;
+
+		const joints = [];
+		const inverseBindMatrices = new Float32Array( skeleton.bones.length * 16 );
+		const temporaryBoneInverse = new Matrix4();
+
+		for ( let i = 0; i < skeleton.bones.length; ++ i ) {
+
+			joints.push( nodeMap.get( skeleton.bones[ i ] ) );
+			temporaryBoneInverse.copy( skeleton.boneInverses[ i ] );
+			temporaryBoneInverse.multiply( object.bindMatrix ).toArray( inverseBindMatrices, i * 16 );
+
+		}
+
+		if ( json.skins === undefined ) json.skins = [];
+
+		json.skins.push( {
+			inverseBindMatrices: this.processAccessor( new BufferAttribute$1( inverseBindMatrices, 16 ) ),
+			joints: joints,
+			skeleton: nodeMap.get( rootJoint )
+		} );
+
+		const skinIndex = node.skin = json.skins.length - 1;
+
+		return skinIndex;
+
+	}
+
+	/**
+	 * Process Object3D node
+	 * @param  {THREE.Object3D} node Object3D to processNode
+	 * @return {Integer} Index of the node in the nodes list
+	 */
+	processNode( object ) {
+
+		const json = this.json;
+		const options = this.options;
+		const nodeMap = this.nodeMap;
+
+		if ( ! json.nodes ) json.nodes = [];
+
+		const nodeDef = {};
+
+		if ( options.trs ) {
+
+			const rotation = object.quaternion.toArray();
+			const position = object.position.toArray();
+			const scale = object.scale.toArray();
+
+			if ( ! equalArray( rotation, [ 0, 0, 0, 1 ] ) ) {
+
+				nodeDef.rotation = rotation;
+
+			}
+
+			if ( ! equalArray( position, [ 0, 0, 0 ] ) ) {
+
+				nodeDef.translation = position;
+
+			}
+
+			if ( ! equalArray( scale, [ 1, 1, 1 ] ) ) {
+
+				nodeDef.scale = scale;
+
+			}
+
+		} else {
+
+			if ( object.matrixAutoUpdate ) {
+
+				object.updateMatrix();
+
+			}
+
+			if ( isIdentityMatrix( object.matrix ) === false ) {
+
+				nodeDef.matrix = object.matrix.elements;
+
+			}
+
+		}
+
+		// We don't export empty strings name because it represents no-name in Three.js.
+		if ( object.name !== '' ) nodeDef.name = String( object.name );
+
+		this.serializeUserData( object, nodeDef );
+
+		if ( object.isMesh || object.isLine || object.isPoints ) {
+
+			const meshIndex = this.processMesh( object );
+
+			if ( meshIndex !== null ) nodeDef.mesh = meshIndex;
+
+		} else if ( object.isCamera ) {
+
+			nodeDef.camera = this.processCamera( object );
+
+		}
+
+		if ( object.isSkinnedMesh ) this.skins.push( object );
+
+		if ( object.children.length > 0 ) {
+
+			const children = [];
+
+			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
+
+				const child = object.children[ i ];
+
+				if ( child.visible || options.onlyVisible === false ) {
+
+					const nodeIndex = this.processNode( child );
+
+					if ( nodeIndex !== null ) children.push( nodeIndex );
+
+				}
+
+			}
+
+			if ( children.length > 0 ) nodeDef.children = children;
+
+		}
+
+		this._invokeAll( function ( ext ) {
+
+			ext.writeNode && ext.writeNode( object, nodeDef );
+
+		} );
+
+		const nodeIndex = json.nodes.push( nodeDef ) - 1;
+		nodeMap.set( object, nodeIndex );
+		return nodeIndex;
+
+	}
+
+	/**
+	 * Process Scene
+	 * @param  {Scene} node Scene to process
+	 */
+	processScene( scene ) {
+
+		const json = this.json;
+		const options = this.options;
+
+		if ( ! json.scenes ) {
+
+			json.scenes = [];
+			json.scene = 0;
+
+		}
+
+		const sceneDef = {};
+
+		if ( scene.name !== '' ) sceneDef.name = scene.name;
+
+		json.scenes.push( sceneDef );
+
+		const nodes = [];
+
+		for ( let i = 0, l = scene.children.length; i < l; i ++ ) {
+
+			const child = scene.children[ i ];
+
+			if ( child.visible || options.onlyVisible === false ) {
+
+				const nodeIndex = this.processNode( child );
+
+				if ( nodeIndex !== null ) nodes.push( nodeIndex );
+
+			}
+
+		}
+
+		if ( nodes.length > 0 ) sceneDef.nodes = nodes;
+
+		this.serializeUserData( scene, sceneDef );
+
+	}
+
+	/**
+	 * Creates a Scene to hold a list of objects and parse it
+	 * @param  {Array} objects List of objects to process
+	 */
+	processObjects( objects ) {
+
+		const scene = new Scene();
+		scene.name = 'AuxScene';
+
+		for ( let i = 0; i < objects.length; i ++ ) {
+
+			// We push directly to children instead of calling `add` to prevent
+			// modify the .parent and break its original scene and hierarchy
+			scene.children.push( objects[ i ] );
+
+		}
+
+		this.processScene( scene );
+
+	}
+
+	/**
+	 * @param {THREE.Object3D|Array<THREE.Object3D>} input
+	 */
+	processInput( input ) {
+
+		const options = this.options;
+
+		input = input instanceof Array ? input : [ input ];
+
+		this._invokeAll( function ( ext ) {
+
+			ext.beforeParse && ext.beforeParse( input );
+
+		} );
+
+		const objectsWithoutScene = [];
+
+		for ( let i = 0; i < input.length; i ++ ) {
+
+			if ( input[ i ] instanceof Scene ) {
+
+				this.processScene( input[ i ] );
+
+			} else {
+
+				objectsWithoutScene.push( input[ i ] );
+
+			}
+
+		}
+
+		if ( objectsWithoutScene.length > 0 ) this.processObjects( objectsWithoutScene );
+
+		for ( let i = 0; i < this.skins.length; ++ i ) {
+
+			this.processSkin( this.skins[ i ] );
+
+		}
+
+		for ( let i = 0; i < options.animations.length; ++ i ) {
+
+			this.processAnimation( options.animations[ i ], input[ 0 ] );
+
+		}
+
+		this._invokeAll( function ( ext ) {
+
+			ext.afterParse && ext.afterParse( input );
+
+		} );
+
+	}
+
+	_invokeAll( func ) {
+
+		for ( let i = 0, il = this.plugins.length; i < il; i ++ ) {
+
+			func( this.plugins[ i ] );
+
+		}
+
+	}
+
+}
+
+/**
+ * Punctual Lights Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_lights_punctual
+ */
+class GLTFLightExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_lights_punctual';
+
+	}
+
+	writeNode( light, nodeDef ) {
+
+		if ( ! light.isLight ) return;
+
+		if ( ! light.isDirectionalLight && ! light.isPointLight && ! light.isSpotLight ) {
+
+			console.warn( 'THREE.GLTFExporter: Only directional, point, and spot lights are supported.', light );
+			return;
+
+		}
+
+		const writer = this.writer;
+		const json = writer.json;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const lightDef = {};
+
+		if ( light.name ) lightDef.name = light.name;
+
+		lightDef.color = light.color.toArray();
+
+		lightDef.intensity = light.intensity;
+
+		if ( light.isDirectionalLight ) {
+
+			lightDef.type = 'directional';
+
+		} else if ( light.isPointLight ) {
+
+			lightDef.type = 'point';
+
+			if ( light.distance > 0 ) lightDef.range = light.distance;
+
+		} else if ( light.isSpotLight ) {
+
+			lightDef.type = 'spot';
+
+			if ( light.distance > 0 ) lightDef.range = light.distance;
+
+			lightDef.spot = {};
+			lightDef.spot.innerConeAngle = ( light.penumbra - 1.0 ) * light.angle * - 1.0;
+			lightDef.spot.outerConeAngle = light.angle;
+
+		}
+
+		if ( light.decay !== undefined && light.decay !== 2 ) {
+
+			console.warn( 'THREE.GLTFExporter: Light decay may be lost. glTF is physically-based, '
+				+ 'and expects light.decay=2.' );
+
+		}
+
+		if ( light.target
+				&& ( light.target.parent !== light
+				|| light.target.position.x !== 0
+				|| light.target.position.y !== 0
+				|| light.target.position.z !== - 1 ) ) {
+
+			console.warn( 'THREE.GLTFExporter: Light direction may be lost. For best results, '
+				+ 'make light.target a child of the light with position 0,0,-1.' );
+
+		}
+
+		if ( ! extensionsUsed[ this.name ] ) {
+
+			json.extensions = json.extensions || {};
+			json.extensions[ this.name ] = { lights: [] };
+			extensionsUsed[ this.name ] = true;
+
+		}
+
+		const lights = json.extensions[ this.name ].lights;
+		lights.push( lightDef );
+
+		nodeDef.extensions = nodeDef.extensions || {};
+		nodeDef.extensions[ this.name ] = { light: lights.length - 1 };
+
+	}
+
+}
+
+/**
+ * Unlit Materials Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_unlit
+ */
+class GLTFMaterialsUnlitExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_unlit';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshBasicMaterial ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = {};
+
+		extensionsUsed[ this.name ] = true;
+
+		materialDef.pbrMetallicRoughness.metallicFactor = 0.0;
+		materialDef.pbrMetallicRoughness.roughnessFactor = 0.9;
+
+	}
+
+}
+
+/**
+ * Clearcoat Materials Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_clearcoat
+ */
+class GLTFMaterialsClearcoatExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_clearcoat';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshPhysicalMaterial || material.clearcoat === 0 ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		extensionDef.clearcoatFactor = material.clearcoat;
+
+		if ( material.clearcoatMap ) {
+
+			const clearcoatMapDef = {
+				index: writer.processTexture( material.clearcoatMap ),
+				texCoord: material.clearcoatMap.channel
+			};
+			writer.applyTextureTransform( clearcoatMapDef, material.clearcoatMap );
+			extensionDef.clearcoatTexture = clearcoatMapDef;
+
+		}
+
+		extensionDef.clearcoatRoughnessFactor = material.clearcoatRoughness;
+
+		if ( material.clearcoatRoughnessMap ) {
+
+			const clearcoatRoughnessMapDef = {
+				index: writer.processTexture( material.clearcoatRoughnessMap ),
+				texCoord: material.clearcoatRoughnessMap.channel
+			};
+			writer.applyTextureTransform( clearcoatRoughnessMapDef, material.clearcoatRoughnessMap );
+			extensionDef.clearcoatRoughnessTexture = clearcoatRoughnessMapDef;
+
+		}
+
+		if ( material.clearcoatNormalMap ) {
+
+			const clearcoatNormalMapDef = {
+				index: writer.processTexture( material.clearcoatNormalMap ),
+				texCoord: material.clearcoatNormalMap.channel
+			};
+			writer.applyTextureTransform( clearcoatNormalMapDef, material.clearcoatNormalMap );
+			extensionDef.clearcoatNormalTexture = clearcoatNormalMapDef;
+
+		}
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+
+	}
+
+}
+
+/**
+ * Iridescence Materials Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_iridescence
+ */
+class GLTFMaterialsIridescenceExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_iridescence';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshPhysicalMaterial || material.iridescence === 0 ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		extensionDef.iridescenceFactor = material.iridescence;
+
+		if ( material.iridescenceMap ) {
+
+			const iridescenceMapDef = {
+				index: writer.processTexture( material.iridescenceMap ),
+				texCoord: material.iridescenceMap.channel
+			};
+			writer.applyTextureTransform( iridescenceMapDef, material.iridescenceMap );
+			extensionDef.iridescenceTexture = iridescenceMapDef;
+
+		}
+
+		extensionDef.iridescenceIor = material.iridescenceIOR;
+		extensionDef.iridescenceThicknessMinimum = material.iridescenceThicknessRange[ 0 ];
+		extensionDef.iridescenceThicknessMaximum = material.iridescenceThicknessRange[ 1 ];
+
+		if ( material.iridescenceThicknessMap ) {
+
+			const iridescenceThicknessMapDef = {
+				index: writer.processTexture( material.iridescenceThicknessMap ),
+				texCoord: material.iridescenceThicknessMap.channel
+			};
+			writer.applyTextureTransform( iridescenceThicknessMapDef, material.iridescenceThicknessMap );
+			extensionDef.iridescenceThicknessTexture = iridescenceThicknessMapDef;
+
+		}
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+	}
+
+}
+
+/**
+ * Transmission Materials Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_transmission
+ */
+class GLTFMaterialsTransmissionExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_transmission';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshPhysicalMaterial || material.transmission === 0 ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		extensionDef.transmissionFactor = material.transmission;
+
+		if ( material.transmissionMap ) {
+
+			const transmissionMapDef = {
+				index: writer.processTexture( material.transmissionMap ),
+				texCoord: material.transmissionMap.channel
+			};
+			writer.applyTextureTransform( transmissionMapDef, material.transmissionMap );
+			extensionDef.transmissionTexture = transmissionMapDef;
+
+		}
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+	}
+
+}
+
+/**
+ * Materials Volume Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_volume
+ */
+class GLTFMaterialsVolumeExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_volume';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshPhysicalMaterial || material.transmission === 0 ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		extensionDef.thicknessFactor = material.thickness;
+
+		if ( material.thicknessMap ) {
+
+			const thicknessMapDef = {
+				index: writer.processTexture( material.thicknessMap ),
+				texCoord: material.thicknessMap.channel
+			};
+			writer.applyTextureTransform( thicknessMapDef, material.thicknessMap );
+			extensionDef.thicknessTexture = thicknessMapDef;
+
+		}
+
+		extensionDef.attenuationDistance = material.attenuationDistance;
+		extensionDef.attenuationColor = material.attenuationColor.toArray();
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+	}
+
+}
+
+/**
+ * Materials ior Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_ior
+ */
+class GLTFMaterialsIorExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_ior';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshPhysicalMaterial || material.ior === 1.5 ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		extensionDef.ior = material.ior;
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+	}
+
+}
+
+/**
+ * Materials specular Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_specular
+ */
+class GLTFMaterialsSpecularExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_specular';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshPhysicalMaterial || ( material.specularIntensity === 1.0 &&
+		       material.specularColor.equals( DEFAULT_SPECULAR_COLOR ) &&
+		     ! material.specularIntensityMap && ! material.specularColorTexture ) ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		if ( material.specularIntensityMap ) {
+
+			const specularIntensityMapDef = {
+				index: writer.processTexture( material.specularIntensityMap ),
+				texCoord: material.specularIntensityMap.channel
+			};
+			writer.applyTextureTransform( specularIntensityMapDef, material.specularIntensityMap );
+			extensionDef.specularTexture = specularIntensityMapDef;
+
+		}
+
+		if ( material.specularColorMap ) {
+
+			const specularColorMapDef = {
+				index: writer.processTexture( material.specularColorMap ),
+				texCoord: material.specularColorMap.channel
+			};
+			writer.applyTextureTransform( specularColorMapDef, material.specularColorMap );
+			extensionDef.specularColorTexture = specularColorMapDef;
+
+		}
+
+		extensionDef.specularFactor = material.specularIntensity;
+		extensionDef.specularColorFactor = material.specularColor.toArray();
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+	}
+
+}
+
+/**
+ * Sheen Materials Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_sheen
+ */
+class GLTFMaterialsSheenExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_sheen';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshPhysicalMaterial || material.sheen == 0.0 ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		if ( material.sheenRoughnessMap ) {
+
+			const sheenRoughnessMapDef = {
+				index: writer.processTexture( material.sheenRoughnessMap ),
+				texCoord: material.sheenRoughnessMap.channel
+			};
+			writer.applyTextureTransform( sheenRoughnessMapDef, material.sheenRoughnessMap );
+			extensionDef.sheenRoughnessTexture = sheenRoughnessMapDef;
+
+		}
+
+		if ( material.sheenColorMap ) {
+
+			const sheenColorMapDef = {
+				index: writer.processTexture( material.sheenColorMap ),
+				texCoord: material.sheenColorMap.channel
+			};
+			writer.applyTextureTransform( sheenColorMapDef, material.sheenColorMap );
+			extensionDef.sheenColorTexture = sheenColorMapDef;
+
+		}
+
+		extensionDef.sheenRoughnessFactor = material.sheenRoughness;
+		extensionDef.sheenColorFactor = material.sheenColor.toArray();
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+	}
+
+}
+
+/**
+ * Materials Emissive Strength Extension
+ *
+ * Specification: https://github.com/KhronosGroup/glTF/blob/5768b3ce0ef32bc39cdf1bef10b948586635ead3/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
+ */
+class GLTFMaterialsEmissiveStrengthExtension {
+
+	constructor( writer ) {
+
+		this.writer = writer;
+		this.name = 'KHR_materials_emissive_strength';
+
+	}
+
+	writeMaterial( material, materialDef ) {
+
+		if ( ! material.isMeshStandardMaterial || material.emissiveIntensity === 1.0 ) return;
+
+		const writer = this.writer;
+		const extensionsUsed = writer.extensionsUsed;
+
+		const extensionDef = {};
+
+		extensionDef.emissiveStrength = material.emissiveIntensity;
+
+		materialDef.extensions = materialDef.extensions || {};
+		materialDef.extensions[ this.name ] = extensionDef;
+
+		extensionsUsed[ this.name ] = true;
+
+	}
+
+}
+
+/**
+ * Static utility functions
+ */
+GLTFExporter.Utils = {
+
+	insertKeyframe: function ( track, time ) {
+
+		const tolerance = 0.001; // 1ms
+		const valueSize = track.getValueSize();
+
+		const times = new track.TimeBufferType( track.times.length + 1 );
+		const values = new track.ValueBufferType( track.values.length + valueSize );
+		const interpolant = track.createInterpolant( new track.ValueBufferType( valueSize ) );
+
+		let index;
+
+		if ( track.times.length === 0 ) {
+
+			times[ 0 ] = time;
+
+			for ( let i = 0; i < valueSize; i ++ ) {
+
+				values[ i ] = 0;
+
+			}
+
+			index = 0;
+
+		} else if ( time < track.times[ 0 ] ) {
+
+			if ( Math.abs( track.times[ 0 ] - time ) < tolerance ) return 0;
+
+			times[ 0 ] = time;
+			times.set( track.times, 1 );
+
+			values.set( interpolant.evaluate( time ), 0 );
+			values.set( track.values, valueSize );
+
+			index = 0;
+
+		} else if ( time > track.times[ track.times.length - 1 ] ) {
+
+			if ( Math.abs( track.times[ track.times.length - 1 ] - time ) < tolerance ) {
+
+				return track.times.length - 1;
+
+			}
+
+			times[ times.length - 1 ] = time;
+			times.set( track.times, 0 );
+
+			values.set( track.values, 0 );
+			values.set( interpolant.evaluate( time ), track.values.length );
+
+			index = times.length - 1;
+
+		} else {
+
+			for ( let i = 0; i < track.times.length; i ++ ) {
+
+				if ( Math.abs( track.times[ i ] - time ) < tolerance ) return i;
+
+				if ( track.times[ i ] < time && track.times[ i + 1 ] > time ) {
+
+					times.set( track.times.slice( 0, i + 1 ), 0 );
+					times[ i + 1 ] = time;
+					times.set( track.times.slice( i + 1 ), i + 2 );
+
+					values.set( track.values.slice( 0, ( i + 1 ) * valueSize ), 0 );
+					values.set( interpolant.evaluate( time ), ( i + 1 ) * valueSize );
+					values.set( track.values.slice( ( i + 1 ) * valueSize ), ( i + 2 ) * valueSize );
+
+					index = i + 1;
+
+					break;
+
+				}
+
+			}
+
+		}
+
+		track.times = times;
+		track.values = values;
+
+		return index;
+
+	},
+
+	mergeMorphTargetTracks: function ( clip, root ) {
+
+		const tracks = [];
+		const mergedTracks = {};
+		const sourceTracks = clip.tracks;
+
+		for ( let i = 0; i < sourceTracks.length; ++ i ) {
+
+			let sourceTrack = sourceTracks[ i ];
+			const sourceTrackBinding = PropertyBinding.parseTrackName( sourceTrack.name );
+			const sourceTrackNode = PropertyBinding.findNode( root, sourceTrackBinding.nodeName );
+
+			if ( sourceTrackBinding.propertyName !== 'morphTargetInfluences' || sourceTrackBinding.propertyIndex === undefined ) {
+
+				// Tracks that don't affect morph targets, or that affect all morph targets together, can be left as-is.
+				tracks.push( sourceTrack );
+				continue;
+
+			}
+
+			if ( sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodDiscrete
+				&& sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodLinear ) {
+
+				if ( sourceTrack.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline ) {
+
+					// This should never happen, because glTF morph target animations
+					// affect all targets already.
+					throw new Error( 'THREE.GLTFExporter: Cannot merge tracks with glTF CUBICSPLINE interpolation.' );
+
+				}
+
+				console.warn( 'THREE.GLTFExporter: Morph target interpolation mode not yet supported. Using LINEAR instead.' );
+
+				sourceTrack = sourceTrack.clone();
+				sourceTrack.setInterpolation( InterpolateLinear );
+
+			}
+
+			const targetCount = sourceTrackNode.morphTargetInfluences.length;
+			const targetIndex = sourceTrackNode.morphTargetDictionary[ sourceTrackBinding.propertyIndex ];
+
+			if ( targetIndex === undefined ) {
+
+				throw new Error( 'THREE.GLTFExporter: Morph target name not found: ' + sourceTrackBinding.propertyIndex );
+
+			}
+
+			let mergedTrack;
+
+			// If this is the first time we've seen this object, create a new
+			// track to store merged keyframe data for each morph target.
+			if ( mergedTracks[ sourceTrackNode.uuid ] === undefined ) {
+
+				mergedTrack = sourceTrack.clone();
+
+				const values = new mergedTrack.ValueBufferType( targetCount * mergedTrack.times.length );
+
+				for ( let j = 0; j < mergedTrack.times.length; j ++ ) {
+
+					values[ j * targetCount + targetIndex ] = mergedTrack.values[ j ];
+
+				}
+
+				// We need to take into consideration the intended target node
+				// of our original un-merged morphTarget animation.
+				mergedTrack.name = ( sourceTrackBinding.nodeName || '' ) + '.morphTargetInfluences';
+				mergedTrack.values = values;
+
+				mergedTracks[ sourceTrackNode.uuid ] = mergedTrack;
+				tracks.push( mergedTrack );
+
+				continue;
+
+			}
+
+			const sourceInterpolant = sourceTrack.createInterpolant( new sourceTrack.ValueBufferType( 1 ) );
+
+			mergedTrack = mergedTracks[ sourceTrackNode.uuid ];
+
+			// For every existing keyframe of the merged track, write a (possibly
+			// interpolated) value from the source track.
+			for ( let j = 0; j < mergedTrack.times.length; j ++ ) {
+
+				mergedTrack.values[ j * targetCount + targetIndex ] = sourceInterpolant.evaluate( mergedTrack.times[ j ] );
+
+			}
+
+			// For every existing keyframe of the source track, write a (possibly
+			// new) keyframe to the merged track. Values from the previous loop may
+			// be written again, but keyframes are de-duplicated.
+			for ( let j = 0; j < sourceTrack.times.length; j ++ ) {
+
+				const keyframeIndex = this.insertKeyframe( mergedTrack, sourceTrack.times[ j ] );
+				mergedTrack.values[ keyframeIndex * targetCount + targetIndex ] = sourceTrack.values[ j ];
+
+			}
+
+		}
+
+		clip.tracks = tracks;
+
+		return clip;
+
+	}
+
+};
+
+const _lut = [ '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c', '0d', '0e', '0f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d', '1e', '1f', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '2a', '2b', '2c', '2d', '2e', '2f', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '3a', '3b', '3c', '3d', '3e', '3f', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '4a', '4b', '4c', '4d', '4e', '4f', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '5a', '5b', '5c', '5d', '5e', '5f', '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '6a', '6b', '6c', '6d', '6e', '6f', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '7a', '7b', '7c', '7d', '7e', '7f', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '8a', '8b', '8c', '8d', '8e', '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', '9a', '9b', '9c', '9d', '9e', '9f', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'ba', 'bb', 'bc', 'bd', 'be', 'bf', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'ca', 'cb', 'cc', 'cd', 'ce', 'cf', 'd0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'da', 'db', 'dc', 'dd', 'de', 'df', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9', 'ea', 'eb', 'ec', 'ed', 'ee', 'ef', 'f0', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'fa', 'fb', 'fc', 'fd', 'fe', 'ff' ];
+
+// http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/21963136#21963136
+function generateUUID() {
+
+	const d0 = Math.random() * 0xffffffff | 0;
+	const d1 = Math.random() * 0xffffffff | 0;
+	const d2 = Math.random() * 0xffffffff | 0;
+	const d3 = Math.random() * 0xffffffff | 0;
+	const uuid = _lut[ d0 & 0xff ] + _lut[ d0 >> 8 & 0xff ] + _lut[ d0 >> 16 & 0xff ] + _lut[ d0 >> 24 & 0xff ] + '-' +
+			_lut[ d1 & 0xff ] + _lut[ d1 >> 8 & 0xff ] + '-' + _lut[ d1 >> 16 & 0x0f | 0x40 ] + _lut[ d1 >> 24 & 0xff ] + '-' +
+			_lut[ d2 & 0x3f | 0x80 ] + _lut[ d2 >> 8 & 0xff ] + '-' + _lut[ d2 >> 16 & 0xff ] + _lut[ d2 >> 24 & 0xff ] +
+			_lut[ d3 & 0xff ] + _lut[ d3 >> 8 & 0xff ] + _lut[ d3 >> 16 & 0xff ] + _lut[ d3 >> 24 & 0xff ];
+
+	// .toLowerCase() here flattens concatenated strings to save heap memory space.
+	return uuid.toLowerCase();
+
+}
+
+function clamp( value, min, max ) {
+
+	return Math.max( min, Math.min( max, value ) );
+
+}
+
+function denormalize( value, array ) {
+
+	switch ( array.constructor ) {
+
+		case Float32Array:
+
+			return value;
+
+		case Uint16Array:
+
+			return value / 65535.0;
+
+		case Uint8Array:
+
+			return value / 255.0;
+
+		case Int16Array:
+
+			return Math.max( value / 32767.0, - 1.0 );
+
+		case Int8Array:
+
+			return Math.max( value / 127.0, - 1.0 );
+
+		default:
+
+			throw new Error( 'Invalid component type.' );
+
+	}
+
+}
+
+function normalize( value, array ) {
+
+	switch ( array.constructor ) {
+
+		case Float32Array:
+
+			return value;
+
+		case Uint16Array:
+
+			return Math.round( value * 65535.0 );
+
+		case Uint8Array:
+
+			return Math.round( value * 255.0 );
+
+		case Int16Array:
+
+			return Math.round( value * 32767.0 );
+
+		case Int8Array:
+
+			return Math.round( value * 127.0 );
+
+		default:
+
+			throw new Error( 'Invalid component type.' );
+
+	}
+
+}
+
+class Quaternion {
+
+	constructor( x = 0, y = 0, z = 0, w = 1 ) {
+
+		this.isQuaternion = true;
+
+		this._x = x;
+		this._y = y;
+		this._z = z;
+		this._w = w;
+
+	}
+
+	static slerpFlat( dst, dstOffset, src0, srcOffset0, src1, srcOffset1, t ) {
+
+		// fuzz-free, array-based Quaternion SLERP operation
+
+		let x0 = src0[ srcOffset0 + 0 ],
+			y0 = src0[ srcOffset0 + 1 ],
+			z0 = src0[ srcOffset0 + 2 ],
+			w0 = src0[ srcOffset0 + 3 ];
+
+		const x1 = src1[ srcOffset1 + 0 ],
+			y1 = src1[ srcOffset1 + 1 ],
+			z1 = src1[ srcOffset1 + 2 ],
+			w1 = src1[ srcOffset1 + 3 ];
+
+		if ( t === 0 ) {
+
+			dst[ dstOffset + 0 ] = x0;
+			dst[ dstOffset + 1 ] = y0;
+			dst[ dstOffset + 2 ] = z0;
+			dst[ dstOffset + 3 ] = w0;
+			return;
+
+		}
+
+		if ( t === 1 ) {
+
+			dst[ dstOffset + 0 ] = x1;
+			dst[ dstOffset + 1 ] = y1;
+			dst[ dstOffset + 2 ] = z1;
+			dst[ dstOffset + 3 ] = w1;
+			return;
+
+		}
+
+		if ( w0 !== w1 || x0 !== x1 || y0 !== y1 || z0 !== z1 ) {
+
+			let s = 1 - t;
+			const cos = x0 * x1 + y0 * y1 + z0 * z1 + w0 * w1,
+				dir = ( cos >= 0 ? 1 : - 1 ),
+				sqrSin = 1 - cos * cos;
+
+			// Skip the Slerp for tiny steps to avoid numeric problems:
+			if ( sqrSin > Number.EPSILON ) {
+
+				const sin = Math.sqrt( sqrSin ),
+					len = Math.atan2( sin, cos * dir );
+
+				s = Math.sin( s * len ) / sin;
+				t = Math.sin( t * len ) / sin;
+
+			}
+
+			const tDir = t * dir;
+
+			x0 = x0 * s + x1 * tDir;
+			y0 = y0 * s + y1 * tDir;
+			z0 = z0 * s + z1 * tDir;
+			w0 = w0 * s + w1 * tDir;
+
+			// Normalize in case we just did a lerp:
+			if ( s === 1 - t ) {
+
+				const f = 1 / Math.sqrt( x0 * x0 + y0 * y0 + z0 * z0 + w0 * w0 );
+
+				x0 *= f;
+				y0 *= f;
+				z0 *= f;
+				w0 *= f;
+
+			}
+
+		}
+
+		dst[ dstOffset ] = x0;
+		dst[ dstOffset + 1 ] = y0;
+		dst[ dstOffset + 2 ] = z0;
+		dst[ dstOffset + 3 ] = w0;
+
+	}
+
+	static multiplyQuaternionsFlat( dst, dstOffset, src0, srcOffset0, src1, srcOffset1 ) {
+
+		const x0 = src0[ srcOffset0 ];
+		const y0 = src0[ srcOffset0 + 1 ];
+		const z0 = src0[ srcOffset0 + 2 ];
+		const w0 = src0[ srcOffset0 + 3 ];
+
+		const x1 = src1[ srcOffset1 ];
+		const y1 = src1[ srcOffset1 + 1 ];
+		const z1 = src1[ srcOffset1 + 2 ];
+		const w1 = src1[ srcOffset1 + 3 ];
+
+		dst[ dstOffset ] = x0 * w1 + w0 * x1 + y0 * z1 - z0 * y1;
+		dst[ dstOffset + 1 ] = y0 * w1 + w0 * y1 + z0 * x1 - x0 * z1;
+		dst[ dstOffset + 2 ] = z0 * w1 + w0 * z1 + x0 * y1 - y0 * x1;
+		dst[ dstOffset + 3 ] = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1;
+
+		return dst;
+
+	}
+
+	get x() {
+
+		return this._x;
+
+	}
+
+	set x( value ) {
+
+		this._x = value;
+		this._onChangeCallback();
+
+	}
+
+	get y() {
+
+		return this._y;
+
+	}
+
+	set y( value ) {
+
+		this._y = value;
+		this._onChangeCallback();
+
+	}
+
+	get z() {
+
+		return this._z;
+
+	}
+
+	set z( value ) {
+
+		this._z = value;
+		this._onChangeCallback();
+
+	}
+
+	get w() {
+
+		return this._w;
+
+	}
+
+	set w( value ) {
+
+		this._w = value;
+		this._onChangeCallback();
+
+	}
+
+	set( x, y, z, w ) {
+
+		this._x = x;
+		this._y = y;
+		this._z = z;
+		this._w = w;
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	clone() {
+
+		return new this.constructor( this._x, this._y, this._z, this._w );
+
+	}
+
+	copy( quaternion ) {
+
+		this._x = quaternion.x;
+		this._y = quaternion.y;
+		this._z = quaternion.z;
+		this._w = quaternion.w;
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	setFromEuler( euler, update ) {
+
+		const x = euler._x, y = euler._y, z = euler._z, order = euler._order;
+
+		// http://www.mathworks.com/matlabcentral/fileexchange/
+		// 	20696-function-to-convert-between-dcm-euler-angles-quaternions-and-euler-vectors/
+		//	content/SpinCalc.m
+
+		const cos = Math.cos;
+		const sin = Math.sin;
+
+		const c1 = cos( x / 2 );
+		const c2 = cos( y / 2 );
+		const c3 = cos( z / 2 );
+
+		const s1 = sin( x / 2 );
+		const s2 = sin( y / 2 );
+		const s3 = sin( z / 2 );
+
+		switch ( order ) {
+
+			case 'XYZ':
+				this._x = s1 * c2 * c3 + c1 * s2 * s3;
+				this._y = c1 * s2 * c3 - s1 * c2 * s3;
+				this._z = c1 * c2 * s3 + s1 * s2 * c3;
+				this._w = c1 * c2 * c3 - s1 * s2 * s3;
+				break;
+
+			case 'YXZ':
+				this._x = s1 * c2 * c3 + c1 * s2 * s3;
+				this._y = c1 * s2 * c3 - s1 * c2 * s3;
+				this._z = c1 * c2 * s3 - s1 * s2 * c3;
+				this._w = c1 * c2 * c3 + s1 * s2 * s3;
+				break;
+
+			case 'ZXY':
+				this._x = s1 * c2 * c3 - c1 * s2 * s3;
+				this._y = c1 * s2 * c3 + s1 * c2 * s3;
+				this._z = c1 * c2 * s3 + s1 * s2 * c3;
+				this._w = c1 * c2 * c3 - s1 * s2 * s3;
+				break;
+
+			case 'ZYX':
+				this._x = s1 * c2 * c3 - c1 * s2 * s3;
+				this._y = c1 * s2 * c3 + s1 * c2 * s3;
+				this._z = c1 * c2 * s3 - s1 * s2 * c3;
+				this._w = c1 * c2 * c3 + s1 * s2 * s3;
+				break;
+
+			case 'YZX':
+				this._x = s1 * c2 * c3 + c1 * s2 * s3;
+				this._y = c1 * s2 * c3 + s1 * c2 * s3;
+				this._z = c1 * c2 * s3 - s1 * s2 * c3;
+				this._w = c1 * c2 * c3 - s1 * s2 * s3;
+				break;
+
+			case 'XZY':
+				this._x = s1 * c2 * c3 - c1 * s2 * s3;
+				this._y = c1 * s2 * c3 - s1 * c2 * s3;
+				this._z = c1 * c2 * s3 + s1 * s2 * c3;
+				this._w = c1 * c2 * c3 + s1 * s2 * s3;
+				break;
+
+			default:
+				console.warn( 'THREE.Quaternion: .setFromEuler() encountered an unknown order: ' + order );
+
+		}
+
+		if ( update !== false ) this._onChangeCallback();
+
+		return this;
+
+	}
+
+	setFromAxisAngle( axis, angle ) {
+
+		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
+
+		// assumes axis is normalized
+
+		const halfAngle = angle / 2, s = Math.sin( halfAngle );
+
+		this._x = axis.x * s;
+		this._y = axis.y * s;
+		this._z = axis.z * s;
+		this._w = Math.cos( halfAngle );
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	setFromRotationMatrix( m ) {
+
+		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
+
+		// assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
+
+		const te = m.elements,
+
+			m11 = te[ 0 ], m12 = te[ 4 ], m13 = te[ 8 ],
+			m21 = te[ 1 ], m22 = te[ 5 ], m23 = te[ 9 ],
+			m31 = te[ 2 ], m32 = te[ 6 ], m33 = te[ 10 ],
+
+			trace = m11 + m22 + m33;
+
+		if ( trace > 0 ) {
+
+			const s = 0.5 / Math.sqrt( trace + 1.0 );
+
+			this._w = 0.25 / s;
+			this._x = ( m32 - m23 ) * s;
+			this._y = ( m13 - m31 ) * s;
+			this._z = ( m21 - m12 ) * s;
+
+		} else if ( m11 > m22 && m11 > m33 ) {
+
+			const s = 2.0 * Math.sqrt( 1.0 + m11 - m22 - m33 );
+
+			this._w = ( m32 - m23 ) / s;
+			this._x = 0.25 * s;
+			this._y = ( m12 + m21 ) / s;
+			this._z = ( m13 + m31 ) / s;
+
+		} else if ( m22 > m33 ) {
+
+			const s = 2.0 * Math.sqrt( 1.0 + m22 - m11 - m33 );
+
+			this._w = ( m13 - m31 ) / s;
+			this._x = ( m12 + m21 ) / s;
+			this._y = 0.25 * s;
+			this._z = ( m23 + m32 ) / s;
+
+		} else {
+
+			const s = 2.0 * Math.sqrt( 1.0 + m33 - m11 - m22 );
+
+			this._w = ( m21 - m12 ) / s;
+			this._x = ( m13 + m31 ) / s;
+			this._y = ( m23 + m32 ) / s;
+			this._z = 0.25 * s;
+
+		}
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	setFromUnitVectors( vFrom, vTo ) {
+
+		// assumes direction vectors vFrom and vTo are normalized
+
+		let r = vFrom.dot( vTo ) + 1;
+
+		if ( r < Number.EPSILON ) {
+
+			// vFrom and vTo point in opposite directions
+
+			r = 0;
+
+			if ( Math.abs( vFrom.x ) > Math.abs( vFrom.z ) ) {
+
+				this._x = - vFrom.y;
+				this._y = vFrom.x;
+				this._z = 0;
+				this._w = r;
+
+			} else {
+
+				this._x = 0;
+				this._y = - vFrom.z;
+				this._z = vFrom.y;
+				this._w = r;
+
+			}
+
+		} else {
+
+			// crossVectors( vFrom, vTo ); // inlined to avoid cyclic dependency on Vector3
+
+			this._x = vFrom.y * vTo.z - vFrom.z * vTo.y;
+			this._y = vFrom.z * vTo.x - vFrom.x * vTo.z;
+			this._z = vFrom.x * vTo.y - vFrom.y * vTo.x;
+			this._w = r;
+
+		}
+
+		return this.normalize();
+
+	}
+
+	angleTo( q ) {
+
+		return 2 * Math.acos( Math.abs( clamp( this.dot( q ), - 1, 1 ) ) );
+
+	}
+
+	rotateTowards( q, step ) {
+
+		const angle = this.angleTo( q );
+
+		if ( angle === 0 ) return this;
+
+		const t = Math.min( 1, step / angle );
+
+		this.slerp( q, t );
+
+		return this;
+
+	}
+
+	identity() {
+
+		return this.set( 0, 0, 0, 1 );
+
+	}
+
+	invert() {
+
+		// quaternion is assumed to have unit length
+
+		return this.conjugate();
+
+	}
+
+	conjugate() {
+
+		this._x *= - 1;
+		this._y *= - 1;
+		this._z *= - 1;
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	dot( v ) {
+
+		return this._x * v._x + this._y * v._y + this._z * v._z + this._w * v._w;
+
+	}
+
+	lengthSq() {
+
+		return this._x * this._x + this._y * this._y + this._z * this._z + this._w * this._w;
+
+	}
+
+	length() {
+
+		return Math.sqrt( this._x * this._x + this._y * this._y + this._z * this._z + this._w * this._w );
+
+	}
+
+	normalize() {
+
+		let l = this.length();
+
+		if ( l === 0 ) {
+
+			this._x = 0;
+			this._y = 0;
+			this._z = 0;
+			this._w = 1;
+
+		} else {
+
+			l = 1 / l;
+
+			this._x = this._x * l;
+			this._y = this._y * l;
+			this._z = this._z * l;
+			this._w = this._w * l;
+
+		}
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	multiply( q ) {
+
+		return this.multiplyQuaternions( this, q );
+
+	}
+
+	premultiply( q ) {
+
+		return this.multiplyQuaternions( q, this );
+
+	}
+
+	multiplyQuaternions( a, b ) {
+
+		// from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/code/index.htm
+
+		const qax = a._x, qay = a._y, qaz = a._z, qaw = a._w;
+		const qbx = b._x, qby = b._y, qbz = b._z, qbw = b._w;
+
+		this._x = qax * qbw + qaw * qbx + qay * qbz - qaz * qby;
+		this._y = qay * qbw + qaw * qby + qaz * qbx - qax * qbz;
+		this._z = qaz * qbw + qaw * qbz + qax * qby - qay * qbx;
+		this._w = qaw * qbw - qax * qbx - qay * qby - qaz * qbz;
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	slerp( qb, t ) {
+
+		if ( t === 0 ) return this;
+		if ( t === 1 ) return this.copy( qb );
+
+		const x = this._x, y = this._y, z = this._z, w = this._w;
+
+		// http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
+
+		let cosHalfTheta = w * qb._w + x * qb._x + y * qb._y + z * qb._z;
+
+		if ( cosHalfTheta < 0 ) {
+
+			this._w = - qb._w;
+			this._x = - qb._x;
+			this._y = - qb._y;
+			this._z = - qb._z;
+
+			cosHalfTheta = - cosHalfTheta;
+
+		} else {
+
+			this.copy( qb );
+
+		}
+
+		if ( cosHalfTheta >= 1.0 ) {
+
+			this._w = w;
+			this._x = x;
+			this._y = y;
+			this._z = z;
+
+			return this;
+
+		}
+
+		const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
+
+		if ( sqrSinHalfTheta <= Number.EPSILON ) {
+
+			const s = 1 - t;
+			this._w = s * w + t * this._w;
+			this._x = s * x + t * this._x;
+			this._y = s * y + t * this._y;
+			this._z = s * z + t * this._z;
+
+			this.normalize();
+			this._onChangeCallback();
+
+			return this;
+
+		}
+
+		const sinHalfTheta = Math.sqrt( sqrSinHalfTheta );
+		const halfTheta = Math.atan2( sinHalfTheta, cosHalfTheta );
+		const ratioA = Math.sin( ( 1 - t ) * halfTheta ) / sinHalfTheta,
+			ratioB = Math.sin( t * halfTheta ) / sinHalfTheta;
+
+		this._w = ( w * ratioA + this._w * ratioB );
+		this._x = ( x * ratioA + this._x * ratioB );
+		this._y = ( y * ratioA + this._y * ratioB );
+		this._z = ( z * ratioA + this._z * ratioB );
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	slerpQuaternions( qa, qb, t ) {
+
+		return this.copy( qa ).slerp( qb, t );
+
+	}
+
+	random() {
+
+		// Derived from http://planning.cs.uiuc.edu/node198.html
+		// Note, this source uses w, x, y, z ordering,
+		// so we swap the order below.
+
+		const u1 = Math.random();
+		const sqrt1u1 = Math.sqrt( 1 - u1 );
+		const sqrtu1 = Math.sqrt( u1 );
+
+		const u2 = 2 * Math.PI * Math.random();
+
+		const u3 = 2 * Math.PI * Math.random();
+
+		return this.set(
+			sqrt1u1 * Math.cos( u2 ),
+			sqrtu1 * Math.sin( u3 ),
+			sqrtu1 * Math.cos( u3 ),
+			sqrt1u1 * Math.sin( u2 ),
+		);
+
+	}
+
+	equals( quaternion ) {
+
+		return ( quaternion._x === this._x ) && ( quaternion._y === this._y ) && ( quaternion._z === this._z ) && ( quaternion._w === this._w );
+
+	}
+
+	fromArray( array, offset = 0 ) {
+
+		this._x = array[ offset ];
+		this._y = array[ offset + 1 ];
+		this._z = array[ offset + 2 ];
+		this._w = array[ offset + 3 ];
+
+		this._onChangeCallback();
+
+		return this;
+
+	}
+
+	toArray( array = [], offset = 0 ) {
+
+		array[ offset ] = this._x;
+		array[ offset + 1 ] = this._y;
+		array[ offset + 2 ] = this._z;
+		array[ offset + 3 ] = this._w;
+
+		return array;
+
+	}
+
+	fromBufferAttribute( attribute, index ) {
+
+		this._x = attribute.getX( index );
+		this._y = attribute.getY( index );
+		this._z = attribute.getZ( index );
+		this._w = attribute.getW( index );
+
+		return this;
+
+	}
+
+	toJSON() {
+
+		return this.toArray();
+
+	}
+
+	_onChange( callback ) {
+
+		this._onChangeCallback = callback;
+
+		return this;
+
+	}
+
+	_onChangeCallback() {}
+
+	*[ Symbol.iterator ]() {
+
+		yield this._x;
+		yield this._y;
+		yield this._z;
+		yield this._w;
+
+	}
+
+}
+
+class Vector3 {
+
+	constructor( x = 0, y = 0, z = 0 ) {
+
+		Vector3.prototype.isVector3 = true;
+
+		this.x = x;
+		this.y = y;
+		this.z = z;
+
+	}
+
+	set( x, y, z ) {
+
+		if ( z === undefined ) z = this.z; // sprite.scale.set(x,y)
+
+		this.x = x;
+		this.y = y;
+		this.z = z;
+
+		return this;
+
+	}
+
+	setScalar( scalar ) {
+
+		this.x = scalar;
+		this.y = scalar;
+		this.z = scalar;
+
+		return this;
+
+	}
+
+	setX( x ) {
+
+		this.x = x;
+
+		return this;
+
+	}
+
+	setY( y ) {
+
+		this.y = y;
+
+		return this;
+
+	}
+
+	setZ( z ) {
+
+		this.z = z;
+
+		return this;
+
+	}
+
+	setComponent( index, value ) {
+
+		switch ( index ) {
+
+			case 0: this.x = value; break;
+			case 1: this.y = value; break;
+			case 2: this.z = value; break;
+			default: throw new Error( 'index is out of range: ' + index );
+
+		}
+
+		return this;
+
+	}
+
+	getComponent( index ) {
+
+		switch ( index ) {
+
+			case 0: return this.x;
+			case 1: return this.y;
+			case 2: return this.z;
+			default: throw new Error( 'index is out of range: ' + index );
+
+		}
+
+	}
+
+	clone() {
+
+		return new this.constructor( this.x, this.y, this.z );
+
+	}
+
+	copy( v ) {
+
+		this.x = v.x;
+		this.y = v.y;
+		this.z = v.z;
+
+		return this;
+
+	}
+
+	add( v ) {
+
+		this.x += v.x;
+		this.y += v.y;
+		this.z += v.z;
+
+		return this;
+
+	}
+
+	addScalar( s ) {
+
+		this.x += s;
+		this.y += s;
+		this.z += s;
+
+		return this;
+
+	}
+
+	addVectors( a, b ) {
+
+		this.x = a.x + b.x;
+		this.y = a.y + b.y;
+		this.z = a.z + b.z;
+
+		return this;
+
+	}
+
+	addScaledVector( v, s ) {
+
+		this.x += v.x * s;
+		this.y += v.y * s;
+		this.z += v.z * s;
+
+		return this;
+
+	}
+
+	sub( v ) {
+
+		this.x -= v.x;
+		this.y -= v.y;
+		this.z -= v.z;
+
+		return this;
+
+	}
+
+	subScalar( s ) {
+
+		this.x -= s;
+		this.y -= s;
+		this.z -= s;
+
+		return this;
+
+	}
+
+	subVectors( a, b ) {
+
+		this.x = a.x - b.x;
+		this.y = a.y - b.y;
+		this.z = a.z - b.z;
+
+		return this;
+
+	}
+
+	multiply( v ) {
+
+		this.x *= v.x;
+		this.y *= v.y;
+		this.z *= v.z;
+
+		return this;
+
+	}
+
+	multiplyScalar( scalar ) {
+
+		this.x *= scalar;
+		this.y *= scalar;
+		this.z *= scalar;
+
+		return this;
+
+	}
+
+	multiplyVectors( a, b ) {
+
+		this.x = a.x * b.x;
+		this.y = a.y * b.y;
+		this.z = a.z * b.z;
+
+		return this;
+
+	}
+
+	applyEuler( euler ) {
+
+		return this.applyQuaternion( _quaternion.setFromEuler( euler ) );
+
+	}
+
+	applyAxisAngle( axis, angle ) {
+
+		return this.applyQuaternion( _quaternion.setFromAxisAngle( axis, angle ) );
+
+	}
+
+	applyMatrix3( m ) {
+
+		const x = this.x, y = this.y, z = this.z;
+		const e = m.elements;
+
+		this.x = e[ 0 ] * x + e[ 3 ] * y + e[ 6 ] * z;
+		this.y = e[ 1 ] * x + e[ 4 ] * y + e[ 7 ] * z;
+		this.z = e[ 2 ] * x + e[ 5 ] * y + e[ 8 ] * z;
+
+		return this;
+
+	}
+
+	applyNormalMatrix( m ) {
+
+		return this.applyMatrix3( m ).normalize();
+
+	}
+
+	applyMatrix4( m ) {
+
+		const x = this.x, y = this.y, z = this.z;
+		const e = m.elements;
+
+		const w = 1 / ( e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ] );
+
+		this.x = ( e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ] ) * w;
+		this.y = ( e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z + e[ 13 ] ) * w;
+		this.z = ( e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z + e[ 14 ] ) * w;
+
+		return this;
+
+	}
+
+	applyQuaternion( q ) {
+
+		const x = this.x, y = this.y, z = this.z;
+		const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+
+		// calculate quat * vector
+
+		const ix = qw * x + qy * z - qz * y;
+		const iy = qw * y + qz * x - qx * z;
+		const iz = qw * z + qx * y - qy * x;
+		const iw = - qx * x - qy * y - qz * z;
+
+		// calculate result * inverse quat
+
+		this.x = ix * qw + iw * - qx + iy * - qz - iz * - qy;
+		this.y = iy * qw + iw * - qy + iz * - qx - ix * - qz;
+		this.z = iz * qw + iw * - qz + ix * - qy - iy * - qx;
+
+		return this;
+
+	}
+
+	project( camera ) {
+
+		return this.applyMatrix4( camera.matrixWorldInverse ).applyMatrix4( camera.projectionMatrix );
+
+	}
+
+	unproject( camera ) {
+
+		return this.applyMatrix4( camera.projectionMatrixInverse ).applyMatrix4( camera.matrixWorld );
+
+	}
+
+	transformDirection( m ) {
+
+		// input: THREE.Matrix4 affine matrix
+		// vector interpreted as a direction
+
+		const x = this.x, y = this.y, z = this.z;
+		const e = m.elements;
+
+		this.x = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z;
+		this.y = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z;
+		this.z = e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z;
+
+		return this.normalize();
+
+	}
+
+	divide( v ) {
+
+		this.x /= v.x;
+		this.y /= v.y;
+		this.z /= v.z;
+
+		return this;
+
+	}
+
+	divideScalar( scalar ) {
+
+		return this.multiplyScalar( 1 / scalar );
+
+	}
+
+	min( v ) {
+
+		this.x = Math.min( this.x, v.x );
+		this.y = Math.min( this.y, v.y );
+		this.z = Math.min( this.z, v.z );
+
+		return this;
+
+	}
+
+	max( v ) {
+
+		this.x = Math.max( this.x, v.x );
+		this.y = Math.max( this.y, v.y );
+		this.z = Math.max( this.z, v.z );
+
+		return this;
+
+	}
+
+	clamp( min, max ) {
+
+		// assumes min < max, componentwise
+
+		this.x = Math.max( min.x, Math.min( max.x, this.x ) );
+		this.y = Math.max( min.y, Math.min( max.y, this.y ) );
+		this.z = Math.max( min.z, Math.min( max.z, this.z ) );
+
+		return this;
+
+	}
+
+	clampScalar( minVal, maxVal ) {
+
+		this.x = Math.max( minVal, Math.min( maxVal, this.x ) );
+		this.y = Math.max( minVal, Math.min( maxVal, this.y ) );
+		this.z = Math.max( minVal, Math.min( maxVal, this.z ) );
+
+		return this;
+
+	}
+
+	clampLength( min, max ) {
+
+		const length = this.length();
+
+		return this.divideScalar( length || 1 ).multiplyScalar( Math.max( min, Math.min( max, length ) ) );
+
+	}
+
+	floor() {
+
+		this.x = Math.floor( this.x );
+		this.y = Math.floor( this.y );
+		this.z = Math.floor( this.z );
+
+		return this;
+
+	}
+
+	ceil() {
+
+		this.x = Math.ceil( this.x );
+		this.y = Math.ceil( this.y );
+		this.z = Math.ceil( this.z );
+
+		return this;
+
+	}
+
+	round() {
+
+		this.x = Math.round( this.x );
+		this.y = Math.round( this.y );
+		this.z = Math.round( this.z );
+
+		return this;
+
+	}
+
+	roundToZero() {
+
+		this.x = ( this.x < 0 ) ? Math.ceil( this.x ) : Math.floor( this.x );
+		this.y = ( this.y < 0 ) ? Math.ceil( this.y ) : Math.floor( this.y );
+		this.z = ( this.z < 0 ) ? Math.ceil( this.z ) : Math.floor( this.z );
+
+		return this;
+
+	}
+
+	negate() {
+
+		this.x = - this.x;
+		this.y = - this.y;
+		this.z = - this.z;
+
+		return this;
+
+	}
+
+	dot( v ) {
+
+		return this.x * v.x + this.y * v.y + this.z * v.z;
+
+	}
+
+	// TODO lengthSquared?
+
+	lengthSq() {
+
+		return this.x * this.x + this.y * this.y + this.z * this.z;
+
+	}
+
+	length() {
+
+		return Math.sqrt( this.x * this.x + this.y * this.y + this.z * this.z );
+
+	}
+
+	manhattanLength() {
+
+		return Math.abs( this.x ) + Math.abs( this.y ) + Math.abs( this.z );
+
+	}
+
+	normalize() {
+
+		return this.divideScalar( this.length() || 1 );
+
+	}
+
+	setLength( length ) {
+
+		return this.normalize().multiplyScalar( length );
+
+	}
+
+	lerp( v, alpha ) {
+
+		this.x += ( v.x - this.x ) * alpha;
+		this.y += ( v.y - this.y ) * alpha;
+		this.z += ( v.z - this.z ) * alpha;
+
+		return this;
+
+	}
+
+	lerpVectors( v1, v2, alpha ) {
+
+		this.x = v1.x + ( v2.x - v1.x ) * alpha;
+		this.y = v1.y + ( v2.y - v1.y ) * alpha;
+		this.z = v1.z + ( v2.z - v1.z ) * alpha;
+
+		return this;
+
+	}
+
+	cross( v ) {
+
+		return this.crossVectors( this, v );
+
+	}
+
+	crossVectors( a, b ) {
+
+		const ax = a.x, ay = a.y, az = a.z;
+		const bx = b.x, by = b.y, bz = b.z;
+
+		this.x = ay * bz - az * by;
+		this.y = az * bx - ax * bz;
+		this.z = ax * by - ay * bx;
+
+		return this;
+
+	}
+
+	projectOnVector( v ) {
+
+		const denominator = v.lengthSq();
+
+		if ( denominator === 0 ) return this.set( 0, 0, 0 );
+
+		const scalar = v.dot( this ) / denominator;
+
+		return this.copy( v ).multiplyScalar( scalar );
+
+	}
+
+	projectOnPlane( planeNormal ) {
+
+		_vector$2.copy( this ).projectOnVector( planeNormal );
+
+		return this.sub( _vector$2 );
+
+	}
+
+	reflect( normal ) {
+
+		// reflect incident vector off plane orthogonal to normal
+		// normal is assumed to have unit length
+
+		return this.sub( _vector$2.copy( normal ).multiplyScalar( 2 * this.dot( normal ) ) );
+
+	}
+
+	angleTo( v ) {
+
+		const denominator = Math.sqrt( this.lengthSq() * v.lengthSq() );
+
+		if ( denominator === 0 ) return Math.PI / 2;
+
+		const theta = this.dot( v ) / denominator;
+
+		// clamp, to handle numerical problems
+
+		return Math.acos( clamp( theta, - 1, 1 ) );
+
+	}
+
+	distanceTo( v ) {
+
+		return Math.sqrt( this.distanceToSquared( v ) );
+
+	}
+
+	distanceToSquared( v ) {
+
+		const dx = this.x - v.x, dy = this.y - v.y, dz = this.z - v.z;
+
+		return dx * dx + dy * dy + dz * dz;
+
+	}
+
+	manhattanDistanceTo( v ) {
+
+		return Math.abs( this.x - v.x ) + Math.abs( this.y - v.y ) + Math.abs( this.z - v.z );
+
+	}
+
+	setFromSpherical( s ) {
+
+		return this.setFromSphericalCoords( s.radius, s.phi, s.theta );
+
+	}
+
+	setFromSphericalCoords( radius, phi, theta ) {
+
+		const sinPhiRadius = Math.sin( phi ) * radius;
+
+		this.x = sinPhiRadius * Math.sin( theta );
+		this.y = Math.cos( phi ) * radius;
+		this.z = sinPhiRadius * Math.cos( theta );
+
+		return this;
+
+	}
+
+	setFromCylindrical( c ) {
+
+		return this.setFromCylindricalCoords( c.radius, c.theta, c.y );
+
+	}
+
+	setFromCylindricalCoords( radius, theta, y ) {
+
+		this.x = radius * Math.sin( theta );
+		this.y = y;
+		this.z = radius * Math.cos( theta );
+
+		return this;
+
+	}
+
+	setFromMatrixPosition( m ) {
+
+		const e = m.elements;
+
+		this.x = e[ 12 ];
+		this.y = e[ 13 ];
+		this.z = e[ 14 ];
+
+		return this;
+
+	}
+
+	setFromMatrixScale( m ) {
+
+		const sx = this.setFromMatrixColumn( m, 0 ).length();
+		const sy = this.setFromMatrixColumn( m, 1 ).length();
+		const sz = this.setFromMatrixColumn( m, 2 ).length();
+
+		this.x = sx;
+		this.y = sy;
+		this.z = sz;
+
+		return this;
+
+	}
+
+	setFromMatrixColumn( m, index ) {
+
+		return this.fromArray( m.elements, index * 4 );
+
+	}
+
+	setFromMatrix3Column( m, index ) {
+
+		return this.fromArray( m.elements, index * 3 );
+
+	}
+
+	setFromEuler( e ) {
+
+		this.x = e._x;
+		this.y = e._y;
+		this.z = e._z;
+
+		return this;
+
+	}
+
+	setFromColor( c ) {
+
+		this.x = c.r;
+		this.y = c.g;
+		this.z = c.b;
+
+		return this;
+
+	}
+
+	equals( v ) {
+
+		return ( ( v.x === this.x ) && ( v.y === this.y ) && ( v.z === this.z ) );
+
+	}
+
+	fromArray( array, offset = 0 ) {
+
+		this.x = array[ offset ];
+		this.y = array[ offset + 1 ];
+		this.z = array[ offset + 2 ];
+
+		return this;
+
+	}
+
+	toArray( array = [], offset = 0 ) {
+
+		array[ offset ] = this.x;
+		array[ offset + 1 ] = this.y;
+		array[ offset + 2 ] = this.z;
+
+		return array;
+
+	}
+
+	fromBufferAttribute( attribute, index ) {
+
+		this.x = attribute.getX( index );
+		this.y = attribute.getY( index );
+		this.z = attribute.getZ( index );
+
+		return this;
+
+	}
+
+	random() {
+
+		this.x = Math.random();
+		this.y = Math.random();
+		this.z = Math.random();
+
+		return this;
+
+	}
+
+	randomDirection() {
+
+		// Derived from https://mathworld.wolfram.com/SpherePointPicking.html
+
+		const u = ( Math.random() - 0.5 ) * 2;
+		const t = Math.random() * Math.PI * 2;
+		const f = Math.sqrt( 1 - u ** 2 );
+
+		this.x = f * Math.cos( t );
+		this.y = f * Math.sin( t );
+		this.z = u;
+
+		return this;
+
+	}
+
+	*[ Symbol.iterator ]() {
+
+		yield this.x;
+		yield this.y;
+		yield this.z;
+
+	}
+
+}
+
+const _vector$2 = /*@__PURE__*/ new Vector3();
+const _quaternion = /*@__PURE__*/ new Quaternion();
+
+class Vector2 {
+
+	constructor( x = 0, y = 0 ) {
+
+		Vector2.prototype.isVector2 = true;
+
+		this.x = x;
+		this.y = y;
+
+	}
+
+	get width() {
+
+		return this.x;
+
+	}
+
+	set width( value ) {
+
+		this.x = value;
+
+	}
+
+	get height() {
+
+		return this.y;
+
+	}
+
+	set height( value ) {
+
+		this.y = value;
+
+	}
+
+	set( x, y ) {
+
+		this.x = x;
+		this.y = y;
+
+		return this;
+
+	}
+
+	setScalar( scalar ) {
+
+		this.x = scalar;
+		this.y = scalar;
+
+		return this;
+
+	}
+
+	setX( x ) {
+
+		this.x = x;
+
+		return this;
+
+	}
+
+	setY( y ) {
+
+		this.y = y;
+
+		return this;
+
+	}
+
+	setComponent( index, value ) {
+
+		switch ( index ) {
+
+			case 0: this.x = value; break;
+			case 1: this.y = value; break;
+			default: throw new Error( 'index is out of range: ' + index );
+
+		}
+
+		return this;
+
+	}
+
+	getComponent( index ) {
+
+		switch ( index ) {
+
+			case 0: return this.x;
+			case 1: return this.y;
+			default: throw new Error( 'index is out of range: ' + index );
+
+		}
+
+	}
+
+	clone() {
+
+		return new this.constructor( this.x, this.y );
+
+	}
+
+	copy( v ) {
+
+		this.x = v.x;
+		this.y = v.y;
+
+		return this;
+
+	}
+
+	add( v ) {
+
+		this.x += v.x;
+		this.y += v.y;
+
+		return this;
+
+	}
+
+	addScalar( s ) {
+
+		this.x += s;
+		this.y += s;
+
+		return this;
+
+	}
+
+	addVectors( a, b ) {
+
+		this.x = a.x + b.x;
+		this.y = a.y + b.y;
+
+		return this;
+
+	}
+
+	addScaledVector( v, s ) {
+
+		this.x += v.x * s;
+		this.y += v.y * s;
+
+		return this;
+
+	}
+
+	sub( v ) {
+
+		this.x -= v.x;
+		this.y -= v.y;
+
+		return this;
+
+	}
+
+	subScalar( s ) {
+
+		this.x -= s;
+		this.y -= s;
+
+		return this;
+
+	}
+
+	subVectors( a, b ) {
+
+		this.x = a.x - b.x;
+		this.y = a.y - b.y;
+
+		return this;
+
+	}
+
+	multiply( v ) {
+
+		this.x *= v.x;
+		this.y *= v.y;
+
+		return this;
+
+	}
+
+	multiplyScalar( scalar ) {
+
+		this.x *= scalar;
+		this.y *= scalar;
+
+		return this;
+
+	}
+
+	divide( v ) {
+
+		this.x /= v.x;
+		this.y /= v.y;
+
+		return this;
+
+	}
+
+	divideScalar( scalar ) {
+
+		return this.multiplyScalar( 1 / scalar );
+
+	}
+
+	applyMatrix3( m ) {
+
+		const x = this.x, y = this.y;
+		const e = m.elements;
+
+		this.x = e[ 0 ] * x + e[ 3 ] * y + e[ 6 ];
+		this.y = e[ 1 ] * x + e[ 4 ] * y + e[ 7 ];
+
+		return this;
+
+	}
+
+	min( v ) {
+
+		this.x = Math.min( this.x, v.x );
+		this.y = Math.min( this.y, v.y );
+
+		return this;
+
+	}
+
+	max( v ) {
+
+		this.x = Math.max( this.x, v.x );
+		this.y = Math.max( this.y, v.y );
+
+		return this;
+
+	}
+
+	clamp( min, max ) {
+
+		// assumes min < max, componentwise
+
+		this.x = Math.max( min.x, Math.min( max.x, this.x ) );
+		this.y = Math.max( min.y, Math.min( max.y, this.y ) );
+
+		return this;
+
+	}
+
+	clampScalar( minVal, maxVal ) {
+
+		this.x = Math.max( minVal, Math.min( maxVal, this.x ) );
+		this.y = Math.max( minVal, Math.min( maxVal, this.y ) );
+
+		return this;
+
+	}
+
+	clampLength( min, max ) {
+
+		const length = this.length();
+
+		return this.divideScalar( length || 1 ).multiplyScalar( Math.max( min, Math.min( max, length ) ) );
+
+	}
+
+	floor() {
+
+		this.x = Math.floor( this.x );
+		this.y = Math.floor( this.y );
+
+		return this;
+
+	}
+
+	ceil() {
+
+		this.x = Math.ceil( this.x );
+		this.y = Math.ceil( this.y );
+
+		return this;
+
+	}
+
+	round() {
+
+		this.x = Math.round( this.x );
+		this.y = Math.round( this.y );
+
+		return this;
+
+	}
+
+	roundToZero() {
+
+		this.x = ( this.x < 0 ) ? Math.ceil( this.x ) : Math.floor( this.x );
+		this.y = ( this.y < 0 ) ? Math.ceil( this.y ) : Math.floor( this.y );
+
+		return this;
+
+	}
+
+	negate() {
+
+		this.x = - this.x;
+		this.y = - this.y;
+
+		return this;
+
+	}
+
+	dot( v ) {
+
+		return this.x * v.x + this.y * v.y;
+
+	}
+
+	cross( v ) {
+
+		return this.x * v.y - this.y * v.x;
+
+	}
+
+	lengthSq() {
+
+		return this.x * this.x + this.y * this.y;
+
+	}
+
+	length() {
+
+		return Math.sqrt( this.x * this.x + this.y * this.y );
+
+	}
+
+	manhattanLength() {
+
+		return Math.abs( this.x ) + Math.abs( this.y );
+
+	}
+
+	normalize() {
+
+		return this.divideScalar( this.length() || 1 );
+
+	}
+
+	angle() {
+
+		// computes the angle in radians with respect to the positive x-axis
+
+		const angle = Math.atan2( - this.y, - this.x ) + Math.PI;
+
+		return angle;
+
+	}
+
+	angleTo( v ) {
+
+		const denominator = Math.sqrt( this.lengthSq() * v.lengthSq() );
+
+		if ( denominator === 0 ) return Math.PI / 2;
+
+		const theta = this.dot( v ) / denominator;
+
+		// clamp, to handle numerical problems
+
+		return Math.acos( clamp( theta, - 1, 1 ) );
+
+	}
+
+	distanceTo( v ) {
+
+		return Math.sqrt( this.distanceToSquared( v ) );
+
+	}
+
+	distanceToSquared( v ) {
+
+		const dx = this.x - v.x, dy = this.y - v.y;
+		return dx * dx + dy * dy;
+
+	}
+
+	manhattanDistanceTo( v ) {
+
+		return Math.abs( this.x - v.x ) + Math.abs( this.y - v.y );
+
+	}
+
+	setLength( length ) {
+
+		return this.normalize().multiplyScalar( length );
+
+	}
+
+	lerp( v, alpha ) {
+
+		this.x += ( v.x - this.x ) * alpha;
+		this.y += ( v.y - this.y ) * alpha;
+
+		return this;
+
+	}
+
+	lerpVectors( v1, v2, alpha ) {
+
+		this.x = v1.x + ( v2.x - v1.x ) * alpha;
+		this.y = v1.y + ( v2.y - v1.y ) * alpha;
+
+		return this;
+
+	}
+
+	equals( v ) {
+
+		return ( ( v.x === this.x ) && ( v.y === this.y ) );
+
+	}
+
+	fromArray( array, offset = 0 ) {
+
+		this.x = array[ offset ];
+		this.y = array[ offset + 1 ];
+
+		return this;
+
+	}
+
+	toArray( array = [], offset = 0 ) {
+
+		array[ offset ] = this.x;
+		array[ offset + 1 ] = this.y;
+
+		return array;
+
+	}
+
+	fromBufferAttribute( attribute, index ) {
+
+		this.x = attribute.getX( index );
+		this.y = attribute.getY( index );
+
+		return this;
+
+	}
+
+	rotateAround( center, angle ) {
+
+		const c = Math.cos( angle ), s = Math.sin( angle );
+
+		const x = this.x - center.x;
+		const y = this.y - center.y;
+
+		this.x = x * c - y * s + center.x;
+		this.y = x * s + y * c + center.y;
+
+		return this;
+
+	}
+
+	random() {
+
+		this.x = Math.random();
+		this.y = Math.random();
+
+		return this;
+
+	}
+
+	*[ Symbol.iterator ]() {
+
+		yield this.x;
+		yield this.y;
+
+	}
+
+}
+
+const StaticDrawUsage = 35044;
+
+const _vector$1 = /*@__PURE__*/ new Vector3();
+const _vector2 = /*@__PURE__*/ new Vector2();
+
+class BufferAttribute {
+
+	constructor( array, itemSize, normalized = false ) {
+
+		if ( Array.isArray( array ) ) {
+
+			throw new TypeError( 'THREE.BufferAttribute: array should be a Typed Array.' );
+
+		}
+
+		this.isBufferAttribute = true;
+
+		this.name = '';
+
+		this.array = array;
+		this.itemSize = itemSize;
+		this.count = array !== undefined ? array.length / itemSize : 0;
+		this.normalized = normalized;
+
+		this.usage = StaticDrawUsage;
+		this.updateRange = { offset: 0, count: - 1 };
+
+		this.version = 0;
+
+	}
+
+	onUploadCallback() {}
+
+	set needsUpdate( value ) {
+
+		if ( value === true ) this.version ++;
+
+	}
+
+	setUsage( value ) {
+
+		this.usage = value;
+
+		return this;
+
+	}
+
+	copy( source ) {
+
+		this.name = source.name;
+		this.array = new source.array.constructor( source.array );
+		this.itemSize = source.itemSize;
+		this.count = source.count;
+		this.normalized = source.normalized;
+
+		this.usage = source.usage;
+
+		return this;
+
+	}
+
+	copyAt( index1, attribute, index2 ) {
+
+		index1 *= this.itemSize;
+		index2 *= attribute.itemSize;
+
+		for ( let i = 0, l = this.itemSize; i < l; i ++ ) {
+
+			this.array[ index1 + i ] = attribute.array[ index2 + i ];
+
+		}
+
+		return this;
+
+	}
+
+	copyArray( array ) {
+
+		this.array.set( array );
+
+		return this;
+
+	}
+
+	applyMatrix3( m ) {
+
+		if ( this.itemSize === 2 ) {
+
+			for ( let i = 0, l = this.count; i < l; i ++ ) {
+
+				_vector2.fromBufferAttribute( this, i );
+				_vector2.applyMatrix3( m );
+
+				this.setXY( i, _vector2.x, _vector2.y );
+
+			}
+
+		} else if ( this.itemSize === 3 ) {
+
+			for ( let i = 0, l = this.count; i < l; i ++ ) {
+
+				_vector$1.fromBufferAttribute( this, i );
+				_vector$1.applyMatrix3( m );
+
+				this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
+
+			}
+
+		}
+
+		return this;
+
+	}
+
+	applyMatrix4( m ) {
+
+		for ( let i = 0, l = this.count; i < l; i ++ ) {
+
+			_vector$1.fromBufferAttribute( this, i );
+
+			_vector$1.applyMatrix4( m );
+
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
+
+		}
+
+		return this;
+
+	}
+
+	applyNormalMatrix( m ) {
+
+		for ( let i = 0, l = this.count; i < l; i ++ ) {
+
+			_vector$1.fromBufferAttribute( this, i );
+
+			_vector$1.applyNormalMatrix( m );
+
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
+
+		}
+
+		return this;
+
+	}
+
+	transformDirection( m ) {
+
+		for ( let i = 0, l = this.count; i < l; i ++ ) {
+
+			_vector$1.fromBufferAttribute( this, i );
+
+			_vector$1.transformDirection( m );
+
+			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
+
+		}
+
+		return this;
+
+	}
+
+	set( value, offset = 0 ) {
+
+		// Matching BufferAttribute constructor, do not normalize the array.
+		this.array.set( value, offset );
+
+		return this;
+
+	}
+
+	getX( index ) {
+
+		let x = this.array[ index * this.itemSize ];
+
+		if ( this.normalized ) x = denormalize( x, this.array );
+
+		return x;
+
+	}
+
+	setX( index, x ) {
+
+		if ( this.normalized ) x = normalize( x, this.array );
+
+		this.array[ index * this.itemSize ] = x;
+
+		return this;
+
+	}
+
+	getY( index ) {
+
+		let y = this.array[ index * this.itemSize + 1 ];
+
+		if ( this.normalized ) y = denormalize( y, this.array );
+
+		return y;
+
+	}
+
+	setY( index, y ) {
+
+		if ( this.normalized ) y = normalize( y, this.array );
+
+		this.array[ index * this.itemSize + 1 ] = y;
+
+		return this;
+
+	}
+
+	getZ( index ) {
+
+		let z = this.array[ index * this.itemSize + 2 ];
+
+		if ( this.normalized ) z = denormalize( z, this.array );
+
+		return z;
+
+	}
+
+	setZ( index, z ) {
+
+		if ( this.normalized ) z = normalize( z, this.array );
+
+		this.array[ index * this.itemSize + 2 ] = z;
+
+		return this;
+
+	}
+
+	getW( index ) {
+
+		let w = this.array[ index * this.itemSize + 3 ];
+
+		if ( this.normalized ) w = denormalize( w, this.array );
+
+		return w;
+
+	}
+
+	setW( index, w ) {
+
+		if ( this.normalized ) w = normalize( w, this.array );
+
+		this.array[ index * this.itemSize + 3 ] = w;
+
+		return this;
+
+	}
+
+	setXY( index, x, y ) {
+
+		index *= this.itemSize;
+
+		if ( this.normalized ) {
+
+			x = normalize( x, this.array );
+			y = normalize( y, this.array );
+
+		}
+
+		this.array[ index + 0 ] = x;
+		this.array[ index + 1 ] = y;
+
+		return this;
+
+	}
+
+	setXYZ( index, x, y, z ) {
+
+		index *= this.itemSize;
+
+		if ( this.normalized ) {
+
+			x = normalize( x, this.array );
+			y = normalize( y, this.array );
+			z = normalize( z, this.array );
+
+		}
+
+		this.array[ index + 0 ] = x;
+		this.array[ index + 1 ] = y;
+		this.array[ index + 2 ] = z;
+
+		return this;
+
+	}
+
+	setXYZW( index, x, y, z, w ) {
+
+		index *= this.itemSize;
+
+		if ( this.normalized ) {
+
+			x = normalize( x, this.array );
+			y = normalize( y, this.array );
+			z = normalize( z, this.array );
+			w = normalize( w, this.array );
+
+		}
+
+		this.array[ index + 0 ] = x;
+		this.array[ index + 1 ] = y;
+		this.array[ index + 2 ] = z;
+		this.array[ index + 3 ] = w;
+
+		return this;
+
+	}
+
+	onUpload( callback ) {
+
+		this.onUploadCallback = callback;
+
+		return this;
+
+	}
+
+	clone() {
+
+		return new this.constructor( this.array, this.itemSize ).copy( this );
+
+	}
+
+	toJSON() {
+
+		const data = {
+			itemSize: this.itemSize,
+			type: this.array.constructor.name,
+			array: Array.from( this.array ),
+			normalized: this.normalized
+		};
+
+		if ( this.name !== '' ) data.name = this.name;
+		if ( this.usage !== StaticDrawUsage ) data.usage = this.usage;
+		if ( this.updateRange.offset !== 0 || this.updateRange.count !== - 1 ) data.updateRange = this.updateRange;
+
+		return data;
+
+	}
+
+	copyColorsArray() { // @deprecated, r144
+
+		console.error( 'THREE.BufferAttribute: copyColorsArray() was removed in r144.' );
+
+	}
+
+	copyVector2sArray() { // @deprecated, r144
+
+		console.error( 'THREE.BufferAttribute: copyVector2sArray() was removed in r144.' );
+
+	}
+
+	copyVector3sArray() { // @deprecated, r144
+
+		console.error( 'THREE.BufferAttribute: copyVector3sArray() was removed in r144.' );
+
+	}
+
+	copyVector4sArray() { // @deprecated, r144
+
+		console.error( 'THREE.BufferAttribute: copyVector4sArray() was removed in r144.' );
+
+	}
+
+}
+
+class FragmentMesh extends InstancedMesh {
+    constructor(geometry, material, count, fragment) {
+        super(geometry, material, count);
+        this.elementCount = 0;
+        this.exportOptions = {
+            trs: false,
+            onlyVisible: false,
+            truncateDrawRange: true,
+            binary: true,
+            maxTextureSize: 0,
+        };
+        this.exporter = new GLTFExporter();
+        this.material = FragmentMesh.newMaterialArray(material);
+        this.geometry = this.newFragmentGeometry(geometry);
+        this.fragment = fragment;
+    }
+    exportData() {
+        const position = this.geometry.attributes.position.array;
+        const normal = this.geometry.attributes.normal.array;
+        const blockID = Array.from(this.geometry.attributes.blockID.array);
+        const index = Array.from(this.geometry.index.array);
+        const groups = [];
+        for (const group of this.geometry.groups) {
+            const index = group.materialIndex || 0;
+            const { start, count } = group;
+            groups.push(start, count, index);
+        }
+        const materials = [];
+        if (Array.isArray(this.material)) {
+            for (const material of this.material) {
+                const opacity = material.opacity;
+                const transparent = material.transparent ? 1 : 0;
+                const color = new Color(material.color).toArray();
+                materials.push(opacity, transparent, ...color);
+            }
+        }
+        const matrices = Array.from(this.instanceMatrix.array);
+        let colors;
+        if (this.instanceColor !== null) {
+            colors = Array.from(this.instanceColor.array);
+        }
+        else {
+            colors = [];
+        }
+        return {
+            position,
+            normal,
+            index,
+            blockID,
+            groups,
+            materials,
+            matrices,
+            colors,
+        };
+    }
+    export() {
+        const mesh = this;
+        return new Promise((resolve) => {
+            this.exporter.parse(mesh, (geometry) => resolve(geometry), (error) => console.log(error), this.exportOptions);
+        });
+    }
+    newFragmentGeometry(geometry) {
+        if (!geometry.index) {
+            throw new Error("The geometry must be indexed!");
+        }
+        if (!geometry.attributes.blockID) {
+            const vertexSize = geometry.attributes.position.count;
+            const array = new Uint16Array(vertexSize);
+            array.fill(this.elementCount++);
+            geometry.attributes.blockID = new BufferAttribute(array, 1);
+        }
+        const size = geometry.index.count;
+        FragmentMesh.initializeGroups(geometry, size);
+        return geometry;
+    }
+    static initializeGroups(geometry, size) {
+        if (!geometry.groups.length) {
+            geometry.groups.push({
+                start: 0,
+                count: size,
+                materialIndex: 0,
+            });
+        }
+    }
+    static newMaterialArray(material) {
+        if (!Array.isArray(material))
+            material = [material];
+        return material;
+    }
+}
+
+/**
+ * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
+ * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
+ */
+class Blocks {
+    get count() {
+        return this.ids.size;
+    }
+    constructor(fragment) {
+        this.fragment = fragment;
+        this._visibilityInitialized = false;
+        this._originalIndex = new Map();
+        this._idIndexIndexMap = {};
+        const rawIds = fragment.mesh.geometry.attributes.blockID.array;
+        this.ids = new Set(rawIds);
+        this.visibleIds = new Set(this.ids);
+    }
+    setVisibility(visible, itemIDs = new Set(this.fragment.items), isolate = false) {
+        const geometry = this.fragment.mesh.geometry;
+        const index = geometry.index;
+        if (!this._visibilityInitialized) {
+            this.initializeVisibility(index, geometry);
+        }
+        if (isolate) {
+            index.array.fill(0);
+        }
+        for (const id of itemIDs) {
+            const indices = this._idIndexIndexMap[id];
+            if (!indices)
+                continue;
+            for (const i of indices) {
+                const originalIndex = this._originalIndex.get(i);
+                if (originalIndex === undefined)
+                    continue;
+                const blockID = geometry.attributes.blockID.getX(originalIndex);
+                const itemID = this.fragment.items[blockID];
+                if (itemIDs.has(itemID)) {
+                    if (visible) {
+                        this.visibleIds.add(blockID);
+                    }
+                    else {
+                        this.visibleIds.delete(blockID);
+                    }
+                    const newIndex = visible ? originalIndex : 0;
+                    index.setX(i, newIndex);
+                }
+            }
+        }
+        index.needsUpdate = true;
+    }
+    initializeVisibility(index, geometry) {
+        for (let i = 0; i < index.count; i++) {
+            const foundIndex = index.getX(i);
+            this._originalIndex.set(i, foundIndex);
+            const blockID = geometry.attributes.blockID.getX(foundIndex);
+            const itemID = this.fragment.getItemID(0, blockID);
+            if (!this._idIndexIndexMap[itemID]) {
+                this._idIndexIndexMap[itemID] = [];
+            }
+            this._idIndexIndexMap[itemID].push(i);
+        }
+        this._visibilityInitialized = true;
+    }
+    // Use this only for destroying the current Fragment instance
+    dispose() {
+        this._idIndexIndexMap = {};
+        this.ids.clear();
+        this.visibleIds.clear();
+        this._originalIndex.clear();
+        this.ids = null;
+        this.visibleIds = null;
+        this._originalIndex = null;
+    }
+}
+
+// Source: https://github.com/gkjohnson/three-mesh-bvh
+class BVH {
+    static apply(geometry) {
+        if (!BVH.initialized) {
+            BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+            BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+            Mesh.prototype.raycast = acceleratedRaycast;
+            BVH.initialized = true;
+        }
+        if (!geometry.boundsTree) {
+            geometry.computeBoundsTree();
+        }
+    }
+    static dispose(geometry) {
+        geometry.disposeBoundsTree();
+    }
+}
+BVH.initialized = false;
+
+/*
+ * Fragments can contain one or multiple Instances of one or multiple Blocks
+ * Each Instance is identified by an instanceID (property of THREE.InstancedMesh)
+ * Each Block identified by a blockID (custom bufferAttribute per vertex)
+ * Both instanceId and blockId are unsigned integers starting at 0 and going up sequentially
+ * A specific Block of a specific Instance is an Item, identified by an itemID
+ *
+ * For example:
+ * Imagine a fragment mesh with 8 instances and 2 elements (16 items, identified from A to P)
+ * It will have instanceIds from 0 to 8, and blockIds from 0 to 2
+ * If we raycast it, we will get an instanceId and the index of the found triangle
+ * We can use the index to get the blockId for that triangle
+ * Combining instanceId and blockId using the elementMap will give us the itemId
+ * The items will look like this:
+ *
+ *    [ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P ]
+ *
+ *  Where the criteria to sort the items is the following (Y-axis is instance, X-axis is block):
+ *
+ *        A  C  E  G  I  K  M  O
+ *        B  D  F  H  J  L  N  P
+ * */
+let Fragment$1 = class Fragment {
+    get ids() {
+        const ids = new Set();
+        for (const id of this.items) {
+            ids.add(id);
+        }
+        for (const id in this.hiddenInstances) {
+            ids.add(id);
+        }
+        return ids;
+    }
+    constructor(geometry, material, count) {
+        this.fragments = {};
+        this.items = [];
+        this.hiddenInstances = {};
+        // When multiple instances represent the same object
+        // this allows to create a composite ID for each instance
+        // E.g. all the steps in a stair are a single thing
+        // so if the ID of the stair is asdf, then each step could be
+        // asdf.1, asdf.2, asdf.3, etc
+        // the value is the number of instances
+        this.composites = {};
+        this.mesh = new FragmentMesh(geometry, material, count, this);
+        this.id = this.mesh.uuid;
+        this.capacity = count;
+        this.blocks = new Blocks(this);
+        BVH.apply(geometry);
+    }
+    dispose(disposeResources = true) {
+        this.items = null;
+        this.group = undefined;
+        if (this.mesh) {
+            if (disposeResources) {
+                this.mesh.material.forEach((mat) => mat.dispose());
+                this.mesh.material = [];
+                BVH.dispose(this.mesh.geometry);
+                this.mesh.geometry.dispose();
+                this.mesh.geometry = null;
+            }
+            this.mesh.removeFromParent();
+            this.mesh.dispose();
+            this.mesh.fragment = null;
+            this.mesh = null;
+        }
+        this.disposeNestedFragments();
+    }
+    getItemID(instanceID, blockID) {
+        const index = this.getItemIndex(instanceID, blockID);
+        return this.items[index];
+    }
+    getInstanceAndBlockID(itemID) {
+        const index = this.items.indexOf(itemID);
+        const instanceID = this.getInstanceIDFromIndex(index);
+        const blockID = index % this.blocks.count;
+        return { instanceID, blockID };
+    }
+    getVertexBlockID(geometry, index) {
+        const blocks = geometry.attributes.blockID;
+        return blocks.array[index];
+    }
+    getItemData(itemID) {
+        const index = this.items.indexOf(itemID);
+        const instanceID = Math.ceil(index / this.blocks.count);
+        const blockID = index % this.blocks.count;
+        return { instanceID, blockID };
+    }
+    getInstance(instanceID, matrix) {
+        return this.mesh.getMatrixAt(instanceID, matrix);
+    }
+    setInstance(instanceID, items) {
+        this.checkIfInstanceExist(instanceID);
+        this.mesh.setMatrixAt(instanceID, items.transform);
+        this.mesh.instanceMatrix.needsUpdate = true;
+        if (items.color && this.mesh.instanceColor) {
+            this.mesh.setColorAt(instanceID, items.color);
+            this.mesh.instanceColor.needsUpdate = true;
+        }
+        if (items.ids) {
+            this.saveItemsInMap(items.ids, instanceID);
+        }
+    }
+    addInstances(items) {
+        this.resizeCapacityIfNeeded(items.length);
+        const start = this.mesh.count;
+        this.mesh.count += items.length;
+        for (let i = 0; i < items.length; i++) {
+            this.setInstance(start + i, items[i]);
+        }
+    }
+    removeInstances(itemsIDs) {
+        if (this.mesh.count <= 1) {
+            this.clear();
+            return;
+        }
+        this.deleteAndRearrangeInstances(itemsIDs);
+        this.mesh.count -= itemsIDs.length;
+        this.mesh.instanceMatrix.needsUpdate = true;
+    }
+    clear() {
+        this.mesh.clear();
+        this.mesh.count = 0;
+        this.items = [];
+    }
+    addFragment(id, material = this.mesh.material) {
+        const newGeometry = this.initializeGeometry();
+        if (material === this.mesh.material) {
+            this.copyGroups(newGeometry);
+        }
+        const newFragment = new Fragment(newGeometry, material, this.capacity);
+        newFragment.mesh.applyMatrix4(this.mesh.matrix);
+        newFragment.mesh.updateMatrix();
+        this.fragments[id] = newFragment;
+        return this.fragments[id];
+    }
+    removeFragment(id) {
+        const fragment = this.fragments[id];
+        if (fragment) {
+            fragment.dispose(false);
+            delete this.fragments[id];
+        }
+    }
+    resetVisibility() {
+        if (this.blocks.count > 1) {
+            this.blocks.setVisibility(true);
+        }
+        else {
+            const hiddenInstances = Object.keys(this.hiddenInstances);
+            this.makeInstancesVisible(hiddenInstances);
+            this.hiddenInstances = {};
+        }
+    }
+    setVisibility(visible, itemIDs = this.ids) {
+        if (this.blocks.count > 1) {
+            this.blocks.setVisibility(visible, itemIDs);
+        }
+        else {
+            this.toggleInstanceVisibility(visible, itemIDs);
+        }
+    }
+    resize(size) {
+        var _a;
+        const newMesh = this.createFragmentMeshWithNewSize(size);
+        this.capacity = size;
+        const oldMesh = this.mesh;
+        (_a = oldMesh.parent) === null || _a === void 0 ? void 0 : _a.add(newMesh);
+        oldMesh.removeFromParent();
+        this.mesh = newMesh;
+        oldMesh.dispose();
+    }
+    exportData() {
+        const geometry = this.mesh.exportData();
+        const ids = this.items.join("|");
+        const id = this.id;
+        return { ...geometry, ids, id };
+    }
+    copyGroups(newGeometry) {
+        newGeometry.groups = [];
+        for (const group of this.mesh.geometry.groups) {
+            newGeometry.groups.push({ ...group });
+        }
+    }
+    initializeGeometry() {
+        const newGeometry = new THREE$1.BufferGeometry();
+        newGeometry.setAttribute("position", this.mesh.geometry.attributes.position);
+        newGeometry.setAttribute("normal", this.mesh.geometry.attributes.normal);
+        newGeometry.setAttribute("blockID", this.mesh.geometry.attributes.blockID);
+        newGeometry.setIndex(Array.from(this.mesh.geometry.index.array));
+        return newGeometry;
+    }
+    saveItemsInMap(ids, instanceId) {
+        this.checkBlockNumberValid(ids);
+        let counter = 0;
+        for (const id of ids) {
+            const index = this.getItemIndex(instanceId, counter);
+            this.items[index] = id;
+            counter++;
+        }
+    }
+    resizeCapacityIfNeeded(newSize) {
+        const necessaryCapacity = newSize + this.mesh.count;
+        if (necessaryCapacity > this.capacity) {
+            this.resize(necessaryCapacity);
+        }
+    }
+    createFragmentMeshWithNewSize(capacity) {
+        const newMesh = new FragmentMesh(this.mesh.geometry, this.mesh.material, capacity, this);
+        newMesh.count = this.mesh.count;
+        return newMesh;
+    }
+    disposeNestedFragments() {
+        const fragments = Object.values(this.fragments);
+        for (let i = 0; i < fragments.length; i++) {
+            fragments[i].dispose();
+        }
+        this.fragments = {};
+    }
+    checkBlockNumberValid(ids) {
+        if (ids.length > this.blocks.count) {
+            throw new Error(`You passed more items (${ids.length}) than blocks in this instance (${this.blocks.count})`);
+        }
+    }
+    checkIfInstanceExist(index) {
+        if (index > this.mesh.count) {
+            throw new Error(`The given index (${index}) exceeds the instances in this fragment (${this.mesh.count})`);
+        }
+    }
+    // Assigns the index of the removed instance to the last instance
+    // F.e. let there be 6 instances: (A) (B) (C) (D) (E) (F)
+    // If instance (C) is removed: -> (A) (B) (F) (D) (E)
+    deleteAndRearrangeInstances(ids) {
+        const deletedItems = [];
+        for (const id of ids) {
+            const deleted = this.deleteAndRearrange(id);
+            if (deleted) {
+                deletedItems.push(deleted);
+            }
+        }
+        for (const id of ids) {
+            delete this.hiddenInstances[id];
+        }
+        return deletedItems;
+    }
+    deleteAndRearrange(id) {
+        const index = this.items.indexOf(id);
+        if (index === -1)
+            return null;
+        this.mesh.count--;
+        const isLastElement = index === this.mesh.count;
+        const instanceId = this.getInstanceIDFromIndex(index);
+        const tempMatrix = new THREE$1.Matrix4();
+        const tempColor = new THREE$1.Color();
+        const transform = new THREE$1.Matrix4();
+        this.mesh.getMatrixAt(instanceId, transform);
+        const result = { ids: [id], transform };
+        if (this.mesh.instanceColor) {
+            const color = new THREE$1.Color();
+            this.mesh.getColorAt(instanceId, color);
+            result.color = color;
+        }
+        if (isLastElement) {
+            this.items.pop();
+            return result;
+        }
+        const lastElement = this.mesh.count;
+        this.items[index] = this.items[lastElement];
+        this.items.pop();
+        this.mesh.getMatrixAt(lastElement, tempMatrix);
+        this.mesh.setMatrixAt(instanceId, tempMatrix);
+        this.mesh.instanceMatrix.needsUpdate = true;
+        if (this.mesh.instanceColor) {
+            this.mesh.getColorAt(lastElement, tempColor);
+            this.mesh.setColorAt(instanceId, tempColor);
+            this.mesh.instanceColor.needsUpdate = true;
+        }
+        return result;
+    }
+    getItemIndex(instanceId, blockId) {
+        return instanceId * this.blocks.count + blockId;
+    }
+    getInstanceIDFromIndex(itemIndex) {
+        return Math.trunc(itemIndex / this.blocks.count);
+    }
+    toggleInstanceVisibility(visible, itemIDs) {
+        if (visible) {
+            this.makeInstancesVisible(itemIDs);
+        }
+        else {
+            this.makeInstancesInvisible(itemIDs);
+        }
+    }
+    makeInstancesInvisible(itemIDs) {
+        itemIDs = this.filterHiddenItems(itemIDs, false);
+        const deletedItems = this.deleteAndRearrangeInstances(itemIDs);
+        for (const item of deletedItems) {
+            if (item.ids) {
+                this.hiddenInstances[item.ids[0]] = item;
+            }
+        }
+    }
+    makeInstancesVisible(itemIDs) {
+        const items = [];
+        itemIDs = this.filterHiddenItems(itemIDs, true);
+        for (const id of itemIDs) {
+            const found = this.hiddenInstances[id];
+            if (found !== undefined) {
+                items.push(found);
+                delete this.hiddenInstances[id];
+            }
+        }
+        this.addInstances(items);
+    }
+    filterHiddenItems(itemIDs, hidden) {
+        const hiddenItems = Object.keys(this.hiddenInstances);
+        const result = [];
+        for (const id of itemIDs) {
+            const isHidden = hidden && hiddenItems.includes(id);
+            const isNotHidden = !hidden && !hiddenItems.includes(id);
+            if (isHidden || isNotHidden) {
+                result.push(id);
+            }
+        }
+        return result;
+    }
+};
+
+const SIZEOF_SHORT = 2;
+const SIZEOF_INT = 4;
+const FILE_IDENTIFIER_LENGTH = 4;
+const SIZE_PREFIX_LENGTH = 4;
+
+const int32 = new Int32Array(2);
+const float32 = new Float32Array(int32.buffer);
+const float64 = new Float64Array(int32.buffer);
+const isLittleEndian = new Uint16Array(new Uint8Array([1, 0]).buffer)[0] === 1;
+
+var Encoding;
+(function (Encoding) {
+    Encoding[Encoding["UTF8_BYTES"] = 1] = "UTF8_BYTES";
+    Encoding[Encoding["UTF16_STRING"] = 2] = "UTF16_STRING";
+})(Encoding || (Encoding = {}));
+
+class ByteBuffer {
+    /**
+     * Create a new ByteBuffer with a given array of bytes (`Uint8Array`)
+     */
+    constructor(bytes_) {
+        this.bytes_ = bytes_;
+        this.position_ = 0;
+        this.text_decoder_ = new TextDecoder();
+    }
+    /**
+     * Create and allocate a new ByteBuffer with a given size.
+     */
+    static allocate(byte_size) {
+        return new ByteBuffer(new Uint8Array(byte_size));
+    }
+    clear() {
+        this.position_ = 0;
+    }
+    /**
+     * Get the underlying `Uint8Array`.
+     */
+    bytes() {
+        return this.bytes_;
+    }
+    /**
+     * Get the buffer's position.
+     */
+    position() {
+        return this.position_;
+    }
+    /**
+     * Set the buffer's position.
+     */
+    setPosition(position) {
+        this.position_ = position;
+    }
+    /**
+     * Get the buffer's capacity.
+     */
+    capacity() {
+        return this.bytes_.length;
+    }
+    readInt8(offset) {
+        return this.readUint8(offset) << 24 >> 24;
+    }
+    readUint8(offset) {
+        return this.bytes_[offset];
+    }
+    readInt16(offset) {
+        return this.readUint16(offset) << 16 >> 16;
+    }
+    readUint16(offset) {
+        return this.bytes_[offset] | this.bytes_[offset + 1] << 8;
+    }
+    readInt32(offset) {
+        return this.bytes_[offset] | this.bytes_[offset + 1] << 8 | this.bytes_[offset + 2] << 16 | this.bytes_[offset + 3] << 24;
+    }
+    readUint32(offset) {
+        return this.readInt32(offset) >>> 0;
+    }
+    readInt64(offset) {
+        return BigInt.asIntN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
+    }
+    readUint64(offset) {
+        return BigInt.asUintN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
+    }
+    readFloat32(offset) {
+        int32[0] = this.readInt32(offset);
+        return float32[0];
+    }
+    readFloat64(offset) {
+        int32[isLittleEndian ? 0 : 1] = this.readInt32(offset);
+        int32[isLittleEndian ? 1 : 0] = this.readInt32(offset + 4);
+        return float64[0];
+    }
+    writeInt8(offset, value) {
+        this.bytes_[offset] = value;
+    }
+    writeUint8(offset, value) {
+        this.bytes_[offset] = value;
+    }
+    writeInt16(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+    }
+    writeUint16(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+    }
+    writeInt32(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+        this.bytes_[offset + 2] = value >> 16;
+        this.bytes_[offset + 3] = value >> 24;
+    }
+    writeUint32(offset, value) {
+        this.bytes_[offset] = value;
+        this.bytes_[offset + 1] = value >> 8;
+        this.bytes_[offset + 2] = value >> 16;
+        this.bytes_[offset + 3] = value >> 24;
+    }
+    writeInt64(offset, value) {
+        this.writeInt32(offset, Number(BigInt.asIntN(32, value)));
+        this.writeInt32(offset + 4, Number(BigInt.asIntN(32, value >> BigInt(32))));
+    }
+    writeUint64(offset, value) {
+        this.writeUint32(offset, Number(BigInt.asUintN(32, value)));
+        this.writeUint32(offset + 4, Number(BigInt.asUintN(32, value >> BigInt(32))));
+    }
+    writeFloat32(offset, value) {
+        float32[0] = value;
+        this.writeInt32(offset, int32[0]);
+    }
+    writeFloat64(offset, value) {
+        float64[0] = value;
+        this.writeInt32(offset, int32[isLittleEndian ? 0 : 1]);
+        this.writeInt32(offset + 4, int32[isLittleEndian ? 1 : 0]);
+    }
+    /**
+     * Return the file identifier.   Behavior is undefined for FlatBuffers whose
+     * schema does not include a file_identifier (likely points at padding or the
+     * start of a the root vtable).
+     */
+    getBufferIdentifier() {
+        if (this.bytes_.length < this.position_ + SIZEOF_INT +
+            FILE_IDENTIFIER_LENGTH) {
+            throw new Error('FlatBuffers: ByteBuffer is too short to contain an identifier.');
+        }
+        let result = "";
+        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
+            result += String.fromCharCode(this.readInt8(this.position_ + SIZEOF_INT + i));
+        }
+        return result;
+    }
+    /**
+     * Look up a field in the vtable, return an offset into the object, or 0 if the
+     * field is not present.
+     */
+    __offset(bb_pos, vtable_offset) {
+        const vtable = bb_pos - this.readInt32(bb_pos);
+        return vtable_offset < this.readInt16(vtable) ? this.readInt16(vtable + vtable_offset) : 0;
+    }
+    /**
+     * Initialize any Table-derived type to point to the union at the given offset.
+     */
+    __union(t, offset) {
+        t.bb_pos = offset + this.readInt32(offset);
+        t.bb = this;
+        return t;
+    }
+    /**
+     * Create a JavaScript string from UTF-8 data stored inside the FlatBuffer.
+     * This allocates a new string and converts to wide chars upon each access.
+     *
+     * To avoid the conversion to string, pass Encoding.UTF8_BYTES as the
+     * "optionalEncoding" argument. This is useful for avoiding conversion when
+     * the data will just be packaged back up in another FlatBuffer later on.
+     *
+     * @param offset
+     * @param opt_encoding Defaults to UTF16_STRING
+     */
+    __string(offset, opt_encoding) {
+        offset += this.readInt32(offset);
+        const length = this.readInt32(offset);
+        offset += SIZEOF_INT;
+        const utf8bytes = this.bytes_.subarray(offset, offset + length);
+        if (opt_encoding === Encoding.UTF8_BYTES)
+            return utf8bytes;
+        else
+            return this.text_decoder_.decode(utf8bytes);
+    }
+    /**
+     * Handle unions that can contain string as its member, if a Table-derived type then initialize it,
+     * if a string then return a new one
+     *
+     * WARNING: strings are immutable in JS so we can't change the string that the user gave us, this
+     * makes the behaviour of __union_with_string different compared to __union
+     */
+    __union_with_string(o, offset) {
+        if (typeof o === 'string') {
+            return this.__string(offset);
+        }
+        return this.__union(o, offset);
+    }
+    /**
+     * Retrieve the relative offset stored at "offset"
+     */
+    __indirect(offset) {
+        return offset + this.readInt32(offset);
+    }
+    /**
+     * Get the start of data of a vector whose offset is stored at "offset" in this object.
+     */
+    __vector(offset) {
+        return offset + this.readInt32(offset) + SIZEOF_INT; // data starts after the length
+    }
+    /**
+     * Get the length of a vector whose offset is stored at "offset" in this object.
+     */
+    __vector_len(offset) {
+        return this.readInt32(offset + this.readInt32(offset));
+    }
+    __has_identifier(ident) {
+        if (ident.length != FILE_IDENTIFIER_LENGTH) {
+            throw new Error('FlatBuffers: file identifier must be length ' +
+                FILE_IDENTIFIER_LENGTH);
+        }
+        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
+            if (ident.charCodeAt(i) != this.readInt8(this.position() + SIZEOF_INT + i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    /**
+     * A helper function for generating list for obj api
+     */
+    createScalarList(listAccessor, listLength) {
+        const ret = [];
+        for (let i = 0; i < listLength; ++i) {
+            const val = listAccessor(i);
+            if (val !== null) {
+                ret.push(val);
+            }
+        }
+        return ret;
+    }
+    /**
+     * A helper function for generating list for obj api
+     * @param listAccessor function that accepts an index and return data at that index
+     * @param listLength listLength
+     * @param res result list
+     */
+    createObjList(listAccessor, listLength) {
+        const ret = [];
+        for (let i = 0; i < listLength; ++i) {
+            const val = listAccessor(i);
+            if (val !== null) {
+                ret.push(val.unpack());
+            }
+        }
+        return ret;
+    }
+}
+
+class Builder {
+    /**
+     * Create a FlatBufferBuilder.
+     */
+    constructor(opt_initial_size) {
+        /** Minimum alignment encountered so far. */
+        this.minalign = 1;
+        /** The vtable for the current table. */
+        this.vtable = null;
+        /** The amount of fields we're actually using. */
+        this.vtable_in_use = 0;
+        /** Whether we are currently serializing a table. */
+        this.isNested = false;
+        /** Starting offset of the current struct/table. */
+        this.object_start = 0;
+        /** List of offsets of all vtables. */
+        this.vtables = [];
+        /** For the current vector being built. */
+        this.vector_num_elems = 0;
+        /** False omits default values from the serialized data */
+        this.force_defaults = false;
+        this.string_maps = null;
+        this.text_encoder = new TextEncoder();
+        let initial_size;
+        if (!opt_initial_size) {
+            initial_size = 1024;
+        }
+        else {
+            initial_size = opt_initial_size;
+        }
+        /**
+         * @type {ByteBuffer}
+         * @private
+         */
+        this.bb = ByteBuffer.allocate(initial_size);
+        this.space = initial_size;
+    }
+    clear() {
+        this.bb.clear();
+        this.space = this.bb.capacity();
+        this.minalign = 1;
+        this.vtable = null;
+        this.vtable_in_use = 0;
+        this.isNested = false;
+        this.object_start = 0;
+        this.vtables = [];
+        this.vector_num_elems = 0;
+        this.force_defaults = false;
+        this.string_maps = null;
+    }
+    /**
+     * In order to save space, fields that are set to their default value
+     * don't get serialized into the buffer. Forcing defaults provides a
+     * way to manually disable this optimization.
+     *
+     * @param forceDefaults true always serializes default values
+     */
+    forceDefaults(forceDefaults) {
+        this.force_defaults = forceDefaults;
+    }
+    /**
+     * Get the ByteBuffer representing the FlatBuffer. Only call this after you've
+     * called finish(). The actual data starts at the ByteBuffer's current position,
+     * not necessarily at 0.
+     */
+    dataBuffer() {
+        return this.bb;
+    }
+    /**
+     * Get the bytes representing the FlatBuffer. Only call this after you've
+     * called finish().
+     */
+    asUint8Array() {
+        return this.bb.bytes().subarray(this.bb.position(), this.bb.position() + this.offset());
+    }
+    /**
+     * Prepare to write an element of `size` after `additional_bytes` have been
+     * written, e.g. if you write a string, you need to align such the int length
+     * field is aligned to 4 bytes, and the string data follows it directly. If all
+     * you need to do is alignment, `additional_bytes` will be 0.
+     *
+     * @param size This is the of the new element to write
+     * @param additional_bytes The padding size
+     */
+    prep(size, additional_bytes) {
+        // Track the biggest thing we've ever aligned to.
+        if (size > this.minalign) {
+            this.minalign = size;
+        }
+        // Find the amount of alignment needed such that `size` is properly
+        // aligned after `additional_bytes`
+        const align_size = ((~(this.bb.capacity() - this.space + additional_bytes)) + 1) & (size - 1);
+        // Reallocate the buffer if needed.
+        while (this.space < align_size + size + additional_bytes) {
+            const old_buf_size = this.bb.capacity();
+            this.bb = Builder.growByteBuffer(this.bb);
+            this.space += this.bb.capacity() - old_buf_size;
+        }
+        this.pad(align_size);
+    }
+    pad(byte_size) {
+        for (let i = 0; i < byte_size; i++) {
+            this.bb.writeInt8(--this.space, 0);
+        }
+    }
+    writeInt8(value) {
+        this.bb.writeInt8(this.space -= 1, value);
+    }
+    writeInt16(value) {
+        this.bb.writeInt16(this.space -= 2, value);
+    }
+    writeInt32(value) {
+        this.bb.writeInt32(this.space -= 4, value);
+    }
+    writeInt64(value) {
+        this.bb.writeInt64(this.space -= 8, value);
+    }
+    writeFloat32(value) {
+        this.bb.writeFloat32(this.space -= 4, value);
+    }
+    writeFloat64(value) {
+        this.bb.writeFloat64(this.space -= 8, value);
+    }
+    /**
+     * Add an `int8` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int8` to add the buffer.
+     */
+    addInt8(value) {
+        this.prep(1, 0);
+        this.writeInt8(value);
+    }
+    /**
+     * Add an `int16` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int16` to add the buffer.
+     */
+    addInt16(value) {
+        this.prep(2, 0);
+        this.writeInt16(value);
+    }
+    /**
+     * Add an `int32` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int32` to add the buffer.
+     */
+    addInt32(value) {
+        this.prep(4, 0);
+        this.writeInt32(value);
+    }
+    /**
+     * Add an `int64` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `int64` to add the buffer.
+     */
+    addInt64(value) {
+        this.prep(8, 0);
+        this.writeInt64(value);
+    }
+    /**
+     * Add a `float32` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `float32` to add the buffer.
+     */
+    addFloat32(value) {
+        this.prep(4, 0);
+        this.writeFloat32(value);
+    }
+    /**
+     * Add a `float64` to the buffer, properly aligned, and grows the buffer (if necessary).
+     * @param value The `float64` to add the buffer.
+     */
+    addFloat64(value) {
+        this.prep(8, 0);
+        this.writeFloat64(value);
+    }
+    addFieldInt8(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addInt8(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldInt16(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addInt16(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldInt32(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addInt32(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldInt64(voffset, value, defaultValue) {
+        if (this.force_defaults || value !== defaultValue) {
+            this.addInt64(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldFloat32(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addFloat32(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldFloat64(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addFloat64(value);
+            this.slot(voffset);
+        }
+    }
+    addFieldOffset(voffset, value, defaultValue) {
+        if (this.force_defaults || value != defaultValue) {
+            this.addOffset(value);
+            this.slot(voffset);
+        }
+    }
+    /**
+     * Structs are stored inline, so nothing additional is being added. `d` is always 0.
+     */
+    addFieldStruct(voffset, value, defaultValue) {
+        if (value != defaultValue) {
+            this.nested(value);
+            this.slot(voffset);
+        }
+    }
+    /**
+     * Structures are always stored inline, they need to be created right
+     * where they're used.  You'll get this assertion failure if you
+     * created it elsewhere.
+     */
+    nested(obj) {
+        if (obj != this.offset()) {
+            throw new TypeError('FlatBuffers: struct must be serialized inline.');
+        }
+    }
+    /**
+     * Should not be creating any other object, string or vector
+     * while an object is being constructed
+     */
+    notNested() {
+        if (this.isNested) {
+            throw new TypeError('FlatBuffers: object serialization must not be nested.');
+        }
+    }
+    /**
+     * Set the current vtable at `voffset` to the current location in the buffer.
+     */
+    slot(voffset) {
+        if (this.vtable !== null)
+            this.vtable[voffset] = this.offset();
+    }
+    /**
+     * @returns Offset relative to the end of the buffer.
+     */
+    offset() {
+        return this.bb.capacity() - this.space;
+    }
+    /**
+     * Doubles the size of the backing ByteBuffer and copies the old data towards
+     * the end of the new buffer (since we build the buffer backwards).
+     *
+     * @param bb The current buffer with the existing data
+     * @returns A new byte buffer with the old data copied
+     * to it. The data is located at the end of the buffer.
+     *
+     * uint8Array.set() formally takes {Array<number>|ArrayBufferView}, so to pass
+     * it a uint8Array we need to suppress the type check:
+     * @suppress {checkTypes}
+     */
+    static growByteBuffer(bb) {
+        const old_buf_size = bb.capacity();
+        // Ensure we don't grow beyond what fits in an int.
+        if (old_buf_size & 0xC0000000) {
+            throw new Error('FlatBuffers: cannot grow buffer beyond 2 gigabytes.');
+        }
+        const new_buf_size = old_buf_size << 1;
+        const nbb = ByteBuffer.allocate(new_buf_size);
+        nbb.setPosition(new_buf_size - old_buf_size);
+        nbb.bytes().set(bb.bytes(), new_buf_size - old_buf_size);
+        return nbb;
+    }
+    /**
+     * Adds on offset, relative to where it will be written.
+     *
+     * @param offset The offset to add.
+     */
+    addOffset(offset) {
+        this.prep(SIZEOF_INT, 0); // Ensure alignment is already done.
+        this.writeInt32(this.offset() - offset + SIZEOF_INT);
+    }
+    /**
+     * Start encoding a new object in the buffer.  Users will not usually need to
+     * call this directly. The FlatBuffers compiler will generate helper methods
+     * that call this method internally.
+     */
+    startObject(numfields) {
+        this.notNested();
+        if (this.vtable == null) {
+            this.vtable = [];
+        }
+        this.vtable_in_use = numfields;
+        for (let i = 0; i < numfields; i++) {
+            this.vtable[i] = 0; // This will push additional elements as needed
+        }
+        this.isNested = true;
+        this.object_start = this.offset();
+    }
+    /**
+     * Finish off writing the object that is under construction.
+     *
+     * @returns The offset to the object inside `dataBuffer`
+     */
+    endObject() {
+        if (this.vtable == null || !this.isNested) {
+            throw new Error('FlatBuffers: endObject called without startObject');
+        }
+        this.addInt32(0);
+        const vtableloc = this.offset();
+        // Trim trailing zeroes.
+        let i = this.vtable_in_use - 1;
+        // eslint-disable-next-line no-empty
+        for (; i >= 0 && this.vtable[i] == 0; i--) { }
+        const trimmed_size = i + 1;
+        // Write out the current vtable.
+        for (; i >= 0; i--) {
+            // Offset relative to the start of the table.
+            this.addInt16(this.vtable[i] != 0 ? vtableloc - this.vtable[i] : 0);
+        }
+        const standard_fields = 2; // The fields below:
+        this.addInt16(vtableloc - this.object_start);
+        const len = (trimmed_size + standard_fields) * SIZEOF_SHORT;
+        this.addInt16(len);
+        // Search for an existing vtable that matches the current one.
+        let existing_vtable = 0;
+        const vt1 = this.space;
+        outer_loop: for (i = 0; i < this.vtables.length; i++) {
+            const vt2 = this.bb.capacity() - this.vtables[i];
+            if (len == this.bb.readInt16(vt2)) {
+                for (let j = SIZEOF_SHORT; j < len; j += SIZEOF_SHORT) {
+                    if (this.bb.readInt16(vt1 + j) != this.bb.readInt16(vt2 + j)) {
+                        continue outer_loop;
+                    }
+                }
+                existing_vtable = this.vtables[i];
+                break;
+            }
+        }
+        if (existing_vtable) {
+            // Found a match:
+            // Remove the current vtable.
+            this.space = this.bb.capacity() - vtableloc;
+            // Point table to existing vtable.
+            this.bb.writeInt32(this.space, existing_vtable - vtableloc);
+        }
+        else {
+            // No match:
+            // Add the location of the current vtable to the list of vtables.
+            this.vtables.push(this.offset());
+            // Point table to current vtable.
+            this.bb.writeInt32(this.bb.capacity() - vtableloc, this.offset() - vtableloc);
+        }
+        this.isNested = false;
+        return vtableloc;
+    }
+    /**
+     * Finalize a buffer, poiting to the given `root_table`.
+     */
+    finish(root_table, opt_file_identifier, opt_size_prefix) {
+        const size_prefix = opt_size_prefix ? SIZE_PREFIX_LENGTH : 0;
+        if (opt_file_identifier) {
+            const file_identifier = opt_file_identifier;
+            this.prep(this.minalign, SIZEOF_INT +
+                FILE_IDENTIFIER_LENGTH + size_prefix);
+            if (file_identifier.length != FILE_IDENTIFIER_LENGTH) {
+                throw new TypeError('FlatBuffers: file identifier must be length ' +
+                    FILE_IDENTIFIER_LENGTH);
+            }
+            for (let i = FILE_IDENTIFIER_LENGTH - 1; i >= 0; i--) {
+                this.writeInt8(file_identifier.charCodeAt(i));
+            }
+        }
+        this.prep(this.minalign, SIZEOF_INT + size_prefix);
+        this.addOffset(root_table);
+        if (size_prefix) {
+            this.addInt32(this.bb.capacity() - this.space);
+        }
+        this.bb.setPosition(this.space);
+    }
+    /**
+     * Finalize a size prefixed buffer, pointing to the given `root_table`.
+     */
+    finishSizePrefixed(root_table, opt_file_identifier) {
+        this.finish(root_table, opt_file_identifier, true);
+    }
+    /**
+     * This checks a required field has been set in a given table that has
+     * just been constructed.
+     */
+    requiredField(table, field) {
+        const table_start = this.bb.capacity() - table;
+        const vtable_start = table_start - this.bb.readInt32(table_start);
+        const ok = field < this.bb.readInt16(vtable_start) &&
+            this.bb.readInt16(vtable_start + field) != 0;
+        // If this fails, the caller will show what field needs to be set.
+        if (!ok) {
+            throw new TypeError('FlatBuffers: field ' + field + ' must be set');
+        }
+    }
+    /**
+     * Start a new array/vector of objects.  Users usually will not call
+     * this directly. The FlatBuffers compiler will create a start/end
+     * method for vector types in generated code.
+     *
+     * @param elem_size The size of each element in the array
+     * @param num_elems The number of elements in the array
+     * @param alignment The alignment of the array
+     */
+    startVector(elem_size, num_elems, alignment) {
+        this.notNested();
+        this.vector_num_elems = num_elems;
+        this.prep(SIZEOF_INT, elem_size * num_elems);
+        this.prep(alignment, elem_size * num_elems); // Just in case alignment > int.
+    }
+    /**
+     * Finish off the creation of an array and all its elements. The array must be
+     * created with `startVector`.
+     *
+     * @returns The offset at which the newly created array
+     * starts.
+     */
+    endVector() {
+        this.writeInt32(this.vector_num_elems);
+        return this.offset();
+    }
+    /**
+     * Encode the string `s` in the buffer using UTF-8. If the string passed has
+     * already been seen, we return the offset of the already written string
+     *
+     * @param s The string to encode
+     * @return The offset in the buffer where the encoded string starts
+     */
+    createSharedString(s) {
+        if (!s) {
+            return 0;
+        }
+        if (!this.string_maps) {
+            this.string_maps = new Map();
+        }
+        if (this.string_maps.has(s)) {
+            return this.string_maps.get(s);
+        }
+        const offset = this.createString(s);
+        this.string_maps.set(s, offset);
+        return offset;
+    }
+    /**
+     * Encode the string `s` in the buffer using UTF-8. If a Uint8Array is passed
+     * instead of a string, it is assumed to contain valid UTF-8 encoded data.
+     *
+     * @param s The string to encode
+     * @return The offset in the buffer where the encoded string starts
+     */
+    createString(s) {
+        if (s === null || s === undefined) {
+            return 0;
+        }
+        let utf8;
+        if (s instanceof Uint8Array) {
+            utf8 = s;
+        }
+        else {
+            utf8 = this.text_encoder.encode(s);
+        }
+        this.addInt8(0);
+        this.startVector(1, utf8.length, 1);
+        this.bb.setPosition(this.space -= utf8.length);
+        for (let i = 0, offset = this.space, bytes = this.bb.bytes(); i < utf8.length; i++) {
+            bytes[offset++] = utf8[i];
+        }
+        return this.endVector();
+    }
+    /**
+     * A helper function to pack an object
+     *
+     * @returns offset of obj
+     */
+    createObjectOffset(obj) {
+        if (obj === null) {
+            return 0;
+        }
+        if (typeof obj === 'string') {
+            return this.createString(obj);
+        }
+        else {
+            return obj.pack(this);
+        }
+    }
+    /**
+     * A helper function to pack a list of object
+     *
+     * @returns list of offsets of each non null object
+     */
+    createObjectOffsetList(list) {
+        const ret = [];
+        for (let i = 0; i < list.length; ++i) {
+            const val = list[i];
+            if (val !== null) {
+                ret.push(this.createObjectOffset(val));
+            }
+            else {
+                throw new TypeError('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
+            }
+        }
+        return ret;
+    }
+    createStructOffsetList(list, startFunc) {
+        startFunc(this, list.length);
+        this.createObjectOffsetList(list.slice().reverse());
+        return this.endVector();
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+class Alignment {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsAlignment(bb, obj) {
+        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsAlignment(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    position(index) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    positionLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    positionArray() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    curve(index) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    curveLength() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    curveArray() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    segment(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    segmentLength() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    segmentArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    static startAlignment(builder) {
+        builder.startObject(3);
+    }
+    static addPosition(builder, positionOffset) {
+        builder.addFieldOffset(0, positionOffset, 0);
+    }
+    static createPositionVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startPositionVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addCurve(builder, curveOffset) {
+        builder.addFieldOffset(1, curveOffset, 0);
+    }
+    static createCurveVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startCurveVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addSegment(builder, segmentOffset) {
+        builder.addFieldOffset(2, segmentOffset, 0);
+    }
+    static createSegmentVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startSegmentVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static endAlignment(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static createAlignment(builder, positionOffset, curveOffset, segmentOffset) {
+        Alignment.startAlignment(builder);
+        Alignment.addPosition(builder, positionOffset);
+        Alignment.addCurve(builder, curveOffset);
+        Alignment.addSegment(builder, segmentOffset);
+        return Alignment.endAlignment(builder);
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+class Civil {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsCivil(bb, obj) {
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsCivil(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    alignmentHorizontal(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    alignmentVertical(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    alignment3d(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    static startCivil(builder) {
+        builder.startObject(3);
+    }
+    static addAlignmentHorizontal(builder, alignmentHorizontalOffset) {
+        builder.addFieldOffset(0, alignmentHorizontalOffset, 0);
+    }
+    static addAlignmentVertical(builder, alignmentVerticalOffset) {
+        builder.addFieldOffset(1, alignmentVerticalOffset, 0);
+    }
+    static addAlignment3d(builder, alignment3dOffset) {
+        builder.addFieldOffset(2, alignment3dOffset, 0);
+    }
+    static endCivil(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+class Fragment {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsFragment(bb, obj) {
+        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsFragment(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    position(index) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    positionLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    positionArray() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    normal(index) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    normalLength() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    normalArray() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    index(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    indexLength() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    indexArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    blockId(index) {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    blockIdLength() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    blockIdArray() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    groups(index) {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    groupsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    groupsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    materials(index) {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    materialsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    materialsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    matrices(index) {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    matricesLength() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    matricesArray() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    colors(index) {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    colorsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    colorsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    ids(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 20);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    id(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 22);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    composites(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 24);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    static startFragment(builder) {
+        builder.startObject(11);
+    }
+    static addPosition(builder, positionOffset) {
+        builder.addFieldOffset(0, positionOffset, 0);
+    }
+    static createPositionVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startPositionVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addNormal(builder, normalOffset) {
+        builder.addFieldOffset(1, normalOffset, 0);
+    }
+    static createNormalVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startNormalVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addIndex(builder, indexOffset) {
+        builder.addFieldOffset(2, indexOffset, 0);
+    }
+    static createIndexVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startIndexVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addBlockId(builder, blockIdOffset) {
+        builder.addFieldOffset(3, blockIdOffset, 0);
+    }
+    static createBlockIdVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startBlockIdVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addGroups(builder, groupsOffset) {
+        builder.addFieldOffset(4, groupsOffset, 0);
+    }
+    static createGroupsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startGroupsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addMaterials(builder, materialsOffset) {
+        builder.addFieldOffset(5, materialsOffset, 0);
+    }
+    static createMaterialsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startMaterialsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addMatrices(builder, matricesOffset) {
+        builder.addFieldOffset(6, matricesOffset, 0);
+    }
+    static createMatricesVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startMatricesVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addColors(builder, colorsOffset) {
+        builder.addFieldOffset(7, colorsOffset, 0);
+    }
+    static createColorsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startColorsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addIds(builder, idsOffset) {
+        builder.addFieldOffset(8, idsOffset, 0);
+    }
+    static addId(builder, idOffset) {
+        builder.addFieldOffset(9, idOffset, 0);
+    }
+    static addComposites(builder, compositesOffset) {
+        builder.addFieldOffset(10, compositesOffset, 0);
+    }
+    static endFragment(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static createFragment(builder, positionOffset, normalOffset, indexOffset, blockIdOffset, groupsOffset, materialsOffset, matricesOffset, colorsOffset, idsOffset, idOffset, compositesOffset) {
+        Fragment.startFragment(builder);
+        Fragment.addPosition(builder, positionOffset);
+        Fragment.addNormal(builder, normalOffset);
+        Fragment.addIndex(builder, indexOffset);
+        Fragment.addBlockId(builder, blockIdOffset);
+        Fragment.addGroups(builder, groupsOffset);
+        Fragment.addMaterials(builder, materialsOffset);
+        Fragment.addMatrices(builder, matricesOffset);
+        Fragment.addColors(builder, colorsOffset);
+        Fragment.addIds(builder, idsOffset);
+        Fragment.addId(builder, idOffset);
+        Fragment.addComposites(builder, compositesOffset);
+        return Fragment.endFragment(builder);
+    }
+}
+
+// automatically generated by the FlatBuffers compiler, do not modify
+let FragmentsGroup$1 = class FragmentsGroup {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsFragmentsGroup(bb, obj) {
+        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsFragmentsGroup(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    items(index, obj) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? (obj || new Fragment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    }
+    itemsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    civil(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? (obj || new Civil()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    }
+    coordinationMatrix(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    coordinationMatrixLength() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    coordinationMatrixArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    ids(index) {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    idsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    idsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsKeys(index) {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsKeysLength() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsKeysArray() {
+        const offset = this.bb.__offset(this.bb_pos, 12);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsKeysIndices(index) {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsKeysIndicesLength() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsKeysIndicesArray() {
+        const offset = this.bb.__offset(this.bb_pos, 14);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsRels(index) {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsRelsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsRelsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 16);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    itemsRelsIndices(index) {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsRelsIndicesLength() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsRelsIndicesArray() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    fragmentKeys(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 20);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    id(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 22);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    name(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 24);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    ifcName(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 26);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    ifcDescription(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 28);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    ifcSchema(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 30);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    maxExpressId() {
+        const offset = this.bb.__offset(this.bb_pos, 32);
+        return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
+    }
+    boundingBox(index) {
+        const offset = this.bb.__offset(this.bb_pos, 34);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    boundingBoxLength() {
+        const offset = this.bb.__offset(this.bb_pos, 34);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    boundingBoxArray() {
+        const offset = this.bb.__offset(this.bb_pos, 34);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    static startFragmentsGroup(builder) {
+        builder.startObject(16);
+    }
+    static addItems(builder, itemsOffset) {
+        builder.addFieldOffset(0, itemsOffset, 0);
+    }
+    static createItemsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addOffset(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addCivil(builder, civilOffset) {
+        builder.addFieldOffset(1, civilOffset, 0);
+    }
+    static addCoordinationMatrix(builder, coordinationMatrixOffset) {
+        builder.addFieldOffset(2, coordinationMatrixOffset, 0);
+    }
+    static createCoordinationMatrixVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startCoordinationMatrixVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addIds(builder, idsOffset) {
+        builder.addFieldOffset(3, idsOffset, 0);
+    }
+    static createIdsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startIdsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsKeys(builder, itemsKeysOffset) {
+        builder.addFieldOffset(4, itemsKeysOffset, 0);
+    }
+    static createItemsKeysVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsKeysVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsKeysIndices(builder, itemsKeysIndicesOffset) {
+        builder.addFieldOffset(5, itemsKeysIndicesOffset, 0);
+    }
+    static createItemsKeysIndicesVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsKeysIndicesVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsRels(builder, itemsRelsOffset) {
+        builder.addFieldOffset(6, itemsRelsOffset, 0);
+    }
+    static createItemsRelsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsRelsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addItemsRelsIndices(builder, itemsRelsIndicesOffset) {
+        builder.addFieldOffset(7, itemsRelsIndicesOffset, 0);
+    }
+    static createItemsRelsIndicesVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsRelsIndicesVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addFragmentKeys(builder, fragmentKeysOffset) {
+        builder.addFieldOffset(8, fragmentKeysOffset, 0);
+    }
+    static addId(builder, idOffset) {
+        builder.addFieldOffset(9, idOffset, 0);
+    }
+    static addName(builder, nameOffset) {
+        builder.addFieldOffset(10, nameOffset, 0);
+    }
+    static addIfcName(builder, ifcNameOffset) {
+        builder.addFieldOffset(11, ifcNameOffset, 0);
+    }
+    static addIfcDescription(builder, ifcDescriptionOffset) {
+        builder.addFieldOffset(12, ifcDescriptionOffset, 0);
+    }
+    static addIfcSchema(builder, ifcSchemaOffset) {
+        builder.addFieldOffset(13, ifcSchemaOffset, 0);
+    }
+    static addMaxExpressId(builder, maxExpressId) {
+        builder.addFieldInt32(14, maxExpressId, 0);
+    }
+    static addBoundingBox(builder, boundingBoxOffset) {
+        builder.addFieldOffset(15, boundingBoxOffset, 0);
+    }
+    static createBoundingBoxVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startBoundingBoxVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static endFragmentsGroup(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static finishFragmentsGroupBuffer(builder, offset) {
+        builder.finish(offset);
+    }
+    static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
+        builder.finish(offset, undefined, true);
+    }
+};
+
+// TODO: Document this
+class FragmentsGroup extends THREE$1.Group {
+    constructor() {
+        super(...arguments);
+        this.items = [];
+        this.boundingBox = new THREE$1.Box3();
+        this.coordinationMatrix = new THREE$1.Matrix4();
+        this.keyFragments = {};
+        // data: [expressID: number]: [keys, rels]
+        this.data = {};
+        this.ifcMetadata = {
+            name: "",
+            description: "",
+            schema: "IFC2X3",
+            maxExpressID: 0,
+        };
+    }
+    // TODO: Force all item IDs to be numbers or strings
+    getFragmentMap(expressIDs) {
+        const fragmentMap = {};
+        for (const expressID of expressIDs) {
+            const data = this.data[expressID];
+            if (!data)
+                continue;
+            for (const key of data[0]) {
+                const fragmentID = this.keyFragments[key];
+                if (!fragmentMap[fragmentID])
+                    fragmentMap[fragmentID] = new Set();
+                fragmentMap[fragmentID].add(expressID);
+            }
+        }
+        return fragmentMap;
+    }
+    dispose(disposeResources = true) {
+        for (const fragment of this.items) {
+            fragment.dispose(disposeResources);
+        }
+        this.coordinationMatrix = new THREE$1.Matrix4();
+        this.keyFragments = {};
+        this.data = {};
+        this.properties = {};
+    }
+}
+
+class IfcAlignmentData {
+    constructor() {
+        this.coordinates = new Float32Array(0);
+        this.alignmentIndex = [];
+        this.curveIndex = [];
+    }
+    exportData() {
+        const { coordinates, alignmentIndex, curveIndex } = this;
+        return { coordinates, alignmentIndex, curveIndex };
+    }
+}
+
+/**
+ * Object to export and import sets of fragments efficiently using
+ * [flatbuffers](https://flatbuffers.dev/).
+ */
+class Serializer {
+    constructor() {
+        this.fragmentIDSeparator = "|";
+    }
+    import(bytes) {
+        const buffer = new ByteBuffer(bytes);
+        const fbFragmentsGroup = FragmentsGroup$1.getRootAsFragmentsGroup(buffer);
+        const fragmentsGroup = this.constructFragmentGroup(fbFragmentsGroup);
+        const length = fbFragmentsGroup.itemsLength();
+        for (let i = 0; i < length; i++) {
+            const fbFragment = fbFragmentsGroup.items(i);
+            if (!fbFragment)
+                continue;
+            const geometry = this.constructGeometry(fbFragment);
+            const materials = this.constructMaterials(fbFragment);
+            const { instances, colors } = this.constructInstances(fbFragment);
+            const fragment = new Fragment$1(geometry, materials, instances.length);
+            this.getComposites(fbFragment, fragment);
+            this.setInstances(instances, colors, fragment);
+            this.setID(fbFragment, fragment);
+            fragmentsGroup.items.push(fragment);
+            fragmentsGroup.add(fragment.mesh);
+        }
+        return fragmentsGroup;
+    }
+    export(group) {
+        var _a;
+        const builder = new Builder(1024);
+        const items = [];
+        const G = FragmentsGroup$1;
+        const F = Fragment;
+        const C = Civil;
+        let exportedCivil = null;
+        if ((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments) {
+            const A = Alignment;
+            const resultH = group.ifcCivil.horizontalAlignments.exportData();
+            const posVectorH = A.createPositionVector(builder, resultH.coordinates);
+            const curveVectorH = A.createSegmentVector(builder, resultH.curveIndex);
+            const alignVectorH = A.createCurveVector(builder, resultH.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorH);
+            A.addSegment(builder, curveVectorH);
+            A.addCurve(builder, alignVectorH);
+            const exportedH = Alignment.endAlignment(builder);
+            const resultV = group.ifcCivil.verticalAlignments.exportData();
+            const posVectorV = A.createPositionVector(builder, resultV.coordinates);
+            const curveVectorV = A.createSegmentVector(builder, resultV.curveIndex);
+            const alignVectorV = A.createCurveVector(builder, resultV.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorV);
+            A.addSegment(builder, curveVectorV);
+            A.addCurve(builder, alignVectorV);
+            const exportedV = Alignment.endAlignment(builder);
+            const resultR = group.ifcCivil.realAlignments.exportData();
+            const posVectorR = A.createPositionVector(builder, resultR.coordinates);
+            const curveVectorR = A.createSegmentVector(builder, resultR.curveIndex);
+            const alignVectorR = A.createCurveVector(builder, resultR.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorR);
+            A.addSegment(builder, curveVectorR);
+            A.addCurve(builder, alignVectorR);
+            const exportedR = Alignment.endAlignment(builder);
+            C.startCivil(builder);
+            C.addAlignmentHorizontal(builder, exportedH);
+            C.addAlignmentVertical(builder, exportedV);
+            C.addAlignment3d(builder, exportedR);
+            exportedCivil = Civil.endCivil(builder);
+        }
+        for (const fragment of group.items) {
+            const result = fragment.exportData();
+            const posVector = F.createPositionVector(builder, result.position);
+            const normalVector = F.createNormalVector(builder, result.normal);
+            const blockVector = F.createBlockIdVector(builder, result.blockID);
+            const indexVector = F.createIndexVector(builder, result.index);
+            const groupsVector = F.createGroupsVector(builder, result.groups);
+            const matsVector = F.createMaterialsVector(builder, result.materials);
+            const matricesVector = F.createMatricesVector(builder, result.matrices);
+            const colorsVector = F.createColorsVector(builder, result.colors);
+            const idsStr = builder.createString(result.ids);
+            const idStr = builder.createString(result.id);
+            const compositeStr = builder.createString(JSON.stringify(fragment.composites));
+            F.startFragment(builder);
+            F.addPosition(builder, posVector);
+            F.addNormal(builder, normalVector);
+            F.addBlockId(builder, blockVector);
+            F.addIndex(builder, indexVector);
+            F.addGroups(builder, groupsVector);
+            F.addMaterials(builder, matsVector);
+            F.addMatrices(builder, matricesVector);
+            F.addColors(builder, colorsVector);
+            F.addIds(builder, idsStr);
+            F.addId(builder, idStr);
+            F.addComposites(builder, compositeStr);
+            const exported = Fragment.endFragment(builder);
+            items.push(exported);
+        }
+        const itemsVector = G.createItemsVector(builder, items);
+        const matrixVector = G.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
+        let fragmentKeys = "";
+        for (const key in group.keyFragments) {
+            const fragmentID = group.keyFragments[key];
+            if (fragmentKeys.length)
+                fragmentKeys += this.fragmentIDSeparator;
+            fragmentKeys += fragmentID;
+        }
+        const fragmentKeysRef = builder.createString(fragmentKeys);
+        const keyIndices = [];
+        const itemsKeys = [];
+        const relsIndices = [];
+        const itemsRels = [];
+        const ids = [];
+        let keysCounter = 0;
+        let relsCounter = 0;
+        for (const expressID in group.data) {
+            keyIndices.push(keysCounter);
+            relsIndices.push(relsCounter);
+            const [keys, rels] = group.data[expressID];
+            const id = parseInt(expressID, 10);
+            ids.push(id);
+            for (const key of keys) {
+                itemsKeys.push(key);
+            }
+            for (const rel of rels) {
+                itemsRels.push(rel);
+            }
+            keysCounter += keys.length;
+            relsCounter += rels.length;
+        }
+        const groupID = builder.createString(group.uuid);
+        const groupName = builder.createString(group.name);
+        const ifcName = builder.createString(group.ifcMetadata.name);
+        const ifcDescription = builder.createString(group.ifcMetadata.description);
+        const ifcSchema = builder.createString(group.ifcMetadata.schema);
+        const keysIVector = G.createItemsKeysIndicesVector(builder, keyIndices);
+        const keysVector = G.createItemsKeysVector(builder, itemsKeys);
+        const relsIVector = G.createItemsRelsIndicesVector(builder, relsIndices);
+        const relsVector = G.createItemsRelsVector(builder, itemsRels);
+        const idsVector = G.createIdsVector(builder, ids);
+        const { min, max } = group.boundingBox;
+        const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
+        const bboxVector = G.createBoundingBoxVector(builder, bbox);
+        G.startFragmentsGroup(builder);
+        if (exportedCivil !== null) {
+            G.addCivil(builder, exportedCivil);
+        }
+        G.addId(builder, groupID);
+        G.addName(builder, groupName);
+        G.addIfcName(builder, ifcName);
+        G.addIfcDescription(builder, ifcDescription);
+        G.addIfcSchema(builder, ifcSchema);
+        G.addMaxExpressId(builder, group.ifcMetadata.maxExpressID);
+        G.addItems(builder, itemsVector);
+        G.addFragmentKeys(builder, fragmentKeysRef);
+        G.addIds(builder, idsVector);
+        G.addItemsKeysIndices(builder, keysIVector);
+        G.addItemsKeys(builder, keysVector);
+        G.addItemsRelsIndices(builder, relsIVector);
+        G.addItemsRels(builder, relsVector);
+        G.addCoordinationMatrix(builder, matrixVector);
+        G.addBoundingBox(builder, bboxVector);
+        const result = FragmentsGroup$1.endFragmentsGroup(builder);
+        builder.finish(result);
+        return builder.asUint8Array();
+    }
+    getComposites(fbFragment, fragment) {
+        const composites = fbFragment.composites() || "{}";
+        fragment.composites = JSON.parse(composites);
+    }
+    setID(fbFragment, fragment) {
+        const id = fbFragment.id();
+        if (id) {
+            fragment.id = id;
+            fragment.mesh.uuid = id;
+        }
+    }
+    setInstances(instances, colors, fragment) {
+        for (let i = 0; i < instances.length; i++) {
+            fragment.setInstance(i, instances[i]);
+            if (colors.length) {
+                fragment.mesh.setColorAt(i, colors[i]);
+            }
+        }
+    }
+    constructInstances(fragment) {
+        const matricesData = fragment.matricesArray();
+        const colorData = fragment.colorsArray();
+        const colors = [];
+        const idsString = fragment.ids();
+        const id = fragment.id();
+        if (!matricesData || !idsString) {
+            throw new Error(`Error: Can't load empty fragment: ${id}`);
+        }
+        const ids = idsString.split("|");
+        const singleInstance = matricesData.length === 16;
+        const manyItems = ids.length > 1;
+        const isMergedFragment = singleInstance && manyItems;
+        if (isMergedFragment) {
+            const transform = new THREE$1.Matrix4().fromArray(matricesData);
+            const instances = [{ ids, transform }];
+            return { instances, colors };
+        }
+        // Instanced fragment
+        const instances = [];
+        for (let i = 0; i < matricesData.length; i += 16) {
+            const matrixArray = matricesData.subarray(i, i + 17);
+            const transform = new THREE$1.Matrix4().fromArray(matrixArray);
+            const id = ids[i / 16];
+            instances.push({ ids: [id], transform });
+        }
+        if (colorData && colorData.length === instances.length * 3) {
+            for (let i = 0; i < colorData.length; i += 3) {
+                const [r, g, b] = colorData.subarray(i, i + 4);
+                const color = new THREE$1.Color(r, g, b);
+                colors.push(color);
+            }
+        }
+        return { instances, colors };
+    }
+    constructMaterials(fragment) {
+        const materials = fragment.materialsArray();
+        const matArray = [];
+        if (!materials)
+            return matArray;
+        for (let i = 0; i < materials.length; i += 5) {
+            const opacity = materials[i];
+            const transparent = Boolean(materials[i + 1]);
+            const red = materials[i + 2];
+            const green = materials[i + 3];
+            const blue = materials[i + 4];
+            const color = new THREE$1.Color(red, green, blue);
+            const material = new THREE$1.MeshLambertMaterial({
+                color,
+                opacity,
+                transparent,
+            });
+            matArray.push(material);
+        }
+        return matArray;
+    }
+    constructFragmentGroup(group) {
+        const fragmentsGroup = new FragmentsGroup();
+        const FBcivil = group.civil();
+        const horizontalAlignments = new IfcAlignmentData();
+        const verticalAlignments = new IfcAlignmentData();
+        const realAlignments = new IfcAlignmentData();
+        if (FBcivil) {
+            const FBalignmentH = FBcivil.alignmentHorizontal();
+            this.getAlignmentData(FBalignmentH, horizontalAlignments);
+            const FBalignmentV = FBcivil.alignmentVertical();
+            this.getAlignmentData(FBalignmentV, verticalAlignments);
+            const FBalignment3D = FBcivil.alignment3d();
+            this.getAlignmentData(FBalignment3D, realAlignments);
+            fragmentsGroup.ifcCivil = {
+                horizontalAlignments,
+                verticalAlignments,
+                realAlignments,
+            };
+        }
+        // fragmentsGroup.ifcCivil?.horizontalAlignments
+        fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
+        fragmentsGroup.name = group.name() || "";
+        fragmentsGroup.ifcMetadata = {
+            name: group.ifcName() || "",
+            description: group.ifcDescription() || "",
+            schema: group.ifcSchema() || "IFC2X3",
+            maxExpressID: group.maxExpressId() || 0,
+        };
+        const defaultMatrix = new THREE$1.Matrix4().elements;
+        const matrixArray = group.coordinationMatrixArray() || defaultMatrix;
+        const ids = group.idsArray() || new Uint32Array();
+        const keysIndices = group.itemsKeysIndicesArray() || new Uint32Array();
+        const keysArray = group.itemsKeysArray() || new Uint32Array();
+        const relsArray = group.itemsRelsArray() || new Uint32Array();
+        const relsIndices = group.itemsRelsIndicesArray() || new Uint32Array();
+        const keysIdsString = group.fragmentKeys() || "";
+        const keysIdsArray = keysIdsString.split(this.fragmentIDSeparator);
+        this.setGroupData(fragmentsGroup, ids, keysIndices, keysArray, 0);
+        this.setGroupData(fragmentsGroup, ids, relsIndices, relsArray, 1);
+        const bbox = group.boundingBoxArray() || [0, 0, 0, 0, 0, 0];
+        const [minX, minY, minZ, maxX, maxY, maxZ] = bbox;
+        fragmentsGroup.boundingBox.min.set(minX, minY, minZ);
+        fragmentsGroup.boundingBox.max.set(maxX, maxY, maxZ);
+        for (let i = 0; i < keysIdsArray.length; i++) {
+            fragmentsGroup.keyFragments[i] = keysIdsArray[i];
+        }
+        if (matrixArray.length === 16) {
+            fragmentsGroup.coordinationMatrix.fromArray(matrixArray);
+        }
+        return fragmentsGroup;
+    }
+    getAlignmentData(alignment, result) {
+        if (alignment) {
+            if (alignment.positionArray) {
+                result.coordinates = alignment.positionArray();
+                for (let j = 0; j < alignment.curveLength(); j++) {
+                    result.alignmentIndex.push(alignment.curve(j));
+                }
+                for (let j = 0; j < alignment.segmentLength(); j++) {
+                    result.curveIndex.push(alignment.segment(j));
+                }
+            }
+        }
+    }
+    setGroupData(group, ids, indices, array, index) {
+        for (let i = 0; i < indices.length; i++) {
+            const expressID = ids[i];
+            const currentIndex = indices[i];
+            const nextIndex = indices[i + 1] || array.length;
+            const keys = [];
+            for (let j = currentIndex; j < nextIndex; j++) {
+                keys.push(array[j]);
+            }
+            if (!group.data[expressID]) {
+                group.data[expressID] = [[], []];
+            }
+            group.data[expressID][index] = keys;
+        }
+    }
+    constructGeometry(fragment) {
+        const position = fragment.positionArray();
+        const normal = fragment.normalArray();
+        const blockID = fragment.blockIdArray();
+        const index = fragment.indexArray();
+        const groups = fragment.groupsArray();
+        if (!index)
+            throw new Error("Index not found!");
+        const geometry = new THREE$1.BufferGeometry();
+        geometry.setIndex(Array.from(index));
+        this.loadAttribute(geometry, "position", position, 3);
+        this.loadAttribute(geometry, "normal", normal, 3);
+        this.loadAttribute(geometry, "blockID", blockID, 1);
+        this.loadGeometryGroups(groups, geometry);
+        return geometry;
+    }
+    loadGeometryGroups(groups, geometry) {
+        if (!groups)
+            return;
+        for (let i = 0; i < groups.length; i += 3) {
+            const start = groups[i];
+            const count = groups[i + 1];
+            const materialIndex = groups[i + 2];
+            geometry.addGroup(start, count, materialIndex);
+        }
+    }
+    loadAttribute(geometry, name, data, size) {
+        if (!data)
+            return;
+        geometry.setAttribute(name, new THREE$1.BufferAttribute(data, size));
+    }
+}
+
 //
 // Thanks to the advice here https://github.com/zalo/TetSim/commit/9696c2e1cd6354fb9bd40dbd299c58f4de0341dd
 //
@@ -13818,6 +21988,192 @@ async function readPixelsAsync(gl, x, y, w, h, format, type, dest) {
     gl.deleteBuffer(buf);
     return dest;
 }
+
+/**
+ * Object that can efficiently load binary files that contain
+ * [fragment geometry](https://github.com/ifcjs/fragment).
+ */
+class FragmentManager extends Component {
+    /** The list of meshes of the created fragments. */
+    get meshes() {
+        const allMeshes = [];
+        for (const fragID in this.list) {
+            allMeshes.push(this.list[fragID].mesh);
+        }
+        return allMeshes;
+    }
+    constructor(components) {
+        super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        /** All the created [fragments](https://github.com/ifcjs/fragment). */
+        this.list = {};
+        this.groups = [];
+        this.baseCoordinationModel = "";
+        this.onFragmentsLoaded = new Event();
+        this.onFragmentsDisposed = new Event();
+        this.uiElement = new UIElement();
+        this.commands = [];
+        this._loader = new Serializer();
+        this._cards = [];
+        this.components.tools.add(FragmentManager.uuid, this);
+        if (components.uiEnabled) {
+            this.setupUI(components);
+        }
+    }
+    /** {@link Component.get} */
+    get() {
+        return Object.values(this.list);
+    }
+    /** {@link Component.get} */
+    async dispose(disposeUI = false) {
+        if (disposeUI) {
+            this.uiElement.dispose();
+        }
+        for (const group of this.groups) {
+            group.dispose(true);
+        }
+        for (const command of this.commands) {
+            await command.dispose();
+        }
+        for (const card of this._cards) {
+            await card.dispose();
+        }
+        this.groups = [];
+        this.list = {};
+        this.onFragmentsLoaded.reset();
+        this.onFragmentsDisposed.reset();
+        await this.onDisposed.trigger(FragmentManager.uuid);
+        this.onDisposed.reset();
+    }
+    async disposeGroup(group) {
+        const { uuid: groupID } = group;
+        const fragmentIDs = group.items.map((fragment) => fragment.id);
+        for (const fragment of group.items) {
+            this.removeFragmentMesh(fragment);
+            delete this.list[fragment.id];
+        }
+        group.dispose(true);
+        const index = this.groups.indexOf(group);
+        this.groups.splice(index, 1);
+        await this.onFragmentsDisposed.trigger({
+            groupID,
+            fragmentIDs,
+        });
+        await this.updateWindow();
+    }
+    /** Disposes all existing fragments */
+    reset() {
+        for (const id in this.list) {
+            const fragment = this.list[id];
+            fragment.dispose();
+        }
+        this.list = {};
+    }
+    /**
+     * Loads one or many fragments into the scene.
+     * @param data - the bytes containing the data for the fragments to load.
+     * @returns the list of IDs of the loaded fragments.
+     */
+    async load(data) {
+        const group = this._loader.import(data);
+        const scene = this.components.scene.get();
+        const ids = [];
+        scene.add(group);
+        for (const fragment of group.items) {
+            fragment.group = group;
+            this.list[fragment.id] = fragment;
+            ids.push(fragment.id);
+            this.components.meshes.push(fragment.mesh);
+        }
+        this.groups.push(group);
+        await this.onFragmentsLoaded.trigger(group);
+        return group;
+    }
+    /**
+     * Export the specified fragments.
+     * @param group - the fragments group to be exported.
+     * @returns the exported data as binary buffer.
+     */
+    export(group) {
+        return this._loader.export(group);
+    }
+    async updateWindow() {
+        if (!this.components.uiEnabled) {
+            return;
+        }
+        for (const card of this._cards) {
+            await card.dispose();
+        }
+        for (const group of this.groups) {
+            const card = new SimpleUICard(this.components);
+            // TODO: Make all cards like this?
+            card.domElement.classList.remove("bg-ifcjs-120");
+            card.domElement.classList.remove("border-transparent");
+            card.domElement.className += ` min-w-[300px] my-2 border-1 border-solid border-[#3A444E] `;
+            const buttonContainer = new SimpleUIComponent(this.components);
+            card.addChild(buttonContainer);
+            card.title = group.name;
+            this.uiElement.get("window").addChild(card);
+            this._cards.push(card);
+            // TODO: Use command list just like in fragment plans
+            const commandsButton = new Button(this.components);
+            commandsButton.materialIcon = "delete";
+            buttonContainer.addChild(commandsButton);
+            commandsButton.onClick.add(() => this.disposeGroup(group));
+        }
+    }
+    coordinate(models = this.groups) {
+        const baseModel = this.groups.find((group) => group.uuid === this.baseCoordinationModel);
+        if (!baseModel) {
+            console.log("No base model found for coordination!");
+            return;
+        }
+        for (const model of models) {
+            if (model === baseModel) {
+                continue;
+            }
+            model.position.set(0, 0, 0);
+            model.rotation.set(0, 0, 0);
+            model.scale.set(1, 1, 1);
+            model.updateMatrix();
+            model.applyMatrix4(model.coordinationMatrix.clone().invert());
+            model.applyMatrix4(baseModel.coordinationMatrix);
+        }
+    }
+    setupUI(components) {
+        const window = new FloatingWindow(components);
+        window.title = "Models";
+        window.domElement.style.left = "70px";
+        window.domElement.style.top = "100px";
+        window.domElement.style.width = "340px";
+        window.domElement.style.height = "400px";
+        const windowContent = window.slots.content.domElement;
+        windowContent.classList.remove("overflow-auto");
+        windowContent.classList.add("overflow-x-hidden");
+        components.ui.add(window);
+        window.visible = false;
+        const main = new Button(components);
+        main.tooltip = "Models";
+        main.materialIcon = "inbox";
+        main.onClick.add(() => {
+            window.visible = !window.visible;
+        });
+        this.uiElement.set({ main, window });
+        this.onFragmentsLoaded.add(() => this.updateWindow());
+    }
+    removeFragmentMesh(fragment) {
+        const meshes = this.components.meshes;
+        const mesh = fragment.mesh;
+        if (meshes.includes(mesh)) {
+            meshes.splice(meshes.indexOf(mesh), 1);
+        }
+    }
+}
+FragmentManager.uuid = "fef46874-46a3-461b-8c44-2922ab77c806";
+ToolComponent.libraryUUIDs.add(FragmentManager.uuid);
 
 // TODO: Work at the instance level instead of the mesh level?
 /**
@@ -14029,6 +22385,15 @@ class ScreenCuller extends Component {
         mesh.visible = false;
         colorMesh.applyMatrix4(mesh.matrix);
         colorMesh.updateMatrix();
+        const parent = mesh.parent;
+        if (parent instanceof FragmentsGroup) {
+            const manager = this.components.tools.get(FragmentManager);
+            const coordinationModel = manager.groups.find((model) => model.uuid === manager.baseCoordinationModel);
+            if (coordinationModel) {
+                colorMesh.applyMatrix4(parent.coordinationMatrix.clone().invert());
+                colorMesh.applyMatrix4(coordinationModel.coordinationMatrix);
+            }
+        }
         this._scene.add(colorMesh);
         this._colorMeshes.set(mesh.uuid, colorMesh);
         this._meshes.set(mesh.uuid, mesh);
@@ -19359,95 +27724,6 @@ class LocalCacher extends Component {
 LocalCacher.uuid = "22ae591a-3a67-4988-86c6-68d7b83febf2";
 ToolComponent.libraryUUIDs.add(LocalCacher.uuid);
 
-const _lut = [ '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c', '0d', '0e', '0f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d', '1e', '1f', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '2a', '2b', '2c', '2d', '2e', '2f', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '3a', '3b', '3c', '3d', '3e', '3f', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '4a', '4b', '4c', '4d', '4e', '4f', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '5a', '5b', '5c', '5d', '5e', '5f', '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '6a', '6b', '6c', '6d', '6e', '6f', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '7a', '7b', '7c', '7d', '7e', '7f', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '8a', '8b', '8c', '8d', '8e', '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', '9a', '9b', '9c', '9d', '9e', '9f', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'ba', 'bb', 'bc', 'bd', 'be', 'bf', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'ca', 'cb', 'cc', 'cd', 'ce', 'cf', 'd0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'da', 'db', 'dc', 'dd', 'de', 'df', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9', 'ea', 'eb', 'ec', 'ed', 'ee', 'ef', 'f0', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'fa', 'fb', 'fc', 'fd', 'fe', 'ff' ];
-
-// http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/21963136#21963136
-function generateUUID() {
-
-	const d0 = Math.random() * 0xffffffff | 0;
-	const d1 = Math.random() * 0xffffffff | 0;
-	const d2 = Math.random() * 0xffffffff | 0;
-	const d3 = Math.random() * 0xffffffff | 0;
-	const uuid = _lut[ d0 & 0xff ] + _lut[ d0 >> 8 & 0xff ] + _lut[ d0 >> 16 & 0xff ] + _lut[ d0 >> 24 & 0xff ] + '-' +
-			_lut[ d1 & 0xff ] + _lut[ d1 >> 8 & 0xff ] + '-' + _lut[ d1 >> 16 & 0x0f | 0x40 ] + _lut[ d1 >> 24 & 0xff ] + '-' +
-			_lut[ d2 & 0x3f | 0x80 ] + _lut[ d2 >> 8 & 0xff ] + '-' + _lut[ d2 >> 16 & 0xff ] + _lut[ d2 >> 24 & 0xff ] +
-			_lut[ d3 & 0xff ] + _lut[ d3 >> 8 & 0xff ] + _lut[ d3 >> 16 & 0xff ] + _lut[ d3 >> 24 & 0xff ];
-
-	// .toLowerCase() here flattens concatenated strings to save heap memory space.
-	return uuid.toLowerCase();
-
-}
-
-function clamp( value, min, max ) {
-
-	return Math.max( min, Math.min( max, value ) );
-
-}
-
-function denormalize( value, array ) {
-
-	switch ( array.constructor ) {
-
-		case Float32Array:
-
-			return value;
-
-		case Uint16Array:
-
-			return value / 65535.0;
-
-		case Uint8Array:
-
-			return value / 255.0;
-
-		case Int16Array:
-
-			return Math.max( value / 32767.0, - 1.0 );
-
-		case Int8Array:
-
-			return Math.max( value / 127.0, - 1.0 );
-
-		default:
-
-			throw new Error( 'Invalid component type.' );
-
-	}
-
-}
-
-function normalize( value, array ) {
-
-	switch ( array.constructor ) {
-
-		case Float32Array:
-
-			return value;
-
-		case Uint16Array:
-
-			return Math.round( value * 65535.0 );
-
-		case Uint8Array:
-
-			return Math.round( value * 255.0 );
-
-		case Int16Array:
-
-			return Math.round( value * 32767.0 );
-
-		case Int8Array:
-
-			return Math.round( value * 127.0 );
-
-		default:
-
-			throw new Error( 'Invalid component type.' );
-
-	}
-
-}
-
 class SimpleSVGViewport extends Component {
     get enabled() {
         return this._enabled;
@@ -24718,8273 +32994,6 @@ class Simple2DScene extends Component {
     }
 }
 Simple2DScene.uuid = "b48b7194-0f9a-43a4-a718-270b1522595f";
-
-/**
- * @param  {Array<BufferGeometry>} geometries
- * @param  {Boolean} useGroups
- * @return {BufferGeometry}
- */
-function mergeGeometries( geometries, useGroups = false ) {
-
-	const isIndexed = geometries[ 0 ].index !== null;
-
-	const attributesUsed = new Set( Object.keys( geometries[ 0 ].attributes ) );
-	const morphAttributesUsed = new Set( Object.keys( geometries[ 0 ].morphAttributes ) );
-
-	const attributes = {};
-	const morphAttributes = {};
-
-	const morphTargetsRelative = geometries[ 0 ].morphTargetsRelative;
-
-	const mergedGeometry = new BufferGeometry();
-
-	let offset = 0;
-
-	for ( let i = 0; i < geometries.length; ++ i ) {
-
-		const geometry = geometries[ i ];
-		let attributesCount = 0;
-
-		// ensure that all geometries are indexed, or none
-
-		if ( isIndexed !== ( geometry.index !== null ) ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.' );
-			return null;
-
-		}
-
-		// gather attributes, exit early if they're different
-
-		for ( const name in geometry.attributes ) {
-
-			if ( ! attributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.' );
-				return null;
-
-			}
-
-			if ( attributes[ name ] === undefined ) attributes[ name ] = [];
-
-			attributes[ name ].push( geometry.attributes[ name ] );
-
-			attributesCount ++;
-
-		}
-
-		// ensure geometries have the same number of attributes
-
-		if ( attributesCount !== attributesUsed.size ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. Make sure all geometries have the same number of attributes.' );
-			return null;
-
-		}
-
-		// gather morph attributes, exit early if they're different
-
-		if ( morphTargetsRelative !== geometry.morphTargetsRelative ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. .morphTargetsRelative must be consistent throughout all geometries.' );
-			return null;
-
-		}
-
-		for ( const name in geometry.morphAttributes ) {
-
-			if ( ! morphAttributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '.  .morphAttributes must be consistent throughout all geometries.' );
-				return null;
-
-			}
-
-			if ( morphAttributes[ name ] === undefined ) morphAttributes[ name ] = [];
-
-			morphAttributes[ name ].push( geometry.morphAttributes[ name ] );
-
-		}
-
-		if ( useGroups ) {
-
-			let count;
-
-			if ( isIndexed ) {
-
-				count = geometry.index.count;
-
-			} else if ( geometry.attributes.position !== undefined ) {
-
-				count = geometry.attributes.position.count;
-
-			} else {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. The geometry must have either an index or a position attribute' );
-				return null;
-
-			}
-
-			mergedGeometry.addGroup( offset, count, i );
-
-			offset += count;
-
-		}
-
-	}
-
-	// merge indices
-
-	if ( isIndexed ) {
-
-		let indexOffset = 0;
-		const mergedIndex = [];
-
-		for ( let i = 0; i < geometries.length; ++ i ) {
-
-			const index = geometries[ i ].index;
-
-			for ( let j = 0; j < index.count; ++ j ) {
-
-				mergedIndex.push( index.getX( j ) + indexOffset );
-
-			}
-
-			indexOffset += geometries[ i ].attributes.position.count;
-
-		}
-
-		mergedGeometry.setIndex( mergedIndex );
-
-	}
-
-	// merge attributes
-
-	for ( const name in attributes ) {
-
-		const mergedAttribute = mergeAttributes( attributes[ name ] );
-
-		if ( ! mergedAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' attribute.' );
-			return null;
-
-		}
-
-		mergedGeometry.setAttribute( name, mergedAttribute );
-
-	}
-
-	// merge morph attributes
-
-	for ( const name in morphAttributes ) {
-
-		const numMorphTargets = morphAttributes[ name ][ 0 ].length;
-
-		if ( numMorphTargets === 0 ) break;
-
-		mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
-		mergedGeometry.morphAttributes[ name ] = [];
-
-		for ( let i = 0; i < numMorphTargets; ++ i ) {
-
-			const morphAttributesToMerge = [];
-
-			for ( let j = 0; j < morphAttributes[ name ].length; ++ j ) {
-
-				morphAttributesToMerge.push( morphAttributes[ name ][ j ][ i ] );
-
-			}
-
-			const mergedMorphAttribute = mergeAttributes( morphAttributesToMerge );
-
-			if ( ! mergedMorphAttribute ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' morphAttribute.' );
-				return null;
-
-			}
-
-			mergedGeometry.morphAttributes[ name ].push( mergedMorphAttribute );
-
-		}
-
-	}
-
-	return mergedGeometry;
-
-}
-
-/**
- * @param {Array<BufferAttribute>} attributes
- * @return {BufferAttribute}
- */
-function mergeAttributes( attributes ) {
-
-	let TypedArray;
-	let itemSize;
-	let normalized;
-	let arrayLength = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		const attribute = attributes[ i ];
-
-		if ( attribute.isInterleavedBufferAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. InterleavedBufferAttributes are not supported.' );
-			return null;
-
-		}
-
-		if ( TypedArray === undefined ) TypedArray = attribute.array.constructor;
-		if ( TypedArray !== attribute.array.constructor ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.' );
-			return null;
-
-		}
-
-		if ( itemSize === undefined ) itemSize = attribute.itemSize;
-		if ( itemSize !== attribute.itemSize ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		if ( normalized === undefined ) normalized = attribute.normalized;
-		if ( normalized !== attribute.normalized ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		arrayLength += attribute.array.length;
-
-	}
-
-	const array = new TypedArray( arrayLength );
-	let offset = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		array.set( attributes[ i ].array, offset );
-
-		offset += attributes[ i ].array.length;
-
-	}
-
-	return new BufferAttribute$1( array, itemSize, normalized );
-
-}
-
-class GeometryUtils {
-    static merge(geometriesByMaterial, splitByBlocks = false) {
-        const geometriesByMat = [];
-        const sizes = [];
-        for (const geometries of geometriesByMaterial) {
-            const merged = this.mergeGeomsOfSameMaterial(geometries, splitByBlocks);
-            geometriesByMat.push(merged);
-            sizes.push(merged.index.count);
-        }
-        const geometry = mergeGeometries(geometriesByMat);
-        this.setupMaterialGroups(sizes, geometry);
-        this.cleanUp(geometriesByMat);
-        return geometry;
-    }
-    // When Three.js exports to glTF, it generates one separate mesh per material. All meshes
-    // share the same BufferAttributes and have different indices
-    static async mergeGltfMeshes(meshes) {
-        const geometry = new BufferGeometry();
-        const attributes = meshes[0].geometry.attributes;
-        this.getMeshesAttributes(geometry, attributes);
-        this.getMeshesIndices(geometry, meshes);
-        return geometry;
-    }
-    static getMeshesAttributes(geometry, attributes) {
-        // Three.js GLTFExporter exports custom BufferAttributes as underscore lowercase
-        // eslint-disable-next-line no-underscore-dangle
-        geometry.setAttribute("blockID", attributes._blockid);
-        geometry.setAttribute("position", attributes.position);
-        geometry.setAttribute("normal", attributes.normal);
-        geometry.groups = [];
-    }
-    static getMeshesIndices(geometry, meshes) {
-        const counter = { index: 0, material: 0 };
-        const indices = [];
-        for (const mesh of meshes) {
-            const index = mesh.geometry.index;
-            this.getIndicesOfMesh(index, indices);
-            this.getMeshGroup(geometry, counter, index);
-            this.cleanUpMesh(mesh);
-        }
-        geometry.setIndex(indices);
-    }
-    static getMeshGroup(geometry, counter, index) {
-        geometry.groups.push({
-            start: counter.index,
-            count: index.count,
-            materialIndex: counter.material++,
-        });
-        counter.index += index.count;
-    }
-    static cleanUpMesh(mesh) {
-        mesh.geometry.setIndex([]);
-        mesh.geometry.attributes = {};
-        mesh.geometry.dispose();
-    }
-    static getIndicesOfMesh(index, indices) {
-        for (const number of index.array) {
-            indices.push(number);
-        }
-    }
-    static cleanUp(geometries) {
-        geometries.forEach((geometry) => geometry.dispose());
-        geometries.length = 0;
-    }
-    static setupMaterialGroups(sizes, geometry) {
-        let vertexCounter = 0;
-        let counter = 0;
-        for (const size of sizes) {
-            const group = {
-                start: vertexCounter,
-                count: size,
-                materialIndex: counter++,
-            };
-            geometry.groups.push(group);
-            vertexCounter += size;
-        }
-    }
-    static mergeGeomsOfSameMaterial(geometries, splitByBlocks) {
-        this.checkAllGeometriesAreIndexed(geometries);
-        if (splitByBlocks) {
-            this.splitByBlocks(geometries);
-        }
-        const merged = mergeGeometries(geometries);
-        this.cleanUp(geometries);
-        return merged;
-    }
-    static splitByBlocks(geometries) {
-        let i = 0;
-        for (const geometry of geometries) {
-            const size = geometry.attributes.position.count;
-            // TODO: Substitute blockID attribute by block id map
-            const array = new Uint16Array(size).fill(i++);
-            geometry.setAttribute("blockID", new BufferAttribute$1(array, 1));
-        }
-    }
-    static checkAllGeometriesAreIndexed(geometries) {
-        for (const geometry of geometries) {
-            if (!geometry.index) {
-                throw new Error("All geometries must be indexed!");
-            }
-        }
-    }
-}
-
-/**
- * The KHR_mesh_quantization extension allows these extra attribute component types
- *
- * @see https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md#extending-mesh-attributes
- */
-const KHR_mesh_quantization_ExtraAttrTypes = {
-	POSITION: [
-		'byte',
-		'byte normalized',
-		'unsigned byte',
-		'unsigned byte normalized',
-		'short',
-		'short normalized',
-		'unsigned short',
-		'unsigned short normalized',
-	],
-	NORMAL: [
-		'byte normalized',
-		'short normalized',
-	],
-	TANGENT: [
-		'byte normalized',
-		'short normalized',
-	],
-	TEXCOORD: [
-		'byte',
-		'byte normalized',
-		'unsigned byte',
-		'short',
-		'short normalized',
-		'unsigned short',
-	],
-};
-
-
-class GLTFExporter {
-
-	constructor() {
-
-		this.pluginCallbacks = [];
-
-		this.register( function ( writer ) {
-
-			return new GLTFLightExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsUnlitExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsTransmissionExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsVolumeExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsIorExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsSpecularExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsClearcoatExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsIridescenceExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsSheenExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsEmissiveStrengthExtension( writer );
-
-		} );
-
-	}
-
-	register( callback ) {
-
-		if ( this.pluginCallbacks.indexOf( callback ) === - 1 ) {
-
-			this.pluginCallbacks.push( callback );
-
-		}
-
-		return this;
-
-	}
-
-	unregister( callback ) {
-
-		if ( this.pluginCallbacks.indexOf( callback ) !== - 1 ) {
-
-			this.pluginCallbacks.splice( this.pluginCallbacks.indexOf( callback ), 1 );
-
-		}
-
-		return this;
-
-	}
-
-	/**
-	 * Parse scenes and generate GLTF output
-	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
-	 * @param  {Function} onDone  Callback on completed
-	 * @param  {Function} onError  Callback on errors
-	 * @param  {Object} options options
-	 */
-	parse( input, onDone, onError, options ) {
-
-		const writer = new GLTFWriter();
-		const plugins = [];
-
-		for ( let i = 0, il = this.pluginCallbacks.length; i < il; i ++ ) {
-
-			plugins.push( this.pluginCallbacks[ i ]( writer ) );
-
-		}
-
-		writer.setPlugins( plugins );
-		writer.write( input, onDone, options ).catch( onError );
-
-	}
-
-	parseAsync( input, options ) {
-
-		const scope = this;
-
-		return new Promise( function ( resolve, reject ) {
-
-			scope.parse( input, resolve, reject, options );
-
-		} );
-
-	}
-
-}
-
-//------------------------------------------------------------------------------
-// Constants
-//------------------------------------------------------------------------------
-
-const WEBGL_CONSTANTS = {
-	POINTS: 0x0000,
-	LINES: 0x0001,
-	LINE_LOOP: 0x0002,
-	LINE_STRIP: 0x0003,
-	TRIANGLES: 0x0004,
-	TRIANGLE_STRIP: 0x0005,
-	TRIANGLE_FAN: 0x0006,
-
-	BYTE: 0x1400,
-	UNSIGNED_BYTE: 0x1401,
-	SHORT: 0x1402,
-	UNSIGNED_SHORT: 0x1403,
-	INT: 0x1404,
-	UNSIGNED_INT: 0x1405,
-	FLOAT: 0x1406,
-
-	ARRAY_BUFFER: 0x8892,
-	ELEMENT_ARRAY_BUFFER: 0x8893,
-
-	NEAREST: 0x2600,
-	LINEAR: 0x2601,
-	NEAREST_MIPMAP_NEAREST: 0x2700,
-	LINEAR_MIPMAP_NEAREST: 0x2701,
-	NEAREST_MIPMAP_LINEAR: 0x2702,
-	LINEAR_MIPMAP_LINEAR: 0x2703,
-
-	CLAMP_TO_EDGE: 33071,
-	MIRRORED_REPEAT: 33648,
-	REPEAT: 10497
-};
-
-const KHR_MESH_QUANTIZATION = 'KHR_mesh_quantization';
-
-const THREE_TO_WEBGL = {};
-
-THREE_TO_WEBGL[ NearestFilter ] = WEBGL_CONSTANTS.NEAREST;
-THREE_TO_WEBGL[ NearestMipmapNearestFilter ] = WEBGL_CONSTANTS.NEAREST_MIPMAP_NEAREST;
-THREE_TO_WEBGL[ NearestMipmapLinearFilter ] = WEBGL_CONSTANTS.NEAREST_MIPMAP_LINEAR;
-THREE_TO_WEBGL[ LinearFilter ] = WEBGL_CONSTANTS.LINEAR;
-THREE_TO_WEBGL[ LinearMipmapNearestFilter ] = WEBGL_CONSTANTS.LINEAR_MIPMAP_NEAREST;
-THREE_TO_WEBGL[ LinearMipmapLinearFilter ] = WEBGL_CONSTANTS.LINEAR_MIPMAP_LINEAR;
-
-THREE_TO_WEBGL[ ClampToEdgeWrapping ] = WEBGL_CONSTANTS.CLAMP_TO_EDGE;
-THREE_TO_WEBGL[ RepeatWrapping ] = WEBGL_CONSTANTS.REPEAT;
-THREE_TO_WEBGL[ MirroredRepeatWrapping ] = WEBGL_CONSTANTS.MIRRORED_REPEAT;
-
-const PATH_PROPERTIES = {
-	scale: 'scale',
-	position: 'translation',
-	quaternion: 'rotation',
-	morphTargetInfluences: 'weights'
-};
-
-const DEFAULT_SPECULAR_COLOR = new Color();
-
-// GLB constants
-// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
-
-const GLB_HEADER_BYTES = 12;
-const GLB_HEADER_MAGIC = 0x46546C67;
-const GLB_VERSION = 2;
-
-const GLB_CHUNK_PREFIX_BYTES = 8;
-const GLB_CHUNK_TYPE_JSON = 0x4E4F534A;
-const GLB_CHUNK_TYPE_BIN = 0x004E4942;
-
-//------------------------------------------------------------------------------
-// Utility functions
-//------------------------------------------------------------------------------
-
-/**
- * Compare two arrays
- * @param  {Array} array1 Array 1 to compare
- * @param  {Array} array2 Array 2 to compare
- * @return {Boolean}        Returns true if both arrays are equal
- */
-function equalArray( array1, array2 ) {
-
-	return ( array1.length === array2.length ) && array1.every( function ( element, index ) {
-
-		return element === array2[ index ];
-
-	} );
-
-}
-
-/**
- * Converts a string to an ArrayBuffer.
- * @param  {string} text
- * @return {ArrayBuffer}
- */
-function stringToArrayBuffer( text ) {
-
-	return new TextEncoder().encode( text ).buffer;
-
-}
-
-/**
- * Is identity matrix
- *
- * @param {Matrix4} matrix
- * @returns {Boolean} Returns true, if parameter is identity matrix
- */
-function isIdentityMatrix( matrix ) {
-
-	return equalArray( matrix.elements, [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] );
-
-}
-
-/**
- * Get the min and max vectors from the given attribute
- * @param  {BufferAttribute} attribute Attribute to find the min/max in range from start to start + count
- * @param  {Integer} start
- * @param  {Integer} count
- * @return {Object} Object containing the `min` and `max` values (As an array of attribute.itemSize components)
- */
-function getMinMax( attribute, start, count ) {
-
-	const output = {
-
-		min: new Array( attribute.itemSize ).fill( Number.POSITIVE_INFINITY ),
-		max: new Array( attribute.itemSize ).fill( Number.NEGATIVE_INFINITY )
-
-	};
-
-	for ( let i = start; i < start + count; i ++ ) {
-
-		for ( let a = 0; a < attribute.itemSize; a ++ ) {
-
-			let value;
-
-			if ( attribute.itemSize > 4 ) {
-
-				 // no support for interleaved data for itemSize > 4
-
-				value = attribute.array[ i * attribute.itemSize + a ];
-
-			} else {
-
-				if ( a === 0 ) value = attribute.getX( i );
-				else if ( a === 1 ) value = attribute.getY( i );
-				else if ( a === 2 ) value = attribute.getZ( i );
-				else if ( a === 3 ) value = attribute.getW( i );
-
-				if ( attribute.normalized === true ) {
-
-					value = MathUtils.normalize( value, attribute.array );
-
-				}
-
-			}
-
-			output.min[ a ] = Math.min( output.min[ a ], value );
-			output.max[ a ] = Math.max( output.max[ a ], value );
-
-		}
-
-	}
-
-	return output;
-
-}
-
-/**
- * Get the required size + padding for a buffer, rounded to the next 4-byte boundary.
- * https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#data-alignment
- *
- * @param {Integer} bufferSize The size the original buffer.
- * @returns {Integer} new buffer size with required padding.
- *
- */
-function getPaddedBufferSize( bufferSize ) {
-
-	return Math.ceil( bufferSize / 4 ) * 4;
-
-}
-
-/**
- * Returns a buffer aligned to 4-byte boundary.
- *
- * @param {ArrayBuffer} arrayBuffer Buffer to pad
- * @param {Integer} paddingByte (Optional)
- * @returns {ArrayBuffer} The same buffer if it's already aligned to 4-byte boundary or a new buffer
- */
-function getPaddedArrayBuffer( arrayBuffer, paddingByte = 0 ) {
-
-	const paddedLength = getPaddedBufferSize( arrayBuffer.byteLength );
-
-	if ( paddedLength !== arrayBuffer.byteLength ) {
-
-		const array = new Uint8Array( paddedLength );
-		array.set( new Uint8Array( arrayBuffer ) );
-
-		if ( paddingByte !== 0 ) {
-
-			for ( let i = arrayBuffer.byteLength; i < paddedLength; i ++ ) {
-
-				array[ i ] = paddingByte;
-
-			}
-
-		}
-
-		return array.buffer;
-
-	}
-
-	return arrayBuffer;
-
-}
-
-function getCanvas() {
-
-	if ( typeof document === 'undefined' && typeof OffscreenCanvas !== 'undefined' ) {
-
-		return new OffscreenCanvas( 1, 1 );
-
-	}
-
-	return document.createElement( 'canvas' );
-
-}
-
-function getToBlobPromise( canvas, mimeType ) {
-
-	if ( canvas.toBlob !== undefined ) {
-
-		return new Promise( ( resolve ) => canvas.toBlob( resolve, mimeType ) );
-
-	}
-
-	let quality;
-
-	// Blink's implementation of convertToBlob seems to default to a quality level of 100%
-	// Use the Blink default quality levels of toBlob instead so that file sizes are comparable.
-	if ( mimeType === 'image/jpeg' ) {
-
-		quality = 0.92;
-
-	} else if ( mimeType === 'image/webp' ) {
-
-		quality = 0.8;
-
-	}
-
-	return canvas.convertToBlob( {
-
-		type: mimeType,
-		quality: quality
-
-	} );
-
-}
-
-/**
- * Writer
- */
-class GLTFWriter {
-
-	constructor() {
-
-		this.plugins = [];
-
-		this.options = {};
-		this.pending = [];
-		this.buffers = [];
-
-		this.byteOffset = 0;
-		this.buffers = [];
-		this.nodeMap = new Map();
-		this.skins = [];
-
-		this.extensionsUsed = {};
-		this.extensionsRequired = {};
-
-		this.uids = new Map();
-		this.uid = 0;
-
-		this.json = {
-			asset: {
-				version: '2.0',
-				generator: 'THREE.GLTFExporter'
-			}
-		};
-
-		this.cache = {
-			meshes: new Map(),
-			attributes: new Map(),
-			attributesNormalized: new Map(),
-			materials: new Map(),
-			textures: new Map(),
-			images: new Map()
-		};
-
-	}
-
-	setPlugins( plugins ) {
-
-		this.plugins = plugins;
-
-	}
-
-	/**
-	 * Parse scenes and generate GLTF output
-	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
-	 * @param  {Function} onDone  Callback on completed
-	 * @param  {Object} options options
-	 */
-	async write( input, onDone, options = {} ) {
-
-		this.options = Object.assign( {
-			// default options
-			binary: false,
-			trs: false,
-			onlyVisible: true,
-			maxTextureSize: Infinity,
-			animations: [],
-			includeCustomExtensions: false
-		}, options );
-
-		if ( this.options.animations.length > 0 ) {
-
-			// Only TRS properties, and not matrices, may be targeted by animation.
-			this.options.trs = true;
-
-		}
-
-		this.processInput( input );
-
-		await Promise.all( this.pending );
-
-		const writer = this;
-		const buffers = writer.buffers;
-		const json = writer.json;
-		options = writer.options;
-
-		const extensionsUsed = writer.extensionsUsed;
-		const extensionsRequired = writer.extensionsRequired;
-
-		// Merge buffers.
-		const blob = new Blob( buffers, { type: 'application/octet-stream' } );
-
-		// Declare extensions.
-		const extensionsUsedList = Object.keys( extensionsUsed );
-		const extensionsRequiredList = Object.keys( extensionsRequired );
-
-		if ( extensionsUsedList.length > 0 ) json.extensionsUsed = extensionsUsedList;
-		if ( extensionsRequiredList.length > 0 ) json.extensionsRequired = extensionsRequiredList;
-
-		// Update bytelength of the single buffer.
-		if ( json.buffers && json.buffers.length > 0 ) json.buffers[ 0 ].byteLength = blob.size;
-
-		if ( options.binary === true ) {
-
-			// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
-
-			const reader = new FileReader();
-			reader.readAsArrayBuffer( blob );
-			reader.onloadend = function () {
-
-				// Binary chunk.
-				const binaryChunk = getPaddedArrayBuffer( reader.result );
-				const binaryChunkPrefix = new DataView( new ArrayBuffer( GLB_CHUNK_PREFIX_BYTES ) );
-				binaryChunkPrefix.setUint32( 0, binaryChunk.byteLength, true );
-				binaryChunkPrefix.setUint32( 4, GLB_CHUNK_TYPE_BIN, true );
-
-				// JSON chunk.
-				const jsonChunk = getPaddedArrayBuffer( stringToArrayBuffer( JSON.stringify( json ) ), 0x20 );
-				const jsonChunkPrefix = new DataView( new ArrayBuffer( GLB_CHUNK_PREFIX_BYTES ) );
-				jsonChunkPrefix.setUint32( 0, jsonChunk.byteLength, true );
-				jsonChunkPrefix.setUint32( 4, GLB_CHUNK_TYPE_JSON, true );
-
-				// GLB header.
-				const header = new ArrayBuffer( GLB_HEADER_BYTES );
-				const headerView = new DataView( header );
-				headerView.setUint32( 0, GLB_HEADER_MAGIC, true );
-				headerView.setUint32( 4, GLB_VERSION, true );
-				const totalByteLength = GLB_HEADER_BYTES
-					+ jsonChunkPrefix.byteLength + jsonChunk.byteLength
-					+ binaryChunkPrefix.byteLength + binaryChunk.byteLength;
-				headerView.setUint32( 8, totalByteLength, true );
-
-				const glbBlob = new Blob( [
-					header,
-					jsonChunkPrefix,
-					jsonChunk,
-					binaryChunkPrefix,
-					binaryChunk
-				], { type: 'application/octet-stream' } );
-
-				const glbReader = new FileReader();
-				glbReader.readAsArrayBuffer( glbBlob );
-				glbReader.onloadend = function () {
-
-					onDone( glbReader.result );
-
-				};
-
-			};
-
-		} else {
-
-			if ( json.buffers && json.buffers.length > 0 ) {
-
-				const reader = new FileReader();
-				reader.readAsDataURL( blob );
-				reader.onloadend = function () {
-
-					const base64data = reader.result;
-					json.buffers[ 0 ].uri = base64data;
-					onDone( json );
-
-				};
-
-			} else {
-
-				onDone( json );
-
-			}
-
-		}
-
-
-	}
-
-	/**
-	 * Serializes a userData.
-	 *
-	 * @param {THREE.Object3D|THREE.Material} object
-	 * @param {Object} objectDef
-	 */
-	serializeUserData( object, objectDef ) {
-
-		if ( Object.keys( object.userData ).length === 0 ) return;
-
-		const options = this.options;
-		const extensionsUsed = this.extensionsUsed;
-
-		try {
-
-			const json = JSON.parse( JSON.stringify( object.userData ) );
-
-			if ( options.includeCustomExtensions && json.gltfExtensions ) {
-
-				if ( objectDef.extensions === undefined ) objectDef.extensions = {};
-
-				for ( const extensionName in json.gltfExtensions ) {
-
-					objectDef.extensions[ extensionName ] = json.gltfExtensions[ extensionName ];
-					extensionsUsed[ extensionName ] = true;
-
-				}
-
-				delete json.gltfExtensions;
-
-			}
-
-			if ( Object.keys( json ).length > 0 ) objectDef.extras = json;
-
-		} catch ( error ) {
-
-			console.warn( 'THREE.GLTFExporter: userData of \'' + object.name + '\' ' +
-				'won\'t be serialized because of JSON.stringify error - ' + error.message );
-
-		}
-
-	}
-
-	/**
-	 * Returns ids for buffer attributes.
-	 * @param  {Object} object
-	 * @return {Integer}
-	 */
-	getUID( attribute, isRelativeCopy = false ) {
-
-		if ( this.uids.has( attribute ) === false ) {
-
-			const uids = new Map();
-
-			uids.set( true, this.uid ++ );
-			uids.set( false, this.uid ++ );
-
-			this.uids.set( attribute, uids );
-
-		}
-
-		const uids = this.uids.get( attribute );
-
-		return uids.get( isRelativeCopy );
-
-	}
-
-	/**
-	 * Checks if normal attribute values are normalized.
-	 *
-	 * @param {BufferAttribute} normal
-	 * @returns {Boolean}
-	 */
-	isNormalizedNormalAttribute( normal ) {
-
-		const cache = this.cache;
-
-		if ( cache.attributesNormalized.has( normal ) ) return false;
-
-		const v = new Vector3$1();
-
-		for ( let i = 0, il = normal.count; i < il; i ++ ) {
-
-			// 0.0005 is from glTF-validator
-			if ( Math.abs( v.fromBufferAttribute( normal, i ).length() - 1.0 ) > 0.0005 ) return false;
-
-		}
-
-		return true;
-
-	}
-
-	/**
-	 * Creates normalized normal buffer attribute.
-	 *
-	 * @param {BufferAttribute} normal
-	 * @returns {BufferAttribute}
-	 *
-	 */
-	createNormalizedNormalAttribute( normal ) {
-
-		const cache = this.cache;
-
-		if ( cache.attributesNormalized.has( normal ) )	return cache.attributesNormalized.get( normal );
-
-		const attribute = normal.clone();
-		const v = new Vector3$1();
-
-		for ( let i = 0, il = attribute.count; i < il; i ++ ) {
-
-			v.fromBufferAttribute( attribute, i );
-
-			if ( v.x === 0 && v.y === 0 && v.z === 0 ) {
-
-				// if values can't be normalized set (1, 0, 0)
-				v.setX( 1.0 );
-
-			} else {
-
-				v.normalize();
-
-			}
-
-			attribute.setXYZ( i, v.x, v.y, v.z );
-
-		}
-
-		cache.attributesNormalized.set( normal, attribute );
-
-		return attribute;
-
-	}
-
-	/**
-	 * Applies a texture transform, if present, to the map definition. Requires
-	 * the KHR_texture_transform extension.
-	 *
-	 * @param {Object} mapDef
-	 * @param {THREE.Texture} texture
-	 */
-	applyTextureTransform( mapDef, texture ) {
-
-		let didTransform = false;
-		const transformDef = {};
-
-		if ( texture.offset.x !== 0 || texture.offset.y !== 0 ) {
-
-			transformDef.offset = texture.offset.toArray();
-			didTransform = true;
-
-		}
-
-		if ( texture.rotation !== 0 ) {
-
-			transformDef.rotation = texture.rotation;
-			didTransform = true;
-
-		}
-
-		if ( texture.repeat.x !== 1 || texture.repeat.y !== 1 ) {
-
-			transformDef.scale = texture.repeat.toArray();
-			didTransform = true;
-
-		}
-
-		if ( didTransform ) {
-
-			mapDef.extensions = mapDef.extensions || {};
-			mapDef.extensions[ 'KHR_texture_transform' ] = transformDef;
-			this.extensionsUsed[ 'KHR_texture_transform' ] = true;
-
-		}
-
-	}
-
-	buildMetalRoughTexture( metalnessMap, roughnessMap ) {
-
-		if ( metalnessMap === roughnessMap ) return metalnessMap;
-
-		function getEncodingConversion( map ) {
-
-			if ( map.colorSpace === SRGBColorSpace ) {
-
-				return function SRGBToLinear( c ) {
-
-					return ( c < 0.04045 ) ? c * 0.0773993808 : Math.pow( c * 0.9478672986 + 0.0521327014, 2.4 );
-
-				};
-
-			}
-
-			return function LinearToLinear( c ) {
-
-				return c;
-
-			};
-
-		}
-
-		console.warn( 'THREE.GLTFExporter: Merged metalnessMap and roughnessMap textures.' );
-
-		const metalness = metalnessMap ? metalnessMap.image : null;
-		const roughness = roughnessMap ? roughnessMap.image : null;
-
-		const width = Math.max( metalness ? metalness.width : 0, roughness ? roughness.width : 0 );
-		const height = Math.max( metalness ? metalness.height : 0, roughness ? roughness.height : 0 );
-
-		const canvas = getCanvas();
-		canvas.width = width;
-		canvas.height = height;
-
-		const context = canvas.getContext( '2d' );
-		context.fillStyle = '#00ffff';
-		context.fillRect( 0, 0, width, height );
-
-		const composite = context.getImageData( 0, 0, width, height );
-
-		if ( metalness ) {
-
-			context.drawImage( metalness, 0, 0, width, height );
-
-			const convert = getEncodingConversion( metalnessMap );
-			const data = context.getImageData( 0, 0, width, height ).data;
-
-			for ( let i = 2; i < data.length; i += 4 ) {
-
-				composite.data[ i ] = convert( data[ i ] / 256 ) * 256;
-
-			}
-
-		}
-
-		if ( roughness ) {
-
-			context.drawImage( roughness, 0, 0, width, height );
-
-			const convert = getEncodingConversion( roughnessMap );
-			const data = context.getImageData( 0, 0, width, height ).data;
-
-			for ( let i = 1; i < data.length; i += 4 ) {
-
-				composite.data[ i ] = convert( data[ i ] / 256 ) * 256;
-
-			}
-
-		}
-
-		context.putImageData( composite, 0, 0 );
-
-		//
-
-		const reference = metalnessMap || roughnessMap;
-
-		const texture = reference.clone();
-
-		texture.source = new Source( canvas );
-		texture.colorSpace = NoColorSpace;
-		texture.channel = ( metalnessMap || roughnessMap ).channel;
-
-		if ( metalnessMap && roughnessMap && metalnessMap.channel !== roughnessMap.channel ) {
-
-			console.warn( 'THREE.GLTFExporter: UV channels for metalnessMap and roughnessMap textures must match.' );
-
-		}
-
-		return texture;
-
-	}
-
-	/**
-	 * Process a buffer to append to the default one.
-	 * @param  {ArrayBuffer} buffer
-	 * @return {Integer}
-	 */
-	processBuffer( buffer ) {
-
-		const json = this.json;
-		const buffers = this.buffers;
-
-		if ( ! json.buffers ) json.buffers = [ { byteLength: 0 } ];
-
-		// All buffers are merged before export.
-		buffers.push( buffer );
-
-		return 0;
-
-	}
-
-	/**
-	 * Process and generate a BufferView
-	 * @param  {BufferAttribute} attribute
-	 * @param  {number} componentType
-	 * @param  {number} start
-	 * @param  {number} count
-	 * @param  {number} target (Optional) Target usage of the BufferView
-	 * @return {Object}
-	 */
-	processBufferView( attribute, componentType, start, count, target ) {
-
-		const json = this.json;
-
-		if ( ! json.bufferViews ) json.bufferViews = [];
-
-		// Create a new dataview and dump the attribute's array into it
-
-		let componentSize;
-
-		switch ( componentType ) {
-
-			case WEBGL_CONSTANTS.BYTE:
-			case WEBGL_CONSTANTS.UNSIGNED_BYTE:
-
-				componentSize = 1;
-
-				break;
-
-			case WEBGL_CONSTANTS.SHORT:
-			case WEBGL_CONSTANTS.UNSIGNED_SHORT:
-
-				componentSize = 2;
-
-				break;
-
-			default:
-
-				componentSize = 4;
-
-		}
-
-		const byteLength = getPaddedBufferSize( count * attribute.itemSize * componentSize );
-		const dataView = new DataView( new ArrayBuffer( byteLength ) );
-		let offset = 0;
-
-		for ( let i = start; i < start + count; i ++ ) {
-
-			for ( let a = 0; a < attribute.itemSize; a ++ ) {
-
-				let value;
-
-				if ( attribute.itemSize > 4 ) {
-
-					 // no support for interleaved data for itemSize > 4
-
-					value = attribute.array[ i * attribute.itemSize + a ];
-
-				} else {
-
-					if ( a === 0 ) value = attribute.getX( i );
-					else if ( a === 1 ) value = attribute.getY( i );
-					else if ( a === 2 ) value = attribute.getZ( i );
-					else if ( a === 3 ) value = attribute.getW( i );
-
-					if ( attribute.normalized === true ) {
-
-						value = MathUtils.normalize( value, attribute.array );
-
-					}
-
-				}
-
-				if ( componentType === WEBGL_CONSTANTS.FLOAT ) {
-
-					dataView.setFloat32( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.INT ) {
-
-					dataView.setInt32( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_INT ) {
-
-					dataView.setUint32( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.SHORT ) {
-
-					dataView.setInt16( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_SHORT ) {
-
-					dataView.setUint16( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.BYTE ) {
-
-					dataView.setInt8( offset, value );
-
-				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_BYTE ) {
-
-					dataView.setUint8( offset, value );
-
-				}
-
-				offset += componentSize;
-
-			}
-
-		}
-
-		const bufferViewDef = {
-
-			buffer: this.processBuffer( dataView.buffer ),
-			byteOffset: this.byteOffset,
-			byteLength: byteLength
-
-		};
-
-		if ( target !== undefined ) bufferViewDef.target = target;
-
-		if ( target === WEBGL_CONSTANTS.ARRAY_BUFFER ) {
-
-			// Only define byteStride for vertex attributes.
-			bufferViewDef.byteStride = attribute.itemSize * componentSize;
-
-		}
-
-		this.byteOffset += byteLength;
-
-		json.bufferViews.push( bufferViewDef );
-
-		// @TODO Merge bufferViews where possible.
-		const output = {
-
-			id: json.bufferViews.length - 1,
-			byteLength: 0
-
-		};
-
-		return output;
-
-	}
-
-	/**
-	 * Process and generate a BufferView from an image Blob.
-	 * @param {Blob} blob
-	 * @return {Promise<Integer>}
-	 */
-	processBufferViewImage( blob ) {
-
-		const writer = this;
-		const json = writer.json;
-
-		if ( ! json.bufferViews ) json.bufferViews = [];
-
-		return new Promise( function ( resolve ) {
-
-			const reader = new FileReader();
-			reader.readAsArrayBuffer( blob );
-			reader.onloadend = function () {
-
-				const buffer = getPaddedArrayBuffer( reader.result );
-
-				const bufferViewDef = {
-					buffer: writer.processBuffer( buffer ),
-					byteOffset: writer.byteOffset,
-					byteLength: buffer.byteLength
-				};
-
-				writer.byteOffset += buffer.byteLength;
-				resolve( json.bufferViews.push( bufferViewDef ) - 1 );
-
-			};
-
-		} );
-
-	}
-
-	/**
-	 * Process attribute to generate an accessor
-	 * @param  {BufferAttribute} attribute Attribute to process
-	 * @param  {THREE.BufferGeometry} geometry (Optional) Geometry used for truncated draw range
-	 * @param  {Integer} start (Optional)
-	 * @param  {Integer} count (Optional)
-	 * @return {Integer|null} Index of the processed accessor on the "accessors" array
-	 */
-	processAccessor( attribute, geometry, start, count ) {
-
-		const json = this.json;
-
-		const types = {
-
-			1: 'SCALAR',
-			2: 'VEC2',
-			3: 'VEC3',
-			4: 'VEC4',
-			9: 'MAT3',
-			16: 'MAT4'
-
-		};
-
-		let componentType;
-
-		// Detect the component type of the attribute array
-		if ( attribute.array.constructor === Float32Array ) {
-
-			componentType = WEBGL_CONSTANTS.FLOAT;
-
-		} else if ( attribute.array.constructor === Int32Array ) {
-
-			componentType = WEBGL_CONSTANTS.INT;
-
-		} else if ( attribute.array.constructor === Uint32Array ) {
-
-			componentType = WEBGL_CONSTANTS.UNSIGNED_INT;
-
-		} else if ( attribute.array.constructor === Int16Array ) {
-
-			componentType = WEBGL_CONSTANTS.SHORT;
-
-		} else if ( attribute.array.constructor === Uint16Array ) {
-
-			componentType = WEBGL_CONSTANTS.UNSIGNED_SHORT;
-
-		} else if ( attribute.array.constructor === Int8Array ) {
-
-			componentType = WEBGL_CONSTANTS.BYTE;
-
-		} else if ( attribute.array.constructor === Uint8Array ) {
-
-			componentType = WEBGL_CONSTANTS.UNSIGNED_BYTE;
-
-		} else {
-
-			throw new Error( 'THREE.GLTFExporter: Unsupported bufferAttribute component type.' );
-
-		}
-
-		if ( start === undefined ) start = 0;
-		if ( count === undefined ) count = attribute.count;
-
-		// Skip creating an accessor if the attribute doesn't have data to export
-		if ( count === 0 ) return null;
-
-		const minMax = getMinMax( attribute, start, count );
-		let bufferViewTarget;
-
-		// If geometry isn't provided, don't infer the target usage of the bufferView. For
-		// animation samplers, target must not be set.
-		if ( geometry !== undefined ) {
-
-			bufferViewTarget = attribute === geometry.index ? WEBGL_CONSTANTS.ELEMENT_ARRAY_BUFFER : WEBGL_CONSTANTS.ARRAY_BUFFER;
-
-		}
-
-		const bufferView = this.processBufferView( attribute, componentType, start, count, bufferViewTarget );
-
-		const accessorDef = {
-
-			bufferView: bufferView.id,
-			byteOffset: bufferView.byteOffset,
-			componentType: componentType,
-			count: count,
-			max: minMax.max,
-			min: minMax.min,
-			type: types[ attribute.itemSize ]
-
-		};
-
-		if ( attribute.normalized === true ) accessorDef.normalized = true;
-		if ( ! json.accessors ) json.accessors = [];
-
-		return json.accessors.push( accessorDef ) - 1;
-
-	}
-
-	/**
-	 * Process image
-	 * @param  {Image} image to process
-	 * @param  {Integer} format of the image (RGBAFormat)
-	 * @param  {Boolean} flipY before writing out the image
-	 * @param  {String} mimeType export format
-	 * @return {Integer}     Index of the processed texture in the "images" array
-	 */
-	processImage( image, format, flipY, mimeType = 'image/png' ) {
-
-		if ( image !== null ) {
-
-			const writer = this;
-			const cache = writer.cache;
-			const json = writer.json;
-			const options = writer.options;
-			const pending = writer.pending;
-
-			if ( ! cache.images.has( image ) ) cache.images.set( image, {} );
-
-			const cachedImages = cache.images.get( image );
-
-			const key = mimeType + ':flipY/' + flipY.toString();
-
-			if ( cachedImages[ key ] !== undefined ) return cachedImages[ key ];
-
-			if ( ! json.images ) json.images = [];
-
-			const imageDef = { mimeType: mimeType };
-
-			const canvas = getCanvas();
-
-			canvas.width = Math.min( image.width, options.maxTextureSize );
-			canvas.height = Math.min( image.height, options.maxTextureSize );
-
-			const ctx = canvas.getContext( '2d' );
-
-			if ( flipY === true ) {
-
-				ctx.translate( 0, canvas.height );
-				ctx.scale( 1, - 1 );
-
-			}
-
-			if ( image.data !== undefined ) { // THREE.DataTexture
-
-				if ( format !== RGBAFormat ) {
-
-					console.error( 'GLTFExporter: Only RGBAFormat is supported.' );
-
-				}
-
-				if ( image.width > options.maxTextureSize || image.height > options.maxTextureSize ) {
-
-					console.warn( 'GLTFExporter: Image size is bigger than maxTextureSize', image );
-
-				}
-
-				const data = new Uint8ClampedArray( image.height * image.width * 4 );
-
-				for ( let i = 0; i < data.length; i += 4 ) {
-
-					data[ i + 0 ] = image.data[ i + 0 ];
-					data[ i + 1 ] = image.data[ i + 1 ];
-					data[ i + 2 ] = image.data[ i + 2 ];
-					data[ i + 3 ] = image.data[ i + 3 ];
-
-				}
-
-				ctx.putImageData( new ImageData( data, image.width, image.height ), 0, 0 );
-
-			} else {
-
-				ctx.drawImage( image, 0, 0, canvas.width, canvas.height );
-
-			}
-
-			if ( options.binary === true ) {
-
-				pending.push(
-
-					getToBlobPromise( canvas, mimeType )
-						.then( blob => writer.processBufferViewImage( blob ) )
-						.then( bufferViewIndex => {
-
-							imageDef.bufferView = bufferViewIndex;
-
-						} )
-
-				);
-
-			} else {
-
-				if ( canvas.toDataURL !== undefined ) {
-
-					imageDef.uri = canvas.toDataURL( mimeType );
-
-				} else {
-
-					pending.push(
-
-						getToBlobPromise( canvas, mimeType )
-							.then( blob => new FileReader().readAsDataURL( blob ) )
-							.then( dataURL => {
-
-								imageDef.uri = dataURL;
-
-							} )
-
-					);
-
-				}
-
-			}
-
-			const index = json.images.push( imageDef ) - 1;
-			cachedImages[ key ] = index;
-			return index;
-
-		} else {
-
-			throw new Error( 'THREE.GLTFExporter: No valid image data found. Unable to process texture.' );
-
-		}
-
-	}
-
-	/**
-	 * Process sampler
-	 * @param  {Texture} map Texture to process
-	 * @return {Integer}     Index of the processed texture in the "samplers" array
-	 */
-	processSampler( map ) {
-
-		const json = this.json;
-
-		if ( ! json.samplers ) json.samplers = [];
-
-		const samplerDef = {
-			magFilter: THREE_TO_WEBGL[ map.magFilter ],
-			minFilter: THREE_TO_WEBGL[ map.minFilter ],
-			wrapS: THREE_TO_WEBGL[ map.wrapS ],
-			wrapT: THREE_TO_WEBGL[ map.wrapT ]
-		};
-
-		return json.samplers.push( samplerDef ) - 1;
-
-	}
-
-	/**
-	 * Process texture
-	 * @param  {Texture} map Map to process
-	 * @return {Integer} Index of the processed texture in the "textures" array
-	 */
-	processTexture( map ) {
-
-		const cache = this.cache;
-		const json = this.json;
-
-		if ( cache.textures.has( map ) ) return cache.textures.get( map );
-
-		if ( ! json.textures ) json.textures = [];
-
-		let mimeType = map.userData.mimeType;
-
-		if ( mimeType === 'image/webp' ) mimeType = 'image/png';
-
-		const textureDef = {
-			sampler: this.processSampler( map ),
-			source: this.processImage( map.image, map.format, map.flipY, mimeType )
-		};
-
-		if ( map.name ) textureDef.name = map.name;
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeTexture && ext.writeTexture( map, textureDef );
-
-		} );
-
-		const index = json.textures.push( textureDef ) - 1;
-		cache.textures.set( map, index );
-		return index;
-
-	}
-
-	/**
-	 * Process material
-	 * @param  {THREE.Material} material Material to process
-	 * @return {Integer|null} Index of the processed material in the "materials" array
-	 */
-	processMaterial( material ) {
-
-		const cache = this.cache;
-		const json = this.json;
-
-		if ( cache.materials.has( material ) ) return cache.materials.get( material );
-
-		if ( material.isShaderMaterial ) {
-
-			console.warn( 'GLTFExporter: THREE.ShaderMaterial not supported.' );
-			return null;
-
-		}
-
-		if ( ! json.materials ) json.materials = [];
-
-		// @QUESTION Should we avoid including any attribute that has the default value?
-		const materialDef = {	pbrMetallicRoughness: {} };
-
-		if ( material.isMeshStandardMaterial !== true && material.isMeshBasicMaterial !== true ) {
-
-			console.warn( 'GLTFExporter: Use MeshStandardMaterial or MeshBasicMaterial for best results.' );
-
-		}
-
-		// pbrMetallicRoughness.baseColorFactor
-		const color = material.color.toArray().concat( [ material.opacity ] );
-
-		if ( ! equalArray( color, [ 1, 1, 1, 1 ] ) ) {
-
-			materialDef.pbrMetallicRoughness.baseColorFactor = color;
-
-		}
-
-		if ( material.isMeshStandardMaterial ) {
-
-			materialDef.pbrMetallicRoughness.metallicFactor = material.metalness;
-			materialDef.pbrMetallicRoughness.roughnessFactor = material.roughness;
-
-		} else {
-
-			materialDef.pbrMetallicRoughness.metallicFactor = 0.5;
-			materialDef.pbrMetallicRoughness.roughnessFactor = 0.5;
-
-		}
-
-		// pbrMetallicRoughness.metallicRoughnessTexture
-		if ( material.metalnessMap || material.roughnessMap ) {
-
-			const metalRoughTexture = this.buildMetalRoughTexture( material.metalnessMap, material.roughnessMap );
-
-			const metalRoughMapDef = {
-				index: this.processTexture( metalRoughTexture ),
-				channel: metalRoughTexture.channel
-			};
-			this.applyTextureTransform( metalRoughMapDef, metalRoughTexture );
-			materialDef.pbrMetallicRoughness.metallicRoughnessTexture = metalRoughMapDef;
-
-		}
-
-		// pbrMetallicRoughness.baseColorTexture
-		if ( material.map ) {
-
-			const baseColorMapDef = {
-				index: this.processTexture( material.map ),
-				texCoord: material.map.channel
-			};
-			this.applyTextureTransform( baseColorMapDef, material.map );
-			materialDef.pbrMetallicRoughness.baseColorTexture = baseColorMapDef;
-
-		}
-
-		if ( material.emissive ) {
-
-			const emissive = material.emissive;
-			const maxEmissiveComponent = Math.max( emissive.r, emissive.g, emissive.b );
-
-			if ( maxEmissiveComponent > 0 ) {
-
-				materialDef.emissiveFactor = material.emissive.toArray();
-
-			}
-
-			// emissiveTexture
-			if ( material.emissiveMap ) {
-
-				const emissiveMapDef = {
-					index: this.processTexture( material.emissiveMap ),
-					texCoord: material.emissiveMap.channel
-				};
-				this.applyTextureTransform( emissiveMapDef, material.emissiveMap );
-				materialDef.emissiveTexture = emissiveMapDef;
-
-			}
-
-		}
-
-		// normalTexture
-		if ( material.normalMap ) {
-
-			const normalMapDef = {
-				index: this.processTexture( material.normalMap ),
-				texCoord: material.normalMap.channel
-			};
-
-			if ( material.normalScale && material.normalScale.x !== 1 ) {
-
-				// glTF normal scale is univariate. Ignore `y`, which may be flipped.
-				// Context: https://github.com/mrdoob/three.js/issues/11438#issuecomment-507003995
-				normalMapDef.scale = material.normalScale.x;
-
-			}
-
-			this.applyTextureTransform( normalMapDef, material.normalMap );
-			materialDef.normalTexture = normalMapDef;
-
-		}
-
-		// occlusionTexture
-		if ( material.aoMap ) {
-
-			const occlusionMapDef = {
-				index: this.processTexture( material.aoMap ),
-				texCoord: material.aoMap.channel
-			};
-
-			if ( material.aoMapIntensity !== 1.0 ) {
-
-				occlusionMapDef.strength = material.aoMapIntensity;
-
-			}
-
-			this.applyTextureTransform( occlusionMapDef, material.aoMap );
-			materialDef.occlusionTexture = occlusionMapDef;
-
-		}
-
-		// alphaMode
-		if ( material.transparent ) {
-
-			materialDef.alphaMode = 'BLEND';
-
-		} else {
-
-			if ( material.alphaTest > 0.0 ) {
-
-				materialDef.alphaMode = 'MASK';
-				materialDef.alphaCutoff = material.alphaTest;
-
-			}
-
-		}
-
-		// doubleSided
-		if ( material.side === DoubleSide ) materialDef.doubleSided = true;
-		if ( material.name !== '' ) materialDef.name = material.name;
-
-		this.serializeUserData( material, materialDef );
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeMaterial && ext.writeMaterial( material, materialDef );
-
-		} );
-
-		const index = json.materials.push( materialDef ) - 1;
-		cache.materials.set( material, index );
-		return index;
-
-	}
-
-	/**
-	 * Process mesh
-	 * @param  {THREE.Mesh} mesh Mesh to process
-	 * @return {Integer|null} Index of the processed mesh in the "meshes" array
-	 */
-	processMesh( mesh ) {
-
-		const cache = this.cache;
-		const json = this.json;
-
-		const meshCacheKeyParts = [ mesh.geometry.uuid ];
-
-		if ( Array.isArray( mesh.material ) ) {
-
-			for ( let i = 0, l = mesh.material.length; i < l; i ++ ) {
-
-				meshCacheKeyParts.push( mesh.material[ i ].uuid	);
-
-			}
-
-		} else {
-
-			meshCacheKeyParts.push( mesh.material.uuid );
-
-		}
-
-		const meshCacheKey = meshCacheKeyParts.join( ':' );
-
-		if ( cache.meshes.has( meshCacheKey ) ) return cache.meshes.get( meshCacheKey );
-
-		const geometry = mesh.geometry;
-
-		let mode;
-
-		// Use the correct mode
-		if ( mesh.isLineSegments ) {
-
-			mode = WEBGL_CONSTANTS.LINES;
-
-		} else if ( mesh.isLineLoop ) {
-
-			mode = WEBGL_CONSTANTS.LINE_LOOP;
-
-		} else if ( mesh.isLine ) {
-
-			mode = WEBGL_CONSTANTS.LINE_STRIP;
-
-		} else if ( mesh.isPoints ) {
-
-			mode = WEBGL_CONSTANTS.POINTS;
-
-		} else {
-
-			mode = mesh.material.wireframe ? WEBGL_CONSTANTS.LINES : WEBGL_CONSTANTS.TRIANGLES;
-
-		}
-
-		const meshDef = {};
-		const attributes = {};
-		const primitives = [];
-		const targets = [];
-
-		// Conversion between attributes names in threejs and gltf spec
-		const nameConversion = {
-			uv: 'TEXCOORD_0',
-			uv1: 'TEXCOORD_1',
-			color: 'COLOR_0',
-			skinWeight: 'WEIGHTS_0',
-			skinIndex: 'JOINTS_0'
-		};
-
-		const originalNormal = geometry.getAttribute( 'normal' );
-
-		if ( originalNormal !== undefined && ! this.isNormalizedNormalAttribute( originalNormal ) ) {
-
-			console.warn( 'THREE.GLTFExporter: Creating normalized normal attribute from the non-normalized one.' );
-
-			geometry.setAttribute( 'normal', this.createNormalizedNormalAttribute( originalNormal ) );
-
-		}
-
-		// @QUESTION Detect if .vertexColors = true?
-		// For every attribute create an accessor
-		let modifiedAttribute = null;
-
-		for ( let attributeName in geometry.attributes ) {
-
-			// Ignore morph target attributes, which are exported later.
-			if ( attributeName.slice( 0, 5 ) === 'morph' ) continue;
-
-			const attribute = geometry.attributes[ attributeName ];
-			attributeName = nameConversion[ attributeName ] || attributeName.toUpperCase();
-
-			// Prefix all geometry attributes except the ones specifically
-			// listed in the spec; non-spec attributes are considered custom.
-			const validVertexAttributes =
-					/^(POSITION|NORMAL|TANGENT|TEXCOORD_\d+|COLOR_\d+|JOINTS_\d+|WEIGHTS_\d+)$/;
-
-			if ( ! validVertexAttributes.test( attributeName ) ) attributeName = '_' + attributeName;
-
-			if ( cache.attributes.has( this.getUID( attribute ) ) ) {
-
-				attributes[ attributeName ] = cache.attributes.get( this.getUID( attribute ) );
-				continue;
-
-			}
-
-			// JOINTS_0 must be UNSIGNED_BYTE or UNSIGNED_SHORT.
-			modifiedAttribute = null;
-			const array = attribute.array;
-
-			if ( attributeName === 'JOINTS_0' &&
-				! ( array instanceof Uint16Array ) &&
-				! ( array instanceof Uint8Array ) ) {
-
-				console.warn( 'GLTFExporter: Attribute "skinIndex" converted to type UNSIGNED_SHORT.' );
-				modifiedAttribute = new BufferAttribute$1( new Uint16Array( array ), attribute.itemSize, attribute.normalized );
-
-			}
-
-			const accessor = this.processAccessor( modifiedAttribute || attribute, geometry );
-
-			if ( accessor !== null ) {
-
-				if ( ! attributeName.startsWith( '_' ) ) {
-
-					this.detectMeshQuantization( attributeName, attribute );
-
-				}
-
-				attributes[ attributeName ] = accessor;
-				cache.attributes.set( this.getUID( attribute ), accessor );
-
-			}
-
-		}
-
-		if ( originalNormal !== undefined ) geometry.setAttribute( 'normal', originalNormal );
-
-		// Skip if no exportable attributes found
-		if ( Object.keys( attributes ).length === 0 ) return null;
-
-		// Morph targets
-		if ( mesh.morphTargetInfluences !== undefined && mesh.morphTargetInfluences.length > 0 ) {
-
-			const weights = [];
-			const targetNames = [];
-			const reverseDictionary = {};
-
-			if ( mesh.morphTargetDictionary !== undefined ) {
-
-				for ( const key in mesh.morphTargetDictionary ) {
-
-					reverseDictionary[ mesh.morphTargetDictionary[ key ] ] = key;
-
-				}
-
-			}
-
-			for ( let i = 0; i < mesh.morphTargetInfluences.length; ++ i ) {
-
-				const target = {};
-				let warned = false;
-
-				for ( const attributeName in geometry.morphAttributes ) {
-
-					// glTF 2.0 morph supports only POSITION/NORMAL/TANGENT.
-					// Three.js doesn't support TANGENT yet.
-
-					if ( attributeName !== 'position' && attributeName !== 'normal' ) {
-
-						if ( ! warned ) {
-
-							console.warn( 'GLTFExporter: Only POSITION and NORMAL morph are supported.' );
-							warned = true;
-
-						}
-
-						continue;
-
-					}
-
-					const attribute = geometry.morphAttributes[ attributeName ][ i ];
-					const gltfAttributeName = attributeName.toUpperCase();
-
-					// Three.js morph attribute has absolute values while the one of glTF has relative values.
-					//
-					// glTF 2.0 Specification:
-					// https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#morph-targets
-
-					const baseAttribute = geometry.attributes[ attributeName ];
-
-					if ( cache.attributes.has( this.getUID( attribute, true ) ) ) {
-
-						target[ gltfAttributeName ] = cache.attributes.get( this.getUID( attribute, true ) );
-						continue;
-
-					}
-
-					// Clones attribute not to override
-					const relativeAttribute = attribute.clone();
-
-					if ( ! geometry.morphTargetsRelative ) {
-
-						for ( let j = 0, jl = attribute.count; j < jl; j ++ ) {
-
-							for ( let a = 0; a < attribute.itemSize; a ++ ) {
-
-								if ( a === 0 ) relativeAttribute.setX( j, attribute.getX( j ) - baseAttribute.getX( j ) );
-								if ( a === 1 ) relativeAttribute.setY( j, attribute.getY( j ) - baseAttribute.getY( j ) );
-								if ( a === 2 ) relativeAttribute.setZ( j, attribute.getZ( j ) - baseAttribute.getZ( j ) );
-								if ( a === 3 ) relativeAttribute.setW( j, attribute.getW( j ) - baseAttribute.getW( j ) );
-
-							}
-
-						}
-
-					}
-
-					target[ gltfAttributeName ] = this.processAccessor( relativeAttribute, geometry );
-					cache.attributes.set( this.getUID( baseAttribute, true ), target[ gltfAttributeName ] );
-
-				}
-
-				targets.push( target );
-
-				weights.push( mesh.morphTargetInfluences[ i ] );
-
-				if ( mesh.morphTargetDictionary !== undefined ) targetNames.push( reverseDictionary[ i ] );
-
-			}
-
-			meshDef.weights = weights;
-
-			if ( targetNames.length > 0 ) {
-
-				meshDef.extras = {};
-				meshDef.extras.targetNames = targetNames;
-
-			}
-
-		}
-
-		const isMultiMaterial = Array.isArray( mesh.material );
-
-		if ( isMultiMaterial && geometry.groups.length === 0 ) return null;
-
-		const materials = isMultiMaterial ? mesh.material : [ mesh.material ];
-		const groups = isMultiMaterial ? geometry.groups : [ { materialIndex: 0, start: undefined, count: undefined } ];
-
-		for ( let i = 0, il = groups.length; i < il; i ++ ) {
-
-			const primitive = {
-				mode: mode,
-				attributes: attributes,
-			};
-
-			this.serializeUserData( geometry, primitive );
-
-			if ( targets.length > 0 ) primitive.targets = targets;
-
-			if ( geometry.index !== null ) {
-
-				let cacheKey = this.getUID( geometry.index );
-
-				if ( groups[ i ].start !== undefined || groups[ i ].count !== undefined ) {
-
-					cacheKey += ':' + groups[ i ].start + ':' + groups[ i ].count;
-
-				}
-
-				if ( cache.attributes.has( cacheKey ) ) {
-
-					primitive.indices = cache.attributes.get( cacheKey );
-
-				} else {
-
-					primitive.indices = this.processAccessor( geometry.index, geometry, groups[ i ].start, groups[ i ].count );
-					cache.attributes.set( cacheKey, primitive.indices );
-
-				}
-
-				if ( primitive.indices === null ) delete primitive.indices;
-
-			}
-
-			const material = this.processMaterial( materials[ groups[ i ].materialIndex ] );
-
-			if ( material !== null ) primitive.material = material;
-
-			primitives.push( primitive );
-
-		}
-
-		meshDef.primitives = primitives;
-
-		if ( ! json.meshes ) json.meshes = [];
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeMesh && ext.writeMesh( mesh, meshDef );
-
-		} );
-
-		const index = json.meshes.push( meshDef ) - 1;
-		cache.meshes.set( meshCacheKey, index );
-		return index;
-
-	}
-
-	/**
-	 * If a vertex attribute with a
-	 * [non-standard data type](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes-overview)
-	 * is used, it is checked whether it is a valid data type according to the
-	 * [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
-	 * extension.
-	 * In this case the extension is automatically added to the list of used extensions.
-	 *
-	 * @param {string} attributeName
-	 * @param {THREE.BufferAttribute} attribute
-	 */
-	detectMeshQuantization( attributeName, attribute ) {
-
-		if ( this.extensionsUsed[ KHR_MESH_QUANTIZATION ] ) return;
-
-		let attrType = undefined;
-
-		switch ( attribute.array.constructor ) {
-
-			case Int8Array:
-
-				attrType = 'byte';
-
-				break;
-
-			case Uint8Array:
-
-				attrType = 'unsigned byte';
-
-				break;
-
-			case Int16Array:
-
-				attrType = 'short';
-
-				break;
-
-			case Uint16Array:
-
-				attrType = 'unsigned short';
-
-				break;
-
-			default:
-
-				return;
-
-		}
-
-		if ( attribute.normalized ) attrType += ' normalized';
-
-		const attrNamePrefix = attributeName.split( '_', 1 )[ 0 ];
-
-		if ( KHR_mesh_quantization_ExtraAttrTypes[ attrNamePrefix ] && KHR_mesh_quantization_ExtraAttrTypes[ attrNamePrefix ].includes( attrType ) ) {
-
-			this.extensionsUsed[ KHR_MESH_QUANTIZATION ] = true;
-			this.extensionsRequired[ KHR_MESH_QUANTIZATION ] = true;
-
-		}
-
-	}
-
-	/**
-	 * Process camera
-	 * @param  {THREE.Camera} camera Camera to process
-	 * @return {Integer}      Index of the processed mesh in the "camera" array
-	 */
-	processCamera( camera ) {
-
-		const json = this.json;
-
-		if ( ! json.cameras ) json.cameras = [];
-
-		const isOrtho = camera.isOrthographicCamera;
-
-		const cameraDef = {
-			type: isOrtho ? 'orthographic' : 'perspective'
-		};
-
-		if ( isOrtho ) {
-
-			cameraDef.orthographic = {
-				xmag: camera.right * 2,
-				ymag: camera.top * 2,
-				zfar: camera.far <= 0 ? 0.001 : camera.far,
-				znear: camera.near < 0 ? 0 : camera.near
-			};
-
-		} else {
-
-			cameraDef.perspective = {
-				aspectRatio: camera.aspect,
-				yfov: MathUtils.degToRad( camera.fov ),
-				zfar: camera.far <= 0 ? 0.001 : camera.far,
-				znear: camera.near < 0 ? 0 : camera.near
-			};
-
-		}
-
-		// Question: Is saving "type" as name intentional?
-		if ( camera.name !== '' ) cameraDef.name = camera.type;
-
-		return json.cameras.push( cameraDef ) - 1;
-
-	}
-
-	/**
-	 * Creates glTF animation entry from AnimationClip object.
-	 *
-	 * Status:
-	 * - Only properties listed in PATH_PROPERTIES may be animated.
-	 *
-	 * @param {THREE.AnimationClip} clip
-	 * @param {THREE.Object3D} root
-	 * @return {number|null}
-	 */
-	processAnimation( clip, root ) {
-
-		const json = this.json;
-		const nodeMap = this.nodeMap;
-
-		if ( ! json.animations ) json.animations = [];
-
-		clip = GLTFExporter.Utils.mergeMorphTargetTracks( clip.clone(), root );
-
-		const tracks = clip.tracks;
-		const channels = [];
-		const samplers = [];
-
-		for ( let i = 0; i < tracks.length; ++ i ) {
-
-			const track = tracks[ i ];
-			const trackBinding = PropertyBinding.parseTrackName( track.name );
-			let trackNode = PropertyBinding.findNode( root, trackBinding.nodeName );
-			const trackProperty = PATH_PROPERTIES[ trackBinding.propertyName ];
-
-			if ( trackBinding.objectName === 'bones' ) {
-
-				if ( trackNode.isSkinnedMesh === true ) {
-
-					trackNode = trackNode.skeleton.getBoneByName( trackBinding.objectIndex );
-
-				} else {
-
-					trackNode = undefined;
-
-				}
-
-			}
-
-			if ( ! trackNode || ! trackProperty ) {
-
-				console.warn( 'THREE.GLTFExporter: Could not export animation track "%s".', track.name );
-				return null;
-
-			}
-
-			const inputItemSize = 1;
-			let outputItemSize = track.values.length / track.times.length;
-
-			if ( trackProperty === PATH_PROPERTIES.morphTargetInfluences ) {
-
-				outputItemSize /= trackNode.morphTargetInfluences.length;
-
-			}
-
-			let interpolation;
-
-			// @TODO export CubicInterpolant(InterpolateSmooth) as CUBICSPLINE
-
-			// Detecting glTF cubic spline interpolant by checking factory method's special property
-			// GLTFCubicSplineInterpolant is a custom interpolant and track doesn't return
-			// valid value from .getInterpolation().
-			if ( track.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline === true ) {
-
-				interpolation = 'CUBICSPLINE';
-
-				// itemSize of CUBICSPLINE keyframe is 9
-				// (VEC3 * 3: inTangent, splineVertex, and outTangent)
-				// but needs to be stored as VEC3 so dividing by 3 here.
-				outputItemSize /= 3;
-
-			} else if ( track.getInterpolation() === InterpolateDiscrete ) {
-
-				interpolation = 'STEP';
-
-			} else {
-
-				interpolation = 'LINEAR';
-
-			}
-
-			samplers.push( {
-				input: this.processAccessor( new BufferAttribute$1( track.times, inputItemSize ) ),
-				output: this.processAccessor( new BufferAttribute$1( track.values, outputItemSize ) ),
-				interpolation: interpolation
-			} );
-
-			channels.push( {
-				sampler: samplers.length - 1,
-				target: {
-					node: nodeMap.get( trackNode ),
-					path: trackProperty
-				}
-			} );
-
-		}
-
-		json.animations.push( {
-			name: clip.name || 'clip_' + json.animations.length,
-			samplers: samplers,
-			channels: channels
-		} );
-
-		return json.animations.length - 1;
-
-	}
-
-	/**
-	 * @param {THREE.Object3D} object
-	 * @return {number|null}
-	 */
-	 processSkin( object ) {
-
-		const json = this.json;
-		const nodeMap = this.nodeMap;
-
-		const node = json.nodes[ nodeMap.get( object ) ];
-
-		const skeleton = object.skeleton;
-
-		if ( skeleton === undefined ) return null;
-
-		const rootJoint = object.skeleton.bones[ 0 ];
-
-		if ( rootJoint === undefined ) return null;
-
-		const joints = [];
-		const inverseBindMatrices = new Float32Array( skeleton.bones.length * 16 );
-		const temporaryBoneInverse = new Matrix4();
-
-		for ( let i = 0; i < skeleton.bones.length; ++ i ) {
-
-			joints.push( nodeMap.get( skeleton.bones[ i ] ) );
-			temporaryBoneInverse.copy( skeleton.boneInverses[ i ] );
-			temporaryBoneInverse.multiply( object.bindMatrix ).toArray( inverseBindMatrices, i * 16 );
-
-		}
-
-		if ( json.skins === undefined ) json.skins = [];
-
-		json.skins.push( {
-			inverseBindMatrices: this.processAccessor( new BufferAttribute$1( inverseBindMatrices, 16 ) ),
-			joints: joints,
-			skeleton: nodeMap.get( rootJoint )
-		} );
-
-		const skinIndex = node.skin = json.skins.length - 1;
-
-		return skinIndex;
-
-	}
-
-	/**
-	 * Process Object3D node
-	 * @param  {THREE.Object3D} node Object3D to processNode
-	 * @return {Integer} Index of the node in the nodes list
-	 */
-	processNode( object ) {
-
-		const json = this.json;
-		const options = this.options;
-		const nodeMap = this.nodeMap;
-
-		if ( ! json.nodes ) json.nodes = [];
-
-		const nodeDef = {};
-
-		if ( options.trs ) {
-
-			const rotation = object.quaternion.toArray();
-			const position = object.position.toArray();
-			const scale = object.scale.toArray();
-
-			if ( ! equalArray( rotation, [ 0, 0, 0, 1 ] ) ) {
-
-				nodeDef.rotation = rotation;
-
-			}
-
-			if ( ! equalArray( position, [ 0, 0, 0 ] ) ) {
-
-				nodeDef.translation = position;
-
-			}
-
-			if ( ! equalArray( scale, [ 1, 1, 1 ] ) ) {
-
-				nodeDef.scale = scale;
-
-			}
-
-		} else {
-
-			if ( object.matrixAutoUpdate ) {
-
-				object.updateMatrix();
-
-			}
-
-			if ( isIdentityMatrix( object.matrix ) === false ) {
-
-				nodeDef.matrix = object.matrix.elements;
-
-			}
-
-		}
-
-		// We don't export empty strings name because it represents no-name in Three.js.
-		if ( object.name !== '' ) nodeDef.name = String( object.name );
-
-		this.serializeUserData( object, nodeDef );
-
-		if ( object.isMesh || object.isLine || object.isPoints ) {
-
-			const meshIndex = this.processMesh( object );
-
-			if ( meshIndex !== null ) nodeDef.mesh = meshIndex;
-
-		} else if ( object.isCamera ) {
-
-			nodeDef.camera = this.processCamera( object );
-
-		}
-
-		if ( object.isSkinnedMesh ) this.skins.push( object );
-
-		if ( object.children.length > 0 ) {
-
-			const children = [];
-
-			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
-
-				const child = object.children[ i ];
-
-				if ( child.visible || options.onlyVisible === false ) {
-
-					const nodeIndex = this.processNode( child );
-
-					if ( nodeIndex !== null ) children.push( nodeIndex );
-
-				}
-
-			}
-
-			if ( children.length > 0 ) nodeDef.children = children;
-
-		}
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeNode && ext.writeNode( object, nodeDef );
-
-		} );
-
-		const nodeIndex = json.nodes.push( nodeDef ) - 1;
-		nodeMap.set( object, nodeIndex );
-		return nodeIndex;
-
-	}
-
-	/**
-	 * Process Scene
-	 * @param  {Scene} node Scene to process
-	 */
-	processScene( scene ) {
-
-		const json = this.json;
-		const options = this.options;
-
-		if ( ! json.scenes ) {
-
-			json.scenes = [];
-			json.scene = 0;
-
-		}
-
-		const sceneDef = {};
-
-		if ( scene.name !== '' ) sceneDef.name = scene.name;
-
-		json.scenes.push( sceneDef );
-
-		const nodes = [];
-
-		for ( let i = 0, l = scene.children.length; i < l; i ++ ) {
-
-			const child = scene.children[ i ];
-
-			if ( child.visible || options.onlyVisible === false ) {
-
-				const nodeIndex = this.processNode( child );
-
-				if ( nodeIndex !== null ) nodes.push( nodeIndex );
-
-			}
-
-		}
-
-		if ( nodes.length > 0 ) sceneDef.nodes = nodes;
-
-		this.serializeUserData( scene, sceneDef );
-
-	}
-
-	/**
-	 * Creates a Scene to hold a list of objects and parse it
-	 * @param  {Array} objects List of objects to process
-	 */
-	processObjects( objects ) {
-
-		const scene = new Scene();
-		scene.name = 'AuxScene';
-
-		for ( let i = 0; i < objects.length; i ++ ) {
-
-			// We push directly to children instead of calling `add` to prevent
-			// modify the .parent and break its original scene and hierarchy
-			scene.children.push( objects[ i ] );
-
-		}
-
-		this.processScene( scene );
-
-	}
-
-	/**
-	 * @param {THREE.Object3D|Array<THREE.Object3D>} input
-	 */
-	processInput( input ) {
-
-		const options = this.options;
-
-		input = input instanceof Array ? input : [ input ];
-
-		this._invokeAll( function ( ext ) {
-
-			ext.beforeParse && ext.beforeParse( input );
-
-		} );
-
-		const objectsWithoutScene = [];
-
-		for ( let i = 0; i < input.length; i ++ ) {
-
-			if ( input[ i ] instanceof Scene ) {
-
-				this.processScene( input[ i ] );
-
-			} else {
-
-				objectsWithoutScene.push( input[ i ] );
-
-			}
-
-		}
-
-		if ( objectsWithoutScene.length > 0 ) this.processObjects( objectsWithoutScene );
-
-		for ( let i = 0; i < this.skins.length; ++ i ) {
-
-			this.processSkin( this.skins[ i ] );
-
-		}
-
-		for ( let i = 0; i < options.animations.length; ++ i ) {
-
-			this.processAnimation( options.animations[ i ], input[ 0 ] );
-
-		}
-
-		this._invokeAll( function ( ext ) {
-
-			ext.afterParse && ext.afterParse( input );
-
-		} );
-
-	}
-
-	_invokeAll( func ) {
-
-		for ( let i = 0, il = this.plugins.length; i < il; i ++ ) {
-
-			func( this.plugins[ i ] );
-
-		}
-
-	}
-
-}
-
-/**
- * Punctual Lights Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_lights_punctual
- */
-class GLTFLightExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_lights_punctual';
-
-	}
-
-	writeNode( light, nodeDef ) {
-
-		if ( ! light.isLight ) return;
-
-		if ( ! light.isDirectionalLight && ! light.isPointLight && ! light.isSpotLight ) {
-
-			console.warn( 'THREE.GLTFExporter: Only directional, point, and spot lights are supported.', light );
-			return;
-
-		}
-
-		const writer = this.writer;
-		const json = writer.json;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const lightDef = {};
-
-		if ( light.name ) lightDef.name = light.name;
-
-		lightDef.color = light.color.toArray();
-
-		lightDef.intensity = light.intensity;
-
-		if ( light.isDirectionalLight ) {
-
-			lightDef.type = 'directional';
-
-		} else if ( light.isPointLight ) {
-
-			lightDef.type = 'point';
-
-			if ( light.distance > 0 ) lightDef.range = light.distance;
-
-		} else if ( light.isSpotLight ) {
-
-			lightDef.type = 'spot';
-
-			if ( light.distance > 0 ) lightDef.range = light.distance;
-
-			lightDef.spot = {};
-			lightDef.spot.innerConeAngle = ( light.penumbra - 1.0 ) * light.angle * - 1.0;
-			lightDef.spot.outerConeAngle = light.angle;
-
-		}
-
-		if ( light.decay !== undefined && light.decay !== 2 ) {
-
-			console.warn( 'THREE.GLTFExporter: Light decay may be lost. glTF is physically-based, '
-				+ 'and expects light.decay=2.' );
-
-		}
-
-		if ( light.target
-				&& ( light.target.parent !== light
-				|| light.target.position.x !== 0
-				|| light.target.position.y !== 0
-				|| light.target.position.z !== - 1 ) ) {
-
-			console.warn( 'THREE.GLTFExporter: Light direction may be lost. For best results, '
-				+ 'make light.target a child of the light with position 0,0,-1.' );
-
-		}
-
-		if ( ! extensionsUsed[ this.name ] ) {
-
-			json.extensions = json.extensions || {};
-			json.extensions[ this.name ] = { lights: [] };
-			extensionsUsed[ this.name ] = true;
-
-		}
-
-		const lights = json.extensions[ this.name ].lights;
-		lights.push( lightDef );
-
-		nodeDef.extensions = nodeDef.extensions || {};
-		nodeDef.extensions[ this.name ] = { light: lights.length - 1 };
-
-	}
-
-}
-
-/**
- * Unlit Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_unlit
- */
-class GLTFMaterialsUnlitExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_unlit';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshBasicMaterial ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = {};
-
-		extensionsUsed[ this.name ] = true;
-
-		materialDef.pbrMetallicRoughness.metallicFactor = 0.0;
-		materialDef.pbrMetallicRoughness.roughnessFactor = 0.9;
-
-	}
-
-}
-
-/**
- * Clearcoat Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_clearcoat
- */
-class GLTFMaterialsClearcoatExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_clearcoat';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.clearcoat === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.clearcoatFactor = material.clearcoat;
-
-		if ( material.clearcoatMap ) {
-
-			const clearcoatMapDef = {
-				index: writer.processTexture( material.clearcoatMap ),
-				texCoord: material.clearcoatMap.channel
-			};
-			writer.applyTextureTransform( clearcoatMapDef, material.clearcoatMap );
-			extensionDef.clearcoatTexture = clearcoatMapDef;
-
-		}
-
-		extensionDef.clearcoatRoughnessFactor = material.clearcoatRoughness;
-
-		if ( material.clearcoatRoughnessMap ) {
-
-			const clearcoatRoughnessMapDef = {
-				index: writer.processTexture( material.clearcoatRoughnessMap ),
-				texCoord: material.clearcoatRoughnessMap.channel
-			};
-			writer.applyTextureTransform( clearcoatRoughnessMapDef, material.clearcoatRoughnessMap );
-			extensionDef.clearcoatRoughnessTexture = clearcoatRoughnessMapDef;
-
-		}
-
-		if ( material.clearcoatNormalMap ) {
-
-			const clearcoatNormalMapDef = {
-				index: writer.processTexture( material.clearcoatNormalMap ),
-				texCoord: material.clearcoatNormalMap.channel
-			};
-			writer.applyTextureTransform( clearcoatNormalMapDef, material.clearcoatNormalMap );
-			extensionDef.clearcoatNormalTexture = clearcoatNormalMapDef;
-
-		}
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-
-	}
-
-}
-
-/**
- * Iridescence Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_iridescence
- */
-class GLTFMaterialsIridescenceExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_iridescence';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.iridescence === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.iridescenceFactor = material.iridescence;
-
-		if ( material.iridescenceMap ) {
-
-			const iridescenceMapDef = {
-				index: writer.processTexture( material.iridescenceMap ),
-				texCoord: material.iridescenceMap.channel
-			};
-			writer.applyTextureTransform( iridescenceMapDef, material.iridescenceMap );
-			extensionDef.iridescenceTexture = iridescenceMapDef;
-
-		}
-
-		extensionDef.iridescenceIor = material.iridescenceIOR;
-		extensionDef.iridescenceThicknessMinimum = material.iridescenceThicknessRange[ 0 ];
-		extensionDef.iridescenceThicknessMaximum = material.iridescenceThicknessRange[ 1 ];
-
-		if ( material.iridescenceThicknessMap ) {
-
-			const iridescenceThicknessMapDef = {
-				index: writer.processTexture( material.iridescenceThicknessMap ),
-				texCoord: material.iridescenceThicknessMap.channel
-			};
-			writer.applyTextureTransform( iridescenceThicknessMapDef, material.iridescenceThicknessMap );
-			extensionDef.iridescenceThicknessTexture = iridescenceThicknessMapDef;
-
-		}
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Transmission Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_transmission
- */
-class GLTFMaterialsTransmissionExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_transmission';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.transmission === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.transmissionFactor = material.transmission;
-
-		if ( material.transmissionMap ) {
-
-			const transmissionMapDef = {
-				index: writer.processTexture( material.transmissionMap ),
-				texCoord: material.transmissionMap.channel
-			};
-			writer.applyTextureTransform( transmissionMapDef, material.transmissionMap );
-			extensionDef.transmissionTexture = transmissionMapDef;
-
-		}
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials Volume Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_volume
- */
-class GLTFMaterialsVolumeExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_volume';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.transmission === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.thicknessFactor = material.thickness;
-
-		if ( material.thicknessMap ) {
-
-			const thicknessMapDef = {
-				index: writer.processTexture( material.thicknessMap ),
-				texCoord: material.thicknessMap.channel
-			};
-			writer.applyTextureTransform( thicknessMapDef, material.thicknessMap );
-			extensionDef.thicknessTexture = thicknessMapDef;
-
-		}
-
-		extensionDef.attenuationDistance = material.attenuationDistance;
-		extensionDef.attenuationColor = material.attenuationColor.toArray();
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials ior Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_ior
- */
-class GLTFMaterialsIorExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_ior';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.ior === 1.5 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.ior = material.ior;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials specular Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_specular
- */
-class GLTFMaterialsSpecularExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_specular';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || ( material.specularIntensity === 1.0 &&
-		       material.specularColor.equals( DEFAULT_SPECULAR_COLOR ) &&
-		     ! material.specularIntensityMap && ! material.specularColorTexture ) ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		if ( material.specularIntensityMap ) {
-
-			const specularIntensityMapDef = {
-				index: writer.processTexture( material.specularIntensityMap ),
-				texCoord: material.specularIntensityMap.channel
-			};
-			writer.applyTextureTransform( specularIntensityMapDef, material.specularIntensityMap );
-			extensionDef.specularTexture = specularIntensityMapDef;
-
-		}
-
-		if ( material.specularColorMap ) {
-
-			const specularColorMapDef = {
-				index: writer.processTexture( material.specularColorMap ),
-				texCoord: material.specularColorMap.channel
-			};
-			writer.applyTextureTransform( specularColorMapDef, material.specularColorMap );
-			extensionDef.specularColorTexture = specularColorMapDef;
-
-		}
-
-		extensionDef.specularFactor = material.specularIntensity;
-		extensionDef.specularColorFactor = material.specularColor.toArray();
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Sheen Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_sheen
- */
-class GLTFMaterialsSheenExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_sheen';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.sheen == 0.0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		if ( material.sheenRoughnessMap ) {
-
-			const sheenRoughnessMapDef = {
-				index: writer.processTexture( material.sheenRoughnessMap ),
-				texCoord: material.sheenRoughnessMap.channel
-			};
-			writer.applyTextureTransform( sheenRoughnessMapDef, material.sheenRoughnessMap );
-			extensionDef.sheenRoughnessTexture = sheenRoughnessMapDef;
-
-		}
-
-		if ( material.sheenColorMap ) {
-
-			const sheenColorMapDef = {
-				index: writer.processTexture( material.sheenColorMap ),
-				texCoord: material.sheenColorMap.channel
-			};
-			writer.applyTextureTransform( sheenColorMapDef, material.sheenColorMap );
-			extensionDef.sheenColorTexture = sheenColorMapDef;
-
-		}
-
-		extensionDef.sheenRoughnessFactor = material.sheenRoughness;
-		extensionDef.sheenColorFactor = material.sheenColor.toArray();
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials Emissive Strength Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/blob/5768b3ce0ef32bc39cdf1bef10b948586635ead3/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
- */
-class GLTFMaterialsEmissiveStrengthExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_emissive_strength';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshStandardMaterial || material.emissiveIntensity === 1.0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.emissiveStrength = material.emissiveIntensity;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Static utility functions
- */
-GLTFExporter.Utils = {
-
-	insertKeyframe: function ( track, time ) {
-
-		const tolerance = 0.001; // 1ms
-		const valueSize = track.getValueSize();
-
-		const times = new track.TimeBufferType( track.times.length + 1 );
-		const values = new track.ValueBufferType( track.values.length + valueSize );
-		const interpolant = track.createInterpolant( new track.ValueBufferType( valueSize ) );
-
-		let index;
-
-		if ( track.times.length === 0 ) {
-
-			times[ 0 ] = time;
-
-			for ( let i = 0; i < valueSize; i ++ ) {
-
-				values[ i ] = 0;
-
-			}
-
-			index = 0;
-
-		} else if ( time < track.times[ 0 ] ) {
-
-			if ( Math.abs( track.times[ 0 ] - time ) < tolerance ) return 0;
-
-			times[ 0 ] = time;
-			times.set( track.times, 1 );
-
-			values.set( interpolant.evaluate( time ), 0 );
-			values.set( track.values, valueSize );
-
-			index = 0;
-
-		} else if ( time > track.times[ track.times.length - 1 ] ) {
-
-			if ( Math.abs( track.times[ track.times.length - 1 ] - time ) < tolerance ) {
-
-				return track.times.length - 1;
-
-			}
-
-			times[ times.length - 1 ] = time;
-			times.set( track.times, 0 );
-
-			values.set( track.values, 0 );
-			values.set( interpolant.evaluate( time ), track.values.length );
-
-			index = times.length - 1;
-
-		} else {
-
-			for ( let i = 0; i < track.times.length; i ++ ) {
-
-				if ( Math.abs( track.times[ i ] - time ) < tolerance ) return i;
-
-				if ( track.times[ i ] < time && track.times[ i + 1 ] > time ) {
-
-					times.set( track.times.slice( 0, i + 1 ), 0 );
-					times[ i + 1 ] = time;
-					times.set( track.times.slice( i + 1 ), i + 2 );
-
-					values.set( track.values.slice( 0, ( i + 1 ) * valueSize ), 0 );
-					values.set( interpolant.evaluate( time ), ( i + 1 ) * valueSize );
-					values.set( track.values.slice( ( i + 1 ) * valueSize ), ( i + 2 ) * valueSize );
-
-					index = i + 1;
-
-					break;
-
-				}
-
-			}
-
-		}
-
-		track.times = times;
-		track.values = values;
-
-		return index;
-
-	},
-
-	mergeMorphTargetTracks: function ( clip, root ) {
-
-		const tracks = [];
-		const mergedTracks = {};
-		const sourceTracks = clip.tracks;
-
-		for ( let i = 0; i < sourceTracks.length; ++ i ) {
-
-			let sourceTrack = sourceTracks[ i ];
-			const sourceTrackBinding = PropertyBinding.parseTrackName( sourceTrack.name );
-			const sourceTrackNode = PropertyBinding.findNode( root, sourceTrackBinding.nodeName );
-
-			if ( sourceTrackBinding.propertyName !== 'morphTargetInfluences' || sourceTrackBinding.propertyIndex === undefined ) {
-
-				// Tracks that don't affect morph targets, or that affect all morph targets together, can be left as-is.
-				tracks.push( sourceTrack );
-				continue;
-
-			}
-
-			if ( sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodDiscrete
-				&& sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodLinear ) {
-
-				if ( sourceTrack.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline ) {
-
-					// This should never happen, because glTF morph target animations
-					// affect all targets already.
-					throw new Error( 'THREE.GLTFExporter: Cannot merge tracks with glTF CUBICSPLINE interpolation.' );
-
-				}
-
-				console.warn( 'THREE.GLTFExporter: Morph target interpolation mode not yet supported. Using LINEAR instead.' );
-
-				sourceTrack = sourceTrack.clone();
-				sourceTrack.setInterpolation( InterpolateLinear );
-
-			}
-
-			const targetCount = sourceTrackNode.morphTargetInfluences.length;
-			const targetIndex = sourceTrackNode.morphTargetDictionary[ sourceTrackBinding.propertyIndex ];
-
-			if ( targetIndex === undefined ) {
-
-				throw new Error( 'THREE.GLTFExporter: Morph target name not found: ' + sourceTrackBinding.propertyIndex );
-
-			}
-
-			let mergedTrack;
-
-			// If this is the first time we've seen this object, create a new
-			// track to store merged keyframe data for each morph target.
-			if ( mergedTracks[ sourceTrackNode.uuid ] === undefined ) {
-
-				mergedTrack = sourceTrack.clone();
-
-				const values = new mergedTrack.ValueBufferType( targetCount * mergedTrack.times.length );
-
-				for ( let j = 0; j < mergedTrack.times.length; j ++ ) {
-
-					values[ j * targetCount + targetIndex ] = mergedTrack.values[ j ];
-
-				}
-
-				// We need to take into consideration the intended target node
-				// of our original un-merged morphTarget animation.
-				mergedTrack.name = ( sourceTrackBinding.nodeName || '' ) + '.morphTargetInfluences';
-				mergedTrack.values = values;
-
-				mergedTracks[ sourceTrackNode.uuid ] = mergedTrack;
-				tracks.push( mergedTrack );
-
-				continue;
-
-			}
-
-			const sourceInterpolant = sourceTrack.createInterpolant( new sourceTrack.ValueBufferType( 1 ) );
-
-			mergedTrack = mergedTracks[ sourceTrackNode.uuid ];
-
-			// For every existing keyframe of the merged track, write a (possibly
-			// interpolated) value from the source track.
-			for ( let j = 0; j < mergedTrack.times.length; j ++ ) {
-
-				mergedTrack.values[ j * targetCount + targetIndex ] = sourceInterpolant.evaluate( mergedTrack.times[ j ] );
-
-			}
-
-			// For every existing keyframe of the source track, write a (possibly
-			// new) keyframe to the merged track. Values from the previous loop may
-			// be written again, but keyframes are de-duplicated.
-			for ( let j = 0; j < sourceTrack.times.length; j ++ ) {
-
-				const keyframeIndex = this.insertKeyframe( mergedTrack, sourceTrack.times[ j ] );
-				mergedTrack.values[ keyframeIndex * targetCount + targetIndex ] = sourceTrack.values[ j ];
-
-			}
-
-		}
-
-		clip.tracks = tracks;
-
-		return clip;
-
-	}
-
-};
-
-class Quaternion {
-
-	constructor( x = 0, y = 0, z = 0, w = 1 ) {
-
-		this.isQuaternion = true;
-
-		this._x = x;
-		this._y = y;
-		this._z = z;
-		this._w = w;
-
-	}
-
-	static slerpFlat( dst, dstOffset, src0, srcOffset0, src1, srcOffset1, t ) {
-
-		// fuzz-free, array-based Quaternion SLERP operation
-
-		let x0 = src0[ srcOffset0 + 0 ],
-			y0 = src0[ srcOffset0 + 1 ],
-			z0 = src0[ srcOffset0 + 2 ],
-			w0 = src0[ srcOffset0 + 3 ];
-
-		const x1 = src1[ srcOffset1 + 0 ],
-			y1 = src1[ srcOffset1 + 1 ],
-			z1 = src1[ srcOffset1 + 2 ],
-			w1 = src1[ srcOffset1 + 3 ];
-
-		if ( t === 0 ) {
-
-			dst[ dstOffset + 0 ] = x0;
-			dst[ dstOffset + 1 ] = y0;
-			dst[ dstOffset + 2 ] = z0;
-			dst[ dstOffset + 3 ] = w0;
-			return;
-
-		}
-
-		if ( t === 1 ) {
-
-			dst[ dstOffset + 0 ] = x1;
-			dst[ dstOffset + 1 ] = y1;
-			dst[ dstOffset + 2 ] = z1;
-			dst[ dstOffset + 3 ] = w1;
-			return;
-
-		}
-
-		if ( w0 !== w1 || x0 !== x1 || y0 !== y1 || z0 !== z1 ) {
-
-			let s = 1 - t;
-			const cos = x0 * x1 + y0 * y1 + z0 * z1 + w0 * w1,
-				dir = ( cos >= 0 ? 1 : - 1 ),
-				sqrSin = 1 - cos * cos;
-
-			// Skip the Slerp for tiny steps to avoid numeric problems:
-			if ( sqrSin > Number.EPSILON ) {
-
-				const sin = Math.sqrt( sqrSin ),
-					len = Math.atan2( sin, cos * dir );
-
-				s = Math.sin( s * len ) / sin;
-				t = Math.sin( t * len ) / sin;
-
-			}
-
-			const tDir = t * dir;
-
-			x0 = x0 * s + x1 * tDir;
-			y0 = y0 * s + y1 * tDir;
-			z0 = z0 * s + z1 * tDir;
-			w0 = w0 * s + w1 * tDir;
-
-			// Normalize in case we just did a lerp:
-			if ( s === 1 - t ) {
-
-				const f = 1 / Math.sqrt( x0 * x0 + y0 * y0 + z0 * z0 + w0 * w0 );
-
-				x0 *= f;
-				y0 *= f;
-				z0 *= f;
-				w0 *= f;
-
-			}
-
-		}
-
-		dst[ dstOffset ] = x0;
-		dst[ dstOffset + 1 ] = y0;
-		dst[ dstOffset + 2 ] = z0;
-		dst[ dstOffset + 3 ] = w0;
-
-	}
-
-	static multiplyQuaternionsFlat( dst, dstOffset, src0, srcOffset0, src1, srcOffset1 ) {
-
-		const x0 = src0[ srcOffset0 ];
-		const y0 = src0[ srcOffset0 + 1 ];
-		const z0 = src0[ srcOffset0 + 2 ];
-		const w0 = src0[ srcOffset0 + 3 ];
-
-		const x1 = src1[ srcOffset1 ];
-		const y1 = src1[ srcOffset1 + 1 ];
-		const z1 = src1[ srcOffset1 + 2 ];
-		const w1 = src1[ srcOffset1 + 3 ];
-
-		dst[ dstOffset ] = x0 * w1 + w0 * x1 + y0 * z1 - z0 * y1;
-		dst[ dstOffset + 1 ] = y0 * w1 + w0 * y1 + z0 * x1 - x0 * z1;
-		dst[ dstOffset + 2 ] = z0 * w1 + w0 * z1 + x0 * y1 - y0 * x1;
-		dst[ dstOffset + 3 ] = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1;
-
-		return dst;
-
-	}
-
-	get x() {
-
-		return this._x;
-
-	}
-
-	set x( value ) {
-
-		this._x = value;
-		this._onChangeCallback();
-
-	}
-
-	get y() {
-
-		return this._y;
-
-	}
-
-	set y( value ) {
-
-		this._y = value;
-		this._onChangeCallback();
-
-	}
-
-	get z() {
-
-		return this._z;
-
-	}
-
-	set z( value ) {
-
-		this._z = value;
-		this._onChangeCallback();
-
-	}
-
-	get w() {
-
-		return this._w;
-
-	}
-
-	set w( value ) {
-
-		this._w = value;
-		this._onChangeCallback();
-
-	}
-
-	set( x, y, z, w ) {
-
-		this._x = x;
-		this._y = y;
-		this._z = z;
-		this._w = w;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	clone() {
-
-		return new this.constructor( this._x, this._y, this._z, this._w );
-
-	}
-
-	copy( quaternion ) {
-
-		this._x = quaternion.x;
-		this._y = quaternion.y;
-		this._z = quaternion.z;
-		this._w = quaternion.w;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromEuler( euler, update ) {
-
-		const x = euler._x, y = euler._y, z = euler._z, order = euler._order;
-
-		// http://www.mathworks.com/matlabcentral/fileexchange/
-		// 	20696-function-to-convert-between-dcm-euler-angles-quaternions-and-euler-vectors/
-		//	content/SpinCalc.m
-
-		const cos = Math.cos;
-		const sin = Math.sin;
-
-		const c1 = cos( x / 2 );
-		const c2 = cos( y / 2 );
-		const c3 = cos( z / 2 );
-
-		const s1 = sin( x / 2 );
-		const s2 = sin( y / 2 );
-		const s3 = sin( z / 2 );
-
-		switch ( order ) {
-
-			case 'XYZ':
-				this._x = s1 * c2 * c3 + c1 * s2 * s3;
-				this._y = c1 * s2 * c3 - s1 * c2 * s3;
-				this._z = c1 * c2 * s3 + s1 * s2 * c3;
-				this._w = c1 * c2 * c3 - s1 * s2 * s3;
-				break;
-
-			case 'YXZ':
-				this._x = s1 * c2 * c3 + c1 * s2 * s3;
-				this._y = c1 * s2 * c3 - s1 * c2 * s3;
-				this._z = c1 * c2 * s3 - s1 * s2 * c3;
-				this._w = c1 * c2 * c3 + s1 * s2 * s3;
-				break;
-
-			case 'ZXY':
-				this._x = s1 * c2 * c3 - c1 * s2 * s3;
-				this._y = c1 * s2 * c3 + s1 * c2 * s3;
-				this._z = c1 * c2 * s3 + s1 * s2 * c3;
-				this._w = c1 * c2 * c3 - s1 * s2 * s3;
-				break;
-
-			case 'ZYX':
-				this._x = s1 * c2 * c3 - c1 * s2 * s3;
-				this._y = c1 * s2 * c3 + s1 * c2 * s3;
-				this._z = c1 * c2 * s3 - s1 * s2 * c3;
-				this._w = c1 * c2 * c3 + s1 * s2 * s3;
-				break;
-
-			case 'YZX':
-				this._x = s1 * c2 * c3 + c1 * s2 * s3;
-				this._y = c1 * s2 * c3 + s1 * c2 * s3;
-				this._z = c1 * c2 * s3 - s1 * s2 * c3;
-				this._w = c1 * c2 * c3 - s1 * s2 * s3;
-				break;
-
-			case 'XZY':
-				this._x = s1 * c2 * c3 - c1 * s2 * s3;
-				this._y = c1 * s2 * c3 - s1 * c2 * s3;
-				this._z = c1 * c2 * s3 + s1 * s2 * c3;
-				this._w = c1 * c2 * c3 + s1 * s2 * s3;
-				break;
-
-			default:
-				console.warn( 'THREE.Quaternion: .setFromEuler() encountered an unknown order: ' + order );
-
-		}
-
-		if ( update !== false ) this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromAxisAngle( axis, angle ) {
-
-		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
-
-		// assumes axis is normalized
-
-		const halfAngle = angle / 2, s = Math.sin( halfAngle );
-
-		this._x = axis.x * s;
-		this._y = axis.y * s;
-		this._z = axis.z * s;
-		this._w = Math.cos( halfAngle );
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromRotationMatrix( m ) {
-
-		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
-
-		// assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
-
-		const te = m.elements,
-
-			m11 = te[ 0 ], m12 = te[ 4 ], m13 = te[ 8 ],
-			m21 = te[ 1 ], m22 = te[ 5 ], m23 = te[ 9 ],
-			m31 = te[ 2 ], m32 = te[ 6 ], m33 = te[ 10 ],
-
-			trace = m11 + m22 + m33;
-
-		if ( trace > 0 ) {
-
-			const s = 0.5 / Math.sqrt( trace + 1.0 );
-
-			this._w = 0.25 / s;
-			this._x = ( m32 - m23 ) * s;
-			this._y = ( m13 - m31 ) * s;
-			this._z = ( m21 - m12 ) * s;
-
-		} else if ( m11 > m22 && m11 > m33 ) {
-
-			const s = 2.0 * Math.sqrt( 1.0 + m11 - m22 - m33 );
-
-			this._w = ( m32 - m23 ) / s;
-			this._x = 0.25 * s;
-			this._y = ( m12 + m21 ) / s;
-			this._z = ( m13 + m31 ) / s;
-
-		} else if ( m22 > m33 ) {
-
-			const s = 2.0 * Math.sqrt( 1.0 + m22 - m11 - m33 );
-
-			this._w = ( m13 - m31 ) / s;
-			this._x = ( m12 + m21 ) / s;
-			this._y = 0.25 * s;
-			this._z = ( m23 + m32 ) / s;
-
-		} else {
-
-			const s = 2.0 * Math.sqrt( 1.0 + m33 - m11 - m22 );
-
-			this._w = ( m21 - m12 ) / s;
-			this._x = ( m13 + m31 ) / s;
-			this._y = ( m23 + m32 ) / s;
-			this._z = 0.25 * s;
-
-		}
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromUnitVectors( vFrom, vTo ) {
-
-		// assumes direction vectors vFrom and vTo are normalized
-
-		let r = vFrom.dot( vTo ) + 1;
-
-		if ( r < Number.EPSILON ) {
-
-			// vFrom and vTo point in opposite directions
-
-			r = 0;
-
-			if ( Math.abs( vFrom.x ) > Math.abs( vFrom.z ) ) {
-
-				this._x = - vFrom.y;
-				this._y = vFrom.x;
-				this._z = 0;
-				this._w = r;
-
-			} else {
-
-				this._x = 0;
-				this._y = - vFrom.z;
-				this._z = vFrom.y;
-				this._w = r;
-
-			}
-
-		} else {
-
-			// crossVectors( vFrom, vTo ); // inlined to avoid cyclic dependency on Vector3
-
-			this._x = vFrom.y * vTo.z - vFrom.z * vTo.y;
-			this._y = vFrom.z * vTo.x - vFrom.x * vTo.z;
-			this._z = vFrom.x * vTo.y - vFrom.y * vTo.x;
-			this._w = r;
-
-		}
-
-		return this.normalize();
-
-	}
-
-	angleTo( q ) {
-
-		return 2 * Math.acos( Math.abs( clamp( this.dot( q ), - 1, 1 ) ) );
-
-	}
-
-	rotateTowards( q, step ) {
-
-		const angle = this.angleTo( q );
-
-		if ( angle === 0 ) return this;
-
-		const t = Math.min( 1, step / angle );
-
-		this.slerp( q, t );
-
-		return this;
-
-	}
-
-	identity() {
-
-		return this.set( 0, 0, 0, 1 );
-
-	}
-
-	invert() {
-
-		// quaternion is assumed to have unit length
-
-		return this.conjugate();
-
-	}
-
-	conjugate() {
-
-		this._x *= - 1;
-		this._y *= - 1;
-		this._z *= - 1;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	dot( v ) {
-
-		return this._x * v._x + this._y * v._y + this._z * v._z + this._w * v._w;
-
-	}
-
-	lengthSq() {
-
-		return this._x * this._x + this._y * this._y + this._z * this._z + this._w * this._w;
-
-	}
-
-	length() {
-
-		return Math.sqrt( this._x * this._x + this._y * this._y + this._z * this._z + this._w * this._w );
-
-	}
-
-	normalize() {
-
-		let l = this.length();
-
-		if ( l === 0 ) {
-
-			this._x = 0;
-			this._y = 0;
-			this._z = 0;
-			this._w = 1;
-
-		} else {
-
-			l = 1 / l;
-
-			this._x = this._x * l;
-			this._y = this._y * l;
-			this._z = this._z * l;
-			this._w = this._w * l;
-
-		}
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	multiply( q ) {
-
-		return this.multiplyQuaternions( this, q );
-
-	}
-
-	premultiply( q ) {
-
-		return this.multiplyQuaternions( q, this );
-
-	}
-
-	multiplyQuaternions( a, b ) {
-
-		// from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/code/index.htm
-
-		const qax = a._x, qay = a._y, qaz = a._z, qaw = a._w;
-		const qbx = b._x, qby = b._y, qbz = b._z, qbw = b._w;
-
-		this._x = qax * qbw + qaw * qbx + qay * qbz - qaz * qby;
-		this._y = qay * qbw + qaw * qby + qaz * qbx - qax * qbz;
-		this._z = qaz * qbw + qaw * qbz + qax * qby - qay * qbx;
-		this._w = qaw * qbw - qax * qbx - qay * qby - qaz * qbz;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	slerp( qb, t ) {
-
-		if ( t === 0 ) return this;
-		if ( t === 1 ) return this.copy( qb );
-
-		const x = this._x, y = this._y, z = this._z, w = this._w;
-
-		// http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
-
-		let cosHalfTheta = w * qb._w + x * qb._x + y * qb._y + z * qb._z;
-
-		if ( cosHalfTheta < 0 ) {
-
-			this._w = - qb._w;
-			this._x = - qb._x;
-			this._y = - qb._y;
-			this._z = - qb._z;
-
-			cosHalfTheta = - cosHalfTheta;
-
-		} else {
-
-			this.copy( qb );
-
-		}
-
-		if ( cosHalfTheta >= 1.0 ) {
-
-			this._w = w;
-			this._x = x;
-			this._y = y;
-			this._z = z;
-
-			return this;
-
-		}
-
-		const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
-
-		if ( sqrSinHalfTheta <= Number.EPSILON ) {
-
-			const s = 1 - t;
-			this._w = s * w + t * this._w;
-			this._x = s * x + t * this._x;
-			this._y = s * y + t * this._y;
-			this._z = s * z + t * this._z;
-
-			this.normalize();
-			this._onChangeCallback();
-
-			return this;
-
-		}
-
-		const sinHalfTheta = Math.sqrt( sqrSinHalfTheta );
-		const halfTheta = Math.atan2( sinHalfTheta, cosHalfTheta );
-		const ratioA = Math.sin( ( 1 - t ) * halfTheta ) / sinHalfTheta,
-			ratioB = Math.sin( t * halfTheta ) / sinHalfTheta;
-
-		this._w = ( w * ratioA + this._w * ratioB );
-		this._x = ( x * ratioA + this._x * ratioB );
-		this._y = ( y * ratioA + this._y * ratioB );
-		this._z = ( z * ratioA + this._z * ratioB );
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	slerpQuaternions( qa, qb, t ) {
-
-		return this.copy( qa ).slerp( qb, t );
-
-	}
-
-	random() {
-
-		// Derived from http://planning.cs.uiuc.edu/node198.html
-		// Note, this source uses w, x, y, z ordering,
-		// so we swap the order below.
-
-		const u1 = Math.random();
-		const sqrt1u1 = Math.sqrt( 1 - u1 );
-		const sqrtu1 = Math.sqrt( u1 );
-
-		const u2 = 2 * Math.PI * Math.random();
-
-		const u3 = 2 * Math.PI * Math.random();
-
-		return this.set(
-			sqrt1u1 * Math.cos( u2 ),
-			sqrtu1 * Math.sin( u3 ),
-			sqrtu1 * Math.cos( u3 ),
-			sqrt1u1 * Math.sin( u2 ),
-		);
-
-	}
-
-	equals( quaternion ) {
-
-		return ( quaternion._x === this._x ) && ( quaternion._y === this._y ) && ( quaternion._z === this._z ) && ( quaternion._w === this._w );
-
-	}
-
-	fromArray( array, offset = 0 ) {
-
-		this._x = array[ offset ];
-		this._y = array[ offset + 1 ];
-		this._z = array[ offset + 2 ];
-		this._w = array[ offset + 3 ];
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	toArray( array = [], offset = 0 ) {
-
-		array[ offset ] = this._x;
-		array[ offset + 1 ] = this._y;
-		array[ offset + 2 ] = this._z;
-		array[ offset + 3 ] = this._w;
-
-		return array;
-
-	}
-
-	fromBufferAttribute( attribute, index ) {
-
-		this._x = attribute.getX( index );
-		this._y = attribute.getY( index );
-		this._z = attribute.getZ( index );
-		this._w = attribute.getW( index );
-
-		return this;
-
-	}
-
-	toJSON() {
-
-		return this.toArray();
-
-	}
-
-	_onChange( callback ) {
-
-		this._onChangeCallback = callback;
-
-		return this;
-
-	}
-
-	_onChangeCallback() {}
-
-	*[ Symbol.iterator ]() {
-
-		yield this._x;
-		yield this._y;
-		yield this._z;
-		yield this._w;
-
-	}
-
-}
-
-class Vector3 {
-
-	constructor( x = 0, y = 0, z = 0 ) {
-
-		Vector3.prototype.isVector3 = true;
-
-		this.x = x;
-		this.y = y;
-		this.z = z;
-
-	}
-
-	set( x, y, z ) {
-
-		if ( z === undefined ) z = this.z; // sprite.scale.set(x,y)
-
-		this.x = x;
-		this.y = y;
-		this.z = z;
-
-		return this;
-
-	}
-
-	setScalar( scalar ) {
-
-		this.x = scalar;
-		this.y = scalar;
-		this.z = scalar;
-
-		return this;
-
-	}
-
-	setX( x ) {
-
-		this.x = x;
-
-		return this;
-
-	}
-
-	setY( y ) {
-
-		this.y = y;
-
-		return this;
-
-	}
-
-	setZ( z ) {
-
-		this.z = z;
-
-		return this;
-
-	}
-
-	setComponent( index, value ) {
-
-		switch ( index ) {
-
-			case 0: this.x = value; break;
-			case 1: this.y = value; break;
-			case 2: this.z = value; break;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-		return this;
-
-	}
-
-	getComponent( index ) {
-
-		switch ( index ) {
-
-			case 0: return this.x;
-			case 1: return this.y;
-			case 2: return this.z;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-	}
-
-	clone() {
-
-		return new this.constructor( this.x, this.y, this.z );
-
-	}
-
-	copy( v ) {
-
-		this.x = v.x;
-		this.y = v.y;
-		this.z = v.z;
-
-		return this;
-
-	}
-
-	add( v ) {
-
-		this.x += v.x;
-		this.y += v.y;
-		this.z += v.z;
-
-		return this;
-
-	}
-
-	addScalar( s ) {
-
-		this.x += s;
-		this.y += s;
-		this.z += s;
-
-		return this;
-
-	}
-
-	addVectors( a, b ) {
-
-		this.x = a.x + b.x;
-		this.y = a.y + b.y;
-		this.z = a.z + b.z;
-
-		return this;
-
-	}
-
-	addScaledVector( v, s ) {
-
-		this.x += v.x * s;
-		this.y += v.y * s;
-		this.z += v.z * s;
-
-		return this;
-
-	}
-
-	sub( v ) {
-
-		this.x -= v.x;
-		this.y -= v.y;
-		this.z -= v.z;
-
-		return this;
-
-	}
-
-	subScalar( s ) {
-
-		this.x -= s;
-		this.y -= s;
-		this.z -= s;
-
-		return this;
-
-	}
-
-	subVectors( a, b ) {
-
-		this.x = a.x - b.x;
-		this.y = a.y - b.y;
-		this.z = a.z - b.z;
-
-		return this;
-
-	}
-
-	multiply( v ) {
-
-		this.x *= v.x;
-		this.y *= v.y;
-		this.z *= v.z;
-
-		return this;
-
-	}
-
-	multiplyScalar( scalar ) {
-
-		this.x *= scalar;
-		this.y *= scalar;
-		this.z *= scalar;
-
-		return this;
-
-	}
-
-	multiplyVectors( a, b ) {
-
-		this.x = a.x * b.x;
-		this.y = a.y * b.y;
-		this.z = a.z * b.z;
-
-		return this;
-
-	}
-
-	applyEuler( euler ) {
-
-		return this.applyQuaternion( _quaternion.setFromEuler( euler ) );
-
-	}
-
-	applyAxisAngle( axis, angle ) {
-
-		return this.applyQuaternion( _quaternion.setFromAxisAngle( axis, angle ) );
-
-	}
-
-	applyMatrix3( m ) {
-
-		const x = this.x, y = this.y, z = this.z;
-		const e = m.elements;
-
-		this.x = e[ 0 ] * x + e[ 3 ] * y + e[ 6 ] * z;
-		this.y = e[ 1 ] * x + e[ 4 ] * y + e[ 7 ] * z;
-		this.z = e[ 2 ] * x + e[ 5 ] * y + e[ 8 ] * z;
-
-		return this;
-
-	}
-
-	applyNormalMatrix( m ) {
-
-		return this.applyMatrix3( m ).normalize();
-
-	}
-
-	applyMatrix4( m ) {
-
-		const x = this.x, y = this.y, z = this.z;
-		const e = m.elements;
-
-		const w = 1 / ( e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ] );
-
-		this.x = ( e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ] ) * w;
-		this.y = ( e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z + e[ 13 ] ) * w;
-		this.z = ( e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z + e[ 14 ] ) * w;
-
-		return this;
-
-	}
-
-	applyQuaternion( q ) {
-
-		const x = this.x, y = this.y, z = this.z;
-		const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
-
-		// calculate quat * vector
-
-		const ix = qw * x + qy * z - qz * y;
-		const iy = qw * y + qz * x - qx * z;
-		const iz = qw * z + qx * y - qy * x;
-		const iw = - qx * x - qy * y - qz * z;
-
-		// calculate result * inverse quat
-
-		this.x = ix * qw + iw * - qx + iy * - qz - iz * - qy;
-		this.y = iy * qw + iw * - qy + iz * - qx - ix * - qz;
-		this.z = iz * qw + iw * - qz + ix * - qy - iy * - qx;
-
-		return this;
-
-	}
-
-	project( camera ) {
-
-		return this.applyMatrix4( camera.matrixWorldInverse ).applyMatrix4( camera.projectionMatrix );
-
-	}
-
-	unproject( camera ) {
-
-		return this.applyMatrix4( camera.projectionMatrixInverse ).applyMatrix4( camera.matrixWorld );
-
-	}
-
-	transformDirection( m ) {
-
-		// input: THREE.Matrix4 affine matrix
-		// vector interpreted as a direction
-
-		const x = this.x, y = this.y, z = this.z;
-		const e = m.elements;
-
-		this.x = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z;
-		this.y = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z;
-		this.z = e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z;
-
-		return this.normalize();
-
-	}
-
-	divide( v ) {
-
-		this.x /= v.x;
-		this.y /= v.y;
-		this.z /= v.z;
-
-		return this;
-
-	}
-
-	divideScalar( scalar ) {
-
-		return this.multiplyScalar( 1 / scalar );
-
-	}
-
-	min( v ) {
-
-		this.x = Math.min( this.x, v.x );
-		this.y = Math.min( this.y, v.y );
-		this.z = Math.min( this.z, v.z );
-
-		return this;
-
-	}
-
-	max( v ) {
-
-		this.x = Math.max( this.x, v.x );
-		this.y = Math.max( this.y, v.y );
-		this.z = Math.max( this.z, v.z );
-
-		return this;
-
-	}
-
-	clamp( min, max ) {
-
-		// assumes min < max, componentwise
-
-		this.x = Math.max( min.x, Math.min( max.x, this.x ) );
-		this.y = Math.max( min.y, Math.min( max.y, this.y ) );
-		this.z = Math.max( min.z, Math.min( max.z, this.z ) );
-
-		return this;
-
-	}
-
-	clampScalar( minVal, maxVal ) {
-
-		this.x = Math.max( minVal, Math.min( maxVal, this.x ) );
-		this.y = Math.max( minVal, Math.min( maxVal, this.y ) );
-		this.z = Math.max( minVal, Math.min( maxVal, this.z ) );
-
-		return this;
-
-	}
-
-	clampLength( min, max ) {
-
-		const length = this.length();
-
-		return this.divideScalar( length || 1 ).multiplyScalar( Math.max( min, Math.min( max, length ) ) );
-
-	}
-
-	floor() {
-
-		this.x = Math.floor( this.x );
-		this.y = Math.floor( this.y );
-		this.z = Math.floor( this.z );
-
-		return this;
-
-	}
-
-	ceil() {
-
-		this.x = Math.ceil( this.x );
-		this.y = Math.ceil( this.y );
-		this.z = Math.ceil( this.z );
-
-		return this;
-
-	}
-
-	round() {
-
-		this.x = Math.round( this.x );
-		this.y = Math.round( this.y );
-		this.z = Math.round( this.z );
-
-		return this;
-
-	}
-
-	roundToZero() {
-
-		this.x = ( this.x < 0 ) ? Math.ceil( this.x ) : Math.floor( this.x );
-		this.y = ( this.y < 0 ) ? Math.ceil( this.y ) : Math.floor( this.y );
-		this.z = ( this.z < 0 ) ? Math.ceil( this.z ) : Math.floor( this.z );
-
-		return this;
-
-	}
-
-	negate() {
-
-		this.x = - this.x;
-		this.y = - this.y;
-		this.z = - this.z;
-
-		return this;
-
-	}
-
-	dot( v ) {
-
-		return this.x * v.x + this.y * v.y + this.z * v.z;
-
-	}
-
-	// TODO lengthSquared?
-
-	lengthSq() {
-
-		return this.x * this.x + this.y * this.y + this.z * this.z;
-
-	}
-
-	length() {
-
-		return Math.sqrt( this.x * this.x + this.y * this.y + this.z * this.z );
-
-	}
-
-	manhattanLength() {
-
-		return Math.abs( this.x ) + Math.abs( this.y ) + Math.abs( this.z );
-
-	}
-
-	normalize() {
-
-		return this.divideScalar( this.length() || 1 );
-
-	}
-
-	setLength( length ) {
-
-		return this.normalize().multiplyScalar( length );
-
-	}
-
-	lerp( v, alpha ) {
-
-		this.x += ( v.x - this.x ) * alpha;
-		this.y += ( v.y - this.y ) * alpha;
-		this.z += ( v.z - this.z ) * alpha;
-
-		return this;
-
-	}
-
-	lerpVectors( v1, v2, alpha ) {
-
-		this.x = v1.x + ( v2.x - v1.x ) * alpha;
-		this.y = v1.y + ( v2.y - v1.y ) * alpha;
-		this.z = v1.z + ( v2.z - v1.z ) * alpha;
-
-		return this;
-
-	}
-
-	cross( v ) {
-
-		return this.crossVectors( this, v );
-
-	}
-
-	crossVectors( a, b ) {
-
-		const ax = a.x, ay = a.y, az = a.z;
-		const bx = b.x, by = b.y, bz = b.z;
-
-		this.x = ay * bz - az * by;
-		this.y = az * bx - ax * bz;
-		this.z = ax * by - ay * bx;
-
-		return this;
-
-	}
-
-	projectOnVector( v ) {
-
-		const denominator = v.lengthSq();
-
-		if ( denominator === 0 ) return this.set( 0, 0, 0 );
-
-		const scalar = v.dot( this ) / denominator;
-
-		return this.copy( v ).multiplyScalar( scalar );
-
-	}
-
-	projectOnPlane( planeNormal ) {
-
-		_vector$2.copy( this ).projectOnVector( planeNormal );
-
-		return this.sub( _vector$2 );
-
-	}
-
-	reflect( normal ) {
-
-		// reflect incident vector off plane orthogonal to normal
-		// normal is assumed to have unit length
-
-		return this.sub( _vector$2.copy( normal ).multiplyScalar( 2 * this.dot( normal ) ) );
-
-	}
-
-	angleTo( v ) {
-
-		const denominator = Math.sqrt( this.lengthSq() * v.lengthSq() );
-
-		if ( denominator === 0 ) return Math.PI / 2;
-
-		const theta = this.dot( v ) / denominator;
-
-		// clamp, to handle numerical problems
-
-		return Math.acos( clamp( theta, - 1, 1 ) );
-
-	}
-
-	distanceTo( v ) {
-
-		return Math.sqrt( this.distanceToSquared( v ) );
-
-	}
-
-	distanceToSquared( v ) {
-
-		const dx = this.x - v.x, dy = this.y - v.y, dz = this.z - v.z;
-
-		return dx * dx + dy * dy + dz * dz;
-
-	}
-
-	manhattanDistanceTo( v ) {
-
-		return Math.abs( this.x - v.x ) + Math.abs( this.y - v.y ) + Math.abs( this.z - v.z );
-
-	}
-
-	setFromSpherical( s ) {
-
-		return this.setFromSphericalCoords( s.radius, s.phi, s.theta );
-
-	}
-
-	setFromSphericalCoords( radius, phi, theta ) {
-
-		const sinPhiRadius = Math.sin( phi ) * radius;
-
-		this.x = sinPhiRadius * Math.sin( theta );
-		this.y = Math.cos( phi ) * radius;
-		this.z = sinPhiRadius * Math.cos( theta );
-
-		return this;
-
-	}
-
-	setFromCylindrical( c ) {
-
-		return this.setFromCylindricalCoords( c.radius, c.theta, c.y );
-
-	}
-
-	setFromCylindricalCoords( radius, theta, y ) {
-
-		this.x = radius * Math.sin( theta );
-		this.y = y;
-		this.z = radius * Math.cos( theta );
-
-		return this;
-
-	}
-
-	setFromMatrixPosition( m ) {
-
-		const e = m.elements;
-
-		this.x = e[ 12 ];
-		this.y = e[ 13 ];
-		this.z = e[ 14 ];
-
-		return this;
-
-	}
-
-	setFromMatrixScale( m ) {
-
-		const sx = this.setFromMatrixColumn( m, 0 ).length();
-		const sy = this.setFromMatrixColumn( m, 1 ).length();
-		const sz = this.setFromMatrixColumn( m, 2 ).length();
-
-		this.x = sx;
-		this.y = sy;
-		this.z = sz;
-
-		return this;
-
-	}
-
-	setFromMatrixColumn( m, index ) {
-
-		return this.fromArray( m.elements, index * 4 );
-
-	}
-
-	setFromMatrix3Column( m, index ) {
-
-		return this.fromArray( m.elements, index * 3 );
-
-	}
-
-	setFromEuler( e ) {
-
-		this.x = e._x;
-		this.y = e._y;
-		this.z = e._z;
-
-		return this;
-
-	}
-
-	setFromColor( c ) {
-
-		this.x = c.r;
-		this.y = c.g;
-		this.z = c.b;
-
-		return this;
-
-	}
-
-	equals( v ) {
-
-		return ( ( v.x === this.x ) && ( v.y === this.y ) && ( v.z === this.z ) );
-
-	}
-
-	fromArray( array, offset = 0 ) {
-
-		this.x = array[ offset ];
-		this.y = array[ offset + 1 ];
-		this.z = array[ offset + 2 ];
-
-		return this;
-
-	}
-
-	toArray( array = [], offset = 0 ) {
-
-		array[ offset ] = this.x;
-		array[ offset + 1 ] = this.y;
-		array[ offset + 2 ] = this.z;
-
-		return array;
-
-	}
-
-	fromBufferAttribute( attribute, index ) {
-
-		this.x = attribute.getX( index );
-		this.y = attribute.getY( index );
-		this.z = attribute.getZ( index );
-
-		return this;
-
-	}
-
-	random() {
-
-		this.x = Math.random();
-		this.y = Math.random();
-		this.z = Math.random();
-
-		return this;
-
-	}
-
-	randomDirection() {
-
-		// Derived from https://mathworld.wolfram.com/SpherePointPicking.html
-
-		const u = ( Math.random() - 0.5 ) * 2;
-		const t = Math.random() * Math.PI * 2;
-		const f = Math.sqrt( 1 - u ** 2 );
-
-		this.x = f * Math.cos( t );
-		this.y = f * Math.sin( t );
-		this.z = u;
-
-		return this;
-
-	}
-
-	*[ Symbol.iterator ]() {
-
-		yield this.x;
-		yield this.y;
-		yield this.z;
-
-	}
-
-}
-
-const _vector$2 = /*@__PURE__*/ new Vector3();
-const _quaternion = /*@__PURE__*/ new Quaternion();
-
-class Vector2 {
-
-	constructor( x = 0, y = 0 ) {
-
-		Vector2.prototype.isVector2 = true;
-
-		this.x = x;
-		this.y = y;
-
-	}
-
-	get width() {
-
-		return this.x;
-
-	}
-
-	set width( value ) {
-
-		this.x = value;
-
-	}
-
-	get height() {
-
-		return this.y;
-
-	}
-
-	set height( value ) {
-
-		this.y = value;
-
-	}
-
-	set( x, y ) {
-
-		this.x = x;
-		this.y = y;
-
-		return this;
-
-	}
-
-	setScalar( scalar ) {
-
-		this.x = scalar;
-		this.y = scalar;
-
-		return this;
-
-	}
-
-	setX( x ) {
-
-		this.x = x;
-
-		return this;
-
-	}
-
-	setY( y ) {
-
-		this.y = y;
-
-		return this;
-
-	}
-
-	setComponent( index, value ) {
-
-		switch ( index ) {
-
-			case 0: this.x = value; break;
-			case 1: this.y = value; break;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-		return this;
-
-	}
-
-	getComponent( index ) {
-
-		switch ( index ) {
-
-			case 0: return this.x;
-			case 1: return this.y;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-	}
-
-	clone() {
-
-		return new this.constructor( this.x, this.y );
-
-	}
-
-	copy( v ) {
-
-		this.x = v.x;
-		this.y = v.y;
-
-		return this;
-
-	}
-
-	add( v ) {
-
-		this.x += v.x;
-		this.y += v.y;
-
-		return this;
-
-	}
-
-	addScalar( s ) {
-
-		this.x += s;
-		this.y += s;
-
-		return this;
-
-	}
-
-	addVectors( a, b ) {
-
-		this.x = a.x + b.x;
-		this.y = a.y + b.y;
-
-		return this;
-
-	}
-
-	addScaledVector( v, s ) {
-
-		this.x += v.x * s;
-		this.y += v.y * s;
-
-		return this;
-
-	}
-
-	sub( v ) {
-
-		this.x -= v.x;
-		this.y -= v.y;
-
-		return this;
-
-	}
-
-	subScalar( s ) {
-
-		this.x -= s;
-		this.y -= s;
-
-		return this;
-
-	}
-
-	subVectors( a, b ) {
-
-		this.x = a.x - b.x;
-		this.y = a.y - b.y;
-
-		return this;
-
-	}
-
-	multiply( v ) {
-
-		this.x *= v.x;
-		this.y *= v.y;
-
-		return this;
-
-	}
-
-	multiplyScalar( scalar ) {
-
-		this.x *= scalar;
-		this.y *= scalar;
-
-		return this;
-
-	}
-
-	divide( v ) {
-
-		this.x /= v.x;
-		this.y /= v.y;
-
-		return this;
-
-	}
-
-	divideScalar( scalar ) {
-
-		return this.multiplyScalar( 1 / scalar );
-
-	}
-
-	applyMatrix3( m ) {
-
-		const x = this.x, y = this.y;
-		const e = m.elements;
-
-		this.x = e[ 0 ] * x + e[ 3 ] * y + e[ 6 ];
-		this.y = e[ 1 ] * x + e[ 4 ] * y + e[ 7 ];
-
-		return this;
-
-	}
-
-	min( v ) {
-
-		this.x = Math.min( this.x, v.x );
-		this.y = Math.min( this.y, v.y );
-
-		return this;
-
-	}
-
-	max( v ) {
-
-		this.x = Math.max( this.x, v.x );
-		this.y = Math.max( this.y, v.y );
-
-		return this;
-
-	}
-
-	clamp( min, max ) {
-
-		// assumes min < max, componentwise
-
-		this.x = Math.max( min.x, Math.min( max.x, this.x ) );
-		this.y = Math.max( min.y, Math.min( max.y, this.y ) );
-
-		return this;
-
-	}
-
-	clampScalar( minVal, maxVal ) {
-
-		this.x = Math.max( minVal, Math.min( maxVal, this.x ) );
-		this.y = Math.max( minVal, Math.min( maxVal, this.y ) );
-
-		return this;
-
-	}
-
-	clampLength( min, max ) {
-
-		const length = this.length();
-
-		return this.divideScalar( length || 1 ).multiplyScalar( Math.max( min, Math.min( max, length ) ) );
-
-	}
-
-	floor() {
-
-		this.x = Math.floor( this.x );
-		this.y = Math.floor( this.y );
-
-		return this;
-
-	}
-
-	ceil() {
-
-		this.x = Math.ceil( this.x );
-		this.y = Math.ceil( this.y );
-
-		return this;
-
-	}
-
-	round() {
-
-		this.x = Math.round( this.x );
-		this.y = Math.round( this.y );
-
-		return this;
-
-	}
-
-	roundToZero() {
-
-		this.x = ( this.x < 0 ) ? Math.ceil( this.x ) : Math.floor( this.x );
-		this.y = ( this.y < 0 ) ? Math.ceil( this.y ) : Math.floor( this.y );
-
-		return this;
-
-	}
-
-	negate() {
-
-		this.x = - this.x;
-		this.y = - this.y;
-
-		return this;
-
-	}
-
-	dot( v ) {
-
-		return this.x * v.x + this.y * v.y;
-
-	}
-
-	cross( v ) {
-
-		return this.x * v.y - this.y * v.x;
-
-	}
-
-	lengthSq() {
-
-		return this.x * this.x + this.y * this.y;
-
-	}
-
-	length() {
-
-		return Math.sqrt( this.x * this.x + this.y * this.y );
-
-	}
-
-	manhattanLength() {
-
-		return Math.abs( this.x ) + Math.abs( this.y );
-
-	}
-
-	normalize() {
-
-		return this.divideScalar( this.length() || 1 );
-
-	}
-
-	angle() {
-
-		// computes the angle in radians with respect to the positive x-axis
-
-		const angle = Math.atan2( - this.y, - this.x ) + Math.PI;
-
-		return angle;
-
-	}
-
-	angleTo( v ) {
-
-		const denominator = Math.sqrt( this.lengthSq() * v.lengthSq() );
-
-		if ( denominator === 0 ) return Math.PI / 2;
-
-		const theta = this.dot( v ) / denominator;
-
-		// clamp, to handle numerical problems
-
-		return Math.acos( clamp( theta, - 1, 1 ) );
-
-	}
-
-	distanceTo( v ) {
-
-		return Math.sqrt( this.distanceToSquared( v ) );
-
-	}
-
-	distanceToSquared( v ) {
-
-		const dx = this.x - v.x, dy = this.y - v.y;
-		return dx * dx + dy * dy;
-
-	}
-
-	manhattanDistanceTo( v ) {
-
-		return Math.abs( this.x - v.x ) + Math.abs( this.y - v.y );
-
-	}
-
-	setLength( length ) {
-
-		return this.normalize().multiplyScalar( length );
-
-	}
-
-	lerp( v, alpha ) {
-
-		this.x += ( v.x - this.x ) * alpha;
-		this.y += ( v.y - this.y ) * alpha;
-
-		return this;
-
-	}
-
-	lerpVectors( v1, v2, alpha ) {
-
-		this.x = v1.x + ( v2.x - v1.x ) * alpha;
-		this.y = v1.y + ( v2.y - v1.y ) * alpha;
-
-		return this;
-
-	}
-
-	equals( v ) {
-
-		return ( ( v.x === this.x ) && ( v.y === this.y ) );
-
-	}
-
-	fromArray( array, offset = 0 ) {
-
-		this.x = array[ offset ];
-		this.y = array[ offset + 1 ];
-
-		return this;
-
-	}
-
-	toArray( array = [], offset = 0 ) {
-
-		array[ offset ] = this.x;
-		array[ offset + 1 ] = this.y;
-
-		return array;
-
-	}
-
-	fromBufferAttribute( attribute, index ) {
-
-		this.x = attribute.getX( index );
-		this.y = attribute.getY( index );
-
-		return this;
-
-	}
-
-	rotateAround( center, angle ) {
-
-		const c = Math.cos( angle ), s = Math.sin( angle );
-
-		const x = this.x - center.x;
-		const y = this.y - center.y;
-
-		this.x = x * c - y * s + center.x;
-		this.y = x * s + y * c + center.y;
-
-		return this;
-
-	}
-
-	random() {
-
-		this.x = Math.random();
-		this.y = Math.random();
-
-		return this;
-
-	}
-
-	*[ Symbol.iterator ]() {
-
-		yield this.x;
-		yield this.y;
-
-	}
-
-}
-
-const StaticDrawUsage = 35044;
-
-const _vector$1 = /*@__PURE__*/ new Vector3();
-const _vector2 = /*@__PURE__*/ new Vector2();
-
-class BufferAttribute {
-
-	constructor( array, itemSize, normalized = false ) {
-
-		if ( Array.isArray( array ) ) {
-
-			throw new TypeError( 'THREE.BufferAttribute: array should be a Typed Array.' );
-
-		}
-
-		this.isBufferAttribute = true;
-
-		this.name = '';
-
-		this.array = array;
-		this.itemSize = itemSize;
-		this.count = array !== undefined ? array.length / itemSize : 0;
-		this.normalized = normalized;
-
-		this.usage = StaticDrawUsage;
-		this.updateRange = { offset: 0, count: - 1 };
-
-		this.version = 0;
-
-	}
-
-	onUploadCallback() {}
-
-	set needsUpdate( value ) {
-
-		if ( value === true ) this.version ++;
-
-	}
-
-	setUsage( value ) {
-
-		this.usage = value;
-
-		return this;
-
-	}
-
-	copy( source ) {
-
-		this.name = source.name;
-		this.array = new source.array.constructor( source.array );
-		this.itemSize = source.itemSize;
-		this.count = source.count;
-		this.normalized = source.normalized;
-
-		this.usage = source.usage;
-
-		return this;
-
-	}
-
-	copyAt( index1, attribute, index2 ) {
-
-		index1 *= this.itemSize;
-		index2 *= attribute.itemSize;
-
-		for ( let i = 0, l = this.itemSize; i < l; i ++ ) {
-
-			this.array[ index1 + i ] = attribute.array[ index2 + i ];
-
-		}
-
-		return this;
-
-	}
-
-	copyArray( array ) {
-
-		this.array.set( array );
-
-		return this;
-
-	}
-
-	applyMatrix3( m ) {
-
-		if ( this.itemSize === 2 ) {
-
-			for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-				_vector2.fromBufferAttribute( this, i );
-				_vector2.applyMatrix3( m );
-
-				this.setXY( i, _vector2.x, _vector2.y );
-
-			}
-
-		} else if ( this.itemSize === 3 ) {
-
-			for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-				_vector$1.fromBufferAttribute( this, i );
-				_vector$1.applyMatrix3( m );
-
-				this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-			}
-
-		}
-
-		return this;
-
-	}
-
-	applyMatrix4( m ) {
-
-		for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-			_vector$1.fromBufferAttribute( this, i );
-
-			_vector$1.applyMatrix4( m );
-
-			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-		}
-
-		return this;
-
-	}
-
-	applyNormalMatrix( m ) {
-
-		for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-			_vector$1.fromBufferAttribute( this, i );
-
-			_vector$1.applyNormalMatrix( m );
-
-			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-		}
-
-		return this;
-
-	}
-
-	transformDirection( m ) {
-
-		for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-			_vector$1.fromBufferAttribute( this, i );
-
-			_vector$1.transformDirection( m );
-
-			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-		}
-
-		return this;
-
-	}
-
-	set( value, offset = 0 ) {
-
-		// Matching BufferAttribute constructor, do not normalize the array.
-		this.array.set( value, offset );
-
-		return this;
-
-	}
-
-	getX( index ) {
-
-		let x = this.array[ index * this.itemSize ];
-
-		if ( this.normalized ) x = denormalize( x, this.array );
-
-		return x;
-
-	}
-
-	setX( index, x ) {
-
-		if ( this.normalized ) x = normalize( x, this.array );
-
-		this.array[ index * this.itemSize ] = x;
-
-		return this;
-
-	}
-
-	getY( index ) {
-
-		let y = this.array[ index * this.itemSize + 1 ];
-
-		if ( this.normalized ) y = denormalize( y, this.array );
-
-		return y;
-
-	}
-
-	setY( index, y ) {
-
-		if ( this.normalized ) y = normalize( y, this.array );
-
-		this.array[ index * this.itemSize + 1 ] = y;
-
-		return this;
-
-	}
-
-	getZ( index ) {
-
-		let z = this.array[ index * this.itemSize + 2 ];
-
-		if ( this.normalized ) z = denormalize( z, this.array );
-
-		return z;
-
-	}
-
-	setZ( index, z ) {
-
-		if ( this.normalized ) z = normalize( z, this.array );
-
-		this.array[ index * this.itemSize + 2 ] = z;
-
-		return this;
-
-	}
-
-	getW( index ) {
-
-		let w = this.array[ index * this.itemSize + 3 ];
-
-		if ( this.normalized ) w = denormalize( w, this.array );
-
-		return w;
-
-	}
-
-	setW( index, w ) {
-
-		if ( this.normalized ) w = normalize( w, this.array );
-
-		this.array[ index * this.itemSize + 3 ] = w;
-
-		return this;
-
-	}
-
-	setXY( index, x, y ) {
-
-		index *= this.itemSize;
-
-		if ( this.normalized ) {
-
-			x = normalize( x, this.array );
-			y = normalize( y, this.array );
-
-		}
-
-		this.array[ index + 0 ] = x;
-		this.array[ index + 1 ] = y;
-
-		return this;
-
-	}
-
-	setXYZ( index, x, y, z ) {
-
-		index *= this.itemSize;
-
-		if ( this.normalized ) {
-
-			x = normalize( x, this.array );
-			y = normalize( y, this.array );
-			z = normalize( z, this.array );
-
-		}
-
-		this.array[ index + 0 ] = x;
-		this.array[ index + 1 ] = y;
-		this.array[ index + 2 ] = z;
-
-		return this;
-
-	}
-
-	setXYZW( index, x, y, z, w ) {
-
-		index *= this.itemSize;
-
-		if ( this.normalized ) {
-
-			x = normalize( x, this.array );
-			y = normalize( y, this.array );
-			z = normalize( z, this.array );
-			w = normalize( w, this.array );
-
-		}
-
-		this.array[ index + 0 ] = x;
-		this.array[ index + 1 ] = y;
-		this.array[ index + 2 ] = z;
-		this.array[ index + 3 ] = w;
-
-		return this;
-
-	}
-
-	onUpload( callback ) {
-
-		this.onUploadCallback = callback;
-
-		return this;
-
-	}
-
-	clone() {
-
-		return new this.constructor( this.array, this.itemSize ).copy( this );
-
-	}
-
-	toJSON() {
-
-		const data = {
-			itemSize: this.itemSize,
-			type: this.array.constructor.name,
-			array: Array.from( this.array ),
-			normalized: this.normalized
-		};
-
-		if ( this.name !== '' ) data.name = this.name;
-		if ( this.usage !== StaticDrawUsage ) data.usage = this.usage;
-		if ( this.updateRange.offset !== 0 || this.updateRange.count !== - 1 ) data.updateRange = this.updateRange;
-
-		return data;
-
-	}
-
-	copyColorsArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyColorsArray() was removed in r144.' );
-
-	}
-
-	copyVector2sArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyVector2sArray() was removed in r144.' );
-
-	}
-
-	copyVector3sArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyVector3sArray() was removed in r144.' );
-
-	}
-
-	copyVector4sArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyVector4sArray() was removed in r144.' );
-
-	}
-
-}
-
-class FragmentMesh extends InstancedMesh {
-    constructor(geometry, material, count, fragment) {
-        super(geometry, material, count);
-        this.elementCount = 0;
-        this.exportOptions = {
-            trs: false,
-            onlyVisible: false,
-            truncateDrawRange: true,
-            binary: true,
-            maxTextureSize: 0,
-        };
-        this.exporter = new GLTFExporter();
-        this.material = FragmentMesh.newMaterialArray(material);
-        this.geometry = this.newFragmentGeometry(geometry);
-        this.fragment = fragment;
-    }
-    exportData() {
-        const position = this.geometry.attributes.position.array;
-        const normal = this.geometry.attributes.normal.array;
-        const blockID = Array.from(this.geometry.attributes.blockID.array);
-        const index = Array.from(this.geometry.index.array);
-        const groups = [];
-        for (const group of this.geometry.groups) {
-            const index = group.materialIndex || 0;
-            const { start, count } = group;
-            groups.push(start, count, index);
-        }
-        const materials = [];
-        if (Array.isArray(this.material)) {
-            for (const material of this.material) {
-                const opacity = material.opacity;
-                const transparent = material.transparent ? 1 : 0;
-                const color = new Color(material.color).toArray();
-                materials.push(opacity, transparent, ...color);
-            }
-        }
-        const matrices = Array.from(this.instanceMatrix.array);
-        let colors;
-        if (this.instanceColor !== null) {
-            colors = Array.from(this.instanceColor.array);
-        }
-        else {
-            colors = [];
-        }
-        return {
-            position,
-            normal,
-            index,
-            blockID,
-            groups,
-            materials,
-            matrices,
-            colors,
-        };
-    }
-    export() {
-        const mesh = this;
-        return new Promise((resolve) => {
-            this.exporter.parse(mesh, (geometry) => resolve(geometry), (error) => console.log(error), this.exportOptions);
-        });
-    }
-    newFragmentGeometry(geometry) {
-        if (!geometry.index) {
-            throw new Error("The geometry must be indexed!");
-        }
-        if (!geometry.attributes.blockID) {
-            const vertexSize = geometry.attributes.position.count;
-            const array = new Uint16Array(vertexSize);
-            array.fill(this.elementCount++);
-            geometry.attributes.blockID = new BufferAttribute(array, 1);
-        }
-        const size = geometry.index.count;
-        FragmentMesh.initializeGroups(geometry, size);
-        return geometry;
-    }
-    static initializeGroups(geometry, size) {
-        if (!geometry.groups.length) {
-            geometry.groups.push({
-                start: 0,
-                count: size,
-                materialIndex: 0,
-            });
-        }
-    }
-    static newMaterialArray(material) {
-        if (!Array.isArray(material))
-            material = [material];
-        return material;
-    }
-}
-
-/**
- * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
- * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
- */
-class Blocks {
-    get count() {
-        return this.ids.size;
-    }
-    constructor(fragment) {
-        this.fragment = fragment;
-        this._visibilityInitialized = false;
-        this._originalIndex = new Map();
-        this._idIndexIndexMap = {};
-        const rawIds = fragment.mesh.geometry.attributes.blockID.array;
-        this.ids = new Set(rawIds);
-        this.visibleIds = new Set(this.ids);
-    }
-    setVisibility(visible, itemIDs = new Set(this.fragment.items), isolate = false) {
-        const geometry = this.fragment.mesh.geometry;
-        const index = geometry.index;
-        if (!this._visibilityInitialized) {
-            this.initializeVisibility(index, geometry);
-        }
-        if (isolate) {
-            index.array.fill(0);
-        }
-        for (const id of itemIDs) {
-            const indices = this._idIndexIndexMap[id];
-            if (!indices)
-                continue;
-            for (const i of indices) {
-                const originalIndex = this._originalIndex.get(i);
-                if (originalIndex === undefined)
-                    continue;
-                const blockID = geometry.attributes.blockID.getX(originalIndex);
-                const itemID = this.fragment.items[blockID];
-                if (itemIDs.has(itemID)) {
-                    if (visible) {
-                        this.visibleIds.add(blockID);
-                    }
-                    else {
-                        this.visibleIds.delete(blockID);
-                    }
-                    const newIndex = visible ? originalIndex : 0;
-                    index.setX(i, newIndex);
-                }
-            }
-        }
-        index.needsUpdate = true;
-    }
-    initializeVisibility(index, geometry) {
-        for (let i = 0; i < index.count; i++) {
-            const foundIndex = index.getX(i);
-            this._originalIndex.set(i, foundIndex);
-            const blockID = geometry.attributes.blockID.getX(foundIndex);
-            const itemID = this.fragment.getItemID(0, blockID);
-            if (!this._idIndexIndexMap[itemID]) {
-                this._idIndexIndexMap[itemID] = [];
-            }
-            this._idIndexIndexMap[itemID].push(i);
-        }
-        this._visibilityInitialized = true;
-    }
-    // Use this only for destroying the current Fragment instance
-    dispose() {
-        this._idIndexIndexMap = {};
-        this.ids.clear();
-        this.visibleIds.clear();
-        this._originalIndex.clear();
-        this.ids = null;
-        this.visibleIds = null;
-        this._originalIndex = null;
-    }
-}
-
-// Source: https://github.com/gkjohnson/three-mesh-bvh
-class BVH {
-    static apply(geometry) {
-        if (!BVH.initialized) {
-            BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-            BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-            Mesh.prototype.raycast = acceleratedRaycast;
-            BVH.initialized = true;
-        }
-        if (!geometry.boundsTree) {
-            geometry.computeBoundsTree();
-        }
-    }
-    static dispose(geometry) {
-        geometry.disposeBoundsTree();
-    }
-}
-BVH.initialized = false;
-
-/*
- * Fragments can contain one or multiple Instances of one or multiple Blocks
- * Each Instance is identified by an instanceID (property of THREE.InstancedMesh)
- * Each Block identified by a blockID (custom bufferAttribute per vertex)
- * Both instanceId and blockId are unsigned integers starting at 0 and going up sequentially
- * A specific Block of a specific Instance is an Item, identified by an itemID
- *
- * For example:
- * Imagine a fragment mesh with 8 instances and 2 elements (16 items, identified from A to P)
- * It will have instanceIds from 0 to 8, and blockIds from 0 to 2
- * If we raycast it, we will get an instanceId and the index of the found triangle
- * We can use the index to get the blockId for that triangle
- * Combining instanceId and blockId using the elementMap will give us the itemId
- * The items will look like this:
- *
- *    [ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P ]
- *
- *  Where the criteria to sort the items is the following (Y-axis is instance, X-axis is block):
- *
- *        A  C  E  G  I  K  M  O
- *        B  D  F  H  J  L  N  P
- * */
-let Fragment$1 = class Fragment {
-    get ids() {
-        const ids = new Set();
-        for (const id of this.items) {
-            ids.add(id);
-        }
-        for (const id in this.hiddenInstances) {
-            ids.add(id);
-        }
-        return ids;
-    }
-    constructor(geometry, material, count) {
-        this.fragments = {};
-        this.items = [];
-        this.hiddenInstances = {};
-        // When multiple instances represent the same object
-        // this allows to create a composite ID for each instance
-        // E.g. all the steps in a stair are a single thing
-        // so if the ID of the stair is asdf, then each step could be
-        // asdf.1, asdf.2, asdf.3, etc
-        // the value is the number of instances
-        this.composites = {};
-        this.mesh = new FragmentMesh(geometry, material, count, this);
-        this.id = this.mesh.uuid;
-        this.capacity = count;
-        this.blocks = new Blocks(this);
-        BVH.apply(geometry);
-    }
-    dispose(disposeResources = true) {
-        this.items = null;
-        this.group = undefined;
-        if (this.mesh) {
-            if (disposeResources) {
-                this.mesh.material.forEach((mat) => mat.dispose());
-                this.mesh.material = [];
-                BVH.dispose(this.mesh.geometry);
-                this.mesh.geometry.dispose();
-                this.mesh.geometry = null;
-            }
-            this.mesh.removeFromParent();
-            this.mesh.dispose();
-            this.mesh.fragment = null;
-            this.mesh = null;
-        }
-        this.disposeNestedFragments();
-    }
-    getItemID(instanceID, blockID) {
-        const index = this.getItemIndex(instanceID, blockID);
-        return this.items[index];
-    }
-    getInstanceAndBlockID(itemID) {
-        const index = this.items.indexOf(itemID);
-        const instanceID = this.getInstanceIDFromIndex(index);
-        const blockID = index % this.blocks.count;
-        return { instanceID, blockID };
-    }
-    getVertexBlockID(geometry, index) {
-        const blocks = geometry.attributes.blockID;
-        return blocks.array[index];
-    }
-    getItemData(itemID) {
-        const index = this.items.indexOf(itemID);
-        const instanceID = Math.ceil(index / this.blocks.count);
-        const blockID = index % this.blocks.count;
-        return { instanceID, blockID };
-    }
-    getInstance(instanceID, matrix) {
-        return this.mesh.getMatrixAt(instanceID, matrix);
-    }
-    setInstance(instanceID, items) {
-        this.checkIfInstanceExist(instanceID);
-        this.mesh.setMatrixAt(instanceID, items.transform);
-        this.mesh.instanceMatrix.needsUpdate = true;
-        if (items.color && this.mesh.instanceColor) {
-            this.mesh.setColorAt(instanceID, items.color);
-            this.mesh.instanceColor.needsUpdate = true;
-        }
-        if (items.ids) {
-            this.saveItemsInMap(items.ids, instanceID);
-        }
-    }
-    addInstances(items) {
-        this.resizeCapacityIfNeeded(items.length);
-        const start = this.mesh.count;
-        this.mesh.count += items.length;
-        for (let i = 0; i < items.length; i++) {
-            this.setInstance(start + i, items[i]);
-        }
-    }
-    removeInstances(itemsIDs) {
-        if (this.mesh.count <= 1) {
-            this.clear();
-            return;
-        }
-        this.deleteAndRearrangeInstances(itemsIDs);
-        this.mesh.count -= itemsIDs.length;
-        this.mesh.instanceMatrix.needsUpdate = true;
-    }
-    clear() {
-        this.mesh.clear();
-        this.mesh.count = 0;
-        this.items = [];
-    }
-    addFragment(id, material = this.mesh.material) {
-        const newGeometry = this.initializeGeometry();
-        if (material === this.mesh.material) {
-            this.copyGroups(newGeometry);
-        }
-        const newFragment = new Fragment(newGeometry, material, this.capacity);
-        newFragment.mesh.applyMatrix4(this.mesh.matrix);
-        newFragment.mesh.updateMatrix();
-        this.fragments[id] = newFragment;
-        return this.fragments[id];
-    }
-    removeFragment(id) {
-        const fragment = this.fragments[id];
-        if (fragment) {
-            fragment.dispose(false);
-            delete this.fragments[id];
-        }
-    }
-    resetVisibility() {
-        if (this.blocks.count > 1) {
-            this.blocks.setVisibility(true);
-        }
-        else {
-            const hiddenInstances = Object.keys(this.hiddenInstances);
-            this.makeInstancesVisible(hiddenInstances);
-            this.hiddenInstances = {};
-        }
-    }
-    setVisibility(visible, itemIDs = this.ids) {
-        if (this.blocks.count > 1) {
-            this.blocks.setVisibility(visible, itemIDs);
-        }
-        else {
-            this.toggleInstanceVisibility(visible, itemIDs);
-        }
-    }
-    resize(size) {
-        var _a;
-        const newMesh = this.createFragmentMeshWithNewSize(size);
-        this.capacity = size;
-        const oldMesh = this.mesh;
-        (_a = oldMesh.parent) === null || _a === void 0 ? void 0 : _a.add(newMesh);
-        oldMesh.removeFromParent();
-        this.mesh = newMesh;
-        oldMesh.dispose();
-    }
-    exportData() {
-        const geometry = this.mesh.exportData();
-        const ids = this.items.join("|");
-        const id = this.id;
-        return { ...geometry, ids, id };
-    }
-    copyGroups(newGeometry) {
-        newGeometry.groups = [];
-        for (const group of this.mesh.geometry.groups) {
-            newGeometry.groups.push({ ...group });
-        }
-    }
-    initializeGeometry() {
-        const newGeometry = new THREE$1.BufferGeometry();
-        newGeometry.setAttribute("position", this.mesh.geometry.attributes.position);
-        newGeometry.setAttribute("normal", this.mesh.geometry.attributes.normal);
-        newGeometry.setAttribute("blockID", this.mesh.geometry.attributes.blockID);
-        newGeometry.setIndex(Array.from(this.mesh.geometry.index.array));
-        return newGeometry;
-    }
-    saveItemsInMap(ids, instanceId) {
-        this.checkBlockNumberValid(ids);
-        let counter = 0;
-        for (const id of ids) {
-            const index = this.getItemIndex(instanceId, counter);
-            this.items[index] = id;
-            counter++;
-        }
-    }
-    resizeCapacityIfNeeded(newSize) {
-        const necessaryCapacity = newSize + this.mesh.count;
-        if (necessaryCapacity > this.capacity) {
-            this.resize(necessaryCapacity);
-        }
-    }
-    createFragmentMeshWithNewSize(capacity) {
-        const newMesh = new FragmentMesh(this.mesh.geometry, this.mesh.material, capacity, this);
-        newMesh.count = this.mesh.count;
-        return newMesh;
-    }
-    disposeNestedFragments() {
-        const fragments = Object.values(this.fragments);
-        for (let i = 0; i < fragments.length; i++) {
-            fragments[i].dispose();
-        }
-        this.fragments = {};
-    }
-    checkBlockNumberValid(ids) {
-        if (ids.length > this.blocks.count) {
-            throw new Error(`You passed more items (${ids.length}) than blocks in this instance (${this.blocks.count})`);
-        }
-    }
-    checkIfInstanceExist(index) {
-        if (index > this.mesh.count) {
-            throw new Error(`The given index (${index}) exceeds the instances in this fragment (${this.mesh.count})`);
-        }
-    }
-    // Assigns the index of the removed instance to the last instance
-    // F.e. let there be 6 instances: (A) (B) (C) (D) (E) (F)
-    // If instance (C) is removed: -> (A) (B) (F) (D) (E)
-    deleteAndRearrangeInstances(ids) {
-        const deletedItems = [];
-        for (const id of ids) {
-            const deleted = this.deleteAndRearrange(id);
-            if (deleted) {
-                deletedItems.push(deleted);
-            }
-        }
-        for (const id of ids) {
-            delete this.hiddenInstances[id];
-        }
-        return deletedItems;
-    }
-    deleteAndRearrange(id) {
-        const index = this.items.indexOf(id);
-        if (index === -1)
-            return null;
-        this.mesh.count--;
-        const isLastElement = index === this.mesh.count;
-        const instanceId = this.getInstanceIDFromIndex(index);
-        const tempMatrix = new THREE$1.Matrix4();
-        const tempColor = new THREE$1.Color();
-        const transform = new THREE$1.Matrix4();
-        this.mesh.getMatrixAt(instanceId, transform);
-        const result = { ids: [id], transform };
-        if (this.mesh.instanceColor) {
-            const color = new THREE$1.Color();
-            this.mesh.getColorAt(instanceId, color);
-            result.color = color;
-        }
-        if (isLastElement) {
-            this.items.pop();
-            return result;
-        }
-        const lastElement = this.mesh.count;
-        this.items[index] = this.items[lastElement];
-        this.items.pop();
-        this.mesh.getMatrixAt(lastElement, tempMatrix);
-        this.mesh.setMatrixAt(instanceId, tempMatrix);
-        this.mesh.instanceMatrix.needsUpdate = true;
-        if (this.mesh.instanceColor) {
-            this.mesh.getColorAt(lastElement, tempColor);
-            this.mesh.setColorAt(instanceId, tempColor);
-            this.mesh.instanceColor.needsUpdate = true;
-        }
-        return result;
-    }
-    getItemIndex(instanceId, blockId) {
-        return instanceId * this.blocks.count + blockId;
-    }
-    getInstanceIDFromIndex(itemIndex) {
-        return Math.trunc(itemIndex / this.blocks.count);
-    }
-    toggleInstanceVisibility(visible, itemIDs) {
-        if (visible) {
-            this.makeInstancesVisible(itemIDs);
-        }
-        else {
-            this.makeInstancesInvisible(itemIDs);
-        }
-    }
-    makeInstancesInvisible(itemIDs) {
-        itemIDs = this.filterHiddenItems(itemIDs, false);
-        const deletedItems = this.deleteAndRearrangeInstances(itemIDs);
-        for (const item of deletedItems) {
-            if (item.ids) {
-                this.hiddenInstances[item.ids[0]] = item;
-            }
-        }
-    }
-    makeInstancesVisible(itemIDs) {
-        const items = [];
-        itemIDs = this.filterHiddenItems(itemIDs, true);
-        for (const id of itemIDs) {
-            const found = this.hiddenInstances[id];
-            if (found !== undefined) {
-                items.push(found);
-                delete this.hiddenInstances[id];
-            }
-        }
-        this.addInstances(items);
-    }
-    filterHiddenItems(itemIDs, hidden) {
-        const hiddenItems = Object.keys(this.hiddenInstances);
-        const result = [];
-        for (const id of itemIDs) {
-            const isHidden = hidden && hiddenItems.includes(id);
-            const isNotHidden = !hidden && !hiddenItems.includes(id);
-            if (isHidden || isNotHidden) {
-                result.push(id);
-            }
-        }
-        return result;
-    }
-};
-
-const SIZEOF_SHORT = 2;
-const SIZEOF_INT = 4;
-const FILE_IDENTIFIER_LENGTH = 4;
-const SIZE_PREFIX_LENGTH = 4;
-
-const int32 = new Int32Array(2);
-const float32 = new Float32Array(int32.buffer);
-const float64 = new Float64Array(int32.buffer);
-const isLittleEndian = new Uint16Array(new Uint8Array([1, 0]).buffer)[0] === 1;
-
-var Encoding;
-(function (Encoding) {
-    Encoding[Encoding["UTF8_BYTES"] = 1] = "UTF8_BYTES";
-    Encoding[Encoding["UTF16_STRING"] = 2] = "UTF16_STRING";
-})(Encoding || (Encoding = {}));
-
-class ByteBuffer {
-    /**
-     * Create a new ByteBuffer with a given array of bytes (`Uint8Array`)
-     */
-    constructor(bytes_) {
-        this.bytes_ = bytes_;
-        this.position_ = 0;
-        this.text_decoder_ = new TextDecoder();
-    }
-    /**
-     * Create and allocate a new ByteBuffer with a given size.
-     */
-    static allocate(byte_size) {
-        return new ByteBuffer(new Uint8Array(byte_size));
-    }
-    clear() {
-        this.position_ = 0;
-    }
-    /**
-     * Get the underlying `Uint8Array`.
-     */
-    bytes() {
-        return this.bytes_;
-    }
-    /**
-     * Get the buffer's position.
-     */
-    position() {
-        return this.position_;
-    }
-    /**
-     * Set the buffer's position.
-     */
-    setPosition(position) {
-        this.position_ = position;
-    }
-    /**
-     * Get the buffer's capacity.
-     */
-    capacity() {
-        return this.bytes_.length;
-    }
-    readInt8(offset) {
-        return this.readUint8(offset) << 24 >> 24;
-    }
-    readUint8(offset) {
-        return this.bytes_[offset];
-    }
-    readInt16(offset) {
-        return this.readUint16(offset) << 16 >> 16;
-    }
-    readUint16(offset) {
-        return this.bytes_[offset] | this.bytes_[offset + 1] << 8;
-    }
-    readInt32(offset) {
-        return this.bytes_[offset] | this.bytes_[offset + 1] << 8 | this.bytes_[offset + 2] << 16 | this.bytes_[offset + 3] << 24;
-    }
-    readUint32(offset) {
-        return this.readInt32(offset) >>> 0;
-    }
-    readInt64(offset) {
-        return BigInt.asIntN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
-    }
-    readUint64(offset) {
-        return BigInt.asUintN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
-    }
-    readFloat32(offset) {
-        int32[0] = this.readInt32(offset);
-        return float32[0];
-    }
-    readFloat64(offset) {
-        int32[isLittleEndian ? 0 : 1] = this.readInt32(offset);
-        int32[isLittleEndian ? 1 : 0] = this.readInt32(offset + 4);
-        return float64[0];
-    }
-    writeInt8(offset, value) {
-        this.bytes_[offset] = value;
-    }
-    writeUint8(offset, value) {
-        this.bytes_[offset] = value;
-    }
-    writeInt16(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-    }
-    writeUint16(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-    }
-    writeInt32(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-        this.bytes_[offset + 2] = value >> 16;
-        this.bytes_[offset + 3] = value >> 24;
-    }
-    writeUint32(offset, value) {
-        this.bytes_[offset] = value;
-        this.bytes_[offset + 1] = value >> 8;
-        this.bytes_[offset + 2] = value >> 16;
-        this.bytes_[offset + 3] = value >> 24;
-    }
-    writeInt64(offset, value) {
-        this.writeInt32(offset, Number(BigInt.asIntN(32, value)));
-        this.writeInt32(offset + 4, Number(BigInt.asIntN(32, value >> BigInt(32))));
-    }
-    writeUint64(offset, value) {
-        this.writeUint32(offset, Number(BigInt.asUintN(32, value)));
-        this.writeUint32(offset + 4, Number(BigInt.asUintN(32, value >> BigInt(32))));
-    }
-    writeFloat32(offset, value) {
-        float32[0] = value;
-        this.writeInt32(offset, int32[0]);
-    }
-    writeFloat64(offset, value) {
-        float64[0] = value;
-        this.writeInt32(offset, int32[isLittleEndian ? 0 : 1]);
-        this.writeInt32(offset + 4, int32[isLittleEndian ? 1 : 0]);
-    }
-    /**
-     * Return the file identifier.   Behavior is undefined for FlatBuffers whose
-     * schema does not include a file_identifier (likely points at padding or the
-     * start of a the root vtable).
-     */
-    getBufferIdentifier() {
-        if (this.bytes_.length < this.position_ + SIZEOF_INT +
-            FILE_IDENTIFIER_LENGTH) {
-            throw new Error('FlatBuffers: ByteBuffer is too short to contain an identifier.');
-        }
-        let result = "";
-        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
-            result += String.fromCharCode(this.readInt8(this.position_ + SIZEOF_INT + i));
-        }
-        return result;
-    }
-    /**
-     * Look up a field in the vtable, return an offset into the object, or 0 if the
-     * field is not present.
-     */
-    __offset(bb_pos, vtable_offset) {
-        const vtable = bb_pos - this.readInt32(bb_pos);
-        return vtable_offset < this.readInt16(vtable) ? this.readInt16(vtable + vtable_offset) : 0;
-    }
-    /**
-     * Initialize any Table-derived type to point to the union at the given offset.
-     */
-    __union(t, offset) {
-        t.bb_pos = offset + this.readInt32(offset);
-        t.bb = this;
-        return t;
-    }
-    /**
-     * Create a JavaScript string from UTF-8 data stored inside the FlatBuffer.
-     * This allocates a new string and converts to wide chars upon each access.
-     *
-     * To avoid the conversion to string, pass Encoding.UTF8_BYTES as the
-     * "optionalEncoding" argument. This is useful for avoiding conversion when
-     * the data will just be packaged back up in another FlatBuffer later on.
-     *
-     * @param offset
-     * @param opt_encoding Defaults to UTF16_STRING
-     */
-    __string(offset, opt_encoding) {
-        offset += this.readInt32(offset);
-        const length = this.readInt32(offset);
-        offset += SIZEOF_INT;
-        const utf8bytes = this.bytes_.subarray(offset, offset + length);
-        if (opt_encoding === Encoding.UTF8_BYTES)
-            return utf8bytes;
-        else
-            return this.text_decoder_.decode(utf8bytes);
-    }
-    /**
-     * Handle unions that can contain string as its member, if a Table-derived type then initialize it,
-     * if a string then return a new one
-     *
-     * WARNING: strings are immutable in JS so we can't change the string that the user gave us, this
-     * makes the behaviour of __union_with_string different compared to __union
-     */
-    __union_with_string(o, offset) {
-        if (typeof o === 'string') {
-            return this.__string(offset);
-        }
-        return this.__union(o, offset);
-    }
-    /**
-     * Retrieve the relative offset stored at "offset"
-     */
-    __indirect(offset) {
-        return offset + this.readInt32(offset);
-    }
-    /**
-     * Get the start of data of a vector whose offset is stored at "offset" in this object.
-     */
-    __vector(offset) {
-        return offset + this.readInt32(offset) + SIZEOF_INT; // data starts after the length
-    }
-    /**
-     * Get the length of a vector whose offset is stored at "offset" in this object.
-     */
-    __vector_len(offset) {
-        return this.readInt32(offset + this.readInt32(offset));
-    }
-    __has_identifier(ident) {
-        if (ident.length != FILE_IDENTIFIER_LENGTH) {
-            throw new Error('FlatBuffers: file identifier must be length ' +
-                FILE_IDENTIFIER_LENGTH);
-        }
-        for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
-            if (ident.charCodeAt(i) != this.readInt8(this.position() + SIZEOF_INT + i)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    /**
-     * A helper function for generating list for obj api
-     */
-    createScalarList(listAccessor, listLength) {
-        const ret = [];
-        for (let i = 0; i < listLength; ++i) {
-            const val = listAccessor(i);
-            if (val !== null) {
-                ret.push(val);
-            }
-        }
-        return ret;
-    }
-    /**
-     * A helper function for generating list for obj api
-     * @param listAccessor function that accepts an index and return data at that index
-     * @param listLength listLength
-     * @param res result list
-     */
-    createObjList(listAccessor, listLength) {
-        const ret = [];
-        for (let i = 0; i < listLength; ++i) {
-            const val = listAccessor(i);
-            if (val !== null) {
-                ret.push(val.unpack());
-            }
-        }
-        return ret;
-    }
-}
-
-class Builder {
-    /**
-     * Create a FlatBufferBuilder.
-     */
-    constructor(opt_initial_size) {
-        /** Minimum alignment encountered so far. */
-        this.minalign = 1;
-        /** The vtable for the current table. */
-        this.vtable = null;
-        /** The amount of fields we're actually using. */
-        this.vtable_in_use = 0;
-        /** Whether we are currently serializing a table. */
-        this.isNested = false;
-        /** Starting offset of the current struct/table. */
-        this.object_start = 0;
-        /** List of offsets of all vtables. */
-        this.vtables = [];
-        /** For the current vector being built. */
-        this.vector_num_elems = 0;
-        /** False omits default values from the serialized data */
-        this.force_defaults = false;
-        this.string_maps = null;
-        this.text_encoder = new TextEncoder();
-        let initial_size;
-        if (!opt_initial_size) {
-            initial_size = 1024;
-        }
-        else {
-            initial_size = opt_initial_size;
-        }
-        /**
-         * @type {ByteBuffer}
-         * @private
-         */
-        this.bb = ByteBuffer.allocate(initial_size);
-        this.space = initial_size;
-    }
-    clear() {
-        this.bb.clear();
-        this.space = this.bb.capacity();
-        this.minalign = 1;
-        this.vtable = null;
-        this.vtable_in_use = 0;
-        this.isNested = false;
-        this.object_start = 0;
-        this.vtables = [];
-        this.vector_num_elems = 0;
-        this.force_defaults = false;
-        this.string_maps = null;
-    }
-    /**
-     * In order to save space, fields that are set to their default value
-     * don't get serialized into the buffer. Forcing defaults provides a
-     * way to manually disable this optimization.
-     *
-     * @param forceDefaults true always serializes default values
-     */
-    forceDefaults(forceDefaults) {
-        this.force_defaults = forceDefaults;
-    }
-    /**
-     * Get the ByteBuffer representing the FlatBuffer. Only call this after you've
-     * called finish(). The actual data starts at the ByteBuffer's current position,
-     * not necessarily at 0.
-     */
-    dataBuffer() {
-        return this.bb;
-    }
-    /**
-     * Get the bytes representing the FlatBuffer. Only call this after you've
-     * called finish().
-     */
-    asUint8Array() {
-        return this.bb.bytes().subarray(this.bb.position(), this.bb.position() + this.offset());
-    }
-    /**
-     * Prepare to write an element of `size` after `additional_bytes` have been
-     * written, e.g. if you write a string, you need to align such the int length
-     * field is aligned to 4 bytes, and the string data follows it directly. If all
-     * you need to do is alignment, `additional_bytes` will be 0.
-     *
-     * @param size This is the of the new element to write
-     * @param additional_bytes The padding size
-     */
-    prep(size, additional_bytes) {
-        // Track the biggest thing we've ever aligned to.
-        if (size > this.minalign) {
-            this.minalign = size;
-        }
-        // Find the amount of alignment needed such that `size` is properly
-        // aligned after `additional_bytes`
-        const align_size = ((~(this.bb.capacity() - this.space + additional_bytes)) + 1) & (size - 1);
-        // Reallocate the buffer if needed.
-        while (this.space < align_size + size + additional_bytes) {
-            const old_buf_size = this.bb.capacity();
-            this.bb = Builder.growByteBuffer(this.bb);
-            this.space += this.bb.capacity() - old_buf_size;
-        }
-        this.pad(align_size);
-    }
-    pad(byte_size) {
-        for (let i = 0; i < byte_size; i++) {
-            this.bb.writeInt8(--this.space, 0);
-        }
-    }
-    writeInt8(value) {
-        this.bb.writeInt8(this.space -= 1, value);
-    }
-    writeInt16(value) {
-        this.bb.writeInt16(this.space -= 2, value);
-    }
-    writeInt32(value) {
-        this.bb.writeInt32(this.space -= 4, value);
-    }
-    writeInt64(value) {
-        this.bb.writeInt64(this.space -= 8, value);
-    }
-    writeFloat32(value) {
-        this.bb.writeFloat32(this.space -= 4, value);
-    }
-    writeFloat64(value) {
-        this.bb.writeFloat64(this.space -= 8, value);
-    }
-    /**
-     * Add an `int8` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int8` to add the buffer.
-     */
-    addInt8(value) {
-        this.prep(1, 0);
-        this.writeInt8(value);
-    }
-    /**
-     * Add an `int16` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int16` to add the buffer.
-     */
-    addInt16(value) {
-        this.prep(2, 0);
-        this.writeInt16(value);
-    }
-    /**
-     * Add an `int32` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int32` to add the buffer.
-     */
-    addInt32(value) {
-        this.prep(4, 0);
-        this.writeInt32(value);
-    }
-    /**
-     * Add an `int64` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `int64` to add the buffer.
-     */
-    addInt64(value) {
-        this.prep(8, 0);
-        this.writeInt64(value);
-    }
-    /**
-     * Add a `float32` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `float32` to add the buffer.
-     */
-    addFloat32(value) {
-        this.prep(4, 0);
-        this.writeFloat32(value);
-    }
-    /**
-     * Add a `float64` to the buffer, properly aligned, and grows the buffer (if necessary).
-     * @param value The `float64` to add the buffer.
-     */
-    addFloat64(value) {
-        this.prep(8, 0);
-        this.writeFloat64(value);
-    }
-    addFieldInt8(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addInt8(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldInt16(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addInt16(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldInt32(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addInt32(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldInt64(voffset, value, defaultValue) {
-        if (this.force_defaults || value !== defaultValue) {
-            this.addInt64(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldFloat32(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addFloat32(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldFloat64(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addFloat64(value);
-            this.slot(voffset);
-        }
-    }
-    addFieldOffset(voffset, value, defaultValue) {
-        if (this.force_defaults || value != defaultValue) {
-            this.addOffset(value);
-            this.slot(voffset);
-        }
-    }
-    /**
-     * Structs are stored inline, so nothing additional is being added. `d` is always 0.
-     */
-    addFieldStruct(voffset, value, defaultValue) {
-        if (value != defaultValue) {
-            this.nested(value);
-            this.slot(voffset);
-        }
-    }
-    /**
-     * Structures are always stored inline, they need to be created right
-     * where they're used.  You'll get this assertion failure if you
-     * created it elsewhere.
-     */
-    nested(obj) {
-        if (obj != this.offset()) {
-            throw new TypeError('FlatBuffers: struct must be serialized inline.');
-        }
-    }
-    /**
-     * Should not be creating any other object, string or vector
-     * while an object is being constructed
-     */
-    notNested() {
-        if (this.isNested) {
-            throw new TypeError('FlatBuffers: object serialization must not be nested.');
-        }
-    }
-    /**
-     * Set the current vtable at `voffset` to the current location in the buffer.
-     */
-    slot(voffset) {
-        if (this.vtable !== null)
-            this.vtable[voffset] = this.offset();
-    }
-    /**
-     * @returns Offset relative to the end of the buffer.
-     */
-    offset() {
-        return this.bb.capacity() - this.space;
-    }
-    /**
-     * Doubles the size of the backing ByteBuffer and copies the old data towards
-     * the end of the new buffer (since we build the buffer backwards).
-     *
-     * @param bb The current buffer with the existing data
-     * @returns A new byte buffer with the old data copied
-     * to it. The data is located at the end of the buffer.
-     *
-     * uint8Array.set() formally takes {Array<number>|ArrayBufferView}, so to pass
-     * it a uint8Array we need to suppress the type check:
-     * @suppress {checkTypes}
-     */
-    static growByteBuffer(bb) {
-        const old_buf_size = bb.capacity();
-        // Ensure we don't grow beyond what fits in an int.
-        if (old_buf_size & 0xC0000000) {
-            throw new Error('FlatBuffers: cannot grow buffer beyond 2 gigabytes.');
-        }
-        const new_buf_size = old_buf_size << 1;
-        const nbb = ByteBuffer.allocate(new_buf_size);
-        nbb.setPosition(new_buf_size - old_buf_size);
-        nbb.bytes().set(bb.bytes(), new_buf_size - old_buf_size);
-        return nbb;
-    }
-    /**
-     * Adds on offset, relative to where it will be written.
-     *
-     * @param offset The offset to add.
-     */
-    addOffset(offset) {
-        this.prep(SIZEOF_INT, 0); // Ensure alignment is already done.
-        this.writeInt32(this.offset() - offset + SIZEOF_INT);
-    }
-    /**
-     * Start encoding a new object in the buffer.  Users will not usually need to
-     * call this directly. The FlatBuffers compiler will generate helper methods
-     * that call this method internally.
-     */
-    startObject(numfields) {
-        this.notNested();
-        if (this.vtable == null) {
-            this.vtable = [];
-        }
-        this.vtable_in_use = numfields;
-        for (let i = 0; i < numfields; i++) {
-            this.vtable[i] = 0; // This will push additional elements as needed
-        }
-        this.isNested = true;
-        this.object_start = this.offset();
-    }
-    /**
-     * Finish off writing the object that is under construction.
-     *
-     * @returns The offset to the object inside `dataBuffer`
-     */
-    endObject() {
-        if (this.vtable == null || !this.isNested) {
-            throw new Error('FlatBuffers: endObject called without startObject');
-        }
-        this.addInt32(0);
-        const vtableloc = this.offset();
-        // Trim trailing zeroes.
-        let i = this.vtable_in_use - 1;
-        // eslint-disable-next-line no-empty
-        for (; i >= 0 && this.vtable[i] == 0; i--) { }
-        const trimmed_size = i + 1;
-        // Write out the current vtable.
-        for (; i >= 0; i--) {
-            // Offset relative to the start of the table.
-            this.addInt16(this.vtable[i] != 0 ? vtableloc - this.vtable[i] : 0);
-        }
-        const standard_fields = 2; // The fields below:
-        this.addInt16(vtableloc - this.object_start);
-        const len = (trimmed_size + standard_fields) * SIZEOF_SHORT;
-        this.addInt16(len);
-        // Search for an existing vtable that matches the current one.
-        let existing_vtable = 0;
-        const vt1 = this.space;
-        outer_loop: for (i = 0; i < this.vtables.length; i++) {
-            const vt2 = this.bb.capacity() - this.vtables[i];
-            if (len == this.bb.readInt16(vt2)) {
-                for (let j = SIZEOF_SHORT; j < len; j += SIZEOF_SHORT) {
-                    if (this.bb.readInt16(vt1 + j) != this.bb.readInt16(vt2 + j)) {
-                        continue outer_loop;
-                    }
-                }
-                existing_vtable = this.vtables[i];
-                break;
-            }
-        }
-        if (existing_vtable) {
-            // Found a match:
-            // Remove the current vtable.
-            this.space = this.bb.capacity() - vtableloc;
-            // Point table to existing vtable.
-            this.bb.writeInt32(this.space, existing_vtable - vtableloc);
-        }
-        else {
-            // No match:
-            // Add the location of the current vtable to the list of vtables.
-            this.vtables.push(this.offset());
-            // Point table to current vtable.
-            this.bb.writeInt32(this.bb.capacity() - vtableloc, this.offset() - vtableloc);
-        }
-        this.isNested = false;
-        return vtableloc;
-    }
-    /**
-     * Finalize a buffer, poiting to the given `root_table`.
-     */
-    finish(root_table, opt_file_identifier, opt_size_prefix) {
-        const size_prefix = opt_size_prefix ? SIZE_PREFIX_LENGTH : 0;
-        if (opt_file_identifier) {
-            const file_identifier = opt_file_identifier;
-            this.prep(this.minalign, SIZEOF_INT +
-                FILE_IDENTIFIER_LENGTH + size_prefix);
-            if (file_identifier.length != FILE_IDENTIFIER_LENGTH) {
-                throw new TypeError('FlatBuffers: file identifier must be length ' +
-                    FILE_IDENTIFIER_LENGTH);
-            }
-            for (let i = FILE_IDENTIFIER_LENGTH - 1; i >= 0; i--) {
-                this.writeInt8(file_identifier.charCodeAt(i));
-            }
-        }
-        this.prep(this.minalign, SIZEOF_INT + size_prefix);
-        this.addOffset(root_table);
-        if (size_prefix) {
-            this.addInt32(this.bb.capacity() - this.space);
-        }
-        this.bb.setPosition(this.space);
-    }
-    /**
-     * Finalize a size prefixed buffer, pointing to the given `root_table`.
-     */
-    finishSizePrefixed(root_table, opt_file_identifier) {
-        this.finish(root_table, opt_file_identifier, true);
-    }
-    /**
-     * This checks a required field has been set in a given table that has
-     * just been constructed.
-     */
-    requiredField(table, field) {
-        const table_start = this.bb.capacity() - table;
-        const vtable_start = table_start - this.bb.readInt32(table_start);
-        const ok = field < this.bb.readInt16(vtable_start) &&
-            this.bb.readInt16(vtable_start + field) != 0;
-        // If this fails, the caller will show what field needs to be set.
-        if (!ok) {
-            throw new TypeError('FlatBuffers: field ' + field + ' must be set');
-        }
-    }
-    /**
-     * Start a new array/vector of objects.  Users usually will not call
-     * this directly. The FlatBuffers compiler will create a start/end
-     * method for vector types in generated code.
-     *
-     * @param elem_size The size of each element in the array
-     * @param num_elems The number of elements in the array
-     * @param alignment The alignment of the array
-     */
-    startVector(elem_size, num_elems, alignment) {
-        this.notNested();
-        this.vector_num_elems = num_elems;
-        this.prep(SIZEOF_INT, elem_size * num_elems);
-        this.prep(alignment, elem_size * num_elems); // Just in case alignment > int.
-    }
-    /**
-     * Finish off the creation of an array and all its elements. The array must be
-     * created with `startVector`.
-     *
-     * @returns The offset at which the newly created array
-     * starts.
-     */
-    endVector() {
-        this.writeInt32(this.vector_num_elems);
-        return this.offset();
-    }
-    /**
-     * Encode the string `s` in the buffer using UTF-8. If the string passed has
-     * already been seen, we return the offset of the already written string
-     *
-     * @param s The string to encode
-     * @return The offset in the buffer where the encoded string starts
-     */
-    createSharedString(s) {
-        if (!s) {
-            return 0;
-        }
-        if (!this.string_maps) {
-            this.string_maps = new Map();
-        }
-        if (this.string_maps.has(s)) {
-            return this.string_maps.get(s);
-        }
-        const offset = this.createString(s);
-        this.string_maps.set(s, offset);
-        return offset;
-    }
-    /**
-     * Encode the string `s` in the buffer using UTF-8. If a Uint8Array is passed
-     * instead of a string, it is assumed to contain valid UTF-8 encoded data.
-     *
-     * @param s The string to encode
-     * @return The offset in the buffer where the encoded string starts
-     */
-    createString(s) {
-        if (s === null || s === undefined) {
-            return 0;
-        }
-        let utf8;
-        if (s instanceof Uint8Array) {
-            utf8 = s;
-        }
-        else {
-            utf8 = this.text_encoder.encode(s);
-        }
-        this.addInt8(0);
-        this.startVector(1, utf8.length, 1);
-        this.bb.setPosition(this.space -= utf8.length);
-        for (let i = 0, offset = this.space, bytes = this.bb.bytes(); i < utf8.length; i++) {
-            bytes[offset++] = utf8[i];
-        }
-        return this.endVector();
-    }
-    /**
-     * A helper function to pack an object
-     *
-     * @returns offset of obj
-     */
-    createObjectOffset(obj) {
-        if (obj === null) {
-            return 0;
-        }
-        if (typeof obj === 'string') {
-            return this.createString(obj);
-        }
-        else {
-            return obj.pack(this);
-        }
-    }
-    /**
-     * A helper function to pack a list of object
-     *
-     * @returns list of offsets of each non null object
-     */
-    createObjectOffsetList(list) {
-        const ret = [];
-        for (let i = 0; i < list.length; ++i) {
-            const val = list[i];
-            if (val !== null) {
-                ret.push(this.createObjectOffset(val));
-            }
-            else {
-                throw new TypeError('FlatBuffers: Argument for createObjectOffsetList cannot contain null.');
-            }
-        }
-        return ret;
-    }
-    createStructOffsetList(list, startFunc) {
-        startFunc(this, list.length);
-        this.createObjectOffsetList(list.slice().reverse());
-        return this.endVector();
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-class Alignment {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsAlignment(bb, obj) {
-        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsAlignment(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    position(index) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    positionLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    positionArray() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    curve(index) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    curveLength() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    curveArray() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    segment(index) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    segmentLength() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    segmentArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    static startAlignment(builder) {
-        builder.startObject(3);
-    }
-    static addPosition(builder, positionOffset) {
-        builder.addFieldOffset(0, positionOffset, 0);
-    }
-    static createPositionVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startPositionVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addCurve(builder, curveOffset) {
-        builder.addFieldOffset(1, curveOffset, 0);
-    }
-    static createCurveVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startCurveVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addSegment(builder, segmentOffset) {
-        builder.addFieldOffset(2, segmentOffset, 0);
-    }
-    static createSegmentVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startSegmentVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static endAlignment(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static createAlignment(builder, positionOffset, curveOffset, segmentOffset) {
-        Alignment.startAlignment(builder);
-        Alignment.addPosition(builder, positionOffset);
-        Alignment.addCurve(builder, curveOffset);
-        Alignment.addSegment(builder, segmentOffset);
-        return Alignment.endAlignment(builder);
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-class Civil {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsCivil(bb, obj) {
-        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsCivil(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    alignmentHorizontal(obj) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
-    }
-    alignmentVertical(obj) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
-    }
-    alignment3d(obj) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
-    }
-    static startCivil(builder) {
-        builder.startObject(3);
-    }
-    static addAlignmentHorizontal(builder, alignmentHorizontalOffset) {
-        builder.addFieldOffset(0, alignmentHorizontalOffset, 0);
-    }
-    static addAlignmentVertical(builder, alignmentVerticalOffset) {
-        builder.addFieldOffset(1, alignmentVerticalOffset, 0);
-    }
-    static addAlignment3d(builder, alignment3dOffset) {
-        builder.addFieldOffset(2, alignment3dOffset, 0);
-    }
-    static endCivil(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-class Fragment {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsFragment(bb, obj) {
-        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsFragment(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new Fragment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    position(index) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    positionLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    positionArray() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    normal(index) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    normalLength() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    normalArray() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    index(index) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    indexLength() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    indexArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    blockId(index) {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    blockIdLength() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    blockIdArray() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    groups(index) {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    groupsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    groupsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    materials(index) {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    materialsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    materialsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    matrices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    matricesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    matricesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    colors(index) {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    colorsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    colorsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    ids(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 20);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    id(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 22);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    composites(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 24);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    static startFragment(builder) {
-        builder.startObject(11);
-    }
-    static addPosition(builder, positionOffset) {
-        builder.addFieldOffset(0, positionOffset, 0);
-    }
-    static createPositionVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startPositionVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addNormal(builder, normalOffset) {
-        builder.addFieldOffset(1, normalOffset, 0);
-    }
-    static createNormalVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startNormalVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addIndex(builder, indexOffset) {
-        builder.addFieldOffset(2, indexOffset, 0);
-    }
-    static createIndexVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startIndexVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addBlockId(builder, blockIdOffset) {
-        builder.addFieldOffset(3, blockIdOffset, 0);
-    }
-    static createBlockIdVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startBlockIdVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addGroups(builder, groupsOffset) {
-        builder.addFieldOffset(4, groupsOffset, 0);
-    }
-    static createGroupsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startGroupsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addMaterials(builder, materialsOffset) {
-        builder.addFieldOffset(5, materialsOffset, 0);
-    }
-    static createMaterialsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startMaterialsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addMatrices(builder, matricesOffset) {
-        builder.addFieldOffset(6, matricesOffset, 0);
-    }
-    static createMatricesVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startMatricesVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addColors(builder, colorsOffset) {
-        builder.addFieldOffset(7, colorsOffset, 0);
-    }
-    static createColorsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startColorsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addIds(builder, idsOffset) {
-        builder.addFieldOffset(8, idsOffset, 0);
-    }
-    static addId(builder, idOffset) {
-        builder.addFieldOffset(9, idOffset, 0);
-    }
-    static addComposites(builder, compositesOffset) {
-        builder.addFieldOffset(10, compositesOffset, 0);
-    }
-    static endFragment(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static createFragment(builder, positionOffset, normalOffset, indexOffset, blockIdOffset, groupsOffset, materialsOffset, matricesOffset, colorsOffset, idsOffset, idOffset, compositesOffset) {
-        Fragment.startFragment(builder);
-        Fragment.addPosition(builder, positionOffset);
-        Fragment.addNormal(builder, normalOffset);
-        Fragment.addIndex(builder, indexOffset);
-        Fragment.addBlockId(builder, blockIdOffset);
-        Fragment.addGroups(builder, groupsOffset);
-        Fragment.addMaterials(builder, materialsOffset);
-        Fragment.addMatrices(builder, matricesOffset);
-        Fragment.addColors(builder, colorsOffset);
-        Fragment.addIds(builder, idsOffset);
-        Fragment.addId(builder, idOffset);
-        Fragment.addComposites(builder, compositesOffset);
-        return Fragment.endFragment(builder);
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-let FragmentsGroup$1 = class FragmentsGroup {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsFragmentsGroup(bb, obj) {
-        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsFragmentsGroup(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new FragmentsGroup()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    items(index, obj) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? (obj || new Fragment()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
-    }
-    itemsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    civil(obj) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new Civil()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
-    }
-    coordinationMatrix(index) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    coordinationMatrixLength() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    coordinationMatrixArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    ids(index) {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    idsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    idsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsKeys(index) {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsKeysLength() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsKeysArray() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsKeysIndices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsKeysIndicesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsKeysIndicesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsRels(index) {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsRelsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsRelsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    itemsRelsIndices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    itemsRelsIndicesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    itemsRelsIndicesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
-        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    fragmentKeys(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 20);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    id(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 22);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    name(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 24);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    ifcName(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 26);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    ifcDescription(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 28);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    ifcSchema(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 30);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    maxExpressId() {
-        const offset = this.bb.__offset(this.bb_pos, 32);
-        return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
-    }
-    boundingBox(index) {
-        const offset = this.bb.__offset(this.bb_pos, 34);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    boundingBoxLength() {
-        const offset = this.bb.__offset(this.bb_pos, 34);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    boundingBoxArray() {
-        const offset = this.bb.__offset(this.bb_pos, 34);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    static startFragmentsGroup(builder) {
-        builder.startObject(16);
-    }
-    static addItems(builder, itemsOffset) {
-        builder.addFieldOffset(0, itemsOffset, 0);
-    }
-    static createItemsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addCivil(builder, civilOffset) {
-        builder.addFieldOffset(1, civilOffset, 0);
-    }
-    static addCoordinationMatrix(builder, coordinationMatrixOffset) {
-        builder.addFieldOffset(2, coordinationMatrixOffset, 0);
-    }
-    static createCoordinationMatrixVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startCoordinationMatrixVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addIds(builder, idsOffset) {
-        builder.addFieldOffset(3, idsOffset, 0);
-    }
-    static createIdsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startIdsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsKeys(builder, itemsKeysOffset) {
-        builder.addFieldOffset(4, itemsKeysOffset, 0);
-    }
-    static createItemsKeysVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsKeysVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsKeysIndices(builder, itemsKeysIndicesOffset) {
-        builder.addFieldOffset(5, itemsKeysIndicesOffset, 0);
-    }
-    static createItemsKeysIndicesVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsKeysIndicesVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsRels(builder, itemsRelsOffset) {
-        builder.addFieldOffset(6, itemsRelsOffset, 0);
-    }
-    static createItemsRelsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsRelsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addItemsRelsIndices(builder, itemsRelsIndicesOffset) {
-        builder.addFieldOffset(7, itemsRelsIndicesOffset, 0);
-    }
-    static createItemsRelsIndicesVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startItemsRelsIndicesVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addFragmentKeys(builder, fragmentKeysOffset) {
-        builder.addFieldOffset(8, fragmentKeysOffset, 0);
-    }
-    static addId(builder, idOffset) {
-        builder.addFieldOffset(9, idOffset, 0);
-    }
-    static addName(builder, nameOffset) {
-        builder.addFieldOffset(10, nameOffset, 0);
-    }
-    static addIfcName(builder, ifcNameOffset) {
-        builder.addFieldOffset(11, ifcNameOffset, 0);
-    }
-    static addIfcDescription(builder, ifcDescriptionOffset) {
-        builder.addFieldOffset(12, ifcDescriptionOffset, 0);
-    }
-    static addIfcSchema(builder, ifcSchemaOffset) {
-        builder.addFieldOffset(13, ifcSchemaOffset, 0);
-    }
-    static addMaxExpressId(builder, maxExpressId) {
-        builder.addFieldInt32(14, maxExpressId, 0);
-    }
-    static addBoundingBox(builder, boundingBoxOffset) {
-        builder.addFieldOffset(15, boundingBoxOffset, 0);
-    }
-    static createBoundingBoxVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startBoundingBoxVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static endFragmentsGroup(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static finishFragmentsGroupBuffer(builder, offset) {
-        builder.finish(offset);
-    }
-    static finishSizePrefixedFragmentsGroupBuffer(builder, offset) {
-        builder.finish(offset, undefined, true);
-    }
-};
-
-// TODO: Document this
-class FragmentsGroup extends THREE$1.Group {
-    constructor() {
-        super(...arguments);
-        this.items = [];
-        this.boundingBox = new THREE$1.Box3();
-        this.coordinationMatrix = new THREE$1.Matrix4();
-        this.keyFragments = {};
-        // data: [expressID: number]: [keys, rels]
-        this.data = {};
-        this.ifcMetadata = {
-            name: "",
-            description: "",
-            schema: "IFC2X3",
-            maxExpressID: 0,
-        };
-    }
-    // TODO: Force all item IDs to be numbers or strings
-    getFragmentMap(expressIDs) {
-        const fragmentMap = {};
-        for (const expressID of expressIDs) {
-            const data = this.data[expressID];
-            if (!data)
-                continue;
-            for (const key of data[0]) {
-                const fragmentID = this.keyFragments[key];
-                if (!fragmentMap[fragmentID])
-                    fragmentMap[fragmentID] = new Set();
-                fragmentMap[fragmentID].add(expressID);
-            }
-        }
-        return fragmentMap;
-    }
-    dispose(disposeResources = true) {
-        for (const fragment of this.items) {
-            fragment.dispose(disposeResources);
-        }
-        this.coordinationMatrix = new THREE$1.Matrix4();
-        this.keyFragments = {};
-        this.data = {};
-        this.properties = {};
-    }
-}
-
-class IfcAlignmentData {
-    constructor() {
-        this.coordinates = new Float32Array(0);
-        this.alignmentIndex = [];
-        this.curveIndex = [];
-    }
-    exportData() {
-        const { coordinates, alignmentIndex, curveIndex } = this;
-        return { coordinates, alignmentIndex, curveIndex };
-    }
-}
-
-/**
- * Object to export and import sets of fragments efficiently using
- * [flatbuffers](https://flatbuffers.dev/).
- */
-class Serializer {
-    constructor() {
-        this.fragmentIDSeparator = "|";
-    }
-    import(bytes) {
-        const buffer = new ByteBuffer(bytes);
-        const fbFragmentsGroup = FragmentsGroup$1.getRootAsFragmentsGroup(buffer);
-        const fragmentsGroup = this.constructFragmentGroup(fbFragmentsGroup);
-        const length = fbFragmentsGroup.itemsLength();
-        for (let i = 0; i < length; i++) {
-            const fbFragment = fbFragmentsGroup.items(i);
-            if (!fbFragment)
-                continue;
-            const geometry = this.constructGeometry(fbFragment);
-            const materials = this.constructMaterials(fbFragment);
-            const { instances, colors } = this.constructInstances(fbFragment);
-            const fragment = new Fragment$1(geometry, materials, instances.length);
-            this.getComposites(fbFragment, fragment);
-            this.setInstances(instances, colors, fragment);
-            this.setID(fbFragment, fragment);
-            fragmentsGroup.items.push(fragment);
-            fragmentsGroup.add(fragment.mesh);
-        }
-        return fragmentsGroup;
-    }
-    export(group) {
-        var _a;
-        const builder = new Builder(1024);
-        const items = [];
-        const G = FragmentsGroup$1;
-        const F = Fragment;
-        const C = Civil;
-        let exportedCivil = null;
-        if ((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments) {
-            const A = Alignment;
-            const resultH = group.ifcCivil.horizontalAlignments.exportData();
-            const posVectorH = A.createPositionVector(builder, resultH.coordinates);
-            const curveVectorH = A.createSegmentVector(builder, resultH.curveIndex);
-            const alignVectorH = A.createCurveVector(builder, resultH.alignmentIndex);
-            A.startAlignment(builder);
-            A.addPosition(builder, posVectorH);
-            A.addSegment(builder, curveVectorH);
-            A.addCurve(builder, alignVectorH);
-            const exportedH = Alignment.endAlignment(builder);
-            const resultV = group.ifcCivil.verticalAlignments.exportData();
-            const posVectorV = A.createPositionVector(builder, resultV.coordinates);
-            const curveVectorV = A.createSegmentVector(builder, resultV.curveIndex);
-            const alignVectorV = A.createCurveVector(builder, resultV.alignmentIndex);
-            A.startAlignment(builder);
-            A.addPosition(builder, posVectorV);
-            A.addSegment(builder, curveVectorV);
-            A.addCurve(builder, alignVectorV);
-            const exportedV = Alignment.endAlignment(builder);
-            const resultR = group.ifcCivil.realAlignments.exportData();
-            const posVectorR = A.createPositionVector(builder, resultR.coordinates);
-            const curveVectorR = A.createSegmentVector(builder, resultR.curveIndex);
-            const alignVectorR = A.createCurveVector(builder, resultR.alignmentIndex);
-            A.startAlignment(builder);
-            A.addPosition(builder, posVectorR);
-            A.addSegment(builder, curveVectorR);
-            A.addCurve(builder, alignVectorR);
-            const exportedR = Alignment.endAlignment(builder);
-            C.startCivil(builder);
-            C.addAlignmentHorizontal(builder, exportedH);
-            C.addAlignmentVertical(builder, exportedV);
-            C.addAlignment3d(builder, exportedR);
-            exportedCivil = Civil.endCivil(builder);
-        }
-        for (const fragment of group.items) {
-            const result = fragment.exportData();
-            const posVector = F.createPositionVector(builder, result.position);
-            const normalVector = F.createNormalVector(builder, result.normal);
-            const blockVector = F.createBlockIdVector(builder, result.blockID);
-            const indexVector = F.createIndexVector(builder, result.index);
-            const groupsVector = F.createGroupsVector(builder, result.groups);
-            const matsVector = F.createMaterialsVector(builder, result.materials);
-            const matricesVector = F.createMatricesVector(builder, result.matrices);
-            const colorsVector = F.createColorsVector(builder, result.colors);
-            const idsStr = builder.createString(result.ids);
-            const idStr = builder.createString(result.id);
-            const compositeStr = builder.createString(JSON.stringify(fragment.composites));
-            F.startFragment(builder);
-            F.addPosition(builder, posVector);
-            F.addNormal(builder, normalVector);
-            F.addBlockId(builder, blockVector);
-            F.addIndex(builder, indexVector);
-            F.addGroups(builder, groupsVector);
-            F.addMaterials(builder, matsVector);
-            F.addMatrices(builder, matricesVector);
-            F.addColors(builder, colorsVector);
-            F.addIds(builder, idsStr);
-            F.addId(builder, idStr);
-            F.addComposites(builder, compositeStr);
-            const exported = Fragment.endFragment(builder);
-            items.push(exported);
-        }
-        const itemsVector = G.createItemsVector(builder, items);
-        const matrixVector = G.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
-        let fragmentKeys = "";
-        for (const key in group.keyFragments) {
-            const fragmentID = group.keyFragments[key];
-            if (fragmentKeys.length)
-                fragmentKeys += this.fragmentIDSeparator;
-            fragmentKeys += fragmentID;
-        }
-        const fragmentKeysRef = builder.createString(fragmentKeys);
-        const keyIndices = [];
-        const itemsKeys = [];
-        const relsIndices = [];
-        const itemsRels = [];
-        const ids = [];
-        let keysCounter = 0;
-        let relsCounter = 0;
-        for (const expressID in group.data) {
-            keyIndices.push(keysCounter);
-            relsIndices.push(relsCounter);
-            const [keys, rels] = group.data[expressID];
-            const id = parseInt(expressID, 10);
-            ids.push(id);
-            for (const key of keys) {
-                itemsKeys.push(key);
-            }
-            for (const rel of rels) {
-                itemsRels.push(rel);
-            }
-            keysCounter += keys.length;
-            relsCounter += rels.length;
-        }
-        const groupID = builder.createString(group.uuid);
-        const groupName = builder.createString(group.name);
-        const ifcName = builder.createString(group.ifcMetadata.name);
-        const ifcDescription = builder.createString(group.ifcMetadata.description);
-        const ifcSchema = builder.createString(group.ifcMetadata.schema);
-        const keysIVector = G.createItemsKeysIndicesVector(builder, keyIndices);
-        const keysVector = G.createItemsKeysVector(builder, itemsKeys);
-        const relsIVector = G.createItemsRelsIndicesVector(builder, relsIndices);
-        const relsVector = G.createItemsRelsVector(builder, itemsRels);
-        const idsVector = G.createIdsVector(builder, ids);
-        const { min, max } = group.boundingBox;
-        const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
-        const bboxVector = G.createBoundingBoxVector(builder, bbox);
-        G.startFragmentsGroup(builder);
-        if (exportedCivil !== null) {
-            G.addCivil(builder, exportedCivil);
-        }
-        G.addId(builder, groupID);
-        G.addName(builder, groupName);
-        G.addIfcName(builder, ifcName);
-        G.addIfcDescription(builder, ifcDescription);
-        G.addIfcSchema(builder, ifcSchema);
-        G.addMaxExpressId(builder, group.ifcMetadata.maxExpressID);
-        G.addItems(builder, itemsVector);
-        G.addFragmentKeys(builder, fragmentKeysRef);
-        G.addIds(builder, idsVector);
-        G.addItemsKeysIndices(builder, keysIVector);
-        G.addItemsKeys(builder, keysVector);
-        G.addItemsRelsIndices(builder, relsIVector);
-        G.addItemsRels(builder, relsVector);
-        G.addCoordinationMatrix(builder, matrixVector);
-        G.addBoundingBox(builder, bboxVector);
-        const result = FragmentsGroup$1.endFragmentsGroup(builder);
-        builder.finish(result);
-        return builder.asUint8Array();
-    }
-    getComposites(fbFragment, fragment) {
-        const composites = fbFragment.composites() || "{}";
-        fragment.composites = JSON.parse(composites);
-    }
-    setID(fbFragment, fragment) {
-        const id = fbFragment.id();
-        if (id) {
-            fragment.id = id;
-            fragment.mesh.uuid = id;
-        }
-    }
-    setInstances(instances, colors, fragment) {
-        for (let i = 0; i < instances.length; i++) {
-            fragment.setInstance(i, instances[i]);
-            if (colors.length) {
-                fragment.mesh.setColorAt(i, colors[i]);
-            }
-        }
-    }
-    constructInstances(fragment) {
-        const matricesData = fragment.matricesArray();
-        const colorData = fragment.colorsArray();
-        const colors = [];
-        const idsString = fragment.ids();
-        const id = fragment.id();
-        if (!matricesData || !idsString) {
-            throw new Error(`Error: Can't load empty fragment: ${id}`);
-        }
-        const ids = idsString.split("|");
-        const singleInstance = matricesData.length === 16;
-        const manyItems = ids.length > 1;
-        const isMergedFragment = singleInstance && manyItems;
-        if (isMergedFragment) {
-            const transform = new THREE$1.Matrix4().fromArray(matricesData);
-            const instances = [{ ids, transform }];
-            return { instances, colors };
-        }
-        // Instanced fragment
-        const instances = [];
-        for (let i = 0; i < matricesData.length; i += 16) {
-            const matrixArray = matricesData.subarray(i, i + 17);
-            const transform = new THREE$1.Matrix4().fromArray(matrixArray);
-            const id = ids[i / 16];
-            instances.push({ ids: [id], transform });
-        }
-        if (colorData && colorData.length === instances.length * 3) {
-            for (let i = 0; i < colorData.length; i += 3) {
-                const [r, g, b] = colorData.subarray(i, i + 4);
-                const color = new THREE$1.Color(r, g, b);
-                colors.push(color);
-            }
-        }
-        return { instances, colors };
-    }
-    constructMaterials(fragment) {
-        const materials = fragment.materialsArray();
-        const matArray = [];
-        if (!materials)
-            return matArray;
-        for (let i = 0; i < materials.length; i += 5) {
-            const opacity = materials[i];
-            const transparent = Boolean(materials[i + 1]);
-            const red = materials[i + 2];
-            const green = materials[i + 3];
-            const blue = materials[i + 4];
-            const color = new THREE$1.Color(red, green, blue);
-            const material = new THREE$1.MeshLambertMaterial({
-                color,
-                opacity,
-                transparent,
-            });
-            matArray.push(material);
-        }
-        return matArray;
-    }
-    constructFragmentGroup(group) {
-        const fragmentsGroup = new FragmentsGroup();
-        const FBcivil = group.civil();
-        const horizontalAlignments = new IfcAlignmentData();
-        const verticalAlignments = new IfcAlignmentData();
-        const realAlignments = new IfcAlignmentData();
-        if (FBcivil) {
-            const FBalignmentH = FBcivil.alignmentHorizontal();
-            this.getAlignmentData(FBalignmentH, horizontalAlignments);
-            const FBalignmentV = FBcivil.alignmentVertical();
-            this.getAlignmentData(FBalignmentV, verticalAlignments);
-            const FBalignment3D = FBcivil.alignment3d();
-            this.getAlignmentData(FBalignment3D, realAlignments);
-            fragmentsGroup.ifcCivil = {
-                horizontalAlignments,
-                verticalAlignments,
-                realAlignments,
-            };
-        }
-        // fragmentsGroup.ifcCivil?.horizontalAlignments
-        fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
-        fragmentsGroup.name = group.name() || "";
-        fragmentsGroup.ifcMetadata = {
-            name: group.ifcName() || "",
-            description: group.ifcDescription() || "",
-            schema: group.ifcSchema() || "IFC2X3",
-            maxExpressID: group.maxExpressId() || 0,
-        };
-        const defaultMatrix = new THREE$1.Matrix4().elements;
-        const matrixArray = group.coordinationMatrixArray() || defaultMatrix;
-        const ids = group.idsArray() || new Uint32Array();
-        const keysIndices = group.itemsKeysIndicesArray() || new Uint32Array();
-        const keysArray = group.itemsKeysArray() || new Uint32Array();
-        const relsArray = group.itemsRelsArray() || new Uint32Array();
-        const relsIndices = group.itemsRelsIndicesArray() || new Uint32Array();
-        const keysIdsString = group.fragmentKeys() || "";
-        const keysIdsArray = keysIdsString.split(this.fragmentIDSeparator);
-        this.setGroupData(fragmentsGroup, ids, keysIndices, keysArray, 0);
-        this.setGroupData(fragmentsGroup, ids, relsIndices, relsArray, 1);
-        const bbox = group.boundingBoxArray() || [0, 0, 0, 0, 0, 0];
-        const [minX, minY, minZ, maxX, maxY, maxZ] = bbox;
-        fragmentsGroup.boundingBox.min.set(minX, minY, minZ);
-        fragmentsGroup.boundingBox.max.set(maxX, maxY, maxZ);
-        for (let i = 0; i < keysIdsArray.length; i++) {
-            fragmentsGroup.keyFragments[i] = keysIdsArray[i];
-        }
-        if (matrixArray.length === 16) {
-            fragmentsGroup.coordinationMatrix.fromArray(matrixArray);
-        }
-        return fragmentsGroup;
-    }
-    getAlignmentData(alignment, result) {
-        if (alignment) {
-            if (alignment.positionArray) {
-                result.coordinates = alignment.positionArray();
-                for (let j = 0; j < alignment.curveLength(); j++) {
-                    result.alignmentIndex.push(alignment.curve(j));
-                }
-                for (let j = 0; j < alignment.segmentLength(); j++) {
-                    result.curveIndex.push(alignment.segment(j));
-                }
-            }
-        }
-    }
-    setGroupData(group, ids, indices, array, index) {
-        for (let i = 0; i < indices.length; i++) {
-            const expressID = ids[i];
-            const currentIndex = indices[i];
-            const nextIndex = indices[i + 1] || array.length;
-            const keys = [];
-            for (let j = currentIndex; j < nextIndex; j++) {
-                keys.push(array[j]);
-            }
-            if (!group.data[expressID]) {
-                group.data[expressID] = [[], []];
-            }
-            group.data[expressID][index] = keys;
-        }
-    }
-    constructGeometry(fragment) {
-        const position = fragment.positionArray();
-        const normal = fragment.normalArray();
-        const blockID = fragment.blockIdArray();
-        const index = fragment.indexArray();
-        const groups = fragment.groupsArray();
-        if (!index)
-            throw new Error("Index not found!");
-        const geometry = new THREE$1.BufferGeometry();
-        geometry.setIndex(Array.from(index));
-        this.loadAttribute(geometry, "position", position, 3);
-        this.loadAttribute(geometry, "normal", normal, 3);
-        this.loadAttribute(geometry, "blockID", blockID, 1);
-        this.loadGeometryGroups(groups, geometry);
-        return geometry;
-    }
-    loadGeometryGroups(groups, geometry) {
-        if (!groups)
-            return;
-        for (let i = 0; i < groups.length; i += 3) {
-            const start = groups[i];
-            const count = groups[i + 1];
-            const materialIndex = groups[i + 2];
-            geometry.addGroup(start, count, materialIndex);
-        }
-    }
-    loadAttribute(geometry, name, data, size) {
-        if (!data)
-            return;
-        geometry.setAttribute(name, new THREE$1.BufferAttribute(data, size));
-    }
-}
-
-/**
- * Object that can efficiently load binary files that contain
- * [fragment geometry](https://github.com/ifcjs/fragment).
- */
-class FragmentManager extends Component {
-    /** The list of meshes of the created fragments. */
-    get meshes() {
-        const allMeshes = [];
-        for (const fragID in this.list) {
-            allMeshes.push(this.list[fragID].mesh);
-        }
-        return allMeshes;
-    }
-    constructor(components) {
-        super(components);
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        /** {@link Component.enabled} */
-        this.enabled = true;
-        /** All the created [fragments](https://github.com/ifcjs/fragment). */
-        this.list = {};
-        this.groups = [];
-        this.baseCoordinationModel = "";
-        this.onFragmentsLoaded = new Event();
-        this.onFragmentsDisposed = new Event();
-        this.uiElement = new UIElement();
-        this.commands = [];
-        this._loader = new Serializer();
-        this._cards = [];
-        this.components.tools.add(FragmentManager.uuid, this);
-        if (components.uiEnabled) {
-            this.setupUI(components);
-        }
-    }
-    /** {@link Component.get} */
-    get() {
-        return Object.values(this.list);
-    }
-    /** {@link Component.get} */
-    async dispose(disposeUI = false) {
-        if (disposeUI) {
-            this.uiElement.dispose();
-        }
-        for (const group of this.groups) {
-            group.dispose(true);
-        }
-        for (const command of this.commands) {
-            await command.dispose();
-        }
-        for (const card of this._cards) {
-            await card.dispose();
-        }
-        this.groups = [];
-        this.list = {};
-        this.onFragmentsLoaded.reset();
-        this.onFragmentsDisposed.reset();
-        await this.onDisposed.trigger(FragmentManager.uuid);
-        this.onDisposed.reset();
-    }
-    async disposeGroup(group) {
-        const { uuid: groupID } = group;
-        const fragmentIDs = group.items.map((fragment) => fragment.id);
-        for (const fragment of group.items) {
-            this.removeFragmentMesh(fragment);
-            delete this.list[fragment.id];
-        }
-        group.dispose(true);
-        const index = this.groups.indexOf(group);
-        this.groups.splice(index, 1);
-        await this.onFragmentsDisposed.trigger({
-            groupID,
-            fragmentIDs,
-        });
-        await this.updateWindow();
-    }
-    /** Disposes all existing fragments */
-    reset() {
-        for (const id in this.list) {
-            const fragment = this.list[id];
-            fragment.dispose();
-        }
-        this.list = {};
-    }
-    /**
-     * Loads one or many fragments into the scene.
-     * @param data - the bytes containing the data for the fragments to load.
-     * @returns the list of IDs of the loaded fragments.
-     */
-    async load(data) {
-        const group = this._loader.import(data);
-        const scene = this.components.scene.get();
-        const ids = [];
-        scene.add(group);
-        for (const fragment of group.items) {
-            fragment.group = group;
-            this.list[fragment.id] = fragment;
-            ids.push(fragment.id);
-            this.components.meshes.push(fragment.mesh);
-        }
-        this.groups.push(group);
-        await this.onFragmentsLoaded.trigger(group);
-        return group;
-    }
-    /**
-     * Export the specified fragments.
-     * @param group - the fragments group to be exported.
-     * @returns the exported data as binary buffer.
-     */
-    export(group) {
-        return this._loader.export(group);
-    }
-    async updateWindow() {
-        if (!this.components.uiEnabled) {
-            return;
-        }
-        for (const card of this._cards) {
-            await card.dispose();
-        }
-        for (const group of this.groups) {
-            const card = new SimpleUICard(this.components);
-            // TODO: Make all cards like this?
-            card.domElement.classList.remove("bg-ifcjs-120");
-            card.domElement.classList.remove("border-transparent");
-            card.domElement.className += ` min-w-[300px] my-2 border-1 border-solid border-[#3A444E] `;
-            const buttonContainer = new SimpleUIComponent(this.components);
-            card.addChild(buttonContainer);
-            card.title = group.name;
-            this.uiElement.get("window").addChild(card);
-            this._cards.push(card);
-            // TODO: Use command list just like in fragment plans
-            const commandsButton = new Button(this.components);
-            commandsButton.materialIcon = "delete";
-            buttonContainer.addChild(commandsButton);
-            commandsButton.onClick.add(() => this.disposeGroup(group));
-        }
-    }
-    coordinate(models = this.groups) {
-        const baseModel = this.groups.find((group) => group.uuid === this.baseCoordinationModel);
-        if (!baseModel) {
-            console.log("No base model found for coordination!");
-            return;
-        }
-        for (const model of models) {
-            if (model === baseModel) {
-                continue;
-            }
-            model.position.set(0, 0, 0);
-            model.rotation.set(0, 0, 0);
-            model.scale.set(1, 1, 1);
-            model.updateMatrix();
-            model.applyMatrix4(model.coordinationMatrix.clone().invert());
-            model.applyMatrix4(baseModel.coordinationMatrix);
-        }
-    }
-    setupUI(components) {
-        const window = new FloatingWindow(components);
-        window.title = "Models";
-        window.domElement.style.left = "70px";
-        window.domElement.style.top = "100px";
-        window.domElement.style.width = "340px";
-        window.domElement.style.height = "400px";
-        const windowContent = window.slots.content.domElement;
-        windowContent.classList.remove("overflow-auto");
-        windowContent.classList.add("overflow-x-hidden");
-        components.ui.add(window);
-        window.visible = false;
-        const main = new Button(components);
-        main.tooltip = "Models";
-        main.materialIcon = "inbox";
-        main.onClick.add(() => {
-            window.visible = !window.visible;
-        });
-        this.uiElement.set({ main, window });
-        this.onFragmentsLoaded.add(() => this.updateWindow());
-    }
-    removeFragmentMesh(fragment) {
-        const meshes = this.components.meshes;
-        const mesh = fragment.mesh;
-        if (meshes.includes(mesh)) {
-            meshes.splice(meshes.indexOf(mesh), 1);
-        }
-    }
-}
-FragmentManager.uuid = "fef46874-46a3-461b-8c44-2922ab77c806";
-ToolComponent.libraryUUIDs.add(FragmentManager.uuid);
 
 var __defProp = Object.defineProperty;
 var __defProps = Object.defineProperties;
