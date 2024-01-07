@@ -21595,7 +21595,7 @@ class IfcAlignmentData {
 }
 
 /**
- * Object to export and import sets of fragments efficiently using
+ * Object to export and import sets of fragments efficiently using the library
  * [flatbuffers](https://flatbuffers.dev/).
  */
 class Serializer {
@@ -104187,7 +104187,7 @@ class FragmentClassifier extends Component {
         }
         const currentTypes = this._groupSystems.predefinedTypes;
         for (const expressID in group.data) {
-            const entity = group.properties[expressID];
+            const entity = group.properties[parseInt(expressID, 10)];
             if (!entity)
                 continue;
             const predefinedType = String((_a = entity.PredefinedType) === null || _a === void 0 ? void 0 : _a.value).toUpperCase();
@@ -109096,7 +109096,9 @@ class LengthMeasurement extends Component {
             .filter((box) => box !== undefined);
     }
     setupEvents(active) {
-        const viewerContainer = this.components.ui.viewerContainer;
+        const viewerContainer = this.components.renderer.get().domElement.parentElement;
+        if (!viewerContainer)
+            return;
         if (active) {
             viewerContainer.addEventListener("click", this.create);
             window.addEventListener("keydown", this.onKeyDown);
