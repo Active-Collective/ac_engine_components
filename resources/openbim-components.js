@@ -330,7 +330,9 @@ class BaseSVGAnnotation extends Component {
         this._enabled = false;
         this._isDrawing = false;
         this._svgViewport = null;
-        this.start = (_event) => { };
+        this.start = (_event) => {
+            return null;
+        };
         this.draw = (_event) => { };
         this.end = (_event) => { };
         this.cancel = (event) => {
@@ -350,17 +352,12 @@ class BaseSVGAnnotation extends Component {
         return (_a = this._svgViewport) !== null && _a !== void 0 ? _a : undefined;
     }
     set enabled(value) {
-        const main = this.uiElement.get("main");
-        if (!this._svgViewport) {
-            main.active = false;
-            this._enabled = false;
-            return;
-        }
-        if (value === this._enabled)
-            return;
         this._enabled = value;
-        main.active = value;
         this.setupEvents(value);
+        if (this.components.uiEnabled) {
+            const main = this.uiElement.get("main");
+            main.active = value;
+        }
     }
     get enabled() {
         return this._enabled;
@@ -368,36 +365,15 @@ class BaseSVGAnnotation extends Component {
     get canDraw() {
         return this.enabled && this._svgViewport;
     }
-    set drawManager(manager) {
-        this._drawManager = manager;
-        if (manager) {
-            manager.addDrawingTool(this.id, this);
-            const main = this.uiElement.get("main");
-            manager.uiElement.get("drawingTools").addChild(main);
-            this.svgViewport = manager.viewport.get();
-        }
-        else {
-            this.svgViewport = null;
-        }
-    }
-    get drawManager() {
-        return this._drawManager;
-    }
     get() {
         return null;
     }
     async dispose() {
-        if (this._drawManager) {
-            this._drawManager.dispose();
-        }
         if (this._svgViewport) {
             this._svgViewport.remove();
         }
         this.setupEvents(false);
         this.uiElement.dispose();
-        if (this.svgViewport) {
-            this.svgViewport.remove();
-        }
         await this.onDisposed.trigger();
         this.onDisposed.reset();
     }
@@ -21595,7 +21571,7 @@ class IfcAlignmentData {
 }
 
 /**
- * Object to export and import sets of fragments efficiently using the library
+ * Object to export and import sets of fragments efficiently using
  * [flatbuffers](https://flatbuffers.dev/).
  */
 class Serializer {
@@ -31892,7 +31868,9 @@ class SimpleSVGViewport extends Component {
         this._enabled = value;
         this.resize();
         this._undoList = [];
-        this.uiElement.get("toolbar").visible = value;
+        if (this.components.uiEnabled) {
+            this.uiElement.get("toolbar").visible = value;
+        }
         if (value) {
             this._viewport.classList.remove("pointer-events-none");
         }
@@ -31902,13 +31880,7 @@ class SimpleSVGViewport extends Component {
             this._viewport.classList.add("pointer-events-none");
         }
     }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    constructor(components, config) {
+    constructor(components) {
         super(components);
         this.uiElement = new UIElement();
         this.id = generateUUID().toLowerCase();
@@ -31918,28 +31890,28 @@ class SimpleSVGViewport extends Component {
         this._viewport = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         this._size = new Vector2$1();
         this._undoList = [];
+        this.config = {
+            fillColor: "transparent",
+            strokeColor: "#BCF124",
+            strokeWidth: 4,
+        };
+        this.onSetup = new Event();
         this.onResize = () => {
             this.resize();
         };
-        const defaultConfig = {
-            fillColor: "transparent",
-            strokeColor: "#ff0000",
-            strokeWidth: 4,
-        };
-        this.config = { ...defaultConfig, ...(config !== null && config !== void 0 ? config : {}) };
         this._viewport.classList.add("absolute", "top-0", "right-0");
-        // this._viewport.setAttribute("preserveAspectRatio", "xMidYMid")
         this._viewport.setAttribute("width", "100%");
         this._viewport.setAttribute("height", "100%");
-        // const renderer = this._components.renderer;
-        // const rendererSize = renderer.getSize();
-        // const width = rendererSize.x
-        // const height = rendererSize.y
-        // this._viewport.setAttribute("viewBox", `0 0 ${width} ${height}`);
-        this.setUI();
+        if (components.uiEnabled) {
+            this.setUI();
+        }
         this.enabled = false;
         this.components.ui.viewerContainer.append(this._viewport);
         this.setupEvents(true);
+    }
+    async setup(config) {
+        this.config = { ...this.config, ...config };
+        await this.onSetup.trigger(this);
     }
     async dispose() {
         this._undoList = [];
@@ -31960,9 +31932,6 @@ class SimpleSVGViewport extends Component {
     getDrawing() {
         return this.get().childNodes;
     }
-    //   setDrawing() {
-    //         if (!this.enabled) {  }
-    //     }
     /** {@link Resizeable.resize}. */
     resize() {
         const renderer = this.components.renderer;
@@ -31970,7 +31939,6 @@ class SimpleSVGViewport extends Component {
         const width = this.enabled ? rendererSize.x : 0;
         const height = this.enabled ? rendererSize.y : 0;
         this._size.set(width, height);
-        // this._viewport.setAttribute("viewBox", `0 0 ${this._size.x} ${this._size.y}`);
     }
     /** {@link Resizeable.getSize}. */
     getSize() {
@@ -31985,7 +31953,6 @@ class SimpleSVGViewport extends Component {
         }
     }
     setUI() {
-        var _a, _b;
         const undoDrawingBtn = new Button(this.components, {
             materialIconName: "undo",
         });
@@ -32013,34 +31980,26 @@ class SimpleSVGViewport extends Component {
         const settingsWindow = new FloatingWindow(this.components, this.id);
         settingsWindow.title = "Drawing Settings";
         settingsWindow.visible = false;
-        const viewerContainer = this.components.renderer.get().domElement
-            .parentElement;
-        viewerContainer.append(settingsWindow.get());
+        this.components.ui.add(settingsWindow);
         const strokeWidth = new RangeInput(this.components);
         strokeWidth.label = "Stroke Width";
         strokeWidth.min = 2;
         strokeWidth.max = 6;
         strokeWidth.value = 4;
-        // strokeWidth.id = this.id;
         strokeWidth.onChange.add((value) => {
-            // @ts-ignore
-            this.config = { strokeWidth: value };
+            this.config.strokeWidth = value;
         });
         const strokeColorInput = new ColorInput(this.components);
         strokeColorInput.label = "Stroke Color";
-        strokeColorInput.value = (_a = this.config.strokeColor) !== null && _a !== void 0 ? _a : "#BCF124";
-        // strokeColorInput.name = "stroke-color";
-        // strokeColorInput.id = this.id;
+        strokeColorInput.value = this.config.strokeColor;
         strokeColorInput.onChange.add((value) => {
-            this.config = { strokeColor: value };
+            this.config.strokeColor = value;
         });
         const fillColorInput = new ColorInput(this.components);
-        strokeColorInput.label = "Fill Color";
-        strokeColorInput.value = (_b = this.config.fillColor) !== null && _b !== void 0 ? _b : "#BCF124";
-        // strokeColorInput.name = "fill-color";
-        // strokeColorInput.id = this.id;
+        fillColorInput.label = "Fill Color";
+        fillColorInput.value = this.config.fillColor;
         fillColorInput.onChange.add((value) => {
-            this.config = { fillColor: value };
+            this.config.fillColor = value;
         });
         settingsWindow.addChild(strokeColorInput, fillColorInput, strokeWidth);
         const settingsBtn = new Button(this.components, {
@@ -32051,7 +32010,7 @@ class SimpleSVGViewport extends Component {
             settingsBtn.active = settingsWindow.visible;
         });
         settingsWindow.onHidden.add(() => (settingsBtn.active = false));
-        const toolbar = new Toolbar(this.components, { position: "right" });
+        const toolbar = new Toolbar(this.components, { position: "top" });
         toolbar.addChild(settingsBtn, undoDrawingBtn, redoDrawingBtn, clearDrawingBtn);
         this.uiElement.set({ toolbar, settingsWindow });
     }
@@ -109703,8 +109662,112 @@ class SVGArrow extends Component {
     }
 }
 
+class DrawManager extends Component {
+    get isDrawing() {
+        return this._isDrawing;
+    }
+    set isDrawing(value) {
+        this._isDrawing = value;
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        if (this.components.uiEnabled) {
+            this.uiElement.get("main").active = value;
+            this.uiElement.get("drawingTools").visible = value;
+        }
+        this.viewport.enabled = value;
+    }
+    constructor(components) {
+        super(components);
+        this.name = "DrawManager";
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this.uiElement = new UIElement();
+        this.drawingTools = {};
+        this.drawings = {};
+        this._enabled = false;
+        this._isDrawing = false;
+        components.tools.add(DrawManager.uuid, this);
+        this.viewport = new SimpleSVGViewport(components);
+        if (components.uiEnabled) {
+            this.setUI();
+        }
+        this.enabled = false;
+    }
+    async dispose() {
+        this.uiElement.dispose();
+        await this.viewport.dispose();
+        for (const name in this.drawings) {
+            this.drawings[name].remove();
+        }
+        this.drawings = {};
+        this.components = null;
+        await this.onDisposed.trigger(DrawManager.uuid);
+        this.onDisposed.reset();
+    }
+    saveDrawing(name) {
+        const currentDrawing = this.drawings[name];
+        currentDrawing === null || currentDrawing === void 0 ? void 0 : currentDrawing.childNodes.forEach((child) => currentDrawing.removeChild(child));
+        const drawing = this.viewport.getDrawing();
+        const group = currentDrawing !== null && currentDrawing !== void 0 ? currentDrawing : document.createElementNS("http://www.w3.org/2000/svg", "g");
+        group.id = name;
+        group.append(...drawing);
+        this.viewport.get().append(group);
+        this.drawings[name] = group;
+        return group;
+    }
+    addDrawingTool(name, tool) {
+        const existingTool = this.drawingTools[name];
+        if (!existingTool) {
+            if (this.components.uiEnabled) {
+                const main = tool.uiElement.get("main");
+                this.uiElement.get("drawingTools").addChild(main);
+            }
+            tool.svgViewport = this.viewport.get();
+            this.drawingTools[name] = tool;
+        }
+    }
+    activateTool(tool) {
+        const tools = Object.values(this.drawingTools);
+        const existingTool = tools.find((t) => t === tool);
+        if (!existingTool) {
+            console.warn("DrawManager: Tried to activate a drawing tool that is not registered yet.");
+            return;
+        }
+        for (const t of tools) {
+            t.enabled = false;
+        }
+        tool.enabled = true;
+    }
+    get activeTool() {
+        const drawingTools = Object.values(this.drawingTools);
+        return drawingTools.find((tool) => tool.enabled === true);
+    }
+    setUI() {
+        const viewportToolbar = this.viewport.uiElement.get("toolbar");
+        const drawingTools = new Toolbar(this.components, { position: "top" });
+        setTimeout(() => {
+            drawingTools.visible = false;
+            viewportToolbar.visible = false;
+        }, 0.001);
+        this.components.ui.addToolbar(drawingTools);
+        this.components.ui.addToolbar(viewportToolbar);
+        const main = new Button(this.components);
+        main.materialIcon = "gesture";
+        main.onClick.add(() => (this.enabled = !this.enabled));
+        this.uiElement.set({ drawingTools, main });
+    }
+    get() {
+        return null;
+    }
+}
+DrawManager.uuid = "4ab8b0f4-665d-4ea2-8f6e-66c98ed04392";
+
 class ArrowAnnotation extends BaseSVGAnnotation {
-    constructor(components, drawManager) {
+    constructor(components) {
         super(components);
         this.name = "ArrowAnnotation";
         this.canvas = null;
@@ -109718,27 +109781,28 @@ class ArrowAnnotation extends BaseSVGAnnotation {
             this._previewElement.get().remove();
         };
         this.start = (event) => {
-            var _a, _b, _c, _d;
+            var _a, _b;
             if (!this.canDraw) {
-                return undefined;
+                return null;
             }
+            const drawManager = this.components.tools.get(DrawManager);
             if (!this._isDrawing) {
                 this._isDrawing = true;
-                this._previewElement.setStyle((_a = this.drawManager) === null || _a === void 0 ? void 0 : _a.viewport.config);
+                this._previewElement.setStyle(drawManager.viewport.config);
                 this._previewElement.x1 = event.clientX;
                 this._previewElement.y1 = event.clientY;
                 this._previewElement.x2 = event.clientX;
                 this._previewElement.y2 = event.clientY;
-                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(this._previewElement.get());
+                (_a = this.svgViewport) === null || _a === void 0 ? void 0 : _a.append(this._previewElement.get());
             }
             else {
                 const arrow = this._previewElement.clone();
-                arrow.setStyle((_c = this.drawManager) === null || _c === void 0 ? void 0 : _c.viewport.config);
-                (_d = this.svgViewport) === null || _d === void 0 ? void 0 : _d.append(arrow.get());
+                arrow.setStyle(drawManager.viewport.config);
+                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(arrow.get());
                 this.cancel();
                 return arrow;
             }
-            return undefined;
+            return null;
         };
         this.draw = (e) => {
             if (!this.canDraw || !this._isDrawing) {
@@ -109748,19 +109812,21 @@ class ArrowAnnotation extends BaseSVGAnnotation {
             this._previewElement.y1 = e.clientY;
         };
         this._previewElement = new SVGArrow(components);
-        this.drawManager = drawManager;
-        const main = new Button(components);
-        this.uiElement.set({ main });
+        const drawManager = this.components.tools.get(DrawManager);
+        if (components.uiEnabled) {
+            this.setUI();
+        }
+        drawManager.addDrawingTool(this.name, this);
+    }
+    setUI() {
+        const drawManager = this.components.tools.get(DrawManager);
+        const main = new Button(this.components);
         main.label = "Arrow";
         main.materialIcon = "north_east";
         main.onClick.add(() => {
-            if (this.drawManager) {
-                this.drawManager.activateTool(this);
-            }
-            else {
-                this.enabled = !this.enabled;
-            }
+            drawManager.activateTool(this);
         });
+        this.uiElement.set({ main });
     }
     async dispose() {
         await super.dispose();
@@ -109832,32 +109898,33 @@ class SVGCircle extends Component {
 }
 
 class CircleAnnotation extends BaseSVGAnnotation {
-    constructor(components, drawManager) {
+    constructor(components) {
         super(components);
         this.name = "CircleAnnotation";
         this.canvas = null;
         this.uiElement = new UIElement();
         this._cursorPosition = new Vector2$1();
         this.start = (e) => {
-            var _a, _b, _c, _d;
+            var _a, _b;
             if (!this.canDraw) {
-                return undefined;
+                return null;
             }
+            const drawManager = this.components.tools.get(DrawManager);
             if (!this._isDrawing) {
                 this._isDrawing = true;
-                this._previewElement.setStyle((_a = this.drawManager) === null || _a === void 0 ? void 0 : _a.viewport.config);
+                this._previewElement.setStyle(drawManager.viewport.config);
                 this._previewElement.cx = e.clientX;
                 this._previewElement.cy = e.clientY;
-                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(this._previewElement.get());
+                (_a = this.svgViewport) === null || _a === void 0 ? void 0 : _a.append(this._previewElement.get());
             }
             else {
                 const circle = this._previewElement.clone();
-                circle.setStyle((_c = this.drawManager) === null || _c === void 0 ? void 0 : _c.viewport.config);
-                (_d = this.svgViewport) === null || _d === void 0 ? void 0 : _d.append(circle.get());
+                circle.setStyle(drawManager.viewport.config);
+                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(circle.get());
                 this.cancel();
                 return circle;
             }
-            return undefined;
+            return null;
         };
         this.cancel = () => {
             if (!this._isDrawing) {
@@ -109876,19 +109943,21 @@ class CircleAnnotation extends BaseSVGAnnotation {
             this._previewElement.radius = this._cursorPosition.distanceTo(this._previewElement.centerPoint);
         };
         this._previewElement = new SVGCircle(components);
-        this.drawManager = drawManager;
-        const main = new Button(components);
-        this.uiElement.set({ main });
+        const drawManager = this.components.tools.get(DrawManager);
+        if (components.uiEnabled) {
+            this.setUI();
+        }
+        drawManager.addDrawingTool("circle_annotation", this);
+    }
+    setUI() {
+        const drawManager = this.components.tools.get(DrawManager);
+        const main = new Button(this.components);
         main.label = "Circle";
         main.materialIcon = "radio_button_unchecked";
         main.onClick.add(() => {
-            if (this.drawManager) {
-                this.drawManager.activateTool(this);
-            }
-            else {
-                this.enabled = !this.enabled;
-            }
+            drawManager.activateTool(this);
         });
+        this.uiElement.set({ main });
     }
     async dispose() {
         await super.dispose();
@@ -109956,7 +110025,7 @@ class SVGText extends Component {
 }
 
 class TextAnnotation extends BaseSVGAnnotation {
-    constructor(components, drawManager) {
+    constructor(components) {
         super(components);
         this.name = "TextAnnotation";
         this.uiElement = new UIElement();
@@ -109970,31 +110039,32 @@ class TextAnnotation extends BaseSVGAnnotation {
             this._previewElement.get().remove();
         };
         this.start = (e) => {
-            var _a, _b, _c, _d;
+            var _a, _b;
             if (!this.canDraw) {
-                return undefined;
+                return null;
             }
+            const drawManager = this.components.tools.get(DrawManager);
             if (!this._isDrawing) {
                 this._isDrawing = true;
                 const text = prompt("Enter your text", this._previewElement.text);
                 if (!text) {
                     this.cancel();
-                    return undefined;
+                    return null;
                 }
-                this._previewElement.setStyle((_a = this.drawManager) === null || _a === void 0 ? void 0 : _a.viewport.config);
+                this._previewElement.setStyle(drawManager.viewport.config);
                 this._previewElement.text = text;
                 this._previewElement.x = e.clientX;
                 this._previewElement.y = e.clientY;
-                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(this._previewElement.get());
+                (_a = this.svgViewport) === null || _a === void 0 ? void 0 : _a.append(this._previewElement.get());
             }
             else {
                 const text = this._previewElement.clone();
-                text.setStyle((_c = this.drawManager) === null || _c === void 0 ? void 0 : _c.viewport.config);
-                (_d = this.svgViewport) === null || _d === void 0 ? void 0 : _d.append(text.get());
+                text.setStyle(drawManager.viewport.config);
+                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(text.get());
                 this.cancel();
                 return text;
             }
-            return undefined;
+            return null;
         };
         this.draw = (e) => {
             if (!this.canDraw || !this._isDrawing) {
@@ -110004,19 +110074,21 @@ class TextAnnotation extends BaseSVGAnnotation {
             this._previewElement.y = e.clientY;
         };
         this._previewElement = new SVGText(components);
-        this.drawManager = drawManager;
-        const main = new Button(components);
-        this.uiElement.set({ main });
+        const drawManager = this.components.tools.get(DrawManager);
+        if (components.uiEnabled) {
+            this.setUI();
+        }
+        drawManager.addDrawingTool(this.name, this);
+    }
+    setUI() {
+        const drawManager = this.components.tools.get(DrawManager);
+        const main = new Button(this.components);
         main.label = "Text";
         main.materialIcon = "title";
         main.onClick.add(() => {
-            if (this.drawManager) {
-                this.drawManager.activateTool(this);
-            }
-            else {
-                this.enabled = !this.enabled;
-            }
+            drawManager.activateTool(this);
         });
+        this.uiElement.set({ main });
     }
     async dispose() {
         await super.dispose();
@@ -110124,31 +110196,32 @@ class SVGRectangle extends Component {
 }
 
 class RectangleAnnotation extends BaseSVGAnnotation {
-    constructor(components, drawManager) {
+    constructor(components) {
         super(components);
         this.name = "RectangleAnnotation";
         this.canvas = null;
         this.uiElement = new UIElement();
         this._startPoint = new Vector2$1();
         this.start = (e) => {
-            var _a, _b, _c, _d;
+            var _a, _b;
             if (!this.canDraw) {
-                return undefined;
+                return null;
             }
+            const drawManager = this.components.tools.get(DrawManager);
             if (!this._isDrawing) {
                 this._isDrawing = true;
-                this._previewElement.setStyle((_a = this.drawManager) === null || _a === void 0 ? void 0 : _a.viewport.config);
+                this._previewElement.setStyle(drawManager.viewport.config);
                 this._startPoint.set(e.clientX, e.clientY);
-                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(this._previewElement.get());
+                (_a = this.svgViewport) === null || _a === void 0 ? void 0 : _a.append(this._previewElement.get());
             }
             else {
                 const rectangle = this._previewElement.clone();
-                rectangle.setStyle((_c = this.drawManager) === null || _c === void 0 ? void 0 : _c.viewport.config);
-                (_d = this.svgViewport) === null || _d === void 0 ? void 0 : _d.append(rectangle.get());
+                rectangle.setStyle(drawManager.viewport.config);
+                (_b = this.svgViewport) === null || _b === void 0 ? void 0 : _b.append(rectangle.get());
                 this.cancel();
                 return rectangle;
             }
-            return undefined;
+            return null;
         };
         this.cancel = () => {
             if (!this._isDrawing) {
@@ -110170,111 +110243,27 @@ class RectangleAnnotation extends BaseSVGAnnotation {
             this._previewElement.y2 = e.clientY;
         };
         this._previewElement = new SVGRectangle(components);
-        this.drawManager = drawManager;
-        const main = new Button(components);
-        this.uiElement.set({ main });
+        const drawManager = this.components.tools.get(DrawManager);
+        if (components.uiEnabled) {
+            this.setUI();
+        }
+        drawManager.addDrawingTool(this.name, this);
+    }
+    setUI() {
+        const drawManager = this.components.tools.get(DrawManager);
+        const main = new Button(this.components);
         main.label = "Rectangle";
         main.materialIcon = "crop_square";
         main.onClick.add(() => {
-            if (this.drawManager) {
-                this.drawManager.activateTool(this);
-            }
-            else {
-                this.enabled = !this.enabled;
-            }
+            drawManager.activateTool(this);
         });
+        this.uiElement.set({ main });
     }
     async dispose() {
         await super.dispose();
         this._previewElement.dispose();
     }
 }
-
-class DrawManager extends Component {
-    get isDrawing() {
-        return this._isDrawing;
-    }
-    set isDrawing(value) {
-        this._isDrawing = value;
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(value) {
-        this._enabled = value;
-        this.uiElement.get("main").active = value;
-        this.uiElement.get("drawingTools").visible = value;
-        this.viewport.enabled = value;
-    }
-    constructor(components) {
-        super(components);
-        this.name = "DrawManager";
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this.uiElement = new UIElement();
-        this.drawingTools = {};
-        this.drawings = {};
-        this._enabled = false;
-        this._isDrawing = false;
-        components.tools.add(DrawManager.uuid, this);
-        this.viewport = new SimpleSVGViewport(components);
-        if (components.uiEnabled) {
-            this.setUI();
-        }
-        this.enabled = false;
-    }
-    async dispose() {
-        this.uiElement.dispose();
-        await this.viewport.dispose();
-        for (const name in this.drawings) {
-            this.drawings[name].remove();
-        }
-        this.drawings = {};
-        this.components = null;
-        await this.onDisposed.trigger(DrawManager.uuid);
-        this.onDisposed.reset();
-    }
-    saveDrawing(name) {
-        const currentDrawing = this.drawings[name];
-        currentDrawing === null || currentDrawing === void 0 ? void 0 : currentDrawing.childNodes.forEach((child) => currentDrawing.removeChild(child));
-        const drawing = this.viewport.getDrawing();
-        const group = currentDrawing !== null && currentDrawing !== void 0 ? currentDrawing : document.createElementNS("http://www.w3.org/2000/svg", "g");
-        group.id = name;
-        group.append(...drawing);
-        this.viewport.get().append(group);
-        this.drawings[name] = group;
-        return group;
-    }
-    addDrawingTool(name, tool) {
-        const existingTool = this.drawingTools[name];
-        if (!existingTool) {
-            const main = this.uiElement.get("main");
-            this.uiElement.get("drawingTools").addChild(main);
-            this.drawingTools[name] = tool;
-        }
-    }
-    activateTool(tool) {
-        const drawingTools = Object.values(this.drawingTools);
-        drawingTools.forEach((tool) => (tool.enabled = false));
-        tool.enabled = true;
-    }
-    get activeTool() {
-        const drawingTools = Object.values(this.drawingTools);
-        return drawingTools.find((tool) => tool.enabled === true);
-    }
-    setUI() {
-        const drawingTools = new Toolbar(this.components, { position: "top" });
-        this.components.ui.addToolbar(drawingTools);
-        const main = new Button(this.components);
-        main.materialIcon = "gesture";
-        main.onClick.add(() => (this.enabled = !this.enabled));
-        this.uiElement.set({ drawingTools, main });
-    }
-    get() {
-        throw new Error("Method not implemented.");
-    }
-}
-DrawManager.uuid = "4ab8b0f4-665d-4ea2-8f6e-66c98ed04392";
 
 var mapboxGl = {exports: {}};
 
