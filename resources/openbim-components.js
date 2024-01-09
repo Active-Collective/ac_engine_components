@@ -10500,11 +10500,31 @@ class UIManager extends Component {
         await this.onDisposed.trigger();
         this.onDisposed.reset();
     }
-    init() {
+    async init() {
         this.setupEvents(true);
         this.viewerContainer.append(this._containers.top, this._containers.right, this._containers.bottom, this._containers.left, this._contextMenuContainer);
         this.viewerContainer.style.position = "relative";
         this.viewerContainer.classList.add("obc-viewer");
+        // Get material icons
+        const materialIconsLink = document.createElement("link");
+        materialIconsLink.rel = "stylesheet";
+        materialIconsLink.href =
+            "https://fonts.googleapis.com/icon?family=Material+Icons";
+        // Get openbim-components styles
+        const fetchResponse = await fetch("https://raw.githubusercontent.com/IFCjs/components/main/resources/styles.css");
+        const componentsCSS = await fetchResponse.text();
+        const styleElement = document.createElement("style");
+        styleElement.id = "openbim-components";
+        styleElement.textContent = componentsCSS;
+        const firstLinkTag = document.head.querySelector("link");
+        if (firstLinkTag) {
+            // Inserting the styles before any link tag makes sure the developer can override the library styles
+            document.head.insertBefore(materialIconsLink, firstLinkTag);
+            document.head.insertBefore(styleElement, firstLinkTag);
+        }
+        else {
+            document.head.append(materialIconsLink, styleElement);
+        }
     }
     add(...uiComponents) {
         for (const component of uiComponents) {
@@ -10671,7 +10691,7 @@ class FloatingWindow extends SimpleUIComponent {
     <div class="${FloatingWindow.Class.Base}">
       <div id="title-container" class="z-10 flex justify-between items-center top-0 select-none cursor-move px-6 py-3 border-b-2 border-solid border-[#3A444E]">
         <div class="flex flex-col">
-          <h3 class="text-3xl text-ifcjs-200 font-medium" id="title">Tooeen Floating Window</h3>
+          <h3 class="text-3xl text-ifcjs-200 font-medium my-0" id="title">Tooeen Floating Window</h3>
           <p id="description" class="${FloatingWindow.Class.Description}"></p>
         </div>
         <span id="close" class="material-icons text-2xl ml-4 text-gray-400 z-20 hover:cursor-pointer hover:text-ifcjs-200">close</span>
@@ -11698,7 +11718,7 @@ class Components {
         this._clock.start();
         if (this.uiEnabled) {
             this._ui = new UIManager(this);
-            this.ui.init();
+            await this.ui.init();
         }
         await this.update();
         await this.onInitialized.trigger(this);
@@ -11755,6 +11775,7 @@ class Components {
         THREE$1.Mesh.prototype.raycast = acceleratedRaycast;
     }
 }
+Components.release = "1.2.0";
 
 const _raycaster = new Raycaster();
 
@@ -21571,7 +21592,7 @@ class IfcAlignmentData {
 }
 
 /**
- * Object to export and import sets of fragments efficiently using
+ * Object to export and import sets of fragments efficiently using the library
  * [flatbuffers](https://flatbuffers.dev/).
  */
 class Serializer {
@@ -22053,20 +22074,29 @@ class FragmentManager extends Component {
      * @param data - the bytes containing the data for the fragments to load.
      * @returns the list of IDs of the loaded fragments.
      */
-    async load(data) {
-        const group = this._loader.import(data);
+    async load(data, coordinate = true) {
+        const model = this._loader.import(data);
         const scene = this.components.scene.get();
         const ids = [];
-        scene.add(group);
-        for (const fragment of group.items) {
-            fragment.group = group;
+        scene.add(model);
+        for (const fragment of model.items) {
+            fragment.group = model;
             this.list[fragment.id] = fragment;
             ids.push(fragment.id);
             this.components.meshes.push(fragment.mesh);
         }
-        this.groups.push(group);
-        await this.onFragmentsLoaded.trigger(group);
-        return group;
+        if (coordinate) {
+            const isFirstModel = this.groups.length === 0;
+            if (isFirstModel) {
+                this.baseCoordinationModel = model.uuid;
+            }
+            else {
+                this.coordinate([model]);
+            }
+        }
+        this.groups.push(model);
+        await this.onFragmentsLoaded.trigger(model);
+        return model;
     }
     /**
      * Export the specified fragments.
@@ -22251,13 +22281,17 @@ class FragmentBoundingBox extends Component {
         mesh.updateMatrix();
         const meshTransform = mesh.matrix;
         const instanceTransform = new THREE$1.Matrix4();
-        for (let i = 0; i < mesh.count; i++) {
-            mesh.getMatrixAt(i, instanceTransform);
+        const isInstanced = mesh instanceof THREE$1.InstancedMesh;
+        const count = isInstanced ? mesh.count : 1;
+        for (let i = 0; i < count; i++) {
             const min = bbox.min.clone();
             const max = bbox.max.clone();
-            min.applyMatrix4(instanceTransform);
+            if (isInstanced) {
+                mesh.getMatrixAt(i, instanceTransform);
+                min.applyMatrix4(instanceTransform);
+                max.applyMatrix4(instanceTransform);
+            }
             min.applyMatrix4(meshTransform);
-            max.applyMatrix4(instanceTransform);
             max.applyMatrix4(meshTransform);
             if (min.x < this._absoluteMin.x)
                 this._absoluteMin.x = min.x;
@@ -26073,6 +26107,15 @@ class FragmentHighlighter extends Component {
             }
         }
         const sphere = bbox.getSphere();
+        const i = Infinity;
+        const mi = -Infinity;
+        const { x, y, z } = sphere.center;
+        const isInf = sphere.radius === i || x === i || y === i || z === i;
+        const isMInf = sphere.radius === mi || x === mi || y === mi || z === mi;
+        const isZero = sphere.radius === 0;
+        if (isInf || isMInf || isZero) {
+            return;
+        }
         sphere.radius *= this.zoomFactor;
         const camera = this.components.camera;
         await camera.controls.fitToSphere(sphere, true);
@@ -26120,7 +26163,16 @@ class FragmentHighlighter extends Component {
                 ids: Array.from(fragment.ids),
                 transform: this._tempMatrix,
             });
-            selection.blocks.setVisibility(true, ids, true);
+            // Only highlight visible blocks
+            const visibleIDs = new Set();
+            let counter = 0;
+            for (const id of ids) {
+                if (fragment.blocks.visibleIds.has(counter)) {
+                    visibleIDs.add(id);
+                }
+                counter++;
+            }
+            selection.blocks.setVisibility(true, visibleIDs, true);
         }
         else {
             let i = 0;
@@ -100615,7 +100667,6 @@ class DataConverter {
         const uniqueItems = {};
         const matrix = new THREE$1.Matrix4();
         const color = new THREE$1.Color();
-        console.log(civilItems);
         // Add alignments data
         if (civilItems.IfcAlignment) {
             const horizontalAlignments = new IfcAlignmentData();
@@ -100919,6 +100970,10 @@ class FragmentIfcLoader extends Component {
         this.enabled = true;
         this.uiElement = new UIElement();
         this.onIfcLoaded = new Event();
+        this.config = {
+            autoSetWasm: true,
+        };
+        this.onSetup = new Event();
         // For debugging purposes
         // isolatedItems = new Set<number>();
         this.onLocationsSaved = new Event();
@@ -100929,6 +100984,32 @@ class FragmentIfcLoader extends Component {
         if (components.uiEnabled) {
             this.setupUI();
         }
+    }
+    async autoSetWasm() {
+        var _a;
+        const componentsPackage = await fetch(`https://unpkg.com/openbim-components@${Components.release}/package.json`);
+        if (!componentsPackage.ok) {
+            console.warn("Couldn't get openbim-components package.json. Set wasm settings manually.");
+            return;
+        }
+        const componentsPackageJSON = await componentsPackage.json();
+        if (!((_a = "web-ifc" in componentsPackageJSON.peerDependencies) !== null && _a !== void 0 ? _a : {})) {
+            console.warn("Couldn't get web-ifc from peer dependencies in openbim-components. Set wasm settings manually.");
+        }
+        else {
+            const componentsWebIfcVersion = componentsPackageJSON.peerDependencies["web-ifc"];
+            const path = `https://unpkg.com/web-ifc@${componentsWebIfcVersion}/`;
+            this.settings.wasm = {
+                path,
+                absolute: true,
+            };
+        }
+    }
+    async setup(config) {
+        this.config = { ...this.config, ...config };
+        if (this.config.autoSetWasm)
+            await this.autoSetWasm();
+        await this.onSetup.trigger();
     }
     get() {
         return this._webIfc;
@@ -100942,6 +101023,7 @@ class FragmentIfcLoader extends Component {
         this._converter.cleanUp();
         this.onIfcLoaded.reset();
         this.onLocationsSaved.reset();
+        this.onSetup.reset();
         this.uiElement.dispose();
         this._webIfc = null;
         this._geometry = null;
@@ -101076,51 +101158,6 @@ class FragmentIfcLoader extends Component {
 }
 FragmentIfcLoader.uuid = "a659add7-1418-4771-a0d6-7d4d438e4624";
 ToolComponent.libraryUUIDs.add(FragmentIfcLoader.uuid);
-
-class FragmentTreeItem extends Component {
-    get children() {
-        return this._children;
-    }
-    set children(children) {
-        this._children = children;
-        children.forEach((child) => {
-            const subTree = child.uiElement.get("tree");
-            this.uiElement.get("tree").addChild(subTree);
-        });
-    }
-    constructor(components, classifier, content) {
-        super(components);
-        this.name = "FragmentTreeItem";
-        this.enabled = true;
-        this.filter = {};
-        this.uiElement = new UIElement();
-        this.onSelected = new Event();
-        this.onHovered = new Event();
-        this._children = [];
-        const main = new Button(components);
-        const tree = new TreeView(components, content);
-        this.uiElement.set({ main, tree });
-        tree.onClick.add(async () => {
-            const found = await classifier.find(this.filter);
-            await this.onSelected.trigger(found);
-        });
-        tree.get().onmouseenter = async () => {
-            const found = await classifier.find(this.filter);
-            await this.onHovered.trigger(found);
-        };
-    }
-    async dispose() {
-        this.uiElement.dispose();
-        this.onSelected.reset();
-        this.onHovered.reset();
-        for (const child of this.children) {
-            await child.dispose();
-        }
-    }
-    get() {
-        return { name: this.name, filter: this.filter, children: this.children };
-    }
-}
 
 const IfcCategoryMap = {
     3821786052: "IFCACTIONREQUEST",
@@ -103996,6 +104033,327 @@ class IfcPropertiesFinder extends Component {
     }
 }
 
+class FragmentHider extends Component {
+    constructor(components) {
+        super(components);
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this.enabled = true;
+        this.uiElement = new UIElement();
+        this._localStorageID = "FragmentHiderCache";
+        this._updateVisibilityOnFound = true;
+        this._filterCards = {};
+        this.components.tools.add(FragmentHider.uuid, this);
+        if (components.uiEnabled) {
+            this.setupUI(components);
+        }
+    }
+    setupUI(components) {
+        const mainWindow = new FloatingWindow(components);
+        mainWindow.title = "Filters";
+        mainWindow.visible = false;
+        components.ui.add(mainWindow);
+        mainWindow.domElement.style.width = "530px";
+        mainWindow.domElement.style.height = "400px";
+        const mainButton = new Button(components, {
+            materialIconName: "filter_alt",
+            tooltip: "Visibility filters",
+        });
+        mainButton.onClick.add(() => {
+            this.hideAllFinders();
+            mainWindow.visible = !mainWindow.visible;
+        });
+        const topButtonContainerHtml = `<div class="flex"></div>`;
+        const topButtonContainer = new SimpleUIComponent(components, topButtonContainerHtml);
+        const createButton = new Button(components, {
+            materialIconName: "add",
+        });
+        createButton.onClick.add(() => this.createStyleCard());
+        topButtonContainer.addChild(createButton);
+        mainWindow.addChild(topButtonContainer);
+        this.uiElement.set({ window: mainWindow, main: mainButton });
+    }
+    async dispose() {
+        this.uiElement.dispose();
+        await this.onDisposed.trigger(FragmentHider.uuid);
+        this.onDisposed.reset();
+    }
+    set(visible, items) {
+        const fragments = this.components.tools.get(FragmentManager);
+        if (!items) {
+            for (const id in fragments.list) {
+                const fragment = fragments.list[id];
+                if (fragment) {
+                    fragment.setVisibility(visible);
+                    this.updateCulledVisibility(fragment);
+                }
+            }
+            return;
+        }
+        for (const fragID in items) {
+            const ids = items[fragID];
+            const fragment = fragments.list[fragID];
+            fragment.setVisibility(visible, ids);
+            this.updateCulledVisibility(fragment);
+        }
+    }
+    isolate(items) {
+        this.set(false);
+        this.set(true, items);
+    }
+    get() { }
+    async update() {
+        this._updateVisibilityOnFound = false;
+        for (const id in this._filterCards) {
+            const { finder } = this._filterCards[id];
+            await finder.find();
+        }
+        this._updateVisibilityOnFound = true;
+        this.updateQueries();
+    }
+    async loadCached() {
+        const serialized = localStorage.getItem(this._localStorageID);
+        if (!serialized)
+            return;
+        const filters = JSON.parse(serialized);
+        for (const filter of filters) {
+            this.createStyleCard(filter);
+        }
+        await this.update();
+    }
+    updateCulledVisibility(fragment) {
+        const culler = this.components.tools.get(ScreenCuller);
+        const colorMeshes = culler.get();
+        const culled = colorMeshes.get(fragment.id);
+        if (culled) {
+            culled.count = fragment.mesh.count;
+        }
+    }
+    createStyleCard(config) {
+        const filterCard = new SimpleUIComponent(this.components);
+        if (config && config.id.length) {
+            filterCard.id = config.id;
+        }
+        const { id } = filterCard;
+        filterCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col`;
+        filterCard.domElement.innerHTML = `
+        <div id="top-container-${id}" class="flex">
+        </div>
+        <div id="bottom-container-${id}" class="flex gap-4 items-center">
+        </div>
+    `;
+        const deleteButton = new Button(this.components, {
+            materialIconName: "close",
+        });
+        deleteButton.domElement.classList.add("self-end");
+        deleteButton.onClick.add(() => this.deleteStyleCard(id));
+        const topContainer = filterCard.getInnerElement("top-container");
+        if (topContainer) {
+            topContainer.appendChild(deleteButton.domElement);
+        }
+        const bottomContainer = filterCard.getInnerElement("bottom-container");
+        if (!bottomContainer) {
+            throw new Error("Error creating UI elements!");
+        }
+        const name = new TextInput(this.components);
+        name.label = "Name";
+        name.domElement.addEventListener("focusout", () => {
+            this.cache();
+        });
+        if (config) {
+            name.value = config.name;
+        }
+        bottomContainer.append(name.domElement);
+        const visible = new CheckboxInput(this.components);
+        visible.value = config ? config.visible : true;
+        visible.label = "Visible";
+        visible.onChange.add(() => this.updateQueries());
+        const enabled = new CheckboxInput(this.components);
+        enabled.value = config ? config.enabled : true;
+        enabled.label = "Enabled";
+        enabled.onChange.add(() => this.updateQueries());
+        const checkBoxContainer = new SimpleUIComponent(this.components);
+        checkBoxContainer.domElement.classList.remove("w-full");
+        checkBoxContainer.addChild(visible);
+        checkBoxContainer.addChild(enabled);
+        bottomContainer.append(checkBoxContainer.domElement);
+        const finder = new IfcPropertiesFinder(this.components);
+        finder.init();
+        finder.loadCached(id);
+        const queryBuilder = finder.uiElement.get("query");
+        const mainButton = finder.uiElement.get("main");
+        const finderWindow = finder.uiElement.get("queryWindow");
+        queryBuilder.findButton.label = "Apply";
+        bottomContainer.append(mainButton.domElement);
+        finderWindow.onVisible.add(() => {
+            this.hideAllFinders(finderWindow.id);
+            const rect = mainButton.domElement.getBoundingClientRect();
+            finderWindow.domElement.style.left = `${rect.x + 90}px`;
+            finderWindow.domElement.style.top = `${rect.y - 120}px`;
+        });
+        finder.onFound.add((data) => {
+            finderWindow.visible = false;
+            mainButton.active = false;
+            this._filterCards[id].fragments = data;
+            this.cache();
+            if (this._updateVisibilityOnFound) {
+                this.updateQueries();
+            }
+        });
+        const fragments = {};
+        this._filterCards[id] = {
+            styleCard: filterCard,
+            fragments,
+            name,
+            finder,
+            deleteButton,
+            visible,
+            enabled,
+        };
+        const mainWindow = this.uiElement.get("window");
+        mainWindow.addChild(filterCard);
+    }
+    updateQueries() {
+        this.set(true);
+        for (const id in this._filterCards) {
+            const { enabled, visible, fragments } = this._filterCards[id];
+            if (enabled.value) {
+                this.set(visible.value, fragments);
+            }
+        }
+        this.cache();
+    }
+    async deleteStyleCard(id) {
+        const found = this._filterCards[id];
+        if (found) {
+            await found.styleCard.dispose();
+            await found.deleteButton.dispose();
+            await found.name.dispose();
+            found.finder.deleteCache();
+            await found.finder.dispose();
+            await found.visible.dispose();
+            await found.enabled.dispose();
+        }
+        delete this._filterCards[id];
+        this.updateQueries();
+    }
+    hideAllFinders(excludeID) {
+        for (const id in this._filterCards) {
+            const { finder } = this._filterCards[id];
+            const queryWindow = finder.uiElement.get("queryWindow");
+            const mainButton = finder.uiElement.get("main");
+            if (queryWindow.id === excludeID) {
+                continue;
+            }
+            if (queryWindow.visible) {
+                mainButton.domElement.click();
+            }
+        }
+    }
+    cache() {
+        const filters = [];
+        for (const id in this._filterCards) {
+            const styleCard = this._filterCards[id];
+            const { visible, enabled, name } = styleCard;
+            filters.push({
+                visible: visible.value,
+                enabled: enabled.value,
+                name: name.value,
+                id,
+            });
+        }
+        const serialized = JSON.stringify(filters);
+        localStorage.setItem(this._localStorageID, serialized);
+    }
+}
+FragmentHider.uuid = "dd9ccf2d-8a21-4821-b7f6-2949add16a29";
+ToolComponent.libraryUUIDs.add(FragmentHider.uuid);
+
+class FragmentTreeItem extends Component {
+    get children() {
+        return this._children;
+    }
+    set children(children) {
+        this._children = children;
+        children.forEach((child) => {
+            const subTree = child.uiElement.get("tree");
+            this.uiElement.get("tree").addChild(subTree);
+        });
+    }
+    constructor(components, classifier, content) {
+        super(components);
+        this.name = "FragmentTreeItem";
+        this.enabled = true;
+        this.filter = {};
+        this.uiElement = new UIElement();
+        this.onSelected = new Event();
+        this.onHovered = new Event();
+        this.visible = true;
+        this._children = [];
+        this._blockCheckbox = false;
+        const main = new Button(components);
+        const tree = new TreeView(components, content);
+        const checkbox = new CheckboxInput(components);
+        checkbox.label = "";
+        checkbox.value = true;
+        const hider = this.components.tools.get(FragmentHider);
+        checkbox.onChange.add(async (value) => {
+            this.visible = value;
+            if (this._blockCheckbox)
+                return;
+            const isEmptyFilter = Object.keys(this.filter).length === 0;
+            if (isEmptyFilter) {
+                for (const child of this.children) {
+                    const found = await classifier.find(child.filter);
+                    hider.set(value, found);
+                }
+            }
+            else {
+                const found = await classifier.find(this.filter);
+                hider.set(value, found);
+            }
+            for (const child of this.children) {
+                child.setCheckbox(value, true);
+            }
+        });
+        tree.slots.titleRight.addChild(checkbox);
+        this.uiElement.set({ main, tree, checkbox });
+        tree.onClick.add(async (e) => {
+            if (e.target instanceof HTMLInputElement)
+                return;
+            const found = await classifier.find(this.filter);
+            await this.onSelected.trigger({ items: found, visible: this.visible });
+        });
+        tree.get().onmouseenter = async () => {
+            const found = await classifier.find(this.filter);
+            await this.onHovered.trigger({ items: found, visible: this.visible });
+        };
+    }
+    setCheckbox(value, recursive) {
+        this.visible = value;
+        this._blockCheckbox = true;
+        const checkbox = this.uiElement.get("checkbox");
+        checkbox.value = value;
+        this._blockCheckbox = false;
+        if (recursive) {
+            for (const child of this.children) {
+                child.setCheckbox(value, true);
+            }
+        }
+    }
+    async dispose() {
+        await this.uiElement.dispose();
+        this.onSelected.reset();
+        this.onHovered.reset();
+        for (const child of this.children) {
+            await child.dispose();
+        }
+    }
+    get() {
+        return { name: this.name, filter: this.filter, children: this.children };
+    }
+}
+
 class FragmentClassifier extends Component {
     constructor(components) {
         super(components);
@@ -104323,242 +104681,6 @@ class FragmentTree extends Component {
 }
 FragmentTree.uuid = "5af6ebe1-26fc-4053-936a-801b6c7cb37e";
 ToolComponent.libraryUUIDs.add(FragmentTree.uuid);
-
-class FragmentHider extends Component {
-    constructor(components) {
-        super(components);
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this.enabled = true;
-        this.uiElement = new UIElement();
-        this._localStorageID = "FragmentHiderCache";
-        this._updateVisibilityOnFound = true;
-        this._filterCards = {};
-        this.components.tools.add(FragmentHider.uuid, this);
-        if (components.uiEnabled) {
-            this.setupUI(components);
-        }
-    }
-    setupUI(components) {
-        const mainWindow = new FloatingWindow(components);
-        mainWindow.title = "Filters";
-        mainWindow.visible = false;
-        components.ui.add(mainWindow);
-        mainWindow.domElement.style.width = "530px";
-        mainWindow.domElement.style.height = "400px";
-        const mainButton = new Button(components, {
-            materialIconName: "filter_alt",
-            tooltip: "Visibility filters",
-        });
-        mainButton.onClick.add(() => {
-            this.hideAllFinders();
-            mainWindow.visible = !mainWindow.visible;
-        });
-        const topButtonContainerHtml = `<div class="flex"></div>`;
-        const topButtonContainer = new SimpleUIComponent(components, topButtonContainerHtml);
-        const createButton = new Button(components, {
-            materialIconName: "add",
-        });
-        createButton.onClick.add(() => this.createStyleCard());
-        topButtonContainer.addChild(createButton);
-        mainWindow.addChild(topButtonContainer);
-        this.uiElement.set({ window: mainWindow, main: mainButton });
-    }
-    async dispose() {
-        this.uiElement.dispose();
-        await this.onDisposed.trigger(FragmentHider.uuid);
-        this.onDisposed.reset();
-    }
-    set(visible, items) {
-        const fragments = this.components.tools.get(FragmentManager);
-        if (!items) {
-            for (const id in fragments.list) {
-                const fragment = fragments.list[id];
-                if (fragment) {
-                    fragment.setVisibility(visible);
-                    this.updateCulledVisibility(fragment);
-                }
-            }
-            return;
-        }
-        for (const fragID in items) {
-            const ids = items[fragID];
-            const fragment = fragments.list[fragID];
-            fragment.setVisibility(visible, ids);
-            this.updateCulledVisibility(fragment);
-        }
-    }
-    isolate(items) {
-        this.set(false);
-        this.set(true, items);
-    }
-    get() { }
-    async update() {
-        this._updateVisibilityOnFound = false;
-        for (const id in this._filterCards) {
-            const { finder } = this._filterCards[id];
-            await finder.find();
-        }
-        this._updateVisibilityOnFound = true;
-        this.updateQueries();
-    }
-    async loadCached() {
-        const serialized = localStorage.getItem(this._localStorageID);
-        if (!serialized)
-            return;
-        const filters = JSON.parse(serialized);
-        for (const filter of filters) {
-            this.createStyleCard(filter);
-        }
-        await this.update();
-    }
-    updateCulledVisibility(fragment) {
-        const culler = this.components.tools.get(ScreenCuller);
-        const colorMeshes = culler.get();
-        const culled = colorMeshes.get(fragment.id);
-        if (culled) {
-            culled.count = fragment.mesh.count;
-        }
-    }
-    createStyleCard(config) {
-        const filterCard = new SimpleUIComponent(this.components);
-        if (config && config.id.length) {
-            filterCard.id = config.id;
-        }
-        const { id } = filterCard;
-        filterCard.domElement.className = `m-4 p-4 border-1 border-solid border-[#3A444E] rounded-md flex flex-col`;
-        filterCard.domElement.innerHTML = `
-        <div id="top-container-${id}" class="flex">
-        </div>
-        <div id="bottom-container-${id}" class="flex gap-4 items-center">
-        </div>
-    `;
-        const deleteButton = new Button(this.components, {
-            materialIconName: "close",
-        });
-        deleteButton.domElement.classList.add("self-end");
-        deleteButton.onClick.add(() => this.deleteStyleCard(id));
-        const topContainer = filterCard.getInnerElement("top-container");
-        if (topContainer) {
-            topContainer.appendChild(deleteButton.domElement);
-        }
-        const bottomContainer = filterCard.getInnerElement("bottom-container");
-        if (!bottomContainer) {
-            throw new Error("Error creating UI elements!");
-        }
-        const name = new TextInput(this.components);
-        name.label = "Name";
-        name.domElement.addEventListener("focusout", () => {
-            this.cache();
-        });
-        if (config) {
-            name.value = config.name;
-        }
-        bottomContainer.append(name.domElement);
-        const visible = new CheckboxInput(this.components);
-        visible.value = config ? config.visible : true;
-        visible.label = "Visible";
-        visible.onChange.add(() => this.updateQueries());
-        const enabled = new CheckboxInput(this.components);
-        enabled.value = config ? config.enabled : true;
-        enabled.label = "Enabled";
-        enabled.onChange.add(() => this.updateQueries());
-        const checkBoxContainer = new SimpleUIComponent(this.components);
-        checkBoxContainer.domElement.classList.remove("w-full");
-        checkBoxContainer.addChild(visible);
-        checkBoxContainer.addChild(enabled);
-        bottomContainer.append(checkBoxContainer.domElement);
-        const finder = new IfcPropertiesFinder(this.components);
-        finder.init();
-        finder.loadCached(id);
-        const queryBuilder = finder.uiElement.get("query");
-        const mainButton = finder.uiElement.get("main");
-        const finderWindow = finder.uiElement.get("queryWindow");
-        queryBuilder.findButton.label = "Apply";
-        bottomContainer.append(mainButton.domElement);
-        finderWindow.onVisible.add(() => {
-            this.hideAllFinders(finderWindow.id);
-            const rect = mainButton.domElement.getBoundingClientRect();
-            finderWindow.domElement.style.left = `${rect.x + 90}px`;
-            finderWindow.domElement.style.top = `${rect.y - 120}px`;
-        });
-        finder.onFound.add((data) => {
-            finderWindow.visible = false;
-            mainButton.active = false;
-            this._filterCards[id].fragments = data;
-            this.cache();
-            if (this._updateVisibilityOnFound) {
-                this.updateQueries();
-            }
-        });
-        const fragments = {};
-        this._filterCards[id] = {
-            styleCard: filterCard,
-            fragments,
-            name,
-            finder,
-            deleteButton,
-            visible,
-            enabled,
-        };
-        const mainWindow = this.uiElement.get("window");
-        mainWindow.addChild(filterCard);
-    }
-    updateQueries() {
-        this.set(true);
-        for (const id in this._filterCards) {
-            const { enabled, visible, fragments } = this._filterCards[id];
-            if (enabled.value) {
-                this.set(visible.value, fragments);
-            }
-        }
-        this.cache();
-    }
-    async deleteStyleCard(id) {
-        const found = this._filterCards[id];
-        if (found) {
-            await found.styleCard.dispose();
-            await found.deleteButton.dispose();
-            await found.name.dispose();
-            found.finder.deleteCache();
-            await found.finder.dispose();
-            await found.visible.dispose();
-            await found.enabled.dispose();
-        }
-        delete this._filterCards[id];
-        this.updateQueries();
-    }
-    hideAllFinders(excludeID) {
-        for (const id in this._filterCards) {
-            const { finder } = this._filterCards[id];
-            const queryWindow = finder.uiElement.get("queryWindow");
-            const mainButton = finder.uiElement.get("main");
-            if (queryWindow.id === excludeID) {
-                continue;
-            }
-            if (queryWindow.visible) {
-                mainButton.domElement.click();
-            }
-        }
-    }
-    cache() {
-        const filters = [];
-        for (const id in this._filterCards) {
-            const styleCard = this._filterCards[id];
-            const { visible, enabled, name } = styleCard;
-            filters.push({
-                visible: visible.value,
-                enabled: enabled.value,
-                name: name.value,
-                id,
-            });
-        }
-        const serialized = JSON.stringify(filters);
-        localStorage.setItem(this._localStorageID, serialized);
-    }
-}
-FragmentHider.uuid = "dd9ccf2d-8a21-4821-b7f6-2949add16a29";
-ToolComponent.libraryUUIDs.add(FragmentHider.uuid);
 
 // TODO: Clean up
 // TODO: Improve UI element
