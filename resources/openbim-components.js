@@ -11739,10 +11739,11 @@ class Components {
      *
      */
     async dispose() {
+        var _a;
         const disposer = this.tools.get(Disposer);
         this.enabled = false;
         await this.tools.dispose();
-        await this.ui.dispose();
+        await ((_a = this.ui) === null || _a === void 0 ? void 0 : _a.dispose());
         this.onInitialized.reset();
         this._clock.stop();
         for (const mesh of this.meshes) {
@@ -11775,7 +11776,7 @@ class Components {
         THREE$1.Mesh.prototype.raycast = acceleratedRaycast;
     }
 }
-Components.release = "1.2.0";
+Components.release = "1.3.0";
 
 const _raycaster = new Raycaster();
 
