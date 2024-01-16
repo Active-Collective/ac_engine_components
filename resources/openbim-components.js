@@ -104403,7 +104403,7 @@ class FragmentClassifier extends Component {
                         currentType[fragmentID] = new Set();
                     }
                     const currentFragment = currentType[fragmentID];
-                    currentFragment.add(entity.expressID);
+                    currentFragment.add(String(entity.expressID));
                 }
             }
         }
