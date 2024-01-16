@@ -108684,12 +108684,7 @@ class SimpleDimensionLine {
         this.label.visible = value;
         this._endpoints[0].visible = value;
         this._endpoints[1].visible = value;
-        if (value) {
-            this._components.scene.get().add(this._root);
-        }
-        else {
-            this._root.removeFromParent();
-        }
+        this._root.visible = value;
     }
     set endPoint(point) {
         this.end = point;
@@ -108823,11 +108818,8 @@ class LengthMeasurement extends Component {
     /** {@link Hideable.visible} */
     set visible(value) {
         this._visible = value;
-        if (!this._visible) {
-            this.enabled = false;
-        }
         for (const dimension of this._measurements) {
-            dimension.visible = this._visible;
+            dimension.visible = value;
         }
     }
     /**
