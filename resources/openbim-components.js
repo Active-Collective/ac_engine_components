@@ -104482,7 +104482,6 @@ class FragmentTree extends Component {
         this.onHovered = new Event();
         this._title = "Model Tree";
         this.uiElement = new UIElement();
-        this.components.tools.add(FragmentTree.uuid, this);
     }
     get() {
         if (!this._tree) {
@@ -104505,7 +104504,7 @@ class FragmentTree extends Component {
         if (this._tree) {
             await this._tree.dispose();
         }
-        await this.onDisposed.trigger(FragmentTree.uuid);
+        await this.onDisposed.trigger();
         this.onDisposed.reset();
     }
     async update(groupSystems) {
@@ -104563,8 +104562,6 @@ class FragmentTree extends Component {
         return groups;
     }
 }
-FragmentTree.uuid = "5af6ebe1-26fc-4053-936a-801b6c7cb37e";
-ToolComponent.libraryUUIDs.add(FragmentTree.uuid);
 
 // TODO: Clean up
 // TODO: Improve UI element
