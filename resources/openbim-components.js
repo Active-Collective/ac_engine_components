@@ -11739,28 +11739,28 @@ class Components {
      *
      */
     async dispose() {
-        var _a;
+        var _a, _b, _c, _d, _e;
         const disposer = this.tools.get(Disposer);
         this.enabled = false;
         await this.tools.dispose();
-        await ((_a = this.ui) === null || _a === void 0 ? void 0 : _a.dispose());
+        await ((_a = this._ui) === null || _a === void 0 ? void 0 : _a.dispose());
         this.onInitialized.reset();
         this._clock.stop();
         for (const mesh of this.meshes) {
             disposer.destroy(mesh);
         }
         this.meshes.length = 0;
-        if (this.renderer.isDisposeable()) {
-            await this.renderer.dispose();
+        if ((_b = this._renderer) === null || _b === void 0 ? void 0 : _b.isDisposeable()) {
+            await this._renderer.dispose();
         }
-        if (this.scene.isDisposeable()) {
-            await this.scene.dispose();
+        if ((_c = this._scene) === null || _c === void 0 ? void 0 : _c.isDisposeable()) {
+            await this._scene.dispose();
         }
-        if (this.camera.isDisposeable()) {
-            await this.camera.dispose();
+        if ((_d = this._camera) === null || _d === void 0 ? void 0 : _d.isDisposeable()) {
+            await this._camera.dispose();
         }
-        if (this.raycaster.isDisposeable()) {
-            await this.raycaster.dispose();
+        if ((_e = this._raycaster) === null || _e === void 0 ? void 0 : _e.isDisposeable()) {
+            await this._raycaster.dispose();
         }
         await this.onDisposed.trigger();
         this.onDisposed.reset();
