@@ -100923,8 +100923,8 @@ class FragmentIfcLoader extends Component {
         const before = performance.now();
         await this.readIfcFile(data);
         await this.readAllGeometries();
-        await this._geometry.streamAlignment(this._webIfc);
-        await this._geometry.streamCrossSection(this._webIfc);
+        this._geometry.streamAlignment(this._webIfc);
+        this._geometry.streamCrossSection(this._webIfc);
         const items = this._geometry.items;
         const civItems = this._geometry.CivilItems;
         const model = await this._converter.generate(this._webIfc, items, civItems);
@@ -100994,7 +100994,7 @@ class FragmentIfcLoader extends Component {
     async readAllGeometries() {
         this._converter.saveIfcCategories(this._webIfc);
         // Some categories (like IfcSpace) need to be created explicitly
-        const optionals = this.settings.optionalCategories;
+        const optionals = [...this.settings.optionalCategories];
         // Force IFC space to be transparent
         if (optionals.includes(IFCSPACE)) {
             const index = optionals.indexOf(IFCSPACE);
