@@ -12463,7 +12463,7 @@ class UIManager extends Component {
 }
 // TODO: Does this need to be here?
 UIManager.Class = {
-    Label: "block leading-6 text-gray-400 text-sm",
+    Label: "block leading-6 text-gray-400 text-sm my-0",
 };
 
 class SimpleUICard extends SimpleUIComponent {
@@ -37942,7 +37942,7 @@ class ModelDatabase extends Dexie$1 {
     }
 }
 
-// TODO: Implement UI elements (this is probably just for 3d scans)
+// TODO: Get rid of this class, it's not used
 /**
  * A tool to cache files using the browser's IndexedDB API. This might
  * save loading time and infrastructure costs for files that need to be
@@ -109202,7 +109202,7 @@ class PropertyTag extends SimpleUIComponent {
     <div class="flex gap-x-2 hover:bg-ifcjs-120 py-1 px-3 rounded-md items-center min-h-[40px]">
       <div class="flex flex-col grow">
         <p id="label" class="${UIManager.Class.Label}"></p>
-        <p id="value" class="text-base"></p>
+        <p id="value" class="text-base my-0"></p>
       </div> 
     </div> 
     `;
@@ -111083,8 +111083,7 @@ class FragmentTree extends Component {
     }
 }
 
-// TODO: Clean up
-// TODO: Improve UI element
+// TODO: Get rid of this class, it's not used
 class FragmentCacher extends LocalCacher {
     get fragmentsIDs() {
         const allIDs = this.ids;
