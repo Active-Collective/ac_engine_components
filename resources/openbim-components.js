@@ -40081,9 +40081,10 @@ class Infinite2dGrid {
         // Step 2: find out its order of magnitude
         const magnitudeX = Math.ceil(Math.log10(horizontalDistance / this.scaleX));
         const magnitudeY = Math.ceil(Math.log10(verticalDistance / this.scaleY));
+        const magnitude = Math.min(magnitudeX, magnitudeY);
         // Step 3: represent main grid
-        const sDistanceHor = 10 ** (magnitudeX - 2) * this.scaleX;
-        const sDistanceVert = 10 ** (magnitudeY - 2) * this.scaleY;
+        const sDistanceHor = 10 ** (magnitude - 2) * this.scaleX;
+        const sDistanceVert = 10 ** (magnitude - 2) * this.scaleY;
         const mDistanceHor = sDistanceHor * this.gridsFactor;
         const mDistanceVert = sDistanceVert * this.gridsFactor;
         const mainGridCountVert = Math.ceil(verticalDistance / mDistanceVert);
@@ -40102,10 +40103,24 @@ class Infinite2dGrid {
         }
         this.numbers.children = [];
         const mPoints = [];
+        const realWidthPerCharacter = 9 * unit3dPixelRel; // 9 pixels per char
+        // Avoid horizontal text overlap by computing the real width of a text
+        // and computing which lines should have a label starting from zero
+        const minLabel = Math.abs(mTrueLeft / this.scaleX);
+        const maxDist = (mainGridCountHor - 1) * mDistanceHor;
+        const maxLabel = Math.abs((mTrueLeft + maxDist) / this.scaleX);
+        const biggestLabelLength = Math.max(minLabel, maxLabel).toString().length;
+        const biggestLabelSize = biggestLabelLength * realWidthPerCharacter;
+        const cellsOccupiedByALabel = Math.ceil(biggestLabelSize / mDistanceHor);
+        const offsetToZero = cellsOccupiedByALabel * mDistanceHor;
         for (let i = 0; i < mainGridCountHor; i++) {
             const offset = mTrueLeft + i * mDistanceHor;
             mPoints.push(offset, top, 0, offset, bottom, 0);
-            const sign = this.newNumber(offset / this.scaleX);
+            const value = offset / this.scaleX;
+            if (Math.abs(offset % offsetToZero) > 0.01) {
+                continue;
+            }
+            const sign = this.newNumber(value);
             const textOffsetPixels = 12;
             const textOffset = textOffsetPixels * unit3dPixelRel;
             sign.position.set(offset, bottom + textOffset, 0);
@@ -40150,9 +40165,6 @@ class Infinite2dGrid {
     newNumber(offset) {
         const text = document.createElement("div");
         text.textContent = `${offset}`;
-        if (text.textContent.length > 6) {
-            text.textContent = text.textContent.slice(0, 6);
-        }
         text.style.height = "24px";
         text.style.fontSize = "12px";
         const sign = new CSS2DObject(text);
@@ -122146,6 +122158,8 @@ class RoadNavigator extends Component {
         this.enabled = true;
         this.uiElement = new UIElement();
         this._selected = null;
+        this._anchor = new THREE$1.Vector3();
+        this._anchorID = "thatopen-roadnavigator-anchor";
         this._anchors = {
             horizontal: new THREE$1.Vector2(),
             horizontalIndex: 0,
@@ -122261,12 +122275,28 @@ class RoadNavigator extends Component {
             return;
         this._anchors.real.copy(result.point);
         const { horizontal, real, horizontalIndex } = this._anchors;
-        const position = this._alignments.real.position;
         const geom = this._alignments.real.geometry;
         const yPosition3D = geom.attributes.position.getY(horizontalIndex);
-        position.x = real.x - horizontal.x;
-        position.z = real.z + horizontal.y;
-        position.y = real.y - yPosition3D;
+        this._anchor.x = real.x - horizontal.x;
+        this._anchor.z = real.z + horizontal.y;
+        this._anchor.y = real.y - yPosition3D;
+        this.updateAnchor();
+    }
+    saveAnchor() {
+        const { x, y, z } = this._anchor;
+        localStorage.setItem(this._anchorID, `${x}_${y}_${z}`);
+    }
+    loadAnchor() {
+        const serialized = localStorage.getItem(this._anchorID);
+        if (!serialized)
+            return;
+        const [x, y, z] = serialized.split("_").map((item) => parseFloat(item));
+        this._anchor.set(x, y, z);
+        this.updateAnchor();
+    }
+    updateAnchor() {
+        const position = this._alignments.real.position;
+        position.copy(this._anchor);
     }
     getAlignmentGeometry(alignment, geometry, is3D, selectedIndex = -1) {
         const data = this.getAlignmentData(alignment, is3D, selectedIndex);
