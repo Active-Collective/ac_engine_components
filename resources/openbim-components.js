@@ -11823,7 +11823,7 @@ function getRaycastedFace(mesh, faceIndex, instance) {
                     addTriangleToFace(face, iterator, e3, e1, e2, i, raycasted);
                 }
             }
-            {
+            if (iterator.found === null) {
                 if (raycasted.index === i) {
                     raycasted.island = face.length;
                 }
@@ -107561,6 +107561,7 @@ class FragmentIfcLoader extends Component {
         this.config = {
             autoSetWasm: true,
             logLevel: LogLevel.LOG_LEVEL_ERROR,
+            customLocateFileHandler: null,
         };
         this.onSetup = new Event();
         // For debugging purposes
@@ -107691,9 +107692,10 @@ class FragmentIfcLoader extends Component {
         this.uiElement.set({ main, toast });
     }
     async readIfcFile(data) {
+        var _a;
         const { path, absolute } = this.settings.wasm;
         this._webIfc.SetWasmPath(path, absolute);
-        await this._webIfc.Init();
+        await this._webIfc.Init((_a = this.config.customLocateFileHandler) !== null && _a !== void 0 ? _a : undefined);
         this._webIfc.SetLogLevel(this.config.logLevel);
         return this._webIfc.OpenModel(data, this.settings.webIfc);
     }
