@@ -1,5 +1,5 @@
 import * as THREE$1 from 'three';
-import { Vector3 as Vector3$1, Matrix4, Object3D, Vector2 as Vector2$1, BufferAttribute as BufferAttribute$1, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion as Quaternion$1, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, ShaderMaterial, Uniform, SRGBColorSpace, PerspectiveCamera, Scene, WebGLRenderer, CanvasTexture, Color, PropertyBinding, InterpolateLinear, CompressedTexture, Source, NoColorSpace, MathUtils, RGBAFormat, InterpolateDiscrete, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping, InstancedMesh, OrthographicCamera, UniformsUtils, WebGLRenderTarget, HalfFloatType, NoBlending, Clock, REVISION, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, WebGLMultipleRenderTargets, RedFormat, FloatType as FloatType$1, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'three';
+import { Vector3, Matrix4, Object3D, Vector2, BufferAttribute, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, HalfFloatType, NoBlending, Clock, Color, REVISION, LinearFilter, NearestFilter, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, NoColorSpace, RepeatWrapping, WebGLMultipleRenderTargets, RedFormat, FloatType, RGBAFormat, MathUtils, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'three';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -174,157 +174,29 @@ class Mouse {
     }
 }
 
-function numberOfDigits(x) {
-    return Math.max(Math.floor(Math.log10(Math.abs(x))), 0) + 1;
-}
-function toCompositeID(id, count) {
-    const factor = 0.1 ** numberOfDigits(count);
-    id += count * factor;
-    let idString = id.toString();
-    // add missing zeros
-    if (count % 10 === 0) {
-        for (let i = 0; i < factor; i++) {
-            idString += "0";
-        }
-    }
-    return idString;
-}
-// Temporal id generator until the IFC id algorithm is implemented.
-function tooeenRandomId() {
-    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let id = "";
-    for (let i = 0; i < 10; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        id += characters.charAt(randomIndex);
-    }
-    return id;
-}
-function generateExpressIDFragmentIDMap(fragmentsList) {
-    const map = {};
-    fragmentsList.forEach((fragment) => {
-        map[fragment.id] = new Set(fragment.items);
-    });
-    return map;
-}
-// Would need to review this!
-function generateIfcGUID() {
-    // prettier-ignore
-    const base64Chars = [
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H",
-        "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
-        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r",
-        "s", "t", "u", "v", "w", "x", "y", "z", "_", "$",
-    ];
-    const guid = THREE$1.MathUtils.generateUUID();
-    const tailBytes = ((guid) => {
-        const bytes = [];
-        guid.split("-").map((number) => {
-            const bytesInChar = number.match(/.{1,2}/g);
-            if (bytesInChar) {
-                return bytesInChar.map((byte) => bytes.push(parseInt(byte, 16)));
-            }
-            return null;
-        });
-        return bytes;
-    })(guid);
-    const headBytes = ((guid) => {
-        const bytes = [];
-        guid.split("-").map((number) => {
-            const bytesInChar = number.match(/.{1,2}/g);
-            if (bytesInChar) {
-                return bytesInChar.map((byte) => bytes.push(byte));
-            }
-            return null;
-        });
-        return bytes;
-    })(guid);
-    const cvTo64 = (number, result, start, len) => {
-        let num = number;
-        const n = len;
-        let i;
-        for (i = 0; i < n; i += 1) {
-            result[start + len - i - 1] =
-                base64Chars[parseInt((num % 64).toString(), 10)];
-            num /= 64;
-        }
-        return result;
-    };
-    const toUInt16 = (bytes, index) => 
-    // eslint-disable-next-line no-bitwise
-    parseInt(bytes.slice(index, index + 2).reduce((str, v) => str + v, ""), 16) >>> 0;
-    const toUInt32 = (bytes, index) => 
-    // eslint-disable-next-line no-bitwise
-    parseInt(bytes.slice(index, index + 4).reduce((str, v) => str + v, ""), 16) >>> 0;
-    const num = [];
-    let str = [];
-    let i;
-    let n = 2;
-    let pos = 0;
-    num[0] = toUInt32(headBytes, 0) / 16777216;
-    num[1] = toUInt32(headBytes, 0) % 16777216;
-    // eslint-disable-next-line no-bitwise
-    num[2] = (toUInt16(headBytes, 4) * 256 + toUInt16(headBytes, 6) / 256) >>> 0;
-    num[3] =
-        // eslint-disable-next-line no-bitwise
-        ((toUInt16(headBytes, 6) % 256) * 65536 +
-            tailBytes[8] * 256 +
-            tailBytes[9]) >>>
-            0;
-    // eslint-disable-next-line no-bitwise
-    num[4] = (tailBytes[10] * 65536 + tailBytes[11] * 256 + tailBytes[12]) >>> 0;
-    // eslint-disable-next-line no-bitwise
-    num[5] = (tailBytes[13] * 65536 + tailBytes[14] * 256 + tailBytes[15]) >>> 0;
-    for (i = 0; i < 6; i++) {
-        str = cvTo64(num[i], str, pos, n);
-        pos += n;
-        n = 4;
-    }
-    return str.join("");
-}
-function bufferGeometryToIndexed(geometry) {
-    const bufferAttribute = geometry.getAttribute("position");
-    const size = bufferAttribute.itemSize;
-    const positions = bufferAttribute.array;
-    const indices = [];
-    const vertices = [];
-    const outVertices = [];
-    for (let i = 0; i < positions.length; i += size) {
-        const x = positions[i];
-        const y = positions[i + 1];
-        let vertex = `${x},${y}`;
-        const z = positions[i + 2];
-        if (size >= 3) {
-            vertex += `,${z}`;
-        }
-        else {
-            vertex += `,0`;
-        }
-        const w = positions[i + 3];
-        if (size === 4) {
-            vertex += `,${w}`;
-        }
-        if (vertices.indexOf(vertex) === -1) {
-            vertices.push(vertex);
-            indices.push(vertices.length - 1);
-            const split = vertex.split(",");
-            split.forEach((component) => outVertices.push(Number(component)));
-        }
-        else {
-            const index = vertices.indexOf(vertex);
-            indices.push(index);
-        }
-    }
-    const outIndices = new Uint16Array(indices);
-    const realVertices = new Float32Array(outVertices);
-    geometry.setAttribute("position", new THREE$1.BufferAttribute(realVertices, size === 2 ? 3 : size));
-    geometry.setIndex(new THREE$1.BufferAttribute(outIndices, 1));
-    geometry.getAttribute("position").needsUpdate = true;
+const _lut = [ '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c', '0d', '0e', '0f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d', '1e', '1f', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '2a', '2b', '2c', '2d', '2e', '2f', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '3a', '3b', '3c', '3d', '3e', '3f', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '4a', '4b', '4c', '4d', '4e', '4f', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '5a', '5b', '5c', '5d', '5e', '5f', '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '6a', '6b', '6c', '6d', '6e', '6f', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '7a', '7b', '7c', '7d', '7e', '7f', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '8a', '8b', '8c', '8d', '8e', '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', '9a', '9b', '9c', '9d', '9e', '9f', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'ba', 'bb', 'bc', 'bd', 'be', 'bf', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'ca', 'cb', 'cc', 'cd', 'ce', 'cf', 'd0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'da', 'db', 'dc', 'dd', 'de', 'df', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9', 'ea', 'eb', 'ec', 'ed', 'ee', 'ef', 'f0', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'fa', 'fb', 'fc', 'fd', 'fe', 'ff' ];
+
+// http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/21963136#21963136
+function generateUUID() {
+
+	const d0 = Math.random() * 0xffffffff | 0;
+	const d1 = Math.random() * 0xffffffff | 0;
+	const d2 = Math.random() * 0xffffffff | 0;
+	const d3 = Math.random() * 0xffffffff | 0;
+	const uuid = _lut[ d0 & 0xff ] + _lut[ d0 >> 8 & 0xff ] + _lut[ d0 >> 16 & 0xff ] + _lut[ d0 >> 24 & 0xff ] + '-' +
+			_lut[ d1 & 0xff ] + _lut[ d1 >> 8 & 0xff ] + '-' + _lut[ d1 >> 16 & 0x0f | 0x40 ] + _lut[ d1 >> 24 & 0xff ] + '-' +
+			_lut[ d2 & 0x3f | 0x80 ] + _lut[ d2 >> 8 & 0xff ] + '-' + _lut[ d2 >> 16 & 0xff ] + _lut[ d2 >> 24 & 0xff ] +
+			_lut[ d3 & 0xff ] + _lut[ d3 >> 8 & 0xff ] + _lut[ d3 >> 16 & 0xff ] + _lut[ d3 >> 24 & 0xff ];
+
+	// .toLowerCase() here flattens concatenated strings to save heap memory space.
+	return uuid.toLowerCase();
+
 }
 
 class BaseSVGAnnotation extends Component {
     constructor() {
         super(...arguments);
-        this.id = tooeenRandomId();
+        this.id = generateUUID();
         /** {@link Disposable.onDisposed} */
         this.onDisposed = new Event();
         this._enabled = false;
@@ -732,7 +604,7 @@ class CSS2DObject extends Object3D {
 
 		this.element.setAttribute( 'draggable', false );
 
-		this.center = new Vector2$1( 0.5, 0.5 ); // ( 0, 0 ) is the lower left; ( 1, 1 ) is the top right
+		this.center = new Vector2( 0.5, 0.5 ); // ( 0, 0 ) is the lower left; ( 1, 1 ) is the top right
 
 		this.addEventListener( 'removed', function () {
 
@@ -766,11 +638,11 @@ class CSS2DObject extends Object3D {
 
 //
 
-const _vector$3 = new Vector3$1();
+const _vector$1 = new Vector3();
 const _viewMatrix = new Matrix4();
 const _viewProjectionMatrix = new Matrix4();
-const _a = new Vector3$1();
-const _b = new Vector3$1();
+const _a = new Vector3();
+const _b = new Vector3();
 
 class CSS2DRenderer {
 
@@ -830,10 +702,10 @@ class CSS2DRenderer {
 
 			if ( object.isCSS2DObject ) {
 
-				_vector$3.setFromMatrixPosition( object.matrixWorld );
-				_vector$3.applyMatrix4( _viewProjectionMatrix );
+				_vector$1.setFromMatrixPosition( object.matrixWorld );
+				_vector$1.applyMatrix4( _viewProjectionMatrix );
 
-				const visible = ( object.visible === true ) && ( _vector$3.z >= - 1 && _vector$3.z <= 1 ) && ( object.layers.test( camera.layers ) === true );
+				const visible = ( object.visible === true ) && ( _vector$1.z >= - 1 && _vector$1.z <= 1 ) && ( object.layers.test( camera.layers ) === true );
 				object.element.style.display = ( visible === true ) ? '' : 'none';
 
 				if ( visible === true ) {
@@ -842,7 +714,7 @@ class CSS2DRenderer {
 
 					const element = object.element;
 
-					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector$3.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$3.y * _heightHalf + _heightHalf ) + 'px)';
+					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector$1.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector$1.y * _heightHalf + _heightHalf ) + 'px)';
 
 					if ( element.parentNode !== domElement ) {
 
@@ -1101,7 +973,7 @@ const PI_HALF = Math.PI / 2;
 
 const EPSILON$1 = 1e-5;
 const DEG2RAD = Math.PI / 180;
-function clamp$1(value, min, max) {
+function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
 function approxZero(number, error = EPSILON$1) {
@@ -1137,7 +1009,7 @@ function smoothDamp(current, target, currentVelocityRef, smoothTime, maxSpeed = 
     const originalTo = target;
     // Clamp maximum speed
     const maxChange = maxSpeed * smoothTime;
-    change = clamp$1(change, -maxChange, maxChange);
+    change = clamp(change, -maxChange, maxChange);
     target = current - change;
     const temp = (currentVelocityRef.value + omega * change) * deltaTime;
     currentVelocityRef.value = (currentVelocityRef.value - omega * temp) * exp;
@@ -1641,7 +1513,7 @@ class CameraControls extends EventDispatcher {
             const dollyScale = Math.pow(0.95, -delta * this.dollySpeed);
             const lastDistance = this._sphericalEnd.radius;
             const distance = this._sphericalEnd.radius * dollyScale;
-            const clampedDistance = clamp$1(distance, this.minDistance, this.maxDistance);
+            const clampedDistance = clamp(distance, this.minDistance, this.maxDistance);
             const overflowedDistance = clampedDistance - distance;
             if (this.infinityDolly && this.dollyToCursor) {
                 this._dollyToNoClamp(distance, true);
@@ -2390,10 +2262,10 @@ class CameraControls extends EventDispatcher {
      * @category Properties
      */
     set interactiveArea(interactiveArea) {
-        this._interactiveArea.width = clamp$1(interactiveArea.width, 0, 1);
-        this._interactiveArea.height = clamp$1(interactiveArea.height, 0, 1);
-        this._interactiveArea.x = clamp$1(interactiveArea.x, 0, 1 - this._interactiveArea.width);
-        this._interactiveArea.y = clamp$1(interactiveArea.y, 0, 1 - this._interactiveArea.height);
+        this._interactiveArea.width = clamp(interactiveArea.width, 0, 1);
+        this._interactiveArea.height = clamp(interactiveArea.height, 0, 1);
+        this._interactiveArea.x = clamp(interactiveArea.x, 0, 1 - this._interactiveArea.width);
+        this._interactiveArea.y = clamp(interactiveArea.y, 0, 1 - this._interactiveArea.height);
     }
     /**
      * Adds the specified event listener.
@@ -2515,8 +2387,8 @@ class CameraControls extends EventDispatcher {
      */
     rotateTo(azimuthAngle, polarAngle, enableTransition = false) {
         this._isUserControllingRotate = false;
-        const theta = clamp$1(azimuthAngle, this.minAzimuthAngle, this.maxAzimuthAngle);
-        const phi = clamp$1(polarAngle, this.minPolarAngle, this.maxPolarAngle);
+        const theta = clamp(azimuthAngle, this.minAzimuthAngle, this.maxAzimuthAngle);
+        const phi = clamp(polarAngle, this.minPolarAngle, this.maxPolarAngle);
         this._sphericalEnd.theta = theta;
         this._sphericalEnd.phi = phi;
         this._sphericalEnd.makeSafe();
@@ -2549,7 +2421,7 @@ class CameraControls extends EventDispatcher {
         this._isUserControllingDolly = false;
         this._lastDollyDirection = DOLLY_DIRECTION.NONE;
         this._changedDolly = 0;
-        return this._dollyToNoClamp(clamp$1(distance, this.minDistance, this.maxDistance), enableTransition);
+        return this._dollyToNoClamp(clamp(distance, this.minDistance, this.maxDistance), enableTransition);
     }
     _dollyToNoClamp(distance, enableTransition = false) {
         const lastRadius = this._sphericalEnd.radius;
@@ -2609,7 +2481,7 @@ class CameraControls extends EventDispatcher {
      */
     zoomTo(zoom, enableTransition = false) {
         this._isUserControllingZoom = false;
-        this._zoomEnd = clamp$1(zoom, this.minZoom, this.maxZoom);
+        this._zoomEnd = clamp(zoom, this.minZoom, this.maxZoom);
         this._needsUpdate = true;
         if (!enableTransition) {
             this._zoom = this._zoomEnd;
@@ -2929,7 +2801,7 @@ class CameraControls extends EventDispatcher {
         const pos = this.getPosition(_v3A);
         const promise = this.setLookAt(pos.x, pos.y, pos.z, targetX, targetY, targetZ, enableTransition);
         // see https://github.com/yomotsu/camera-controls/issues/335
-        this._sphericalEnd.phi = clamp$1(this._sphericalEnd.phi, this.minPolarAngle, this.maxPolarAngle);
+        this._sphericalEnd.phi = clamp(this._sphericalEnd.phi, this.minPolarAngle, this.maxPolarAngle);
         return promise;
     }
     /**
@@ -4067,7 +3939,7 @@ function ensureIndex$1( geo, options ) {
 		const vertexCount = geo.attributes.position.count;
 		const BufferConstructor = options.useSharedArrayBuffer ? SharedArrayBuffer : ArrayBuffer;
 		const index = getIndexArray( vertexCount, BufferConstructor );
-		geo.setIndex( new BufferAttribute$1( index, 1 ) );
+		geo.setIndex( new BufferAttribute( index, 1 ) );
 
 		for ( let i = 0; i < vertexCount; i ++ ) {
 
@@ -5258,7 +5130,7 @@ let SeparatingAxisBounds$1 = class SeparatingAxisBounds {
 
 SeparatingAxisBounds$1.prototype.setFromBox = ( function () {
 
-	const p = new Vector3$1();
+	const p = new Vector3();
 	return function setFromBox( axis, box ) {
 
 		const boxMin = box.min;
@@ -5295,9 +5167,9 @@ SeparatingAxisBounds$1.prototype.setFromBox = ( function () {
 const closestPointLineToLine$1 = ( function () {
 
 	// https://github.com/juj/MathGeoLib/blob/master/src/Geometry/Line.cpp#L56
-	const dir1 = new Vector3$1();
-	const dir2 = new Vector3$1();
-	const v02 = new Vector3$1();
+	const dir1 = new Vector3();
+	const dir2 = new Vector3();
+	const v02 = new Vector3();
 	return function closestPointLineToLine( l1, l2, result ) {
 
 		const v0 = l1.start;
@@ -5350,9 +5222,9 @@ const closestPointLineToLine$1 = ( function () {
 const closestPointsSegmentToSegment$1 = ( function () {
 
 	// https://github.com/juj/MathGeoLib/blob/master/src/Geometry/LineSegment.cpp#L187
-	const paramResult = new Vector2$1();
-	const temp1 = new Vector3$1();
-	const temp2 = new Vector3$1();
+	const paramResult = new Vector2();
+	const temp1 = new Vector3();
+	const temp2 = new Vector3();
 	return function closestPointsSegmentToSegment( l1, l2, target1, target2 ) {
 
 		closestPointLineToLine$1( l1, l2, paramResult );
@@ -5452,8 +5324,8 @@ const closestPointsSegmentToSegment$1 = ( function () {
 const sphereIntersectTriangle$1 = ( function () {
 
 	// https://stackoverflow.com/questions/34043955/detect-collision-between-sphere-and-triangle-in-three-js
-	const closestPointTemp = new Vector3$1();
-	const projectedPointTemp = new Vector3$1();
+	const closestPointTemp = new Vector3();
+	const projectedPointTemp = new Vector3();
 	const planeTemp = new Plane();
 	const lineTemp = new Line3();
 	return function sphereIntersectTriangle( sphere, triangle ) {
@@ -5508,7 +5380,7 @@ let ExtendedTriangle$1 = class ExtendedTriangle extends Triangle {
 		super( ...args );
 
 		this.isExtendedTriangle = true;
-		this.satAxes = new Array( 4 ).fill().map( () => new Vector3$1() );
+		this.satAxes = new Array( 4 ).fill().map( () => new Vector3() );
 		this.satBounds = new Array( 4 ).fill().map( () => new SeparatingAxisBounds$1() );
 		this.points = [ this.a, this.b, this.c ];
 		this.sphere = new Sphere();
@@ -5563,8 +5435,8 @@ let ExtendedTriangle$1 = class ExtendedTriangle extends Triangle {
 
 ExtendedTriangle$1.prototype.closestPointToSegment = ( function () {
 
-	const point1 = new Vector3$1();
-	const point2 = new Vector3$1();
+	const point1 = new Vector3();
+	const point2 = new Vector3();
 	const edge = new Line3();
 
 	return function distanceToSegment( segment, target1 = null, target2 = null ) {
@@ -5628,15 +5500,15 @@ ExtendedTriangle$1.prototype.intersectsTriangle = ( function () {
 	const arr2 = new Array( 3 );
 	const cachedSatBounds = new SeparatingAxisBounds$1();
 	const cachedSatBounds2 = new SeparatingAxisBounds$1();
-	const cachedAxis = new Vector3$1();
-	const dir = new Vector3$1();
-	const dir1 = new Vector3$1();
-	const dir2 = new Vector3$1();
-	const tempDir = new Vector3$1();
+	const cachedAxis = new Vector3();
+	const dir = new Vector3();
+	const dir1 = new Vector3();
+	const dir2 = new Vector3();
+	const tempDir = new Vector3();
 	const edge = new Line3();
 	const edge1 = new Line3();
 	const edge2 = new Line3();
-	const tempPoint = new Vector3$1();
+	const tempPoint = new Vector3();
 
 	function triIntersectPlane( tri, plane, targetEdge ) {
 
@@ -5902,7 +5774,7 @@ ExtendedTriangle$1.prototype.intersectsTriangle = ( function () {
 
 ExtendedTriangle$1.prototype.distanceToPoint = ( function () {
 
-	const target = new Vector3$1();
+	const target = new Vector3();
 	return function distanceToPoint( point ) {
 
 		this.closestPointToPoint( point, target );
@@ -5915,8 +5787,8 @@ ExtendedTriangle$1.prototype.distanceToPoint = ( function () {
 
 ExtendedTriangle$1.prototype.distanceToTriangle = ( function () {
 
-	const point = new Vector3$1();
-	const point2 = new Vector3$1();
+	const point = new Vector3();
+	const point2 = new Vector3();
 	const cornerFields = [ 'a', 'b', 'c' ];
 	const line1 = new Line3();
 	const line2 = new Line3();
@@ -6010,12 +5882,12 @@ let OrientedBox$1 = class OrientedBox {
 	constructor( min, max, matrix ) {
 
 		this.isOrientedBox = true;
-		this.min = new Vector3$1();
-		this.max = new Vector3$1();
+		this.min = new Vector3();
+		this.max = new Vector3();
 		this.matrix = new Matrix4();
 		this.invMatrix = new Matrix4();
-		this.points = new Array( 8 ).fill().map( () => new Vector3$1() );
-		this.satAxes = new Array( 3 ).fill().map( () => new Vector3$1() );
+		this.points = new Array( 8 ).fill().map( () => new Vector3() );
+		this.satAxes = new Array( 3 ).fill().map( () => new Vector3() );
 		this.satBounds = new Array( 3 ).fill().map( () => new SeparatingAxisBounds$1() );
 		this.alignedSatBounds = new Array( 3 ).fill().map( () => new SeparatingAxisBounds$1() );
 		this.needsUpdate = false;
@@ -6153,7 +6025,7 @@ OrientedBox$1.prototype.intersectsTriangle = ( function () {
 	const pointsArr = new Array( 3 );
 	const cachedSatBounds = new SeparatingAxisBounds$1();
 	const cachedSatBounds2 = new SeparatingAxisBounds$1();
-	const cachedAxis = new Vector3$1();
+	const cachedAxis = new Vector3();
 	return function intersectsTriangle( triangle ) {
 
 		if ( this.needsUpdate ) {
@@ -6248,7 +6120,7 @@ OrientedBox$1.prototype.closestPointToPoint = ( function () {
 
 OrientedBox$1.prototype.distanceToPoint = ( function () {
 
-	const target = new Vector3$1();
+	const target = new Vector3();
 	return function distanceToPoint( point ) {
 
 		this.closestPointToPoint( point, target );
@@ -6264,8 +6136,8 @@ OrientedBox$1.prototype.distanceToBox = ( function () {
 	const segments1 = new Array( 12 ).fill().map( () => new Line3() );
 	const segments2 = new Array( 12 ).fill().map( () => new Line3() );
 
-	const point1 = new Vector3$1();
-	const point2 = new Vector3$1();
+	const point1 = new Vector3();
+	const point2 = new Vector3();
 
 	// early out if we find a value below threshold
 	return function distanceToBox( box, threshold = 0, target1 = null, target2 = null ) {
@@ -6762,8 +6634,8 @@ function shapecastTraverse(
 
 }
 
-const temp$1 = /* @__PURE__ */ new Vector3$1();
-const temp1$3 = /* @__PURE__ */ new Vector3$1();
+const temp$1 = /* @__PURE__ */ new Vector3();
+const temp1$3 = /* @__PURE__ */ new Vector3();
 
 function closestPointToPoint(
 	bvh,
@@ -6841,19 +6713,19 @@ function closestPointToPoint(
 
 // Ripped and modified From THREE.js Mesh raycast
 // https://github.com/mrdoob/three.js/blob/0aa87c999fe61e216c1133fba7a95772b503eddf/src/objects/Mesh.js#L115
-const _vA$1 = /* @__PURE__ */ new Vector3$1();
-const _vB$1 = /* @__PURE__ */ new Vector3$1();
-const _vC$1 = /* @__PURE__ */ new Vector3$1();
+const _vA$1 = /* @__PURE__ */ new Vector3();
+const _vB$1 = /* @__PURE__ */ new Vector3();
+const _vC$1 = /* @__PURE__ */ new Vector3();
 
-const _uvA$1 = /* @__PURE__ */ new Vector2$1();
-const _uvB$1 = /* @__PURE__ */ new Vector2$1();
-const _uvC$1 = /* @__PURE__ */ new Vector2$1();
+const _uvA$1 = /* @__PURE__ */ new Vector2();
+const _uvB$1 = /* @__PURE__ */ new Vector2();
+const _uvC$1 = /* @__PURE__ */ new Vector2();
 
-const _normalA$1 = /* @__PURE__ */ new Vector3$1();
-const _normalB$1 = /* @__PURE__ */ new Vector3$1();
-const _normalC$1 = /* @__PURE__ */ new Vector3$1();
+const _normalA$1 = /* @__PURE__ */ new Vector3();
+const _normalB$1 = /* @__PURE__ */ new Vector3();
+const _normalC$1 = /* @__PURE__ */ new Vector3();
 
-const _intersectionPoint$1 = /* @__PURE__ */ new Vector3$1();
+const _intersectionPoint$1 = /* @__PURE__ */ new Vector3();
 function checkIntersection$1( ray, pA, pB, pC, point, side ) {
 
 	let intersect;
@@ -6896,7 +6768,7 @@ function checkBufferGeometryIntersection$1( ray, position, normal, uv, uv1, a, b
 			_uvB$1.fromBufferAttribute( uv, b );
 			_uvC$1.fromBufferAttribute( uv, c );
 
-			intersection.uv = Triangle.getInterpolation( _intersectionPoint$1, _vA$1, _vB$1, _vC$1, _uvA$1, _uvB$1, _uvC$1, new Vector2$1() );
+			intersection.uv = Triangle.getInterpolation( _intersectionPoint$1, _vA$1, _vB$1, _vC$1, _uvA$1, _uvB$1, _uvC$1, new Vector2() );
 
 		}
 
@@ -6906,7 +6778,7 @@ function checkBufferGeometryIntersection$1( ray, position, normal, uv, uv1, a, b
 			_uvB$1.fromBufferAttribute( uv1, b );
 			_uvC$1.fromBufferAttribute( uv1, c );
 
-			intersection.uv1 = Triangle.getInterpolation( _intersectionPoint$1, _vA$1, _vB$1, _vC$1, _uvA$1, _uvB$1, _uvC$1, new Vector2$1() );
+			intersection.uv1 = Triangle.getInterpolation( _intersectionPoint$1, _vA$1, _vB$1, _vC$1, _uvA$1, _uvB$1, _uvC$1, new Vector2() );
 
 		}
 
@@ -6916,7 +6788,7 @@ function checkBufferGeometryIntersection$1( ray, position, normal, uv, uv1, a, b
 			_normalB$1.fromBufferAttribute( normal, b );
 			_normalC$1.fromBufferAttribute( normal, c );
 
-			intersection.normal = Triangle.getInterpolation( _intersectionPoint$1, _vA$1, _vB$1, _vC$1, _normalA$1, _normalB$1, _normalC$1, new Vector3$1() );
+			intersection.normal = Triangle.getInterpolation( _intersectionPoint$1, _vA$1, _vB$1, _vC$1, _normalA$1, _normalB$1, _normalC$1, new Vector3() );
 			if ( intersection.normal.dot( ray.direction ) > 0 ) {
 
 				intersection.normal.multiplyScalar( - 1 );
@@ -6929,7 +6801,7 @@ function checkBufferGeometryIntersection$1( ray, position, normal, uv, uv1, a, b
 			a: a,
 			b: b,
 			c: c,
-			normal: new Vector3$1(),
+			normal: new Vector3(),
 			materialIndex: 0
 		};
 
@@ -7341,7 +7213,7 @@ function iterateOverTriangles_indirect(
 /* This file is generated from "raycast.template.js". */
 /******************************************************/
 
-const _boxIntersection$3 = /* @__PURE__ */ new Vector3$1();
+const _boxIntersection$3 = /* @__PURE__ */ new Vector3();
 function raycast$1( bvh, root, side, ray, intersects ) {
 
 	BufferStack.setBuffer( bvh._roots[ root ] );
@@ -7387,7 +7259,7 @@ function _raycast$1( nodeIndex32, bvh, side, ray, intersects ) {
 /***********************************************************/
 /* This file is generated from "raycastFirst.template.js". */
 /***********************************************************/
-const _boxIntersection$2 = /* @__PURE__ */ new Vector3$1();
+const _boxIntersection$2 = /* @__PURE__ */ new Vector3();
 const _xyzFields$1 = [ 'x', 'y', 'z' ];
 function raycastFirst$1( bvh, root, side, ray ) {
 
@@ -7645,10 +7517,10 @@ function _intersectsGeometry$1( nodeIndex32, bvh, otherGeometry, geometryToBvh, 
 const tempMatrix$2 = /* @__PURE__ */ new Matrix4();
 const obb$4 = /* @__PURE__ */ new OrientedBox$1();
 const obb2$3 = /* @__PURE__ */ new OrientedBox$1();
-const temp1$2 = /* @__PURE__ */ new Vector3$1();
-const temp2$2 = /* @__PURE__ */ new Vector3$1();
-const temp3$2 = /* @__PURE__ */ new Vector3$1();
-const temp4$2 = /* @__PURE__ */ new Vector3$1();
+const temp1$2 = /* @__PURE__ */ new Vector3();
+const temp2$2 = /* @__PURE__ */ new Vector3();
+const temp3$2 = /* @__PURE__ */ new Vector3();
+const temp4$2 = /* @__PURE__ */ new Vector3();
 
 function closestPointToGeometry(
 	bvh,
@@ -8067,7 +7939,7 @@ function refit_indirect( bvh, nodeIndices = null ) {
 /* This file is generated from "raycast.template.js". */
 /******************************************************/
 
-const _boxIntersection$1 = /* @__PURE__ */ new Vector3$1();
+const _boxIntersection$1 = /* @__PURE__ */ new Vector3();
 function raycast_indirect( bvh, root, side, ray, intersects ) {
 
 	BufferStack.setBuffer( bvh._roots[ root ] );
@@ -8112,7 +7984,7 @@ function _raycast( nodeIndex32, bvh, side, ray, intersects ) {
 /***********************************************************/
 /* This file is generated from "raycastFirst.template.js". */
 /***********************************************************/
-const _boxIntersection = /* @__PURE__ */ new Vector3$1();
+const _boxIntersection = /* @__PURE__ */ new Vector3();
 const _xyzFields = [ 'x', 'y', 'z' ];
 function raycastFirst_indirect( bvh, root, side, ray ) {
 
@@ -8367,10 +8239,10 @@ function _intersectsGeometry( nodeIndex32, bvh, otherGeometry, geometryToBvh, ca
 const tempMatrix$1 = /* @__PURE__ */ new Matrix4();
 const obb$2 = /* @__PURE__ */ new OrientedBox$1();
 const obb2$1 = /* @__PURE__ */ new OrientedBox$1();
-const temp1$1 = /* @__PURE__ */ new Vector3$1();
-const temp2$1 = /* @__PURE__ */ new Vector3$1();
-const temp3$1 = /* @__PURE__ */ new Vector3$1();
-const temp4$1 = /* @__PURE__ */ new Vector3$1();
+const temp1$1 = /* @__PURE__ */ new Vector3();
+const temp2$1 = /* @__PURE__ */ new Vector3();
+const temp3$1 = /* @__PURE__ */ new Vector3();
+const temp4$1 = /* @__PURE__ */ new Vector3();
 
 function closestPointToGeometry_indirect(
 	bvh,
@@ -8980,7 +8852,7 @@ let MeshBVH$1 = class MeshBVH {
 			const indexAttribute = geometry.getIndex();
 			if ( indexAttribute === null ) {
 
-				const newIndex = new BufferAttribute$1( data.index, 1, false );
+				const newIndex = new BufferAttribute( data.index, 1, false );
 				geometry.setIndex( newIndex );
 
 			} else if ( indexAttribute.array !== index ) {
@@ -11320,529 +11192,6 @@ var createPopper = /*#__PURE__*/popperGenerator({
   defaultModifiers: defaultModifiers
 }); // eslint-disable-next-line import/no-unused-modules
 
-class LineIntersectionPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    get config() {
-        return this._config;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    constructor(components, config) {
-        super(components);
-        this.name = "LineIntersectionPicker";
-        this.onAfterUpdate = new Event();
-        this.onBeforeUpdate = new Event();
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this._pickedPoint = null;
-        this._raycaster = new Raycaster();
-        this._originVector = new Vector3$1();
-        this.config = {
-            snapDistance: 0.25,
-            ...config,
-        };
-        if (this._raycaster.params.Line) {
-            this._raycaster.params.Line.threshold = 0.2;
-        }
-        this._mouse = new Mouse(components.renderer.get().domElement);
-        const marker = document.createElement("div");
-        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
-        this._marker = new CSS2DObject(marker);
-        this._marker.visible = false;
-        this.components.scene.get().add(this._marker);
-        this.enabled = false;
-    }
-    async dispose() {
-        this.onAfterUpdate.reset();
-        this.onBeforeUpdate.reset();
-        this._marker.removeFromParent();
-        this._marker.element.remove();
-        await this.onDisposed.trigger();
-        this.onDisposed.reset();
-    }
-    /** {@link Updateable.update} */
-    update() {
-        if (!this.enabled) {
-            return;
-        }
-        this.onBeforeUpdate.trigger(this);
-        this._raycaster.setFromCamera(this._mouse.position, this.components.camera.get());
-        // @ts-ignore
-        const lines = this.components.meshes.filter((mesh) => mesh.isLine);
-        const intersects = this._raycaster.intersectObjects(lines);
-        // console.log(intersects)
-        if (intersects.length !== 2) {
-            this._pickedPoint = null;
-            this.updateMarker();
-            return;
-        }
-        // if (!intersects[0].index || !intersects[1].index) {return}
-        const lineA = intersects[0].object;
-        const lineB = intersects[1].object;
-        const indices = [intersects[0].index, intersects[1].index];
-        const hitPoint = new Vector3$1()
-            .copy(intersects[0].point)
-            .add(intersects[1].point)
-            .multiplyScalar(0.5);
-        const isSameElement = lineA.uuid === lineB.uuid;
-        if (isSameElement) {
-            const line = lineA;
-            const pos = line.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        else {
-            const pos1 = lineA.geometry.getAttribute("position");
-            const pos2 = lineB.geometry.getAttribute("position");
-            const vectorA = new Vector3$1().fromBufferAttribute(pos1, indices[0]);
-            const vectorB = new Vector3$1().fromBufferAttribute(pos1, indices[0] + 1);
-            const vectorC = new Vector3$1().fromBufferAttribute(pos2, indices[1]);
-            const vectorD = new Vector3$1().fromBufferAttribute(pos2, indices[1] + 1);
-            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
-            if (!point) {
-                return;
-            }
-            this._pickedPoint = point;
-            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
-                return;
-            }
-            this.updateMarker();
-        }
-        this.onAfterUpdate.trigger(this);
-    }
-    findIntersection(p1, p2, p3, p4) {
-        const line1Dir = p2.sub(p1);
-        const line2Dir = p4.sub(p3);
-        const lineDirCross = new Vector3$1().crossVectors(line1Dir, line2Dir);
-        const denominator = lineDirCross.lengthSq();
-        if (denominator === 0) {
-            return null;
-        }
-        const lineToPoint = p3.sub(p1);
-        const lineToPointCross = new Vector3$1().crossVectors(lineDirCross, lineToPoint);
-        const t1 = lineToPointCross.dot(line2Dir) / denominator;
-        return new Vector3$1().addVectors(p1, line1Dir.multiplyScalar(t1));
-    }
-    updateMarker() {
-        var _a;
-        this._marker.visible = !!this._pickedPoint;
-        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
-    }
-    get() {
-        return this._pickedPoint;
-    }
-}
-
-class Simple2DMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        this._marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
-    // Define marker as setup configuration?
-    constructor(components, marker) {
-        super(components);
-        /** {@link Component.enabled} */
-        this.enabled = true;
-        this._visible = true;
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        let _marker;
-        if (marker) {
-            _marker = marker;
-        }
-        else {
-            _marker = document.createElement("div");
-            _marker.className =
-                "w-[15px] h-[15px] border-3 border-solid border-red-600";
-        }
-        this._marker = new CSS2DObject(_marker);
-        this.components.scene.get().add(this._marker);
-        this.visible = true;
-    }
-    /** {@link Component.get} */
-    get() {
-        return this._marker;
-    }
-    toggleVisibility() {
-        this.visible = !this.visible;
-    }
-    async dispose() {
-        this._marker.removeFromParent();
-        this._marker.element.remove();
-        await this.onDisposed.trigger();
-        this.onDisposed.reset();
-    }
-}
-
-class VertexPicker extends Component {
-    set enabled(value) {
-        this._enabled = value;
-        if (!value) {
-            this._marker.visible = false;
-            this._pickedPoint = null;
-        }
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    get _raycaster() {
-        return this._components.raycaster;
-    }
-    constructor(components, config) {
-        super(components);
-        this.name = "VertexPicker";
-        this.afterUpdate = new Event();
-        this.beforeUpdate = new Event();
-        this._pickedPoint = null;
-        this._enabled = false;
-        this._workingPlane = null;
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this.update = () => {
-            if (!this.enabled)
-                return;
-            this.beforeUpdate.trigger(this);
-            const intersects = this._raycaster.castRay();
-            if (!intersects) {
-                this._marker.visible = false;
-                this._pickedPoint = null;
-                return;
-            }
-            const point = this.getClosestVertex(intersects);
-            if (!point) {
-                this._marker.visible = false;
-                this._pickedPoint = null;
-                return;
-            }
-            const isOnPlane = !this.workingPlane
-                ? true
-                : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
-            if (!isOnPlane) {
-                this._marker.visible = false;
-                this._pickedPoint = null;
-                return;
-            }
-            this._pickedPoint = point;
-            this._marker.visible = true;
-            this._marker
-                .get()
-                .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
-            this.afterUpdate.trigger(this);
-        };
-        this._components = components;
-        this.config = {
-            snapDistance: 0.25,
-            showOnlyVertex: false,
-            ...config,
-        };
-        this._marker = new Simple2DMarker(components, this.config.previewElement);
-        this._marker.visible = false;
-        this.setupEvents(true);
-        this.enabled = false;
-    }
-    set workingPlane(plane) {
-        this._workingPlane = plane;
-    }
-    get workingPlane() {
-        return this._workingPlane;
-    }
-    set config(value) {
-        this._config = { ...this._config, ...value };
-    }
-    get config() {
-        return this._config;
-    }
-    async dispose() {
-        this.setupEvents(false);
-        await this._marker.dispose();
-        this.afterUpdate.reset();
-        this.beforeUpdate.reset();
-        this._components = null;
-        await this.onDisposed.trigger();
-        this.onDisposed.reset();
-    }
-    get() {
-        return this._pickedPoint;
-    }
-    getClosestVertex(intersects) {
-        let closestVertex = new THREE$1.Vector3();
-        let vertexFound = false;
-        let closestDistance = Number.MAX_SAFE_INTEGER;
-        const vertices = this.getVertices(intersects);
-        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
-            if (!vertex)
-                return;
-            const distance = intersects.point.distanceTo(vertex);
-            if (distance > closestDistance || distance > this._config.snapDistance)
-                return;
-            vertexFound = true;
-            closestVertex = vertex;
-            closestDistance = intersects.point.distanceTo(vertex);
-        });
-        if (vertexFound)
-            return closestVertex;
-        return this.config.showOnlyVertex ? null : intersects.point;
-    }
-    getVertices(intersects) {
-        const mesh = intersects.object;
-        if (!intersects.face || !mesh)
-            return null;
-        const geom = mesh.geometry;
-        return [
-            this.getVertex(intersects.face.a, geom),
-            this.getVertex(intersects.face.b, geom),
-            this.getVertex(intersects.face.c, geom),
-        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
-    }
-    getVertex(index, geom) {
-        if (index === undefined)
-            return null;
-        const vertices = geom.attributes.position;
-        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
-    }
-    setupEvents(active) {
-        const container = this.components.renderer.get().domElement.parentElement;
-        if (!container)
-            return;
-        if (active) {
-            container.addEventListener("mousemove", this.update);
-        }
-        else {
-            container.removeEventListener("mousemove", this.update);
-        }
-    }
-}
-
-class GeometryVerticesMarker extends Component {
-    set visible(value) {
-        this._visible = value;
-        for (const marker of this._markers)
-            marker.visible = value;
-    }
-    get visible() {
-        return this._visible;
-    }
-    constructor(components, geometry) {
-        super(components);
-        this.name = "GeometryVerticesMarker";
-        this.enabled = true;
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this._markers = [];
-        this._visible = true;
-        const position = geometry.getAttribute("position");
-        for (let index = 0; index < position.count; index++) {
-            const marker = new Simple2DMarker(components);
-            marker
-                .get()
-                .position.set(position.getX(index), position.getY(index), position.getZ(index));
-            this._markers.push(marker);
-        }
-    }
-    async dispose() {
-        for (const marker of this._markers) {
-            await marker.dispose();
-        }
-        this._markers = [];
-        await this.onDisposed.trigger();
-        this.onDisposed.reset();
-    }
-    get() {
-        return this._markers;
-    }
-}
-
-function roundVector(vector, factor = 100) {
-    vector.x = Math.round(vector.x * factor) / factor;
-    vector.y = Math.round(vector.y * factor) / factor;
-    vector.z = Math.round(vector.z * factor) / factor;
-}
-function getIndices(index, i) {
-    const i1 = index[i] * 3;
-    const i2 = index[i + 1] * 3;
-    const i3 = index[i + 2] * 3;
-    return [i1, i2, i3];
-}
-function getIndexAndPos(mesh) {
-    const { geometry } = mesh;
-    if (!geometry.index) {
-        throw new Error("Geometry must be indexed!");
-    }
-    const index = geometry.index.array;
-    const pos = geometry.attributes.position.array;
-    return { index, pos };
-}
-function getVertices(mesh, i, instance) {
-    const { index, pos } = getIndexAndPos(mesh);
-    const [i1, i2, i3] = getIndices(index, i);
-    const v1 = new THREE$1.Vector3();
-    const v2 = new THREE$1.Vector3();
-    const v3 = new THREE$1.Vector3();
-    v1.set(pos[i1], pos[i1 + 1], pos[i1 + 2]);
-    v2.set(pos[i2], pos[i2 + 1], pos[i2 + 2]);
-    v3.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
-    v1.applyMatrix4(mesh.matrixWorld);
-    v2.applyMatrix4(mesh.matrixWorld);
-    v3.applyMatrix4(mesh.matrixWorld);
-    if (mesh instanceof THREE$1.InstancedMesh && instance !== undefined) {
-        const instanceTransform = new THREE$1.Matrix4();
-        mesh.getMatrixAt(instance, instanceTransform);
-        v1.applyMatrix4(instanceTransform);
-        v2.applyMatrix4(instanceTransform);
-        v3.applyMatrix4(instanceTransform);
-    }
-    return { v1, v2, v3 };
-}
-function getPlane(mesh, i, instance) {
-    const { v1, v2, v3 } = getVertices(mesh, i, instance);
-    roundVector(v1);
-    roundVector(v2);
-    roundVector(v3);
-    const plane = new THREE$1.Plane().setFromCoplanarPoints(v1, v2, v3);
-    roundVector(plane.normal);
-    plane.constant = Math.round(plane.constant * 10) / 10;
-    return { plane, v1, v2, v3 };
-}
-function distanceFromPointToLine(point, lineStart, lineEnd, clamp = false) {
-    const tempLine = new THREE$1.Line3();
-    const tempPoint = new THREE$1.Vector3();
-    tempLine.set(lineStart, lineEnd);
-    tempLine.closestPointToPoint(point, clamp, tempPoint);
-    return tempPoint.distanceTo(point);
-}
-// TODO: Not perfect, fails in more difficult geometries
-function getRaycastedFace(mesh, faceIndex, instance) {
-    const addTriangleToIsland = (loop, e1, e2, e3) => {
-        loop.ids.delete(e1);
-        if (loop.ids.has(e2)) {
-            // When a triangle has 2 edges matching the island
-            loop.ids.delete(e2);
-        }
-        else {
-            loop.ids.add(e2);
-        }
-        if (loop.ids.has(e3)) {
-            // When a triangle has 2 edges matching the island
-            loop.ids.delete(e3);
-        }
-        else {
-            loop.ids.add(e3);
-        }
-    };
-    const addTriangleToFace = (face, iterator, e1, e2, e3, i, raycasted) => {
-        const loop = face[iterator.i];
-        if (iterator.found === null) {
-            // When a triangle matches an island of triangles for the first time
-            addTriangleToIsland(loop, e1, e2, e3);
-            loop.indices.push(i);
-            iterator.found = iterator.i;
-        }
-        else {
-            // This triangle has matched more than one island: fusion both islands
-            const previous = face[iterator.found];
-            for (const item of loop.ids) {
-                if (previous.ids.has(item)) {
-                    previous.ids.delete(item);
-                }
-                else {
-                    previous.ids.add(item);
-                }
-            }
-            for (const item of loop.indices) {
-                previous.indices.push(item);
-            }
-            face.splice(iterator.i, 1);
-            iterator.i--;
-        }
-        if (raycasted.index === i) {
-            raycasted.island = iterator.found;
-        }
-    };
-    const target = getPlane(mesh, faceIndex * 3, instance);
-    const { index } = getIndexAndPos(mesh);
-    const face = [];
-    const allDistances = {};
-    const allEdges = {};
-    // Which of the face island was hit by the raycaster
-    const raycasted = { index: faceIndex * 3, island: 0 };
-    for (let i = 0; i < index.length - 2; i += 3) {
-        const current = getPlane(mesh, i, instance);
-        const isCoplanar = target.plane.equals(current.plane);
-        if (isCoplanar) {
-            const vectors = [current.v1, current.v2, current.v3];
-            vectors.sort((a, b) => a.x - b.x || a.y - b.y || a.z - b.z);
-            const [v1, v2, v3] = vectors;
-            const v1ID = `${v1.x}_${v1.y}_${v1.z}`;
-            const v2ID = `${v2.x}_${v2.y}_${v2.z}`;
-            const v3ID = `${v3.x}_${v3.y}_${v3.z}`;
-            const e1 = `${v1ID}|${v2ID}`;
-            const e2 = `${v2ID}|${v3ID}`;
-            const e3 = `${v1ID}|${v3ID}`;
-            allDistances[e1] = v1.distanceTo(v2);
-            allDistances[e2] = v2.distanceTo(v3);
-            allDistances[e3] = v3.distanceTo(v1);
-            allEdges[e1] = [v1, v2];
-            allEdges[e2] = [v2, v3];
-            allEdges[e3] = [v3, v1];
-            const iterator = {
-                found: null,
-                i: 0,
-            };
-            for (iterator.i; iterator.i < face.length; iterator.i++) {
-                const loop = face[iterator.i];
-                if (loop.ids.has(e1)) {
-                    addTriangleToFace(face, iterator, e1, e2, e3, i, raycasted);
-                }
-                else if (loop.ids.has(e2)) {
-                    addTriangleToFace(face, iterator, e2, e3, e1, i, raycasted);
-                }
-                else if (loop.ids.has(e3)) {
-                    addTriangleToFace(face, iterator, e3, e1, e2, i, raycasted);
-                }
-            }
-            if (iterator.found === null) {
-                if (raycasted.index === i) {
-                    raycasted.island = face.length;
-                }
-                face.push({ indices: [i], ids: new Set([e1, e2, e3]) });
-            }
-        }
-    }
-    const currentFace = face[raycasted.island];
-    if (!currentFace)
-        return null;
-    const distances = {};
-    const edges = {};
-    for (const id of currentFace.ids) {
-        distances[id] = allDistances[id];
-        edges[id] = allEdges[id];
-    }
-    return { face: currentFace, distances, edges };
-}
-
 class SimpleUIComponent extends Component {
     get domElement() {
         if (!this._domElement) {
@@ -11929,7 +11278,7 @@ class SimpleUIComponent extends Component {
         this._visible = true;
         this._active = false;
         this._components = components;
-        this.id = id !== null && id !== void 0 ? id : tooeenRandomId();
+        this.id = id !== null && id !== void 0 ? id : generateUUID();
         this.template = template !== null && template !== void 0 ? template : "<div></div>";
     }
     cleanData() {
@@ -12797,15 +12146,15 @@ class FloatingWindow extends SimpleUIComponent {
         this.movable = true;
         this.resizeable = true;
         this.referencePoints = {
-            topLeft: new Vector2$1(),
-            top: new Vector2$1(),
-            topRight: new Vector2$1(),
-            left: new Vector2$1(),
-            center: new Vector2$1(),
-            right: new Vector2$1(),
-            bottomLeft: new Vector2$1(),
-            bottom: new Vector2$1(),
-            bottomRight: new Vector2$1(),
+            topLeft: new Vector2(),
+            top: new Vector2(),
+            topRight: new Vector2(),
+            left: new Vector2(),
+            center: new Vector2(),
+            right: new Vector2(),
+            bottomLeft: new Vector2(),
+            bottom: new Vector2(),
+            bottomRight: new Vector2(),
         };
         this.domElement.style.width = "400px";
         this.domElement.style.height = "250px";
@@ -13828,13 +13177,13 @@ Components.release = "1.3.0";
 
 const _raycaster = new Raycaster();
 
-const _tempVector = new Vector3$1();
-const _tempVector2 = new Vector3$1();
-const _tempQuaternion = new Quaternion$1();
+const _tempVector = new Vector3();
+const _tempVector2 = new Vector3();
+const _tempQuaternion = new Quaternion();
 const _unit = {
-	X: new Vector3$1( 1, 0, 0 ),
-	Y: new Vector3$1( 0, 1, 0 ),
-	Z: new Vector3$1( 0, 0, 1 )
+	X: new Vector3( 1, 0, 0 ),
+	Y: new Vector3( 0, 1, 0 ),
+	Z: new Vector3( 0, 0, 1 )
 };
 
 const _changeEvent$1 = { type: 'change' };
@@ -13928,17 +13277,17 @@ class TransformControls extends Object3D {
 
 		// Reusable utility variables
 
-		const worldPosition = new Vector3$1();
-		const worldPositionStart = new Vector3$1();
-		const worldQuaternion = new Quaternion$1();
-		const worldQuaternionStart = new Quaternion$1();
-		const cameraPosition = new Vector3$1();
-		const cameraQuaternion = new Quaternion$1();
-		const pointStart = new Vector3$1();
-		const pointEnd = new Vector3$1();
-		const rotationAxis = new Vector3$1();
+		const worldPosition = new Vector3();
+		const worldPositionStart = new Vector3();
+		const worldQuaternion = new Quaternion();
+		const worldQuaternionStart = new Quaternion();
+		const cameraPosition = new Vector3();
+		const cameraQuaternion = new Quaternion();
+		const pointStart = new Vector3();
+		const pointEnd = new Vector3();
+		const rotationAxis = new Vector3();
 		const rotationAngle = 0;
-		const eye = new Vector3$1();
+		const eye = new Vector3();
 
 		// TODO: remove properties unused in plane and gizmo
 
@@ -13954,23 +13303,23 @@ class TransformControls extends Object3D {
 		defineProperty( 'rotationAngle', rotationAngle );
 		defineProperty( 'eye', eye );
 
-		this._offset = new Vector3$1();
-		this._startNorm = new Vector3$1();
-		this._endNorm = new Vector3$1();
-		this._cameraScale = new Vector3$1();
+		this._offset = new Vector3();
+		this._startNorm = new Vector3();
+		this._endNorm = new Vector3();
+		this._cameraScale = new Vector3();
 
-		this._parentPosition = new Vector3$1();
-		this._parentQuaternion = new Quaternion$1();
-		this._parentQuaternionInv = new Quaternion$1();
-		this._parentScale = new Vector3$1();
+		this._parentPosition = new Vector3();
+		this._parentQuaternion = new Quaternion();
+		this._parentQuaternionInv = new Quaternion();
+		this._parentScale = new Vector3();
 
-		this._worldScaleStart = new Vector3$1();
-		this._worldQuaternionInv = new Quaternion$1();
-		this._worldScale = new Vector3$1();
+		this._worldScaleStart = new Vector3();
+		this._worldQuaternionInv = new Quaternion();
+		this._worldScale = new Vector3();
 
-		this._positionStart = new Vector3$1();
-		this._quaternionStart = new Quaternion$1();
-		this._scaleStart = new Vector3$1();
+		this._positionStart = new Vector3();
+		this._quaternionStart = new Quaternion();
+		this._scaleStart = new Vector3();
 
 		this._getPointer = getPointer.bind( this );
 		this._onPointerDown = onPointerDown.bind( this );
@@ -14568,21 +13917,21 @@ function intersectObjectWithRay( object, raycaster, includeInvisible ) {
 // Reusable utility variables
 
 const _tempEuler = new Euler();
-const _alignVector = new Vector3$1( 0, 1, 0 );
-const _zeroVector = new Vector3$1( 0, 0, 0 );
+const _alignVector = new Vector3( 0, 1, 0 );
+const _zeroVector = new Vector3( 0, 0, 0 );
 const _lookAtMatrix = new Matrix4();
-const _tempQuaternion2 = new Quaternion$1();
-const _identityQuaternion = new Quaternion$1();
-const _dirVector = new Vector3$1();
+const _tempQuaternion2 = new Quaternion();
+const _identityQuaternion = new Quaternion();
+const _dirVector = new Vector3();
 const _tempMatrix = new Matrix4();
 
-const _unitX = new Vector3$1( 1, 0, 0 );
-const _unitY = new Vector3$1( 0, 1, 0 );
-const _unitZ = new Vector3$1( 0, 0, 1 );
+const _unitX = new Vector3( 1, 0, 0 );
+const _unitY = new Vector3( 0, 1, 0 );
+const _unitZ = new Vector3( 0, 0, 1 );
 
-const _v1 = new Vector3$1();
-const _v2 = new Vector3$1();
-const _v3 = new Vector3$1();
+const _v1 = new Vector3();
+const _v2 = new Vector3();
+const _v3 = new Vector3();
 
 class TransformControlsGizmo extends Object3D {
 
@@ -15841,6143 +15190,30 @@ class SimpleClipper extends Component {
 SimpleClipper.uuid = "66290bc5-18c4-4cd1-9379-2e17a0617611";
 ToolComponent.libraryUUIDs.add(SimpleClipper.uuid);
 
-/**
- * @param  {Array<BufferGeometry>} geometries
- * @param  {Boolean} useGroups
- * @return {BufferGeometry}
- */
-function mergeGeometries( geometries, useGroups = false ) {
-
-	const isIndexed = geometries[ 0 ].index !== null;
-
-	const attributesUsed = new Set( Object.keys( geometries[ 0 ].attributes ) );
-	const morphAttributesUsed = new Set( Object.keys( geometries[ 0 ].morphAttributes ) );
-
-	const attributes = {};
-	const morphAttributes = {};
-
-	const morphTargetsRelative = geometries[ 0 ].morphTargetsRelative;
-
-	const mergedGeometry = new BufferGeometry();
-
-	let offset = 0;
-
-	for ( let i = 0; i < geometries.length; ++ i ) {
-
-		const geometry = geometries[ i ];
-		let attributesCount = 0;
-
-		// ensure that all geometries are indexed, or none
-
-		if ( isIndexed !== ( geometry.index !== null ) ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.' );
-			return null;
-
-		}
-
-		// gather attributes, exit early if they're different
-
-		for ( const name in geometry.attributes ) {
-
-			if ( ! attributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.' );
-				return null;
-
-			}
-
-			if ( attributes[ name ] === undefined ) attributes[ name ] = [];
-
-			attributes[ name ].push( geometry.attributes[ name ] );
-
-			attributesCount ++;
-
-		}
-
-		// ensure geometries have the same number of attributes
-
-		if ( attributesCount !== attributesUsed.size ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. Make sure all geometries have the same number of attributes.' );
-			return null;
-
-		}
-
-		// gather morph attributes, exit early if they're different
-
-		if ( morphTargetsRelative !== geometry.morphTargetsRelative ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. .morphTargetsRelative must be consistent throughout all geometries.' );
-			return null;
-
-		}
-
-		for ( const name in geometry.morphAttributes ) {
-
-			if ( ! morphAttributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '.  .morphAttributes must be consistent throughout all geometries.' );
-				return null;
-
-			}
-
-			if ( morphAttributes[ name ] === undefined ) morphAttributes[ name ] = [];
-
-			morphAttributes[ name ].push( geometry.morphAttributes[ name ] );
-
-		}
-
-		if ( useGroups ) {
-
-			let count;
-
-			if ( isIndexed ) {
-
-				count = geometry.index.count;
-
-			} else if ( geometry.attributes.position !== undefined ) {
-
-				count = geometry.attributes.position.count;
-
-			} else {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index ' + i + '. The geometry must have either an index or a position attribute' );
-				return null;
-
-			}
-
-			mergedGeometry.addGroup( offset, count, i );
-
-			offset += count;
-
-		}
-
-	}
-
-	// merge indices
-
-	if ( isIndexed ) {
-
-		let indexOffset = 0;
-		const mergedIndex = [];
-
-		for ( let i = 0; i < geometries.length; ++ i ) {
-
-			const index = geometries[ i ].index;
-
-			for ( let j = 0; j < index.count; ++ j ) {
-
-				mergedIndex.push( index.getX( j ) + indexOffset );
-
-			}
-
-			indexOffset += geometries[ i ].attributes.position.count;
-
-		}
-
-		mergedGeometry.setIndex( mergedIndex );
-
-	}
-
-	// merge attributes
-
-	for ( const name in attributes ) {
-
-		const mergedAttribute = mergeAttributes( attributes[ name ] );
-
-		if ( ! mergedAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' attribute.' );
-			return null;
-
-		}
-
-		mergedGeometry.setAttribute( name, mergedAttribute );
-
-	}
-
-	// merge morph attributes
-
-	for ( const name in morphAttributes ) {
-
-		const numMorphTargets = morphAttributes[ name ][ 0 ].length;
-
-		if ( numMorphTargets === 0 ) break;
-
-		mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
-		mergedGeometry.morphAttributes[ name ] = [];
-
-		for ( let i = 0; i < numMorphTargets; ++ i ) {
-
-			const morphAttributesToMerge = [];
-
-			for ( let j = 0; j < morphAttributes[ name ].length; ++ j ) {
-
-				morphAttributesToMerge.push( morphAttributes[ name ][ j ][ i ] );
-
-			}
-
-			const mergedMorphAttribute = mergeAttributes( morphAttributesToMerge );
-
-			if ( ! mergedMorphAttribute ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the ' + name + ' morphAttribute.' );
-				return null;
-
-			}
-
-			mergedGeometry.morphAttributes[ name ].push( mergedMorphAttribute );
-
-		}
-
-	}
-
-	return mergedGeometry;
-
-}
-
-/**
- * @param {Array<BufferAttribute>} attributes
- * @return {BufferAttribute}
- */
-function mergeAttributes( attributes ) {
-
-	let TypedArray;
-	let itemSize;
-	let normalized;
-	let gpuType = - 1;
-	let arrayLength = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		const attribute = attributes[ i ];
-
-		if ( attribute.isInterleavedBufferAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. InterleavedBufferAttributes are not supported.' );
-			return null;
-
-		}
-
-		if ( TypedArray === undefined ) TypedArray = attribute.array.constructor;
-		if ( TypedArray !== attribute.array.constructor ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.' );
-			return null;
-
-		}
-
-		if ( itemSize === undefined ) itemSize = attribute.itemSize;
-		if ( itemSize !== attribute.itemSize ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		if ( normalized === undefined ) normalized = attribute.normalized;
-		if ( normalized !== attribute.normalized ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		if ( gpuType === - 1 ) gpuType = attribute.gpuType;
-		if ( gpuType !== attribute.gpuType ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.gpuType must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		arrayLength += attribute.array.length;
-
-	}
-
-	const array = new TypedArray( arrayLength );
-	let offset = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		array.set( attributes[ i ].array, offset );
-
-		offset += attributes[ i ].array.length;
-
-	}
-
-	const result = new BufferAttribute$1( array, itemSize, normalized );
-	if ( gpuType !== undefined ) {
-
-		result.gpuType = gpuType;
-
-	}
-
-	return result;
-
-}
-
-class GeometryUtils {
-    static merge(geometriesByMaterial, splitByBlocks = false) {
-        const geometriesByMat = [];
-        const sizes = [];
-        for (const geometries of geometriesByMaterial) {
-            const merged = this.mergeGeomsOfSameMaterial(geometries, splitByBlocks);
-            geometriesByMat.push(merged);
-            sizes.push(merged.index.count);
-        }
-        const geometry = mergeGeometries(geometriesByMat);
-        this.setupMaterialGroups(sizes, geometry);
-        this.cleanUp(geometriesByMat);
-        return geometry;
-    }
-    // When Three.js exports to glTF, it generates one separate mesh per material. All meshes
-    // share the same BufferAttributes and have different indices
-    static async mergeGltfMeshes(meshes) {
-        const geometry = new BufferGeometry();
-        const attributes = meshes[0].geometry.attributes;
-        this.getMeshesAttributes(geometry, attributes);
-        this.getMeshesIndices(geometry, meshes);
-        return geometry;
-    }
-    static getMeshesAttributes(geometry, attributes) {
-        // Three.js GLTFExporter exports custom BufferAttributes as underscore lowercase
-        // eslint-disable-next-line no-underscore-dangle
-        geometry.setAttribute("blockID", attributes._blockid);
-        geometry.setAttribute("position", attributes.position);
-        geometry.setAttribute("normal", attributes.normal);
-        geometry.groups = [];
-    }
-    static getMeshesIndices(geometry, meshes) {
-        const counter = { index: 0, material: 0 };
-        const indices = [];
-        for (const mesh of meshes) {
-            const index = mesh.geometry.index;
-            this.getIndicesOfMesh(index, indices);
-            this.getMeshGroup(geometry, counter, index);
-            this.cleanUpMesh(mesh);
-        }
-        geometry.setIndex(indices);
-    }
-    static getMeshGroup(geometry, counter, index) {
-        geometry.groups.push({
-            start: counter.index,
-            count: index.count,
-            materialIndex: counter.material++,
-        });
-        counter.index += index.count;
-    }
-    static cleanUpMesh(mesh) {
-        mesh.geometry.setIndex([]);
-        mesh.geometry.attributes = {};
-        mesh.geometry.dispose();
-    }
-    static getIndicesOfMesh(index, indices) {
-        for (const number of index.array) {
-            indices.push(number);
-        }
-    }
-    static cleanUp(geometries) {
-        geometries.forEach((geometry) => geometry.dispose());
-        geometries.length = 0;
-    }
-    static setupMaterialGroups(sizes, geometry) {
-        let vertexCounter = 0;
-        let counter = 0;
-        for (const size of sizes) {
-            const group = {
-                start: vertexCounter,
-                count: size,
-                materialIndex: counter++,
-            };
-            geometry.groups.push(group);
-            vertexCounter += size;
-        }
-    }
-    static mergeGeomsOfSameMaterial(geometries, splitByBlocks) {
-        this.checkAllGeometriesAreIndexed(geometries);
-        if (splitByBlocks) {
-            this.splitByBlocks(geometries);
-        }
-        const merged = mergeGeometries(geometries);
-        this.cleanUp(geometries);
-        return merged;
-    }
-    static splitByBlocks(geometries) {
-        let i = 0;
-        for (const geometry of geometries) {
-            const size = geometry.attributes.position.count;
-            // TODO: Substitute blockID attribute by block id map
-            const array = new Uint16Array(size).fill(i++);
-            geometry.setAttribute("blockID", new BufferAttribute$1(array, 1));
-        }
-    }
-    static checkAllGeometriesAreIndexed(geometries) {
-        for (const geometry of geometries) {
-            if (!geometry.index) {
-                throw new Error("All geometries must be indexed!");
-            }
-        }
-    }
-}
-
-let _renderer;
-let fullscreenQuadGeometry;
-let fullscreenQuadMaterial;
-let fullscreenQuad;
-
-function decompress( texture, maxTextureSize = Infinity, renderer = null ) {
-
-	if ( ! fullscreenQuadGeometry ) fullscreenQuadGeometry = new PlaneGeometry( 2, 2, 1, 1 );
-	if ( ! fullscreenQuadMaterial ) fullscreenQuadMaterial = new ShaderMaterial( {
-		uniforms: { blitTexture: new Uniform( texture ) },
-		vertexShader: `
-			varying vec2 vUv;
-			void main(){
-				vUv = uv;
-				gl_Position = vec4(position.xy * 1.0,0.,.999999);
-			}`,
-		fragmentShader: `
-			uniform sampler2D blitTexture; 
-			varying vec2 vUv;
-
-			void main(){ 
-				gl_FragColor = vec4(vUv.xy, 0, 1);
-				
-				#ifdef IS_SRGB
-				gl_FragColor = LinearTosRGB( texture2D( blitTexture, vUv) );
-				#else
-				gl_FragColor = texture2D( blitTexture, vUv);
-				#endif
-			}`
-	} );
-
-	fullscreenQuadMaterial.uniforms.blitTexture.value = texture;
-	fullscreenQuadMaterial.defines.IS_SRGB = texture.colorSpace == SRGBColorSpace;
-	fullscreenQuadMaterial.needsUpdate = true;
-
-	if ( ! fullscreenQuad ) {
-
-		fullscreenQuad = new Mesh( fullscreenQuadGeometry, fullscreenQuadMaterial );
-		fullscreenQuad.frustrumCulled = false;
-
-	}
-
-	const _camera = new PerspectiveCamera();
-	const _scene = new Scene();
-	_scene.add( fullscreenQuad );
-
-	if ( renderer === null ) {
-
-		renderer = _renderer = new WebGLRenderer( { antialias: false } );
-
-	}
-
-	const width = Math.min( texture.image.width, maxTextureSize );
-	const height = Math.min( texture.image.height, maxTextureSize );
-
-	renderer.setSize( width, height );
-	renderer.clear();
-	renderer.render( _scene, _camera );
-
-	const canvas = document.createElement( 'canvas' );
-	const context = canvas.getContext( '2d' );
-
-	canvas.width = width;
-	canvas.height = height;
-
-	context.drawImage( renderer.domElement, 0, 0, width, height );
-
-	const readableTexture = new CanvasTexture( canvas );
-
-	readableTexture.minFilter = texture.minFilter;
-	readableTexture.magFilter = texture.magFilter;
-	readableTexture.wrapS = texture.wrapS;
-	readableTexture.wrapT = texture.wrapT;
-	readableTexture.name = texture.name;
-
-	if ( _renderer ) {
-
-		_renderer.forceContextLoss();
-		_renderer.dispose();
-		_renderer = null;
-
-	}
-
-	return readableTexture;
-
-}
-
-/**
- * The KHR_mesh_quantization extension allows these extra attribute component types
- *
- * @see https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md#extending-mesh-attributes
- */
-const KHR_mesh_quantization_ExtraAttrTypes = {
-	POSITION: [
-		'byte',
-		'byte normalized',
-		'unsigned byte',
-		'unsigned byte normalized',
-		'short',
-		'short normalized',
-		'unsigned short',
-		'unsigned short normalized',
-	],
-	NORMAL: [
-		'byte normalized',
-		'short normalized',
-	],
-	TANGENT: [
-		'byte normalized',
-		'short normalized',
-	],
-	TEXCOORD: [
-		'byte',
-		'byte normalized',
-		'unsigned byte',
-		'short',
-		'short normalized',
-		'unsigned short',
-	],
-};
-
-
-class GLTFExporter {
-
-	constructor() {
-
-		this.pluginCallbacks = [];
-
-		this.register( function ( writer ) {
-
-			return new GLTFLightExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsUnlitExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsTransmissionExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsVolumeExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsIorExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsSpecularExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsClearcoatExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsIridescenceExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsSheenExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsAnisotropyExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsEmissiveStrengthExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMaterialsBumpExtension( writer );
-
-		} );
-
-		this.register( function ( writer ) {
-
-			return new GLTFMeshGpuInstancing( writer );
-
-		} );
-
-	}
-
-	register( callback ) {
-
-		if ( this.pluginCallbacks.indexOf( callback ) === - 1 ) {
-
-			this.pluginCallbacks.push( callback );
-
-		}
-
-		return this;
-
-	}
-
-	unregister( callback ) {
-
-		if ( this.pluginCallbacks.indexOf( callback ) !== - 1 ) {
-
-			this.pluginCallbacks.splice( this.pluginCallbacks.indexOf( callback ), 1 );
-
-		}
-
-		return this;
-
-	}
-
-	/**
-	 * Parse scenes and generate GLTF output
-	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
-	 * @param  {Function} onDone  Callback on completed
-	 * @param  {Function} onError  Callback on errors
-	 * @param  {Object} options options
-	 */
-	parse( input, onDone, onError, options ) {
-
-		const writer = new GLTFWriter();
-		const plugins = [];
-
-		for ( let i = 0, il = this.pluginCallbacks.length; i < il; i ++ ) {
-
-			plugins.push( this.pluginCallbacks[ i ]( writer ) );
-
-		}
-
-		writer.setPlugins( plugins );
-		writer.write( input, onDone, options ).catch( onError );
-
-	}
-
-	parseAsync( input, options ) {
-
-		const scope = this;
-
-		return new Promise( function ( resolve, reject ) {
-
-			scope.parse( input, resolve, reject, options );
-
-		} );
-
-	}
-
-}
-
-//------------------------------------------------------------------------------
-// Constants
-//------------------------------------------------------------------------------
-
-const WEBGL_CONSTANTS = {
-	POINTS: 0x0000,
-	LINES: 0x0001,
-	LINE_LOOP: 0x0002,
-	LINE_STRIP: 0x0003,
-	TRIANGLES: 0x0004,
-	TRIANGLE_STRIP: 0x0005,
-	TRIANGLE_FAN: 0x0006,
-
-	BYTE: 0x1400,
-	UNSIGNED_BYTE: 0x1401,
-	SHORT: 0x1402,
-	UNSIGNED_SHORT: 0x1403,
-	INT: 0x1404,
-	UNSIGNED_INT: 0x1405,
-	FLOAT: 0x1406,
-
-	ARRAY_BUFFER: 0x8892,
-	ELEMENT_ARRAY_BUFFER: 0x8893,
-
-	NEAREST: 0x2600,
-	LINEAR: 0x2601,
-	NEAREST_MIPMAP_NEAREST: 0x2700,
-	LINEAR_MIPMAP_NEAREST: 0x2701,
-	NEAREST_MIPMAP_LINEAR: 0x2702,
-	LINEAR_MIPMAP_LINEAR: 0x2703,
-
-	CLAMP_TO_EDGE: 33071,
-	MIRRORED_REPEAT: 33648,
-	REPEAT: 10497
-};
-
-const KHR_MESH_QUANTIZATION = 'KHR_mesh_quantization';
-
-const THREE_TO_WEBGL = {};
-
-THREE_TO_WEBGL[ NearestFilter ] = WEBGL_CONSTANTS.NEAREST;
-THREE_TO_WEBGL[ NearestMipmapNearestFilter ] = WEBGL_CONSTANTS.NEAREST_MIPMAP_NEAREST;
-THREE_TO_WEBGL[ NearestMipmapLinearFilter ] = WEBGL_CONSTANTS.NEAREST_MIPMAP_LINEAR;
-THREE_TO_WEBGL[ LinearFilter ] = WEBGL_CONSTANTS.LINEAR;
-THREE_TO_WEBGL[ LinearMipmapNearestFilter ] = WEBGL_CONSTANTS.LINEAR_MIPMAP_NEAREST;
-THREE_TO_WEBGL[ LinearMipmapLinearFilter ] = WEBGL_CONSTANTS.LINEAR_MIPMAP_LINEAR;
-
-THREE_TO_WEBGL[ ClampToEdgeWrapping ] = WEBGL_CONSTANTS.CLAMP_TO_EDGE;
-THREE_TO_WEBGL[ RepeatWrapping ] = WEBGL_CONSTANTS.REPEAT;
-THREE_TO_WEBGL[ MirroredRepeatWrapping ] = WEBGL_CONSTANTS.MIRRORED_REPEAT;
-
-const PATH_PROPERTIES = {
-	scale: 'scale',
-	position: 'translation',
-	quaternion: 'rotation',
-	morphTargetInfluences: 'weights'
-};
-
-const DEFAULT_SPECULAR_COLOR = new Color();
-
-// GLB constants
-// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
-
-const GLB_HEADER_BYTES = 12;
-const GLB_HEADER_MAGIC = 0x46546C67;
-const GLB_VERSION = 2;
-
-const GLB_CHUNK_PREFIX_BYTES = 8;
-const GLB_CHUNK_TYPE_JSON = 0x4E4F534A;
-const GLB_CHUNK_TYPE_BIN = 0x004E4942;
-
-//------------------------------------------------------------------------------
-// Utility functions
-//------------------------------------------------------------------------------
-
-/**
- * Compare two arrays
- * @param  {Array} array1 Array 1 to compare
- * @param  {Array} array2 Array 2 to compare
- * @return {Boolean}        Returns true if both arrays are equal
- */
-function equalArray( array1, array2 ) {
-
-	return ( array1.length === array2.length ) && array1.every( function ( element, index ) {
-
-		return element === array2[ index ];
-
-	} );
-
-}
-
-/**
- * Converts a string to an ArrayBuffer.
- * @param  {string} text
- * @return {ArrayBuffer}
- */
-function stringToArrayBuffer( text ) {
-
-	return new TextEncoder().encode( text ).buffer;
-
-}
-
-/**
- * Is identity matrix
- *
- * @param {Matrix4} matrix
- * @returns {Boolean} Returns true, if parameter is identity matrix
- */
-function isIdentityMatrix( matrix ) {
-
-	return equalArray( matrix.elements, [ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ] );
-
-}
-
-/**
- * Get the min and max vectors from the given attribute
- * @param  {BufferAttribute} attribute Attribute to find the min/max in range from start to start + count
- * @param  {Integer} start
- * @param  {Integer} count
- * @return {Object} Object containing the `min` and `max` values (As an array of attribute.itemSize components)
- */
-function getMinMax( attribute, start, count ) {
-
-	const output = {
-
-		min: new Array( attribute.itemSize ).fill( Number.POSITIVE_INFINITY ),
-		max: new Array( attribute.itemSize ).fill( Number.NEGATIVE_INFINITY )
-
-	};
-
-	for ( let i = start; i < start + count; i ++ ) {
-
-		for ( let a = 0; a < attribute.itemSize; a ++ ) {
-
-			let value;
-
-			if ( attribute.itemSize > 4 ) {
-
-				 // no support for interleaved data for itemSize > 4
-
-				value = attribute.array[ i * attribute.itemSize + a ];
-
-			} else {
-
-				if ( a === 0 ) value = attribute.getX( i );
-				else if ( a === 1 ) value = attribute.getY( i );
-				else if ( a === 2 ) value = attribute.getZ( i );
-				else if ( a === 3 ) value = attribute.getW( i );
-
-				if ( attribute.normalized === true ) {
-
-					value = MathUtils.normalize( value, attribute.array );
-
-				}
-
-			}
-
-			output.min[ a ] = Math.min( output.min[ a ], value );
-			output.max[ a ] = Math.max( output.max[ a ], value );
-
-		}
-
-	}
-
-	return output;
-
-}
-
-/**
- * Get the required size + padding for a buffer, rounded to the next 4-byte boundary.
- * https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#data-alignment
- *
- * @param {Integer} bufferSize The size the original buffer.
- * @returns {Integer} new buffer size with required padding.
- *
- */
-function getPaddedBufferSize( bufferSize ) {
-
-	return Math.ceil( bufferSize / 4 ) * 4;
-
-}
-
-/**
- * Returns a buffer aligned to 4-byte boundary.
- *
- * @param {ArrayBuffer} arrayBuffer Buffer to pad
- * @param {Integer} paddingByte (Optional)
- * @returns {ArrayBuffer} The same buffer if it's already aligned to 4-byte boundary or a new buffer
- */
-function getPaddedArrayBuffer( arrayBuffer, paddingByte = 0 ) {
-
-	const paddedLength = getPaddedBufferSize( arrayBuffer.byteLength );
-
-	if ( paddedLength !== arrayBuffer.byteLength ) {
-
-		const array = new Uint8Array( paddedLength );
-		array.set( new Uint8Array( arrayBuffer ) );
-
-		if ( paddingByte !== 0 ) {
-
-			for ( let i = arrayBuffer.byteLength; i < paddedLength; i ++ ) {
-
-				array[ i ] = paddingByte;
-
-			}
-
-		}
-
-		return array.buffer;
-
-	}
-
-	return arrayBuffer;
-
-}
-
-function getCanvas() {
-
-	if ( typeof document === 'undefined' && typeof OffscreenCanvas !== 'undefined' ) {
-
-		return new OffscreenCanvas( 1, 1 );
-
-	}
-
-	return document.createElement( 'canvas' );
-
-}
-
-function getToBlobPromise( canvas, mimeType ) {
-
-	if ( canvas.toBlob !== undefined ) {
-
-		return new Promise( ( resolve ) => canvas.toBlob( resolve, mimeType ) );
-
-	}
-
-	let quality;
-
-	// Blink's implementation of convertToBlob seems to default to a quality level of 100%
-	// Use the Blink default quality levels of toBlob instead so that file sizes are comparable.
-	if ( mimeType === 'image/jpeg' ) {
-
-		quality = 0.92;
-
-	} else if ( mimeType === 'image/webp' ) {
-
-		quality = 0.8;
-
-	}
-
-	return canvas.convertToBlob( {
-
-		type: mimeType,
-		quality: quality
-
-	} );
-
-}
-
-/**
- * Writer
- */
-class GLTFWriter {
-
-	constructor() {
-
-		this.plugins = [];
-
-		this.options = {};
-		this.pending = [];
-		this.buffers = [];
-
-		this.byteOffset = 0;
-		this.buffers = [];
-		this.nodeMap = new Map();
-		this.skins = [];
-
-		this.extensionsUsed = {};
-		this.extensionsRequired = {};
-
-		this.uids = new Map();
-		this.uid = 0;
-
-		this.json = {
-			asset: {
-				version: '2.0',
-				generator: 'THREE.GLTFExporter'
-			}
-		};
-
-		this.cache = {
-			meshes: new Map(),
-			attributes: new Map(),
-			attributesNormalized: new Map(),
-			materials: new Map(),
-			textures: new Map(),
-			images: new Map()
-		};
-
-	}
-
-	setPlugins( plugins ) {
-
-		this.plugins = plugins;
-
-	}
-
-	/**
-	 * Parse scenes and generate GLTF output
-	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
-	 * @param  {Function} onDone  Callback on completed
-	 * @param  {Object} options options
-	 */
-	async write( input, onDone, options = {} ) {
-
-		this.options = Object.assign( {
-			// default options
-			binary: false,
-			trs: false,
-			onlyVisible: true,
-			maxTextureSize: Infinity,
-			animations: [],
-			includeCustomExtensions: false
-		}, options );
-
-		if ( this.options.animations.length > 0 ) {
-
-			// Only TRS properties, and not matrices, may be targeted by animation.
-			this.options.trs = true;
-
-		}
-
-		this.processInput( input );
-
-		await Promise.all( this.pending );
-
-		const writer = this;
-		const buffers = writer.buffers;
-		const json = writer.json;
-		options = writer.options;
-
-		const extensionsUsed = writer.extensionsUsed;
-		const extensionsRequired = writer.extensionsRequired;
-
-		// Merge buffers.
-		const blob = new Blob( buffers, { type: 'application/octet-stream' } );
-
-		// Declare extensions.
-		const extensionsUsedList = Object.keys( extensionsUsed );
-		const extensionsRequiredList = Object.keys( extensionsRequired );
-
-		if ( extensionsUsedList.length > 0 ) json.extensionsUsed = extensionsUsedList;
-		if ( extensionsRequiredList.length > 0 ) json.extensionsRequired = extensionsRequiredList;
-
-		// Update bytelength of the single buffer.
-		if ( json.buffers && json.buffers.length > 0 ) json.buffers[ 0 ].byteLength = blob.size;
-
-		if ( options.binary === true ) {
-
-			// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
-
-			const reader = new FileReader();
-			reader.readAsArrayBuffer( blob );
-			reader.onloadend = function () {
-
-				// Binary chunk.
-				const binaryChunk = getPaddedArrayBuffer( reader.result );
-				const binaryChunkPrefix = new DataView( new ArrayBuffer( GLB_CHUNK_PREFIX_BYTES ) );
-				binaryChunkPrefix.setUint32( 0, binaryChunk.byteLength, true );
-				binaryChunkPrefix.setUint32( 4, GLB_CHUNK_TYPE_BIN, true );
-
-				// JSON chunk.
-				const jsonChunk = getPaddedArrayBuffer( stringToArrayBuffer( JSON.stringify( json ) ), 0x20 );
-				const jsonChunkPrefix = new DataView( new ArrayBuffer( GLB_CHUNK_PREFIX_BYTES ) );
-				jsonChunkPrefix.setUint32( 0, jsonChunk.byteLength, true );
-				jsonChunkPrefix.setUint32( 4, GLB_CHUNK_TYPE_JSON, true );
-
-				// GLB header.
-				const header = new ArrayBuffer( GLB_HEADER_BYTES );
-				const headerView = new DataView( header );
-				headerView.setUint32( 0, GLB_HEADER_MAGIC, true );
-				headerView.setUint32( 4, GLB_VERSION, true );
-				const totalByteLength = GLB_HEADER_BYTES
-					+ jsonChunkPrefix.byteLength + jsonChunk.byteLength
-					+ binaryChunkPrefix.byteLength + binaryChunk.byteLength;
-				headerView.setUint32( 8, totalByteLength, true );
-
-				const glbBlob = new Blob( [
-					header,
-					jsonChunkPrefix,
-					jsonChunk,
-					binaryChunkPrefix,
-					binaryChunk
-				], { type: 'application/octet-stream' } );
-
-				const glbReader = new FileReader();
-				glbReader.readAsArrayBuffer( glbBlob );
-				glbReader.onloadend = function () {
-
-					onDone( glbReader.result );
-
-				};
-
-			};
-
-		} else {
-
-			if ( json.buffers && json.buffers.length > 0 ) {
-
-				const reader = new FileReader();
-				reader.readAsDataURL( blob );
-				reader.onloadend = function () {
-
-					const base64data = reader.result;
-					json.buffers[ 0 ].uri = base64data;
-					onDone( json );
-
-				};
-
-			} else {
-
-				onDone( json );
-
-			}
-
-		}
-
-
-	}
-
-	/**
-	 * Serializes a userData.
-	 *
-	 * @param {THREE.Object3D|THREE.Material} object
-	 * @param {Object} objectDef
-	 */
-	serializeUserData( object, objectDef ) {
-
-		if ( Object.keys( object.userData ).length === 0 ) return;
-
-		const options = this.options;
-		const extensionsUsed = this.extensionsUsed;
-
-		try {
-
-			const json = JSON.parse( JSON.stringify( object.userData ) );
-
-			if ( options.includeCustomExtensions && json.gltfExtensions ) {
-
-				if ( objectDef.extensions === undefined ) objectDef.extensions = {};
-
-				for ( const extensionName in json.gltfExtensions ) {
-
-					objectDef.extensions[ extensionName ] = json.gltfExtensions[ extensionName ];
-					extensionsUsed[ extensionName ] = true;
-
-				}
-
-				delete json.gltfExtensions;
-
-			}
-
-			if ( Object.keys( json ).length > 0 ) objectDef.extras = json;
-
-		} catch ( error ) {
-
-			console.warn( 'THREE.GLTFExporter: userData of \'' + object.name + '\' ' +
-				'won\'t be serialized because of JSON.stringify error - ' + error.message );
-
-		}
-
-	}
-
-	/**
-	 * Returns ids for buffer attributes.
-	 * @param  {Object} object
-	 * @return {Integer}
-	 */
-	getUID( attribute, isRelativeCopy = false ) {
-
-		if ( this.uids.has( attribute ) === false ) {
-
-			const uids = new Map();
-
-			uids.set( true, this.uid ++ );
-			uids.set( false, this.uid ++ );
-
-			this.uids.set( attribute, uids );
-
-		}
-
-		const uids = this.uids.get( attribute );
-
-		return uids.get( isRelativeCopy );
-
-	}
-
-	/**
-	 * Checks if normal attribute values are normalized.
-	 *
-	 * @param {BufferAttribute} normal
-	 * @returns {Boolean}
-	 */
-	isNormalizedNormalAttribute( normal ) {
-
-		const cache = this.cache;
-
-		if ( cache.attributesNormalized.has( normal ) ) return false;
-
-		const v = new Vector3$1();
-
-		for ( let i = 0, il = normal.count; i < il; i ++ ) {
-
-			// 0.0005 is from glTF-validator
-			if ( Math.abs( v.fromBufferAttribute( normal, i ).length() - 1.0 ) > 0.0005 ) return false;
-
-		}
-
-		return true;
-
-	}
-
-	/**
-	 * Creates normalized normal buffer attribute.
-	 *
-	 * @param {BufferAttribute} normal
-	 * @returns {BufferAttribute}
-	 *
-	 */
-	createNormalizedNormalAttribute( normal ) {
-
-		const cache = this.cache;
-
-		if ( cache.attributesNormalized.has( normal ) )	return cache.attributesNormalized.get( normal );
-
-		const attribute = normal.clone();
-		const v = new Vector3$1();
-
-		for ( let i = 0, il = attribute.count; i < il; i ++ ) {
-
-			v.fromBufferAttribute( attribute, i );
-
-			if ( v.x === 0 && v.y === 0 && v.z === 0 ) {
-
-				// if values can't be normalized set (1, 0, 0)
-				v.setX( 1.0 );
-
-			} else {
-
-				v.normalize();
-
-			}
-
-			attribute.setXYZ( i, v.x, v.y, v.z );
-
-		}
-
-		cache.attributesNormalized.set( normal, attribute );
-
-		return attribute;
-
-	}
-
-	/**
-	 * Applies a texture transform, if present, to the map definition. Requires
-	 * the KHR_texture_transform extension.
-	 *
-	 * @param {Object} mapDef
-	 * @param {THREE.Texture} texture
-	 */
-	applyTextureTransform( mapDef, texture ) {
-
-		let didTransform = false;
-		const transformDef = {};
-
-		if ( texture.offset.x !== 0 || texture.offset.y !== 0 ) {
-
-			transformDef.offset = texture.offset.toArray();
-			didTransform = true;
-
-		}
-
-		if ( texture.rotation !== 0 ) {
-
-			transformDef.rotation = texture.rotation;
-			didTransform = true;
-
-		}
-
-		if ( texture.repeat.x !== 1 || texture.repeat.y !== 1 ) {
-
-			transformDef.scale = texture.repeat.toArray();
-			didTransform = true;
-
-		}
-
-		if ( didTransform ) {
-
-			mapDef.extensions = mapDef.extensions || {};
-			mapDef.extensions[ 'KHR_texture_transform' ] = transformDef;
-			this.extensionsUsed[ 'KHR_texture_transform' ] = true;
-
-		}
-
-	}
-
-	buildMetalRoughTexture( metalnessMap, roughnessMap ) {
-
-		if ( metalnessMap === roughnessMap ) return metalnessMap;
-
-		function getEncodingConversion( map ) {
-
-			if ( map.colorSpace === SRGBColorSpace ) {
-
-				return function SRGBToLinear( c ) {
-
-					return ( c < 0.04045 ) ? c * 0.0773993808 : Math.pow( c * 0.9478672986 + 0.0521327014, 2.4 );
-
-				};
-
-			}
-
-			return function LinearToLinear( c ) {
-
-				return c;
-
-			};
-
-		}
-
-		console.warn( 'THREE.GLTFExporter: Merged metalnessMap and roughnessMap textures.' );
-
-		if ( metalnessMap instanceof CompressedTexture ) {
-
-			metalnessMap = decompress( metalnessMap );
-
-		}
-
-		if ( roughnessMap instanceof CompressedTexture ) {
-
-			roughnessMap = decompress( roughnessMap );
-
-		}
-
-		const metalness = metalnessMap ? metalnessMap.image : null;
-		const roughness = roughnessMap ? roughnessMap.image : null;
-
-		const width = Math.max( metalness ? metalness.width : 0, roughness ? roughness.width : 0 );
-		const height = Math.max( metalness ? metalness.height : 0, roughness ? roughness.height : 0 );
-
-		const canvas = getCanvas();
-		canvas.width = width;
-		canvas.height = height;
-
-		const context = canvas.getContext( '2d' );
-		context.fillStyle = '#00ffff';
-		context.fillRect( 0, 0, width, height );
-
-		const composite = context.getImageData( 0, 0, width, height );
-
-		if ( metalness ) {
-
-			context.drawImage( metalness, 0, 0, width, height );
-
-			const convert = getEncodingConversion( metalnessMap );
-			const data = context.getImageData( 0, 0, width, height ).data;
-
-			for ( let i = 2; i < data.length; i += 4 ) {
-
-				composite.data[ i ] = convert( data[ i ] / 256 ) * 256;
-
-			}
-
-		}
-
-		if ( roughness ) {
-
-			context.drawImage( roughness, 0, 0, width, height );
-
-			const convert = getEncodingConversion( roughnessMap );
-			const data = context.getImageData( 0, 0, width, height ).data;
-
-			for ( let i = 1; i < data.length; i += 4 ) {
-
-				composite.data[ i ] = convert( data[ i ] / 256 ) * 256;
-
-			}
-
-		}
-
-		context.putImageData( composite, 0, 0 );
-
-		//
-
-		const reference = metalnessMap || roughnessMap;
-
-		const texture = reference.clone();
-
-		texture.source = new Source( canvas );
-		texture.colorSpace = NoColorSpace;
-		texture.channel = ( metalnessMap || roughnessMap ).channel;
-
-		if ( metalnessMap && roughnessMap && metalnessMap.channel !== roughnessMap.channel ) {
-
-			console.warn( 'THREE.GLTFExporter: UV channels for metalnessMap and roughnessMap textures must match.' );
-
-		}
-
-		return texture;
-
-	}
-
-	/**
-	 * Process a buffer to append to the default one.
-	 * @param  {ArrayBuffer} buffer
-	 * @return {Integer}
-	 */
-	processBuffer( buffer ) {
-
-		const json = this.json;
-		const buffers = this.buffers;
-
-		if ( ! json.buffers ) json.buffers = [ { byteLength: 0 } ];
-
-		// All buffers are merged before export.
-		buffers.push( buffer );
-
-		return 0;
-
-	}
-
-	/**
-	 * Process and generate a BufferView
-	 * @param  {BufferAttribute} attribute
-	 * @param  {number} componentType
-	 * @param  {number} start
-	 * @param  {number} count
-	 * @param  {number} target (Optional) Target usage of the BufferView
-	 * @return {Object}
-	 */
-	processBufferView( attribute, componentType, start, count, target ) {
-
-		const json = this.json;
-
-		if ( ! json.bufferViews ) json.bufferViews = [];
-
-		// Create a new dataview and dump the attribute's array into it
-
-		let componentSize;
-
-		switch ( componentType ) {
-
-			case WEBGL_CONSTANTS.BYTE:
-			case WEBGL_CONSTANTS.UNSIGNED_BYTE:
-
-				componentSize = 1;
-
-				break;
-
-			case WEBGL_CONSTANTS.SHORT:
-			case WEBGL_CONSTANTS.UNSIGNED_SHORT:
-
-				componentSize = 2;
-
-				break;
-
-			default:
-
-				componentSize = 4;
-
-		}
-
-		const byteLength = getPaddedBufferSize( count * attribute.itemSize * componentSize );
-		const dataView = new DataView( new ArrayBuffer( byteLength ) );
-		let offset = 0;
-
-		for ( let i = start; i < start + count; i ++ ) {
-
-			for ( let a = 0; a < attribute.itemSize; a ++ ) {
-
-				let value;
-
-				if ( attribute.itemSize > 4 ) {
-
-					 // no support for interleaved data for itemSize > 4
-
-					value = attribute.array[ i * attribute.itemSize + a ];
-
-				} else {
-
-					if ( a === 0 ) value = attribute.getX( i );
-					else if ( a === 1 ) value = attribute.getY( i );
-					else if ( a === 2 ) value = attribute.getZ( i );
-					else if ( a === 3 ) value = attribute.getW( i );
-
-					if ( attribute.normalized === true ) {
-
-						value = MathUtils.normalize( value, attribute.array );
-
-					}
-
-				}
-
-				if ( componentType === WEBGL_CONSTANTS.FLOAT ) {
-
-					dataView.setFloat32( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.INT ) {
-
-					dataView.setInt32( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_INT ) {
-
-					dataView.setUint32( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.SHORT ) {
-
-					dataView.setInt16( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_SHORT ) {
-
-					dataView.setUint16( offset, value, true );
-
-				} else if ( componentType === WEBGL_CONSTANTS.BYTE ) {
-
-					dataView.setInt8( offset, value );
-
-				} else if ( componentType === WEBGL_CONSTANTS.UNSIGNED_BYTE ) {
-
-					dataView.setUint8( offset, value );
-
-				}
-
-				offset += componentSize;
-
-			}
-
-		}
-
-		const bufferViewDef = {
-
-			buffer: this.processBuffer( dataView.buffer ),
-			byteOffset: this.byteOffset,
-			byteLength: byteLength
-
-		};
-
-		if ( target !== undefined ) bufferViewDef.target = target;
-
-		if ( target === WEBGL_CONSTANTS.ARRAY_BUFFER ) {
-
-			// Only define byteStride for vertex attributes.
-			bufferViewDef.byteStride = attribute.itemSize * componentSize;
-
-		}
-
-		this.byteOffset += byteLength;
-
-		json.bufferViews.push( bufferViewDef );
-
-		// @TODO Merge bufferViews where possible.
-		const output = {
-
-			id: json.bufferViews.length - 1,
-			byteLength: 0
-
-		};
-
-		return output;
-
-	}
-
-	/**
-	 * Process and generate a BufferView from an image Blob.
-	 * @param {Blob} blob
-	 * @return {Promise<Integer>}
-	 */
-	processBufferViewImage( blob ) {
-
-		const writer = this;
-		const json = writer.json;
-
-		if ( ! json.bufferViews ) json.bufferViews = [];
-
-		return new Promise( function ( resolve ) {
-
-			const reader = new FileReader();
-			reader.readAsArrayBuffer( blob );
-			reader.onloadend = function () {
-
-				const buffer = getPaddedArrayBuffer( reader.result );
-
-				const bufferViewDef = {
-					buffer: writer.processBuffer( buffer ),
-					byteOffset: writer.byteOffset,
-					byteLength: buffer.byteLength
-				};
-
-				writer.byteOffset += buffer.byteLength;
-				resolve( json.bufferViews.push( bufferViewDef ) - 1 );
-
-			};
-
-		} );
-
-	}
-
-	/**
-	 * Process attribute to generate an accessor
-	 * @param  {BufferAttribute} attribute Attribute to process
-	 * @param  {THREE.BufferGeometry} geometry (Optional) Geometry used for truncated draw range
-	 * @param  {Integer} start (Optional)
-	 * @param  {Integer} count (Optional)
-	 * @return {Integer|null} Index of the processed accessor on the "accessors" array
-	 */
-	processAccessor( attribute, geometry, start, count ) {
-
-		const json = this.json;
-
-		const types = {
-
-			1: 'SCALAR',
-			2: 'VEC2',
-			3: 'VEC3',
-			4: 'VEC4',
-			9: 'MAT3',
-			16: 'MAT4'
-
-		};
-
-		let componentType;
-
-		// Detect the component type of the attribute array
-		if ( attribute.array.constructor === Float32Array ) {
-
-			componentType = WEBGL_CONSTANTS.FLOAT;
-
-		} else if ( attribute.array.constructor === Int32Array ) {
-
-			componentType = WEBGL_CONSTANTS.INT;
-
-		} else if ( attribute.array.constructor === Uint32Array ) {
-
-			componentType = WEBGL_CONSTANTS.UNSIGNED_INT;
-
-		} else if ( attribute.array.constructor === Int16Array ) {
-
-			componentType = WEBGL_CONSTANTS.SHORT;
-
-		} else if ( attribute.array.constructor === Uint16Array ) {
-
-			componentType = WEBGL_CONSTANTS.UNSIGNED_SHORT;
-
-		} else if ( attribute.array.constructor === Int8Array ) {
-
-			componentType = WEBGL_CONSTANTS.BYTE;
-
-		} else if ( attribute.array.constructor === Uint8Array ) {
-
-			componentType = WEBGL_CONSTANTS.UNSIGNED_BYTE;
-
-		} else {
-
-			throw new Error( 'THREE.GLTFExporter: Unsupported bufferAttribute component type: ' + attribute.array.constructor.name );
-
-		}
-
-		if ( start === undefined ) start = 0;
-		if ( count === undefined || count === Infinity ) count = attribute.count;
-
-		// Skip creating an accessor if the attribute doesn't have data to export
-		if ( count === 0 ) return null;
-
-		const minMax = getMinMax( attribute, start, count );
-		let bufferViewTarget;
-
-		// If geometry isn't provided, don't infer the target usage of the bufferView. For
-		// animation samplers, target must not be set.
-		if ( geometry !== undefined ) {
-
-			bufferViewTarget = attribute === geometry.index ? WEBGL_CONSTANTS.ELEMENT_ARRAY_BUFFER : WEBGL_CONSTANTS.ARRAY_BUFFER;
-
-		}
-
-		const bufferView = this.processBufferView( attribute, componentType, start, count, bufferViewTarget );
-
-		const accessorDef = {
-
-			bufferView: bufferView.id,
-			byteOffset: bufferView.byteOffset,
-			componentType: componentType,
-			count: count,
-			max: minMax.max,
-			min: minMax.min,
-			type: types[ attribute.itemSize ]
-
-		};
-
-		if ( attribute.normalized === true ) accessorDef.normalized = true;
-		if ( ! json.accessors ) json.accessors = [];
-
-		return json.accessors.push( accessorDef ) - 1;
-
-	}
-
-	/**
-	 * Process image
-	 * @param  {Image} image to process
-	 * @param  {Integer} format of the image (RGBAFormat)
-	 * @param  {Boolean} flipY before writing out the image
-	 * @param  {String} mimeType export format
-	 * @return {Integer}     Index of the processed texture in the "images" array
-	 */
-	processImage( image, format, flipY, mimeType = 'image/png' ) {
-
-		if ( image !== null ) {
-
-			const writer = this;
-			const cache = writer.cache;
-			const json = writer.json;
-			const options = writer.options;
-			const pending = writer.pending;
-
-			if ( ! cache.images.has( image ) ) cache.images.set( image, {} );
-
-			const cachedImages = cache.images.get( image );
-
-			const key = mimeType + ':flipY/' + flipY.toString();
-
-			if ( cachedImages[ key ] !== undefined ) return cachedImages[ key ];
-
-			if ( ! json.images ) json.images = [];
-
-			const imageDef = { mimeType: mimeType };
-
-			const canvas = getCanvas();
-
-			canvas.width = Math.min( image.width, options.maxTextureSize );
-			canvas.height = Math.min( image.height, options.maxTextureSize );
-
-			const ctx = canvas.getContext( '2d' );
-
-			if ( flipY === true ) {
-
-				ctx.translate( 0, canvas.height );
-				ctx.scale( 1, - 1 );
-
-			}
-
-			if ( image.data !== undefined ) { // THREE.DataTexture
-
-				if ( format !== RGBAFormat ) {
-
-					console.error( 'GLTFExporter: Only RGBAFormat is supported.', format );
-
-				}
-
-				if ( image.width > options.maxTextureSize || image.height > options.maxTextureSize ) {
-
-					console.warn( 'GLTFExporter: Image size is bigger than maxTextureSize', image );
-
-				}
-
-				const data = new Uint8ClampedArray( image.height * image.width * 4 );
-
-				for ( let i = 0; i < data.length; i += 4 ) {
-
-					data[ i + 0 ] = image.data[ i + 0 ];
-					data[ i + 1 ] = image.data[ i + 1 ];
-					data[ i + 2 ] = image.data[ i + 2 ];
-					data[ i + 3 ] = image.data[ i + 3 ];
-
-				}
-
-				ctx.putImageData( new ImageData( data, image.width, image.height ), 0, 0 );
-
-			} else {
-
-				ctx.drawImage( image, 0, 0, canvas.width, canvas.height );
-
-			}
-
-			if ( options.binary === true ) {
-
-				pending.push(
-
-					getToBlobPromise( canvas, mimeType )
-						.then( blob => writer.processBufferViewImage( blob ) )
-						.then( bufferViewIndex => {
-
-							imageDef.bufferView = bufferViewIndex;
-
-						} )
-
-				);
-
-			} else {
-
-				if ( canvas.toDataURL !== undefined ) {
-
-					imageDef.uri = canvas.toDataURL( mimeType );
-
-				} else {
-
-					pending.push(
-
-						getToBlobPromise( canvas, mimeType )
-							.then( blob => new FileReader().readAsDataURL( blob ) )
-							.then( dataURL => {
-
-								imageDef.uri = dataURL;
-
-							} )
-
-					);
-
-				}
-
-			}
-
-			const index = json.images.push( imageDef ) - 1;
-			cachedImages[ key ] = index;
-			return index;
-
-		} else {
-
-			throw new Error( 'THREE.GLTFExporter: No valid image data found. Unable to process texture.' );
-
-		}
-
-	}
-
-	/**
-	 * Process sampler
-	 * @param  {Texture} map Texture to process
-	 * @return {Integer}     Index of the processed texture in the "samplers" array
-	 */
-	processSampler( map ) {
-
-		const json = this.json;
-
-		if ( ! json.samplers ) json.samplers = [];
-
-		const samplerDef = {
-			magFilter: THREE_TO_WEBGL[ map.magFilter ],
-			minFilter: THREE_TO_WEBGL[ map.minFilter ],
-			wrapS: THREE_TO_WEBGL[ map.wrapS ],
-			wrapT: THREE_TO_WEBGL[ map.wrapT ]
-		};
-
-		return json.samplers.push( samplerDef ) - 1;
-
-	}
-
-	/**
-	 * Process texture
-	 * @param  {Texture} map Map to process
-	 * @return {Integer} Index of the processed texture in the "textures" array
-	 */
-	processTexture( map ) {
-
-		const writer = this;
-		const options = writer.options;
-		const cache = this.cache;
-		const json = this.json;
-
-		if ( cache.textures.has( map ) ) return cache.textures.get( map );
-
-		if ( ! json.textures ) json.textures = [];
-
-		// make non-readable textures (e.g. CompressedTexture) readable by blitting them into a new texture
-		if ( map instanceof CompressedTexture ) {
-
-			map = decompress( map, options.maxTextureSize );
-
-		}
-
-		let mimeType = map.userData.mimeType;
-
-		if ( mimeType === 'image/webp' ) mimeType = 'image/png';
-
-		const textureDef = {
-			sampler: this.processSampler( map ),
-			source: this.processImage( map.image, map.format, map.flipY, mimeType )
-		};
-
-		if ( map.name ) textureDef.name = map.name;
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeTexture && ext.writeTexture( map, textureDef );
-
-		} );
-
-		const index = json.textures.push( textureDef ) - 1;
-		cache.textures.set( map, index );
-		return index;
-
-	}
-
-	/**
-	 * Process material
-	 * @param  {THREE.Material} material Material to process
-	 * @return {Integer|null} Index of the processed material in the "materials" array
-	 */
-	processMaterial( material ) {
-
-		const cache = this.cache;
-		const json = this.json;
-
-		if ( cache.materials.has( material ) ) return cache.materials.get( material );
-
-		if ( material.isShaderMaterial ) {
-
-			console.warn( 'GLTFExporter: THREE.ShaderMaterial not supported.' );
-			return null;
-
-		}
-
-		if ( ! json.materials ) json.materials = [];
-
-		// @QUESTION Should we avoid including any attribute that has the default value?
-		const materialDef = {	pbrMetallicRoughness: {} };
-
-		if ( material.isMeshStandardMaterial !== true && material.isMeshBasicMaterial !== true ) {
-
-			console.warn( 'GLTFExporter: Use MeshStandardMaterial or MeshBasicMaterial for best results.' );
-
-		}
-
-		// pbrMetallicRoughness.baseColorFactor
-		const color = material.color.toArray().concat( [ material.opacity ] );
-
-		if ( ! equalArray( color, [ 1, 1, 1, 1 ] ) ) {
-
-			materialDef.pbrMetallicRoughness.baseColorFactor = color;
-
-		}
-
-		if ( material.isMeshStandardMaterial ) {
-
-			materialDef.pbrMetallicRoughness.metallicFactor = material.metalness;
-			materialDef.pbrMetallicRoughness.roughnessFactor = material.roughness;
-
-		} else {
-
-			materialDef.pbrMetallicRoughness.metallicFactor = 0.5;
-			materialDef.pbrMetallicRoughness.roughnessFactor = 0.5;
-
-		}
-
-		// pbrMetallicRoughness.metallicRoughnessTexture
-		if ( material.metalnessMap || material.roughnessMap ) {
-
-			const metalRoughTexture = this.buildMetalRoughTexture( material.metalnessMap, material.roughnessMap );
-
-			const metalRoughMapDef = {
-				index: this.processTexture( metalRoughTexture ),
-				channel: metalRoughTexture.channel
-			};
-			this.applyTextureTransform( metalRoughMapDef, metalRoughTexture );
-			materialDef.pbrMetallicRoughness.metallicRoughnessTexture = metalRoughMapDef;
-
-		}
-
-		// pbrMetallicRoughness.baseColorTexture
-		if ( material.map ) {
-
-			const baseColorMapDef = {
-				index: this.processTexture( material.map ),
-				texCoord: material.map.channel
-			};
-			this.applyTextureTransform( baseColorMapDef, material.map );
-			materialDef.pbrMetallicRoughness.baseColorTexture = baseColorMapDef;
-
-		}
-
-		if ( material.emissive ) {
-
-			const emissive = material.emissive;
-			const maxEmissiveComponent = Math.max( emissive.r, emissive.g, emissive.b );
-
-			if ( maxEmissiveComponent > 0 ) {
-
-				materialDef.emissiveFactor = material.emissive.toArray();
-
-			}
-
-			// emissiveTexture
-			if ( material.emissiveMap ) {
-
-				const emissiveMapDef = {
-					index: this.processTexture( material.emissiveMap ),
-					texCoord: material.emissiveMap.channel
-				};
-				this.applyTextureTransform( emissiveMapDef, material.emissiveMap );
-				materialDef.emissiveTexture = emissiveMapDef;
-
-			}
-
-		}
-
-		// normalTexture
-		if ( material.normalMap ) {
-
-			const normalMapDef = {
-				index: this.processTexture( material.normalMap ),
-				texCoord: material.normalMap.channel
-			};
-
-			if ( material.normalScale && material.normalScale.x !== 1 ) {
-
-				// glTF normal scale is univariate. Ignore `y`, which may be flipped.
-				// Context: https://github.com/mrdoob/three.js/issues/11438#issuecomment-507003995
-				normalMapDef.scale = material.normalScale.x;
-
-			}
-
-			this.applyTextureTransform( normalMapDef, material.normalMap );
-			materialDef.normalTexture = normalMapDef;
-
-		}
-
-		// occlusionTexture
-		if ( material.aoMap ) {
-
-			const occlusionMapDef = {
-				index: this.processTexture( material.aoMap ),
-				texCoord: material.aoMap.channel
-			};
-
-			if ( material.aoMapIntensity !== 1.0 ) {
-
-				occlusionMapDef.strength = material.aoMapIntensity;
-
-			}
-
-			this.applyTextureTransform( occlusionMapDef, material.aoMap );
-			materialDef.occlusionTexture = occlusionMapDef;
-
-		}
-
-		// alphaMode
-		if ( material.transparent ) {
-
-			materialDef.alphaMode = 'BLEND';
-
-		} else {
-
-			if ( material.alphaTest > 0.0 ) {
-
-				materialDef.alphaMode = 'MASK';
-				materialDef.alphaCutoff = material.alphaTest;
-
-			}
-
-		}
-
-		// doubleSided
-		if ( material.side === DoubleSide ) materialDef.doubleSided = true;
-		if ( material.name !== '' ) materialDef.name = material.name;
-
-		this.serializeUserData( material, materialDef );
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeMaterial && ext.writeMaterial( material, materialDef );
-
-		} );
-
-		const index = json.materials.push( materialDef ) - 1;
-		cache.materials.set( material, index );
-		return index;
-
-	}
-
-	/**
-	 * Process mesh
-	 * @param  {THREE.Mesh} mesh Mesh to process
-	 * @return {Integer|null} Index of the processed mesh in the "meshes" array
-	 */
-	processMesh( mesh ) {
-
-		const cache = this.cache;
-		const json = this.json;
-
-		const meshCacheKeyParts = [ mesh.geometry.uuid ];
-
-		if ( Array.isArray( mesh.material ) ) {
-
-			for ( let i = 0, l = mesh.material.length; i < l; i ++ ) {
-
-				meshCacheKeyParts.push( mesh.material[ i ].uuid	);
-
-			}
-
-		} else {
-
-			meshCacheKeyParts.push( mesh.material.uuid );
-
-		}
-
-		const meshCacheKey = meshCacheKeyParts.join( ':' );
-
-		if ( cache.meshes.has( meshCacheKey ) ) return cache.meshes.get( meshCacheKey );
-
-		const geometry = mesh.geometry;
-
-		let mode;
-
-		// Use the correct mode
-		if ( mesh.isLineSegments ) {
-
-			mode = WEBGL_CONSTANTS.LINES;
-
-		} else if ( mesh.isLineLoop ) {
-
-			mode = WEBGL_CONSTANTS.LINE_LOOP;
-
-		} else if ( mesh.isLine ) {
-
-			mode = WEBGL_CONSTANTS.LINE_STRIP;
-
-		} else if ( mesh.isPoints ) {
-
-			mode = WEBGL_CONSTANTS.POINTS;
-
-		} else {
-
-			mode = mesh.material.wireframe ? WEBGL_CONSTANTS.LINES : WEBGL_CONSTANTS.TRIANGLES;
-
-		}
-
-		const meshDef = {};
-		const attributes = {};
-		const primitives = [];
-		const targets = [];
-
-		// Conversion between attributes names in threejs and gltf spec
-		const nameConversion = {
-			uv: 'TEXCOORD_0',
-			uv1: 'TEXCOORD_1',
-			uv2: 'TEXCOORD_2',
-			uv3: 'TEXCOORD_3',
-			color: 'COLOR_0',
-			skinWeight: 'WEIGHTS_0',
-			skinIndex: 'JOINTS_0'
-		};
-
-		const originalNormal = geometry.getAttribute( 'normal' );
-
-		if ( originalNormal !== undefined && ! this.isNormalizedNormalAttribute( originalNormal ) ) {
-
-			console.warn( 'THREE.GLTFExporter: Creating normalized normal attribute from the non-normalized one.' );
-
-			geometry.setAttribute( 'normal', this.createNormalizedNormalAttribute( originalNormal ) );
-
-		}
-
-		// @QUESTION Detect if .vertexColors = true?
-		// For every attribute create an accessor
-		let modifiedAttribute = null;
-
-		for ( let attributeName in geometry.attributes ) {
-
-			// Ignore morph target attributes, which are exported later.
-			if ( attributeName.slice( 0, 5 ) === 'morph' ) continue;
-
-			const attribute = geometry.attributes[ attributeName ];
-			attributeName = nameConversion[ attributeName ] || attributeName.toUpperCase();
-
-			// Prefix all geometry attributes except the ones specifically
-			// listed in the spec; non-spec attributes are considered custom.
-			const validVertexAttributes =
-					/^(POSITION|NORMAL|TANGENT|TEXCOORD_\d+|COLOR_\d+|JOINTS_\d+|WEIGHTS_\d+)$/;
-
-			if ( ! validVertexAttributes.test( attributeName ) ) attributeName = '_' + attributeName;
-
-			if ( cache.attributes.has( this.getUID( attribute ) ) ) {
-
-				attributes[ attributeName ] = cache.attributes.get( this.getUID( attribute ) );
-				continue;
-
-			}
-
-			// JOINTS_0 must be UNSIGNED_BYTE or UNSIGNED_SHORT.
-			modifiedAttribute = null;
-			const array = attribute.array;
-
-			if ( attributeName === 'JOINTS_0' &&
-				! ( array instanceof Uint16Array ) &&
-				! ( array instanceof Uint8Array ) ) {
-
-				console.warn( 'GLTFExporter: Attribute "skinIndex" converted to type UNSIGNED_SHORT.' );
-				modifiedAttribute = new BufferAttribute$1( new Uint16Array( array ), attribute.itemSize, attribute.normalized );
-
-			}
-
-			const accessor = this.processAccessor( modifiedAttribute || attribute, geometry );
-
-			if ( accessor !== null ) {
-
-				if ( ! attributeName.startsWith( '_' ) ) {
-
-					this.detectMeshQuantization( attributeName, attribute );
-
-				}
-
-				attributes[ attributeName ] = accessor;
-				cache.attributes.set( this.getUID( attribute ), accessor );
-
-			}
-
-		}
-
-		if ( originalNormal !== undefined ) geometry.setAttribute( 'normal', originalNormal );
-
-		// Skip if no exportable attributes found
-		if ( Object.keys( attributes ).length === 0 ) return null;
-
-		// Morph targets
-		if ( mesh.morphTargetInfluences !== undefined && mesh.morphTargetInfluences.length > 0 ) {
-
-			const weights = [];
-			const targetNames = [];
-			const reverseDictionary = {};
-
-			if ( mesh.morphTargetDictionary !== undefined ) {
-
-				for ( const key in mesh.morphTargetDictionary ) {
-
-					reverseDictionary[ mesh.morphTargetDictionary[ key ] ] = key;
-
-				}
-
-			}
-
-			for ( let i = 0; i < mesh.morphTargetInfluences.length; ++ i ) {
-
-				const target = {};
-				let warned = false;
-
-				for ( const attributeName in geometry.morphAttributes ) {
-
-					// glTF 2.0 morph supports only POSITION/NORMAL/TANGENT.
-					// Three.js doesn't support TANGENT yet.
-
-					if ( attributeName !== 'position' && attributeName !== 'normal' ) {
-
-						if ( ! warned ) {
-
-							console.warn( 'GLTFExporter: Only POSITION and NORMAL morph are supported.' );
-							warned = true;
-
-						}
-
-						continue;
-
-					}
-
-					const attribute = geometry.morphAttributes[ attributeName ][ i ];
-					const gltfAttributeName = attributeName.toUpperCase();
-
-					// Three.js morph attribute has absolute values while the one of glTF has relative values.
-					//
-					// glTF 2.0 Specification:
-					// https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#morph-targets
-
-					const baseAttribute = geometry.attributes[ attributeName ];
-
-					if ( cache.attributes.has( this.getUID( attribute, true ) ) ) {
-
-						target[ gltfAttributeName ] = cache.attributes.get( this.getUID( attribute, true ) );
-						continue;
-
-					}
-
-					// Clones attribute not to override
-					const relativeAttribute = attribute.clone();
-
-					if ( ! geometry.morphTargetsRelative ) {
-
-						for ( let j = 0, jl = attribute.count; j < jl; j ++ ) {
-
-							for ( let a = 0; a < attribute.itemSize; a ++ ) {
-
-								if ( a === 0 ) relativeAttribute.setX( j, attribute.getX( j ) - baseAttribute.getX( j ) );
-								if ( a === 1 ) relativeAttribute.setY( j, attribute.getY( j ) - baseAttribute.getY( j ) );
-								if ( a === 2 ) relativeAttribute.setZ( j, attribute.getZ( j ) - baseAttribute.getZ( j ) );
-								if ( a === 3 ) relativeAttribute.setW( j, attribute.getW( j ) - baseAttribute.getW( j ) );
-
-							}
-
-						}
-
-					}
-
-					target[ gltfAttributeName ] = this.processAccessor( relativeAttribute, geometry );
-					cache.attributes.set( this.getUID( baseAttribute, true ), target[ gltfAttributeName ] );
-
-				}
-
-				targets.push( target );
-
-				weights.push( mesh.morphTargetInfluences[ i ] );
-
-				if ( mesh.morphTargetDictionary !== undefined ) targetNames.push( reverseDictionary[ i ] );
-
-			}
-
-			meshDef.weights = weights;
-
-			if ( targetNames.length > 0 ) {
-
-				meshDef.extras = {};
-				meshDef.extras.targetNames = targetNames;
-
-			}
-
-		}
-
-		const isMultiMaterial = Array.isArray( mesh.material );
-
-		if ( isMultiMaterial && geometry.groups.length === 0 ) return null;
-
-		let didForceIndices = false;
-
-		if ( isMultiMaterial && geometry.index === null ) {
-
-			const indices = [];
-
-			for ( let i = 0, il = geometry.attributes.position.count; i < il; i ++ ) {
-
-				indices[ i ] = i;
-
-			}
-
-			geometry.setIndex( indices );
-
-			didForceIndices = true;
-
-		}
-
-		const materials = isMultiMaterial ? mesh.material : [ mesh.material ];
-		const groups = isMultiMaterial ? geometry.groups : [ { materialIndex: 0, start: undefined, count: undefined } ];
-
-		for ( let i = 0, il = groups.length; i < il; i ++ ) {
-
-			const primitive = {
-				mode: mode,
-				attributes: attributes,
-			};
-
-			this.serializeUserData( geometry, primitive );
-
-			if ( targets.length > 0 ) primitive.targets = targets;
-
-			if ( geometry.index !== null ) {
-
-				let cacheKey = this.getUID( geometry.index );
-
-				if ( groups[ i ].start !== undefined || groups[ i ].count !== undefined ) {
-
-					cacheKey += ':' + groups[ i ].start + ':' + groups[ i ].count;
-
-				}
-
-				if ( cache.attributes.has( cacheKey ) ) {
-
-					primitive.indices = cache.attributes.get( cacheKey );
-
-				} else {
-
-					primitive.indices = this.processAccessor( geometry.index, geometry, groups[ i ].start, groups[ i ].count );
-					cache.attributes.set( cacheKey, primitive.indices );
-
-				}
-
-				if ( primitive.indices === null ) delete primitive.indices;
-
-			}
-
-			const material = this.processMaterial( materials[ groups[ i ].materialIndex ] );
-
-			if ( material !== null ) primitive.material = material;
-
-			primitives.push( primitive );
-
-		}
-
-		if ( didForceIndices === true ) {
-
-			geometry.setIndex( null );
-
-		}
-
-		meshDef.primitives = primitives;
-
-		if ( ! json.meshes ) json.meshes = [];
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeMesh && ext.writeMesh( mesh, meshDef );
-
-		} );
-
-		const index = json.meshes.push( meshDef ) - 1;
-		cache.meshes.set( meshCacheKey, index );
-		return index;
-
-	}
-
-	/**
-	 * If a vertex attribute with a
-	 * [non-standard data type](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes-overview)
-	 * is used, it is checked whether it is a valid data type according to the
-	 * [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
-	 * extension.
-	 * In this case the extension is automatically added to the list of used extensions.
-	 *
-	 * @param {string} attributeName
-	 * @param {THREE.BufferAttribute} attribute
-	 */
-	detectMeshQuantization( attributeName, attribute ) {
-
-		if ( this.extensionsUsed[ KHR_MESH_QUANTIZATION ] ) return;
-
-		let attrType = undefined;
-
-		switch ( attribute.array.constructor ) {
-
-			case Int8Array:
-
-				attrType = 'byte';
-
-				break;
-
-			case Uint8Array:
-
-				attrType = 'unsigned byte';
-
-				break;
-
-			case Int16Array:
-
-				attrType = 'short';
-
-				break;
-
-			case Uint16Array:
-
-				attrType = 'unsigned short';
-
-				break;
-
-			default:
-
-				return;
-
-		}
-
-		if ( attribute.normalized ) attrType += ' normalized';
-
-		const attrNamePrefix = attributeName.split( '_', 1 )[ 0 ];
-
-		if ( KHR_mesh_quantization_ExtraAttrTypes[ attrNamePrefix ] && KHR_mesh_quantization_ExtraAttrTypes[ attrNamePrefix ].includes( attrType ) ) {
-
-			this.extensionsUsed[ KHR_MESH_QUANTIZATION ] = true;
-			this.extensionsRequired[ KHR_MESH_QUANTIZATION ] = true;
-
-		}
-
-	}
-
-	/**
-	 * Process camera
-	 * @param  {THREE.Camera} camera Camera to process
-	 * @return {Integer}      Index of the processed mesh in the "camera" array
-	 */
-	processCamera( camera ) {
-
-		const json = this.json;
-
-		if ( ! json.cameras ) json.cameras = [];
-
-		const isOrtho = camera.isOrthographicCamera;
-
-		const cameraDef = {
-			type: isOrtho ? 'orthographic' : 'perspective'
-		};
-
-		if ( isOrtho ) {
-
-			cameraDef.orthographic = {
-				xmag: camera.right * 2,
-				ymag: camera.top * 2,
-				zfar: camera.far <= 0 ? 0.001 : camera.far,
-				znear: camera.near < 0 ? 0 : camera.near
-			};
-
-		} else {
-
-			cameraDef.perspective = {
-				aspectRatio: camera.aspect,
-				yfov: MathUtils.degToRad( camera.fov ),
-				zfar: camera.far <= 0 ? 0.001 : camera.far,
-				znear: camera.near < 0 ? 0 : camera.near
-			};
-
-		}
-
-		// Question: Is saving "type" as name intentional?
-		if ( camera.name !== '' ) cameraDef.name = camera.type;
-
-		return json.cameras.push( cameraDef ) - 1;
-
-	}
-
-	/**
-	 * Creates glTF animation entry from AnimationClip object.
-	 *
-	 * Status:
-	 * - Only properties listed in PATH_PROPERTIES may be animated.
-	 *
-	 * @param {THREE.AnimationClip} clip
-	 * @param {THREE.Object3D} root
-	 * @return {number|null}
-	 */
-	processAnimation( clip, root ) {
-
-		const json = this.json;
-		const nodeMap = this.nodeMap;
-
-		if ( ! json.animations ) json.animations = [];
-
-		clip = GLTFExporter.Utils.mergeMorphTargetTracks( clip.clone(), root );
-
-		const tracks = clip.tracks;
-		const channels = [];
-		const samplers = [];
-
-		for ( let i = 0; i < tracks.length; ++ i ) {
-
-			const track = tracks[ i ];
-			const trackBinding = PropertyBinding.parseTrackName( track.name );
-			let trackNode = PropertyBinding.findNode( root, trackBinding.nodeName );
-			const trackProperty = PATH_PROPERTIES[ trackBinding.propertyName ];
-
-			if ( trackBinding.objectName === 'bones' ) {
-
-				if ( trackNode.isSkinnedMesh === true ) {
-
-					trackNode = trackNode.skeleton.getBoneByName( trackBinding.objectIndex );
-
-				} else {
-
-					trackNode = undefined;
-
-				}
-
-			}
-
-			if ( ! trackNode || ! trackProperty ) {
-
-				console.warn( 'THREE.GLTFExporter: Could not export animation track "%s".', track.name );
-				return null;
-
-			}
-
-			const inputItemSize = 1;
-			let outputItemSize = track.values.length / track.times.length;
-
-			if ( trackProperty === PATH_PROPERTIES.morphTargetInfluences ) {
-
-				outputItemSize /= trackNode.morphTargetInfluences.length;
-
-			}
-
-			let interpolation;
-
-			// @TODO export CubicInterpolant(InterpolateSmooth) as CUBICSPLINE
-
-			// Detecting glTF cubic spline interpolant by checking factory method's special property
-			// GLTFCubicSplineInterpolant is a custom interpolant and track doesn't return
-			// valid value from .getInterpolation().
-			if ( track.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline === true ) {
-
-				interpolation = 'CUBICSPLINE';
-
-				// itemSize of CUBICSPLINE keyframe is 9
-				// (VEC3 * 3: inTangent, splineVertex, and outTangent)
-				// but needs to be stored as VEC3 so dividing by 3 here.
-				outputItemSize /= 3;
-
-			} else if ( track.getInterpolation() === InterpolateDiscrete ) {
-
-				interpolation = 'STEP';
-
-			} else {
-
-				interpolation = 'LINEAR';
-
-			}
-
-			samplers.push( {
-				input: this.processAccessor( new BufferAttribute$1( track.times, inputItemSize ) ),
-				output: this.processAccessor( new BufferAttribute$1( track.values, outputItemSize ) ),
-				interpolation: interpolation
-			} );
-
-			channels.push( {
-				sampler: samplers.length - 1,
-				target: {
-					node: nodeMap.get( trackNode ),
-					path: trackProperty
-				}
-			} );
-
-		}
-
-		json.animations.push( {
-			name: clip.name || 'clip_' + json.animations.length,
-			samplers: samplers,
-			channels: channels
-		} );
-
-		return json.animations.length - 1;
-
-	}
-
-	/**
-	 * @param {THREE.Object3D} object
-	 * @return {number|null}
-	 */
-	 processSkin( object ) {
-
-		const json = this.json;
-		const nodeMap = this.nodeMap;
-
-		const node = json.nodes[ nodeMap.get( object ) ];
-
-		const skeleton = object.skeleton;
-
-		if ( skeleton === undefined ) return null;
-
-		const rootJoint = object.skeleton.bones[ 0 ];
-
-		if ( rootJoint === undefined ) return null;
-
-		const joints = [];
-		const inverseBindMatrices = new Float32Array( skeleton.bones.length * 16 );
-		const temporaryBoneInverse = new Matrix4();
-
-		for ( let i = 0; i < skeleton.bones.length; ++ i ) {
-
-			joints.push( nodeMap.get( skeleton.bones[ i ] ) );
-			temporaryBoneInverse.copy( skeleton.boneInverses[ i ] );
-			temporaryBoneInverse.multiply( object.bindMatrix ).toArray( inverseBindMatrices, i * 16 );
-
-		}
-
-		if ( json.skins === undefined ) json.skins = [];
-
-		json.skins.push( {
-			inverseBindMatrices: this.processAccessor( new BufferAttribute$1( inverseBindMatrices, 16 ) ),
-			joints: joints,
-			skeleton: nodeMap.get( rootJoint )
-		} );
-
-		const skinIndex = node.skin = json.skins.length - 1;
-
-		return skinIndex;
-
-	}
-
-	/**
-	 * Process Object3D node
-	 * @param  {THREE.Object3D} node Object3D to processNode
-	 * @return {Integer} Index of the node in the nodes list
-	 */
-	processNode( object ) {
-
-		const json = this.json;
-		const options = this.options;
-		const nodeMap = this.nodeMap;
-
-		if ( ! json.nodes ) json.nodes = [];
-
-		const nodeDef = {};
-
-		if ( options.trs ) {
-
-			const rotation = object.quaternion.toArray();
-			const position = object.position.toArray();
-			const scale = object.scale.toArray();
-
-			if ( ! equalArray( rotation, [ 0, 0, 0, 1 ] ) ) {
-
-				nodeDef.rotation = rotation;
-
-			}
-
-			if ( ! equalArray( position, [ 0, 0, 0 ] ) ) {
-
-				nodeDef.translation = position;
-
-			}
-
-			if ( ! equalArray( scale, [ 1, 1, 1 ] ) ) {
-
-				nodeDef.scale = scale;
-
-			}
-
-		} else {
-
-			if ( object.matrixAutoUpdate ) {
-
-				object.updateMatrix();
-
-			}
-
-			if ( isIdentityMatrix( object.matrix ) === false ) {
-
-				nodeDef.matrix = object.matrix.elements;
-
-			}
-
-		}
-
-		// We don't export empty strings name because it represents no-name in Three.js.
-		if ( object.name !== '' ) nodeDef.name = String( object.name );
-
-		this.serializeUserData( object, nodeDef );
-
-		if ( object.isMesh || object.isLine || object.isPoints ) {
-
-			const meshIndex = this.processMesh( object );
-
-			if ( meshIndex !== null ) nodeDef.mesh = meshIndex;
-
-		} else if ( object.isCamera ) {
-
-			nodeDef.camera = this.processCamera( object );
-
-		}
-
-		if ( object.isSkinnedMesh ) this.skins.push( object );
-
-		if ( object.children.length > 0 ) {
-
-			const children = [];
-
-			for ( let i = 0, l = object.children.length; i < l; i ++ ) {
-
-				const child = object.children[ i ];
-
-				if ( child.visible || options.onlyVisible === false ) {
-
-					const nodeIndex = this.processNode( child );
-
-					if ( nodeIndex !== null ) children.push( nodeIndex );
-
-				}
-
-			}
-
-			if ( children.length > 0 ) nodeDef.children = children;
-
-		}
-
-		this._invokeAll( function ( ext ) {
-
-			ext.writeNode && ext.writeNode( object, nodeDef );
-
-		} );
-
-		const nodeIndex = json.nodes.push( nodeDef ) - 1;
-		nodeMap.set( object, nodeIndex );
-		return nodeIndex;
-
-	}
-
-	/**
-	 * Process Scene
-	 * @param  {Scene} node Scene to process
-	 */
-	processScene( scene ) {
-
-		const json = this.json;
-		const options = this.options;
-
-		if ( ! json.scenes ) {
-
-			json.scenes = [];
-			json.scene = 0;
-
-		}
-
-		const sceneDef = {};
-
-		if ( scene.name !== '' ) sceneDef.name = scene.name;
-
-		json.scenes.push( sceneDef );
-
-		const nodes = [];
-
-		for ( let i = 0, l = scene.children.length; i < l; i ++ ) {
-
-			const child = scene.children[ i ];
-
-			if ( child.visible || options.onlyVisible === false ) {
-
-				const nodeIndex = this.processNode( child );
-
-				if ( nodeIndex !== null ) nodes.push( nodeIndex );
-
-			}
-
-		}
-
-		if ( nodes.length > 0 ) sceneDef.nodes = nodes;
-
-		this.serializeUserData( scene, sceneDef );
-
-	}
-
-	/**
-	 * Creates a Scene to hold a list of objects and parse it
-	 * @param  {Array} objects List of objects to process
-	 */
-	processObjects( objects ) {
-
-		const scene = new Scene();
-		scene.name = 'AuxScene';
-
-		for ( let i = 0; i < objects.length; i ++ ) {
-
-			// We push directly to children instead of calling `add` to prevent
-			// modify the .parent and break its original scene and hierarchy
-			scene.children.push( objects[ i ] );
-
-		}
-
-		this.processScene( scene );
-
-	}
-
-	/**
-	 * @param {THREE.Object3D|Array<THREE.Object3D>} input
-	 */
-	processInput( input ) {
-
-		const options = this.options;
-
-		input = input instanceof Array ? input : [ input ];
-
-		this._invokeAll( function ( ext ) {
-
-			ext.beforeParse && ext.beforeParse( input );
-
-		} );
-
-		const objectsWithoutScene = [];
-
-		for ( let i = 0; i < input.length; i ++ ) {
-
-			if ( input[ i ] instanceof Scene ) {
-
-				this.processScene( input[ i ] );
-
-			} else {
-
-				objectsWithoutScene.push( input[ i ] );
-
-			}
-
-		}
-
-		if ( objectsWithoutScene.length > 0 ) this.processObjects( objectsWithoutScene );
-
-		for ( let i = 0; i < this.skins.length; ++ i ) {
-
-			this.processSkin( this.skins[ i ] );
-
-		}
-
-		for ( let i = 0; i < options.animations.length; ++ i ) {
-
-			this.processAnimation( options.animations[ i ], input[ 0 ] );
-
-		}
-
-		this._invokeAll( function ( ext ) {
-
-			ext.afterParse && ext.afterParse( input );
-
-		} );
-
-	}
-
-	_invokeAll( func ) {
-
-		for ( let i = 0, il = this.plugins.length; i < il; i ++ ) {
-
-			func( this.plugins[ i ] );
-
-		}
-
-	}
-
-}
-
-/**
- * Punctual Lights Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_lights_punctual
- */
-class GLTFLightExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_lights_punctual';
-
-	}
-
-	writeNode( light, nodeDef ) {
-
-		if ( ! light.isLight ) return;
-
-		if ( ! light.isDirectionalLight && ! light.isPointLight && ! light.isSpotLight ) {
-
-			console.warn( 'THREE.GLTFExporter: Only directional, point, and spot lights are supported.', light );
-			return;
-
-		}
-
-		const writer = this.writer;
-		const json = writer.json;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const lightDef = {};
-
-		if ( light.name ) lightDef.name = light.name;
-
-		lightDef.color = light.color.toArray();
-
-		lightDef.intensity = light.intensity;
-
-		if ( light.isDirectionalLight ) {
-
-			lightDef.type = 'directional';
-
-		} else if ( light.isPointLight ) {
-
-			lightDef.type = 'point';
-
-			if ( light.distance > 0 ) lightDef.range = light.distance;
-
-		} else if ( light.isSpotLight ) {
-
-			lightDef.type = 'spot';
-
-			if ( light.distance > 0 ) lightDef.range = light.distance;
-
-			lightDef.spot = {};
-			lightDef.spot.innerConeAngle = ( 1.0 - light.penumbra ) * light.angle;
-			lightDef.spot.outerConeAngle = light.angle;
-
-		}
-
-		if ( light.decay !== undefined && light.decay !== 2 ) {
-
-			console.warn( 'THREE.GLTFExporter: Light decay may be lost. glTF is physically-based, '
-				+ 'and expects light.decay=2.' );
-
-		}
-
-		if ( light.target
-				&& ( light.target.parent !== light
-				|| light.target.position.x !== 0
-				|| light.target.position.y !== 0
-				|| light.target.position.z !== - 1 ) ) {
-
-			console.warn( 'THREE.GLTFExporter: Light direction may be lost. For best results, '
-				+ 'make light.target a child of the light with position 0,0,-1.' );
-
-		}
-
-		if ( ! extensionsUsed[ this.name ] ) {
-
-			json.extensions = json.extensions || {};
-			json.extensions[ this.name ] = { lights: [] };
-			extensionsUsed[ this.name ] = true;
-
-		}
-
-		const lights = json.extensions[ this.name ].lights;
-		lights.push( lightDef );
-
-		nodeDef.extensions = nodeDef.extensions || {};
-		nodeDef.extensions[ this.name ] = { light: lights.length - 1 };
-
-	}
-
-}
-
-/**
- * Unlit Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_unlit
- */
-class GLTFMaterialsUnlitExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_unlit';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshBasicMaterial ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = {};
-
-		extensionsUsed[ this.name ] = true;
-
-		materialDef.pbrMetallicRoughness.metallicFactor = 0.0;
-		materialDef.pbrMetallicRoughness.roughnessFactor = 0.9;
-
-	}
-
-}
-
-/**
- * Clearcoat Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_clearcoat
- */
-class GLTFMaterialsClearcoatExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_clearcoat';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.clearcoat === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.clearcoatFactor = material.clearcoat;
-
-		if ( material.clearcoatMap ) {
-
-			const clearcoatMapDef = {
-				index: writer.processTexture( material.clearcoatMap ),
-				texCoord: material.clearcoatMap.channel
-			};
-			writer.applyTextureTransform( clearcoatMapDef, material.clearcoatMap );
-			extensionDef.clearcoatTexture = clearcoatMapDef;
-
-		}
-
-		extensionDef.clearcoatRoughnessFactor = material.clearcoatRoughness;
-
-		if ( material.clearcoatRoughnessMap ) {
-
-			const clearcoatRoughnessMapDef = {
-				index: writer.processTexture( material.clearcoatRoughnessMap ),
-				texCoord: material.clearcoatRoughnessMap.channel
-			};
-			writer.applyTextureTransform( clearcoatRoughnessMapDef, material.clearcoatRoughnessMap );
-			extensionDef.clearcoatRoughnessTexture = clearcoatRoughnessMapDef;
-
-		}
-
-		if ( material.clearcoatNormalMap ) {
-
-			const clearcoatNormalMapDef = {
-				index: writer.processTexture( material.clearcoatNormalMap ),
-				texCoord: material.clearcoatNormalMap.channel
-			};
-			writer.applyTextureTransform( clearcoatNormalMapDef, material.clearcoatNormalMap );
-			extensionDef.clearcoatNormalTexture = clearcoatNormalMapDef;
-
-		}
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-
-	}
-
-}
-
-/**
- * Iridescence Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_iridescence
- */
-class GLTFMaterialsIridescenceExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_iridescence';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.iridescence === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.iridescenceFactor = material.iridescence;
-
-		if ( material.iridescenceMap ) {
-
-			const iridescenceMapDef = {
-				index: writer.processTexture( material.iridescenceMap ),
-				texCoord: material.iridescenceMap.channel
-			};
-			writer.applyTextureTransform( iridescenceMapDef, material.iridescenceMap );
-			extensionDef.iridescenceTexture = iridescenceMapDef;
-
-		}
-
-		extensionDef.iridescenceIor = material.iridescenceIOR;
-		extensionDef.iridescenceThicknessMinimum = material.iridescenceThicknessRange[ 0 ];
-		extensionDef.iridescenceThicknessMaximum = material.iridescenceThicknessRange[ 1 ];
-
-		if ( material.iridescenceThicknessMap ) {
-
-			const iridescenceThicknessMapDef = {
-				index: writer.processTexture( material.iridescenceThicknessMap ),
-				texCoord: material.iridescenceThicknessMap.channel
-			};
-			writer.applyTextureTransform( iridescenceThicknessMapDef, material.iridescenceThicknessMap );
-			extensionDef.iridescenceThicknessTexture = iridescenceThicknessMapDef;
-
-		}
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Transmission Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_transmission
- */
-class GLTFMaterialsTransmissionExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_transmission';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.transmission === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.transmissionFactor = material.transmission;
-
-		if ( material.transmissionMap ) {
-
-			const transmissionMapDef = {
-				index: writer.processTexture( material.transmissionMap ),
-				texCoord: material.transmissionMap.channel
-			};
-			writer.applyTextureTransform( transmissionMapDef, material.transmissionMap );
-			extensionDef.transmissionTexture = transmissionMapDef;
-
-		}
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials Volume Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_volume
- */
-class GLTFMaterialsVolumeExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_volume';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.transmission === 0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.thicknessFactor = material.thickness;
-
-		if ( material.thicknessMap ) {
-
-			const thicknessMapDef = {
-				index: writer.processTexture( material.thicknessMap ),
-				texCoord: material.thicknessMap.channel
-			};
-			writer.applyTextureTransform( thicknessMapDef, material.thicknessMap );
-			extensionDef.thicknessTexture = thicknessMapDef;
-
-		}
-
-		extensionDef.attenuationDistance = material.attenuationDistance;
-		extensionDef.attenuationColor = material.attenuationColor.toArray();
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials ior Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_ior
- */
-class GLTFMaterialsIorExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_ior';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.ior === 1.5 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.ior = material.ior;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials specular Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_specular
- */
-class GLTFMaterialsSpecularExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_specular';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || ( material.specularIntensity === 1.0 &&
-		       material.specularColor.equals( DEFAULT_SPECULAR_COLOR ) &&
-		     ! material.specularIntensityMap && ! material.specularColorMap ) ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		if ( material.specularIntensityMap ) {
-
-			const specularIntensityMapDef = {
-				index: writer.processTexture( material.specularIntensityMap ),
-				texCoord: material.specularIntensityMap.channel
-			};
-			writer.applyTextureTransform( specularIntensityMapDef, material.specularIntensityMap );
-			extensionDef.specularTexture = specularIntensityMapDef;
-
-		}
-
-		if ( material.specularColorMap ) {
-
-			const specularColorMapDef = {
-				index: writer.processTexture( material.specularColorMap ),
-				texCoord: material.specularColorMap.channel
-			};
-			writer.applyTextureTransform( specularColorMapDef, material.specularColorMap );
-			extensionDef.specularColorTexture = specularColorMapDef;
-
-		}
-
-		extensionDef.specularFactor = material.specularIntensity;
-		extensionDef.specularColorFactor = material.specularColor.toArray();
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Sheen Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_sheen
- */
-class GLTFMaterialsSheenExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_sheen';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.sheen == 0.0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		if ( material.sheenRoughnessMap ) {
-
-			const sheenRoughnessMapDef = {
-				index: writer.processTexture( material.sheenRoughnessMap ),
-				texCoord: material.sheenRoughnessMap.channel
-			};
-			writer.applyTextureTransform( sheenRoughnessMapDef, material.sheenRoughnessMap );
-			extensionDef.sheenRoughnessTexture = sheenRoughnessMapDef;
-
-		}
-
-		if ( material.sheenColorMap ) {
-
-			const sheenColorMapDef = {
-				index: writer.processTexture( material.sheenColorMap ),
-				texCoord: material.sheenColorMap.channel
-			};
-			writer.applyTextureTransform( sheenColorMapDef, material.sheenColorMap );
-			extensionDef.sheenColorTexture = sheenColorMapDef;
-
-		}
-
-		extensionDef.sheenRoughnessFactor = material.sheenRoughness;
-		extensionDef.sheenColorFactor = material.sheenColor.toArray();
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Anisotropy Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_anisotropy
- */
-class GLTFMaterialsAnisotropyExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_anisotropy';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshPhysicalMaterial || material.anisotropy == 0.0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		if ( material.anisotropyMap ) {
-
-			const anisotropyMapDef = { index: writer.processTexture( material.anisotropyMap ) };
-			writer.applyTextureTransform( anisotropyMapDef, material.anisotropyMap );
-			extensionDef.anisotropyTexture = anisotropyMapDef;
-
-		}
-
-		extensionDef.anisotropyStrength = material.anisotropy;
-		extensionDef.anisotropyRotation = material.anisotropyRotation;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Materials Emissive Strength Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/blob/5768b3ce0ef32bc39cdf1bef10b948586635ead3/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
- */
-class GLTFMaterialsEmissiveStrengthExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'KHR_materials_emissive_strength';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshStandardMaterial || material.emissiveIntensity === 1.0 ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		extensionDef.emissiveStrength = material.emissiveIntensity;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-
-/**
- * Materials bump Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/EXT_materials_bump
- */
-class GLTFMaterialsBumpExtension {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'EXT_materials_bump';
-
-	}
-
-	writeMaterial( material, materialDef ) {
-
-		if ( ! material.isMeshStandardMaterial || (
-		       material.bumpScale === 1 &&
-		     ! material.bumpMap ) ) return;
-
-		const writer = this.writer;
-		const extensionsUsed = writer.extensionsUsed;
-
-		const extensionDef = {};
-
-		if ( material.bumpMap ) {
-
-			const bumpMapDef = {
-				index: writer.processTexture( material.bumpMap ),
-				texCoord: material.bumpMap.channel
-			};
-			writer.applyTextureTransform( bumpMapDef, material.bumpMap );
-			extensionDef.bumpTexture = bumpMapDef;
-
-		}
-
-		extensionDef.bumpFactor = material.bumpScale;
-
-		materialDef.extensions = materialDef.extensions || {};
-		materialDef.extensions[ this.name ] = extensionDef;
-
-		extensionsUsed[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * GPU Instancing Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/EXT_mesh_gpu_instancing
- */
-class GLTFMeshGpuInstancing {
-
-	constructor( writer ) {
-
-		this.writer = writer;
-		this.name = 'EXT_mesh_gpu_instancing';
-
-	}
-
-	writeNode( object, nodeDef ) {
-
-		if ( ! object.isInstancedMesh ) return;
-
-		const writer = this.writer;
-
-		const mesh = object;
-
-		const translationAttr = new Float32Array( mesh.count * 3 );
-		const rotationAttr = new Float32Array( mesh.count * 4 );
-		const scaleAttr = new Float32Array( mesh.count * 3 );
-
-		const matrix = new Matrix4();
-		const position = new Vector3$1();
-		const quaternion = new Quaternion$1();
-		const scale = new Vector3$1();
-
-		for ( let i = 0; i < mesh.count; i ++ ) {
-
-			mesh.getMatrixAt( i, matrix );
-			matrix.decompose( position, quaternion, scale );
-
-			position.toArray( translationAttr, i * 3 );
-			quaternion.toArray( rotationAttr, i * 4 );
-			scale.toArray( scaleAttr, i * 3 );
-
-		}
-
-		const attributes = {
-			TRANSLATION: writer.processAccessor( new BufferAttribute$1( translationAttr, 3 ) ),
-			ROTATION: writer.processAccessor( new BufferAttribute$1( rotationAttr, 4 ) ),
-			SCALE: writer.processAccessor( new BufferAttribute$1( scaleAttr, 3 ) ),
-		};
-
-		if ( mesh.instanceColor )
-			attributes._COLOR_0 = writer.processAccessor( mesh.instanceColor );
-
-		nodeDef.extensions = nodeDef.extensions || {};
-		nodeDef.extensions[ this.name ] = { attributes };
-
-		writer.extensionsUsed[ this.name ] = true;
-		writer.extensionsRequired[ this.name ] = true;
-
-	}
-
-}
-
-/**
- * Static utility functions
- */
-GLTFExporter.Utils = {
-
-	insertKeyframe: function ( track, time ) {
-
-		const tolerance = 0.001; // 1ms
-		const valueSize = track.getValueSize();
-
-		const times = new track.TimeBufferType( track.times.length + 1 );
-		const values = new track.ValueBufferType( track.values.length + valueSize );
-		const interpolant = track.createInterpolant( new track.ValueBufferType( valueSize ) );
-
-		let index;
-
-		if ( track.times.length === 0 ) {
-
-			times[ 0 ] = time;
-
-			for ( let i = 0; i < valueSize; i ++ ) {
-
-				values[ i ] = 0;
-
-			}
-
-			index = 0;
-
-		} else if ( time < track.times[ 0 ] ) {
-
-			if ( Math.abs( track.times[ 0 ] - time ) < tolerance ) return 0;
-
-			times[ 0 ] = time;
-			times.set( track.times, 1 );
-
-			values.set( interpolant.evaluate( time ), 0 );
-			values.set( track.values, valueSize );
-
-			index = 0;
-
-		} else if ( time > track.times[ track.times.length - 1 ] ) {
-
-			if ( Math.abs( track.times[ track.times.length - 1 ] - time ) < tolerance ) {
-
-				return track.times.length - 1;
-
-			}
-
-			times[ times.length - 1 ] = time;
-			times.set( track.times, 0 );
-
-			values.set( track.values, 0 );
-			values.set( interpolant.evaluate( time ), track.values.length );
-
-			index = times.length - 1;
-
-		} else {
-
-			for ( let i = 0; i < track.times.length; i ++ ) {
-
-				if ( Math.abs( track.times[ i ] - time ) < tolerance ) return i;
-
-				if ( track.times[ i ] < time && track.times[ i + 1 ] > time ) {
-
-					times.set( track.times.slice( 0, i + 1 ), 0 );
-					times[ i + 1 ] = time;
-					times.set( track.times.slice( i + 1 ), i + 2 );
-
-					values.set( track.values.slice( 0, ( i + 1 ) * valueSize ), 0 );
-					values.set( interpolant.evaluate( time ), ( i + 1 ) * valueSize );
-					values.set( track.values.slice( ( i + 1 ) * valueSize ), ( i + 2 ) * valueSize );
-
-					index = i + 1;
-
-					break;
-
-				}
-
-			}
-
-		}
-
-		track.times = times;
-		track.values = values;
-
-		return index;
-
-	},
-
-	mergeMorphTargetTracks: function ( clip, root ) {
-
-		const tracks = [];
-		const mergedTracks = {};
-		const sourceTracks = clip.tracks;
-
-		for ( let i = 0; i < sourceTracks.length; ++ i ) {
-
-			let sourceTrack = sourceTracks[ i ];
-			const sourceTrackBinding = PropertyBinding.parseTrackName( sourceTrack.name );
-			const sourceTrackNode = PropertyBinding.findNode( root, sourceTrackBinding.nodeName );
-
-			if ( sourceTrackBinding.propertyName !== 'morphTargetInfluences' || sourceTrackBinding.propertyIndex === undefined ) {
-
-				// Tracks that don't affect morph targets, or that affect all morph targets together, can be left as-is.
-				tracks.push( sourceTrack );
-				continue;
-
-			}
-
-			if ( sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodDiscrete
-				&& sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodLinear ) {
-
-				if ( sourceTrack.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline ) {
-
-					// This should never happen, because glTF morph target animations
-					// affect all targets already.
-					throw new Error( 'THREE.GLTFExporter: Cannot merge tracks with glTF CUBICSPLINE interpolation.' );
-
-				}
-
-				console.warn( 'THREE.GLTFExporter: Morph target interpolation mode not yet supported. Using LINEAR instead.' );
-
-				sourceTrack = sourceTrack.clone();
-				sourceTrack.setInterpolation( InterpolateLinear );
-
-			}
-
-			const targetCount = sourceTrackNode.morphTargetInfluences.length;
-			const targetIndex = sourceTrackNode.morphTargetDictionary[ sourceTrackBinding.propertyIndex ];
-
-			if ( targetIndex === undefined ) {
-
-				throw new Error( 'THREE.GLTFExporter: Morph target name not found: ' + sourceTrackBinding.propertyIndex );
-
-			}
-
-			let mergedTrack;
-
-			// If this is the first time we've seen this object, create a new
-			// track to store merged keyframe data for each morph target.
-			if ( mergedTracks[ sourceTrackNode.uuid ] === undefined ) {
-
-				mergedTrack = sourceTrack.clone();
-
-				const values = new mergedTrack.ValueBufferType( targetCount * mergedTrack.times.length );
-
-				for ( let j = 0; j < mergedTrack.times.length; j ++ ) {
-
-					values[ j * targetCount + targetIndex ] = mergedTrack.values[ j ];
-
-				}
-
-				// We need to take into consideration the intended target node
-				// of our original un-merged morphTarget animation.
-				mergedTrack.name = ( sourceTrackBinding.nodeName || '' ) + '.morphTargetInfluences';
-				mergedTrack.values = values;
-
-				mergedTracks[ sourceTrackNode.uuid ] = mergedTrack;
-				tracks.push( mergedTrack );
-
-				continue;
-
-			}
-
-			const sourceInterpolant = sourceTrack.createInterpolant( new sourceTrack.ValueBufferType( 1 ) );
-
-			mergedTrack = mergedTracks[ sourceTrackNode.uuid ];
-
-			// For every existing keyframe of the merged track, write a (possibly
-			// interpolated) value from the source track.
-			for ( let j = 0; j < mergedTrack.times.length; j ++ ) {
-
-				mergedTrack.values[ j * targetCount + targetIndex ] = sourceInterpolant.evaluate( mergedTrack.times[ j ] );
-
-			}
-
-			// For every existing keyframe of the source track, write a (possibly
-			// new) keyframe to the merged track. Values from the previous loop may
-			// be written again, but keyframes are de-duplicated.
-			for ( let j = 0; j < sourceTrack.times.length; j ++ ) {
-
-				const keyframeIndex = this.insertKeyframe( mergedTrack, sourceTrack.times[ j ] );
-				mergedTrack.values[ keyframeIndex * targetCount + targetIndex ] = sourceTrack.values[ j ];
-
-			}
-
-		}
-
-		clip.tracks = tracks;
-
-		return clip;
-
-	}
-
-};
-
-const _lut = [ '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c', '0d', '0e', '0f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d', '1e', '1f', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '2a', '2b', '2c', '2d', '2e', '2f', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '3a', '3b', '3c', '3d', '3e', '3f', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '4a', '4b', '4c', '4d', '4e', '4f', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '5a', '5b', '5c', '5d', '5e', '5f', '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '6a', '6b', '6c', '6d', '6e', '6f', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '7a', '7b', '7c', '7d', '7e', '7f', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '8a', '8b', '8c', '8d', '8e', '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', '9a', '9b', '9c', '9d', '9e', '9f', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'ba', 'bb', 'bc', 'bd', 'be', 'bf', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'ca', 'cb', 'cc', 'cd', 'ce', 'cf', 'd0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'da', 'db', 'dc', 'dd', 'de', 'df', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9', 'ea', 'eb', 'ec', 'ed', 'ee', 'ef', 'f0', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'fa', 'fb', 'fc', 'fd', 'fe', 'ff' ];
-
-// http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/21963136#21963136
-function generateUUID() {
-
-	const d0 = Math.random() * 0xffffffff | 0;
-	const d1 = Math.random() * 0xffffffff | 0;
-	const d2 = Math.random() * 0xffffffff | 0;
-	const d3 = Math.random() * 0xffffffff | 0;
-	const uuid = _lut[ d0 & 0xff ] + _lut[ d0 >> 8 & 0xff ] + _lut[ d0 >> 16 & 0xff ] + _lut[ d0 >> 24 & 0xff ] + '-' +
-			_lut[ d1 & 0xff ] + _lut[ d1 >> 8 & 0xff ] + '-' + _lut[ d1 >> 16 & 0x0f | 0x40 ] + _lut[ d1 >> 24 & 0xff ] + '-' +
-			_lut[ d2 & 0x3f | 0x80 ] + _lut[ d2 >> 8 & 0xff ] + '-' + _lut[ d2 >> 16 & 0xff ] + _lut[ d2 >> 24 & 0xff ] +
-			_lut[ d3 & 0xff ] + _lut[ d3 >> 8 & 0xff ] + _lut[ d3 >> 16 & 0xff ] + _lut[ d3 >> 24 & 0xff ];
-
-	// .toLowerCase() here flattens concatenated strings to save heap memory space.
-	return uuid.toLowerCase();
-
-}
-
-function clamp( value, min, max ) {
-
-	return Math.max( min, Math.min( max, value ) );
-
-}
-
-function denormalize( value, array ) {
-
-	switch ( array.constructor ) {
-
-		case Float32Array:
-
-			return value;
-
-		case Uint32Array:
-
-			return value / 4294967295.0;
-
-		case Uint16Array:
-
-			return value / 65535.0;
-
-		case Uint8Array:
-
-			return value / 255.0;
-
-		case Int32Array:
-
-			return Math.max( value / 2147483647.0, - 1.0 );
-
-		case Int16Array:
-
-			return Math.max( value / 32767.0, - 1.0 );
-
-		case Int8Array:
-
-			return Math.max( value / 127.0, - 1.0 );
-
-		default:
-
-			throw new Error( 'Invalid component type.' );
-
-	}
-
-}
-
-function normalize( value, array ) {
-
-	switch ( array.constructor ) {
-
-		case Float32Array:
-
-			return value;
-
-		case Uint32Array:
-
-			return Math.round( value * 4294967295.0 );
-
-		case Uint16Array:
-
-			return Math.round( value * 65535.0 );
-
-		case Uint8Array:
-
-			return Math.round( value * 255.0 );
-
-		case Int32Array:
-
-			return Math.round( value * 2147483647.0 );
-
-		case Int16Array:
-
-			return Math.round( value * 32767.0 );
-
-		case Int8Array:
-
-			return Math.round( value * 127.0 );
-
-		default:
-
-			throw new Error( 'Invalid component type.' );
-
-	}
-
-}
-
-class Quaternion {
-
-	constructor( x = 0, y = 0, z = 0, w = 1 ) {
-
-		this.isQuaternion = true;
-
-		this._x = x;
-		this._y = y;
-		this._z = z;
-		this._w = w;
-
-	}
-
-	static slerpFlat( dst, dstOffset, src0, srcOffset0, src1, srcOffset1, t ) {
-
-		// fuzz-free, array-based Quaternion SLERP operation
-
-		let x0 = src0[ srcOffset0 + 0 ],
-			y0 = src0[ srcOffset0 + 1 ],
-			z0 = src0[ srcOffset0 + 2 ],
-			w0 = src0[ srcOffset0 + 3 ];
-
-		const x1 = src1[ srcOffset1 + 0 ],
-			y1 = src1[ srcOffset1 + 1 ],
-			z1 = src1[ srcOffset1 + 2 ],
-			w1 = src1[ srcOffset1 + 3 ];
-
-		if ( t === 0 ) {
-
-			dst[ dstOffset + 0 ] = x0;
-			dst[ dstOffset + 1 ] = y0;
-			dst[ dstOffset + 2 ] = z0;
-			dst[ dstOffset + 3 ] = w0;
-			return;
-
-		}
-
-		if ( t === 1 ) {
-
-			dst[ dstOffset + 0 ] = x1;
-			dst[ dstOffset + 1 ] = y1;
-			dst[ dstOffset + 2 ] = z1;
-			dst[ dstOffset + 3 ] = w1;
-			return;
-
-		}
-
-		if ( w0 !== w1 || x0 !== x1 || y0 !== y1 || z0 !== z1 ) {
-
-			let s = 1 - t;
-			const cos = x0 * x1 + y0 * y1 + z0 * z1 + w0 * w1,
-				dir = ( cos >= 0 ? 1 : - 1 ),
-				sqrSin = 1 - cos * cos;
-
-			// Skip the Slerp for tiny steps to avoid numeric problems:
-			if ( sqrSin > Number.EPSILON ) {
-
-				const sin = Math.sqrt( sqrSin ),
-					len = Math.atan2( sin, cos * dir );
-
-				s = Math.sin( s * len ) / sin;
-				t = Math.sin( t * len ) / sin;
-
-			}
-
-			const tDir = t * dir;
-
-			x0 = x0 * s + x1 * tDir;
-			y0 = y0 * s + y1 * tDir;
-			z0 = z0 * s + z1 * tDir;
-			w0 = w0 * s + w1 * tDir;
-
-			// Normalize in case we just did a lerp:
-			if ( s === 1 - t ) {
-
-				const f = 1 / Math.sqrt( x0 * x0 + y0 * y0 + z0 * z0 + w0 * w0 );
-
-				x0 *= f;
-				y0 *= f;
-				z0 *= f;
-				w0 *= f;
-
-			}
-
-		}
-
-		dst[ dstOffset ] = x0;
-		dst[ dstOffset + 1 ] = y0;
-		dst[ dstOffset + 2 ] = z0;
-		dst[ dstOffset + 3 ] = w0;
-
-	}
-
-	static multiplyQuaternionsFlat( dst, dstOffset, src0, srcOffset0, src1, srcOffset1 ) {
-
-		const x0 = src0[ srcOffset0 ];
-		const y0 = src0[ srcOffset0 + 1 ];
-		const z0 = src0[ srcOffset0 + 2 ];
-		const w0 = src0[ srcOffset0 + 3 ];
-
-		const x1 = src1[ srcOffset1 ];
-		const y1 = src1[ srcOffset1 + 1 ];
-		const z1 = src1[ srcOffset1 + 2 ];
-		const w1 = src1[ srcOffset1 + 3 ];
-
-		dst[ dstOffset ] = x0 * w1 + w0 * x1 + y0 * z1 - z0 * y1;
-		dst[ dstOffset + 1 ] = y0 * w1 + w0 * y1 + z0 * x1 - x0 * z1;
-		dst[ dstOffset + 2 ] = z0 * w1 + w0 * z1 + x0 * y1 - y0 * x1;
-		dst[ dstOffset + 3 ] = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1;
-
-		return dst;
-
-	}
-
-	get x() {
-
-		return this._x;
-
-	}
-
-	set x( value ) {
-
-		this._x = value;
-		this._onChangeCallback();
-
-	}
-
-	get y() {
-
-		return this._y;
-
-	}
-
-	set y( value ) {
-
-		this._y = value;
-		this._onChangeCallback();
-
-	}
-
-	get z() {
-
-		return this._z;
-
-	}
-
-	set z( value ) {
-
-		this._z = value;
-		this._onChangeCallback();
-
-	}
-
-	get w() {
-
-		return this._w;
-
-	}
-
-	set w( value ) {
-
-		this._w = value;
-		this._onChangeCallback();
-
-	}
-
-	set( x, y, z, w ) {
-
-		this._x = x;
-		this._y = y;
-		this._z = z;
-		this._w = w;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	clone() {
-
-		return new this.constructor( this._x, this._y, this._z, this._w );
-
-	}
-
-	copy( quaternion ) {
-
-		this._x = quaternion.x;
-		this._y = quaternion.y;
-		this._z = quaternion.z;
-		this._w = quaternion.w;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromEuler( euler, update = true ) {
-
-		const x = euler._x, y = euler._y, z = euler._z, order = euler._order;
-
-		// http://www.mathworks.com/matlabcentral/fileexchange/
-		// 	20696-function-to-convert-between-dcm-euler-angles-quaternions-and-euler-vectors/
-		//	content/SpinCalc.m
-
-		const cos = Math.cos;
-		const sin = Math.sin;
-
-		const c1 = cos( x / 2 );
-		const c2 = cos( y / 2 );
-		const c3 = cos( z / 2 );
-
-		const s1 = sin( x / 2 );
-		const s2 = sin( y / 2 );
-		const s3 = sin( z / 2 );
-
-		switch ( order ) {
-
-			case 'XYZ':
-				this._x = s1 * c2 * c3 + c1 * s2 * s3;
-				this._y = c1 * s2 * c3 - s1 * c2 * s3;
-				this._z = c1 * c2 * s3 + s1 * s2 * c3;
-				this._w = c1 * c2 * c3 - s1 * s2 * s3;
-				break;
-
-			case 'YXZ':
-				this._x = s1 * c2 * c3 + c1 * s2 * s3;
-				this._y = c1 * s2 * c3 - s1 * c2 * s3;
-				this._z = c1 * c2 * s3 - s1 * s2 * c3;
-				this._w = c1 * c2 * c3 + s1 * s2 * s3;
-				break;
-
-			case 'ZXY':
-				this._x = s1 * c2 * c3 - c1 * s2 * s3;
-				this._y = c1 * s2 * c3 + s1 * c2 * s3;
-				this._z = c1 * c2 * s3 + s1 * s2 * c3;
-				this._w = c1 * c2 * c3 - s1 * s2 * s3;
-				break;
-
-			case 'ZYX':
-				this._x = s1 * c2 * c3 - c1 * s2 * s3;
-				this._y = c1 * s2 * c3 + s1 * c2 * s3;
-				this._z = c1 * c2 * s3 - s1 * s2 * c3;
-				this._w = c1 * c2 * c3 + s1 * s2 * s3;
-				break;
-
-			case 'YZX':
-				this._x = s1 * c2 * c3 + c1 * s2 * s3;
-				this._y = c1 * s2 * c3 + s1 * c2 * s3;
-				this._z = c1 * c2 * s3 - s1 * s2 * c3;
-				this._w = c1 * c2 * c3 - s1 * s2 * s3;
-				break;
-
-			case 'XZY':
-				this._x = s1 * c2 * c3 - c1 * s2 * s3;
-				this._y = c1 * s2 * c3 - s1 * c2 * s3;
-				this._z = c1 * c2 * s3 + s1 * s2 * c3;
-				this._w = c1 * c2 * c3 + s1 * s2 * s3;
-				break;
-
-			default:
-				console.warn( 'THREE.Quaternion: .setFromEuler() encountered an unknown order: ' + order );
-
-		}
-
-		if ( update === true ) this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromAxisAngle( axis, angle ) {
-
-		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
-
-		// assumes axis is normalized
-
-		const halfAngle = angle / 2, s = Math.sin( halfAngle );
-
-		this._x = axis.x * s;
-		this._y = axis.y * s;
-		this._z = axis.z * s;
-		this._w = Math.cos( halfAngle );
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromRotationMatrix( m ) {
-
-		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
-
-		// assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
-
-		const te = m.elements,
-
-			m11 = te[ 0 ], m12 = te[ 4 ], m13 = te[ 8 ],
-			m21 = te[ 1 ], m22 = te[ 5 ], m23 = te[ 9 ],
-			m31 = te[ 2 ], m32 = te[ 6 ], m33 = te[ 10 ],
-
-			trace = m11 + m22 + m33;
-
-		if ( trace > 0 ) {
-
-			const s = 0.5 / Math.sqrt( trace + 1.0 );
-
-			this._w = 0.25 / s;
-			this._x = ( m32 - m23 ) * s;
-			this._y = ( m13 - m31 ) * s;
-			this._z = ( m21 - m12 ) * s;
-
-		} else if ( m11 > m22 && m11 > m33 ) {
-
-			const s = 2.0 * Math.sqrt( 1.0 + m11 - m22 - m33 );
-
-			this._w = ( m32 - m23 ) / s;
-			this._x = 0.25 * s;
-			this._y = ( m12 + m21 ) / s;
-			this._z = ( m13 + m31 ) / s;
-
-		} else if ( m22 > m33 ) {
-
-			const s = 2.0 * Math.sqrt( 1.0 + m22 - m11 - m33 );
-
-			this._w = ( m13 - m31 ) / s;
-			this._x = ( m12 + m21 ) / s;
-			this._y = 0.25 * s;
-			this._z = ( m23 + m32 ) / s;
-
-		} else {
-
-			const s = 2.0 * Math.sqrt( 1.0 + m33 - m11 - m22 );
-
-			this._w = ( m21 - m12 ) / s;
-			this._x = ( m13 + m31 ) / s;
-			this._y = ( m23 + m32 ) / s;
-			this._z = 0.25 * s;
-
-		}
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	setFromUnitVectors( vFrom, vTo ) {
-
-		// assumes direction vectors vFrom and vTo are normalized
-
-		let r = vFrom.dot( vTo ) + 1;
-
-		if ( r < Number.EPSILON ) {
-
-			// vFrom and vTo point in opposite directions
-
-			r = 0;
-
-			if ( Math.abs( vFrom.x ) > Math.abs( vFrom.z ) ) {
-
-				this._x = - vFrom.y;
-				this._y = vFrom.x;
-				this._z = 0;
-				this._w = r;
-
-			} else {
-
-				this._x = 0;
-				this._y = - vFrom.z;
-				this._z = vFrom.y;
-				this._w = r;
-
-			}
-
-		} else {
-
-			// crossVectors( vFrom, vTo ); // inlined to avoid cyclic dependency on Vector3
-
-			this._x = vFrom.y * vTo.z - vFrom.z * vTo.y;
-			this._y = vFrom.z * vTo.x - vFrom.x * vTo.z;
-			this._z = vFrom.x * vTo.y - vFrom.y * vTo.x;
-			this._w = r;
-
-		}
-
-		return this.normalize();
-
-	}
-
-	angleTo( q ) {
-
-		return 2 * Math.acos( Math.abs( clamp( this.dot( q ), - 1, 1 ) ) );
-
-	}
-
-	rotateTowards( q, step ) {
-
-		const angle = this.angleTo( q );
-
-		if ( angle === 0 ) return this;
-
-		const t = Math.min( 1, step / angle );
-
-		this.slerp( q, t );
-
-		return this;
-
-	}
-
-	identity() {
-
-		return this.set( 0, 0, 0, 1 );
-
-	}
-
-	invert() {
-
-		// quaternion is assumed to have unit length
-
-		return this.conjugate();
-
-	}
-
-	conjugate() {
-
-		this._x *= - 1;
-		this._y *= - 1;
-		this._z *= - 1;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	dot( v ) {
-
-		return this._x * v._x + this._y * v._y + this._z * v._z + this._w * v._w;
-
-	}
-
-	lengthSq() {
-
-		return this._x * this._x + this._y * this._y + this._z * this._z + this._w * this._w;
-
-	}
-
-	length() {
-
-		return Math.sqrt( this._x * this._x + this._y * this._y + this._z * this._z + this._w * this._w );
-
-	}
-
-	normalize() {
-
-		let l = this.length();
-
-		if ( l === 0 ) {
-
-			this._x = 0;
-			this._y = 0;
-			this._z = 0;
-			this._w = 1;
-
-		} else {
-
-			l = 1 / l;
-
-			this._x = this._x * l;
-			this._y = this._y * l;
-			this._z = this._z * l;
-			this._w = this._w * l;
-
-		}
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	multiply( q ) {
-
-		return this.multiplyQuaternions( this, q );
-
-	}
-
-	premultiply( q ) {
-
-		return this.multiplyQuaternions( q, this );
-
-	}
-
-	multiplyQuaternions( a, b ) {
-
-		// from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/code/index.htm
-
-		const qax = a._x, qay = a._y, qaz = a._z, qaw = a._w;
-		const qbx = b._x, qby = b._y, qbz = b._z, qbw = b._w;
-
-		this._x = qax * qbw + qaw * qbx + qay * qbz - qaz * qby;
-		this._y = qay * qbw + qaw * qby + qaz * qbx - qax * qbz;
-		this._z = qaz * qbw + qaw * qbz + qax * qby - qay * qbx;
-		this._w = qaw * qbw - qax * qbx - qay * qby - qaz * qbz;
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	slerp( qb, t ) {
-
-		if ( t === 0 ) return this;
-		if ( t === 1 ) return this.copy( qb );
-
-		const x = this._x, y = this._y, z = this._z, w = this._w;
-
-		// http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
-
-		let cosHalfTheta = w * qb._w + x * qb._x + y * qb._y + z * qb._z;
-
-		if ( cosHalfTheta < 0 ) {
-
-			this._w = - qb._w;
-			this._x = - qb._x;
-			this._y = - qb._y;
-			this._z = - qb._z;
-
-			cosHalfTheta = - cosHalfTheta;
-
-		} else {
-
-			this.copy( qb );
-
-		}
-
-		if ( cosHalfTheta >= 1.0 ) {
-
-			this._w = w;
-			this._x = x;
-			this._y = y;
-			this._z = z;
-
-			return this;
-
-		}
-
-		const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
-
-		if ( sqrSinHalfTheta <= Number.EPSILON ) {
-
-			const s = 1 - t;
-			this._w = s * w + t * this._w;
-			this._x = s * x + t * this._x;
-			this._y = s * y + t * this._y;
-			this._z = s * z + t * this._z;
-
-			this.normalize(); // normalize calls _onChangeCallback()
-
-			return this;
-
-		}
-
-		const sinHalfTheta = Math.sqrt( sqrSinHalfTheta );
-		const halfTheta = Math.atan2( sinHalfTheta, cosHalfTheta );
-		const ratioA = Math.sin( ( 1 - t ) * halfTheta ) / sinHalfTheta,
-			ratioB = Math.sin( t * halfTheta ) / sinHalfTheta;
-
-		this._w = ( w * ratioA + this._w * ratioB );
-		this._x = ( x * ratioA + this._x * ratioB );
-		this._y = ( y * ratioA + this._y * ratioB );
-		this._z = ( z * ratioA + this._z * ratioB );
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	slerpQuaternions( qa, qb, t ) {
-
-		return this.copy( qa ).slerp( qb, t );
-
-	}
-
-	random() {
-
-		// Derived from http://planning.cs.uiuc.edu/node198.html
-		// Note, this source uses w, x, y, z ordering,
-		// so we swap the order below.
-
-		const u1 = Math.random();
-		const sqrt1u1 = Math.sqrt( 1 - u1 );
-		const sqrtu1 = Math.sqrt( u1 );
-
-		const u2 = 2 * Math.PI * Math.random();
-
-		const u3 = 2 * Math.PI * Math.random();
-
-		return this.set(
-			sqrt1u1 * Math.cos( u2 ),
-			sqrtu1 * Math.sin( u3 ),
-			sqrtu1 * Math.cos( u3 ),
-			sqrt1u1 * Math.sin( u2 ),
-		);
-
-	}
-
-	equals( quaternion ) {
-
-		return ( quaternion._x === this._x ) && ( quaternion._y === this._y ) && ( quaternion._z === this._z ) && ( quaternion._w === this._w );
-
-	}
-
-	fromArray( array, offset = 0 ) {
-
-		this._x = array[ offset ];
-		this._y = array[ offset + 1 ];
-		this._z = array[ offset + 2 ];
-		this._w = array[ offset + 3 ];
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	toArray( array = [], offset = 0 ) {
-
-		array[ offset ] = this._x;
-		array[ offset + 1 ] = this._y;
-		array[ offset + 2 ] = this._z;
-		array[ offset + 3 ] = this._w;
-
-		return array;
-
-	}
-
-	fromBufferAttribute( attribute, index ) {
-
-		this._x = attribute.getX( index );
-		this._y = attribute.getY( index );
-		this._z = attribute.getZ( index );
-		this._w = attribute.getW( index );
-
-		this._onChangeCallback();
-
-		return this;
-
-	}
-
-	toJSON() {
-
-		return this.toArray();
-
-	}
-
-	_onChange( callback ) {
-
-		this._onChangeCallback = callback;
-
-		return this;
-
-	}
-
-	_onChangeCallback() {}
-
-	*[ Symbol.iterator ]() {
-
-		yield this._x;
-		yield this._y;
-		yield this._z;
-		yield this._w;
-
-	}
-
-}
-
-class Vector3 {
-
-	constructor( x = 0, y = 0, z = 0 ) {
-
-		Vector3.prototype.isVector3 = true;
-
-		this.x = x;
-		this.y = y;
-		this.z = z;
-
-	}
-
-	set( x, y, z ) {
-
-		if ( z === undefined ) z = this.z; // sprite.scale.set(x,y)
-
-		this.x = x;
-		this.y = y;
-		this.z = z;
-
-		return this;
-
-	}
-
-	setScalar( scalar ) {
-
-		this.x = scalar;
-		this.y = scalar;
-		this.z = scalar;
-
-		return this;
-
-	}
-
-	setX( x ) {
-
-		this.x = x;
-
-		return this;
-
-	}
-
-	setY( y ) {
-
-		this.y = y;
-
-		return this;
-
-	}
-
-	setZ( z ) {
-
-		this.z = z;
-
-		return this;
-
-	}
-
-	setComponent( index, value ) {
-
-		switch ( index ) {
-
-			case 0: this.x = value; break;
-			case 1: this.y = value; break;
-			case 2: this.z = value; break;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-		return this;
-
-	}
-
-	getComponent( index ) {
-
-		switch ( index ) {
-
-			case 0: return this.x;
-			case 1: return this.y;
-			case 2: return this.z;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-	}
-
-	clone() {
-
-		return new this.constructor( this.x, this.y, this.z );
-
-	}
-
-	copy( v ) {
-
-		this.x = v.x;
-		this.y = v.y;
-		this.z = v.z;
-
-		return this;
-
-	}
-
-	add( v ) {
-
-		this.x += v.x;
-		this.y += v.y;
-		this.z += v.z;
-
-		return this;
-
-	}
-
-	addScalar( s ) {
-
-		this.x += s;
-		this.y += s;
-		this.z += s;
-
-		return this;
-
-	}
-
-	addVectors( a, b ) {
-
-		this.x = a.x + b.x;
-		this.y = a.y + b.y;
-		this.z = a.z + b.z;
-
-		return this;
-
-	}
-
-	addScaledVector( v, s ) {
-
-		this.x += v.x * s;
-		this.y += v.y * s;
-		this.z += v.z * s;
-
-		return this;
-
-	}
-
-	sub( v ) {
-
-		this.x -= v.x;
-		this.y -= v.y;
-		this.z -= v.z;
-
-		return this;
-
-	}
-
-	subScalar( s ) {
-
-		this.x -= s;
-		this.y -= s;
-		this.z -= s;
-
-		return this;
-
-	}
-
-	subVectors( a, b ) {
-
-		this.x = a.x - b.x;
-		this.y = a.y - b.y;
-		this.z = a.z - b.z;
-
-		return this;
-
-	}
-
-	multiply( v ) {
-
-		this.x *= v.x;
-		this.y *= v.y;
-		this.z *= v.z;
-
-		return this;
-
-	}
-
-	multiplyScalar( scalar ) {
-
-		this.x *= scalar;
-		this.y *= scalar;
-		this.z *= scalar;
-
-		return this;
-
-	}
-
-	multiplyVectors( a, b ) {
-
-		this.x = a.x * b.x;
-		this.y = a.y * b.y;
-		this.z = a.z * b.z;
-
-		return this;
-
-	}
-
-	applyEuler( euler ) {
-
-		return this.applyQuaternion( _quaternion.setFromEuler( euler ) );
-
-	}
-
-	applyAxisAngle( axis, angle ) {
-
-		return this.applyQuaternion( _quaternion.setFromAxisAngle( axis, angle ) );
-
-	}
-
-	applyMatrix3( m ) {
-
-		const x = this.x, y = this.y, z = this.z;
-		const e = m.elements;
-
-		this.x = e[ 0 ] * x + e[ 3 ] * y + e[ 6 ] * z;
-		this.y = e[ 1 ] * x + e[ 4 ] * y + e[ 7 ] * z;
-		this.z = e[ 2 ] * x + e[ 5 ] * y + e[ 8 ] * z;
-
-		return this;
-
-	}
-
-	applyNormalMatrix( m ) {
-
-		return this.applyMatrix3( m ).normalize();
-
-	}
-
-	applyMatrix4( m ) {
-
-		const x = this.x, y = this.y, z = this.z;
-		const e = m.elements;
-
-		const w = 1 / ( e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ] );
-
-		this.x = ( e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ] ) * w;
-		this.y = ( e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z + e[ 13 ] ) * w;
-		this.z = ( e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z + e[ 14 ] ) * w;
-
-		return this;
-
-	}
-
-	applyQuaternion( q ) {
-
-		// quaternion q is assumed to have unit length
-
-		const vx = this.x, vy = this.y, vz = this.z;
-		const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
-
-		// t = 2 * cross( q.xyz, v );
-		const tx = 2 * ( qy * vz - qz * vy );
-		const ty = 2 * ( qz * vx - qx * vz );
-		const tz = 2 * ( qx * vy - qy * vx );
-
-		// v + q.w * t + cross( q.xyz, t );
-		this.x = vx + qw * tx + qy * tz - qz * ty;
-		this.y = vy + qw * ty + qz * tx - qx * tz;
-		this.z = vz + qw * tz + qx * ty - qy * tx;
-
-		return this;
-
-	}
-
-	project( camera ) {
-
-		return this.applyMatrix4( camera.matrixWorldInverse ).applyMatrix4( camera.projectionMatrix );
-
-	}
-
-	unproject( camera ) {
-
-		return this.applyMatrix4( camera.projectionMatrixInverse ).applyMatrix4( camera.matrixWorld );
-
-	}
-
-	transformDirection( m ) {
-
-		// input: THREE.Matrix4 affine matrix
-		// vector interpreted as a direction
-
-		const x = this.x, y = this.y, z = this.z;
-		const e = m.elements;
-
-		this.x = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z;
-		this.y = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z;
-		this.z = e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z;
-
-		return this.normalize();
-
-	}
-
-	divide( v ) {
-
-		this.x /= v.x;
-		this.y /= v.y;
-		this.z /= v.z;
-
-		return this;
-
-	}
-
-	divideScalar( scalar ) {
-
-		return this.multiplyScalar( 1 / scalar );
-
-	}
-
-	min( v ) {
-
-		this.x = Math.min( this.x, v.x );
-		this.y = Math.min( this.y, v.y );
-		this.z = Math.min( this.z, v.z );
-
-		return this;
-
-	}
-
-	max( v ) {
-
-		this.x = Math.max( this.x, v.x );
-		this.y = Math.max( this.y, v.y );
-		this.z = Math.max( this.z, v.z );
-
-		return this;
-
-	}
-
-	clamp( min, max ) {
-
-		// assumes min < max, componentwise
-
-		this.x = Math.max( min.x, Math.min( max.x, this.x ) );
-		this.y = Math.max( min.y, Math.min( max.y, this.y ) );
-		this.z = Math.max( min.z, Math.min( max.z, this.z ) );
-
-		return this;
-
-	}
-
-	clampScalar( minVal, maxVal ) {
-
-		this.x = Math.max( minVal, Math.min( maxVal, this.x ) );
-		this.y = Math.max( minVal, Math.min( maxVal, this.y ) );
-		this.z = Math.max( minVal, Math.min( maxVal, this.z ) );
-
-		return this;
-
-	}
-
-	clampLength( min, max ) {
-
-		const length = this.length();
-
-		return this.divideScalar( length || 1 ).multiplyScalar( Math.max( min, Math.min( max, length ) ) );
-
-	}
-
-	floor() {
-
-		this.x = Math.floor( this.x );
-		this.y = Math.floor( this.y );
-		this.z = Math.floor( this.z );
-
-		return this;
-
-	}
-
-	ceil() {
-
-		this.x = Math.ceil( this.x );
-		this.y = Math.ceil( this.y );
-		this.z = Math.ceil( this.z );
-
-		return this;
-
-	}
-
-	round() {
-
-		this.x = Math.round( this.x );
-		this.y = Math.round( this.y );
-		this.z = Math.round( this.z );
-
-		return this;
-
-	}
-
-	roundToZero() {
-
-		this.x = Math.trunc( this.x );
-		this.y = Math.trunc( this.y );
-		this.z = Math.trunc( this.z );
-
-		return this;
-
-	}
-
-	negate() {
-
-		this.x = - this.x;
-		this.y = - this.y;
-		this.z = - this.z;
-
-		return this;
-
-	}
-
-	dot( v ) {
-
-		return this.x * v.x + this.y * v.y + this.z * v.z;
-
-	}
-
-	// TODO lengthSquared?
-
-	lengthSq() {
-
-		return this.x * this.x + this.y * this.y + this.z * this.z;
-
-	}
-
-	length() {
-
-		return Math.sqrt( this.x * this.x + this.y * this.y + this.z * this.z );
-
-	}
-
-	manhattanLength() {
-
-		return Math.abs( this.x ) + Math.abs( this.y ) + Math.abs( this.z );
-
-	}
-
-	normalize() {
-
-		return this.divideScalar( this.length() || 1 );
-
-	}
-
-	setLength( length ) {
-
-		return this.normalize().multiplyScalar( length );
-
-	}
-
-	lerp( v, alpha ) {
-
-		this.x += ( v.x - this.x ) * alpha;
-		this.y += ( v.y - this.y ) * alpha;
-		this.z += ( v.z - this.z ) * alpha;
-
-		return this;
-
-	}
-
-	lerpVectors( v1, v2, alpha ) {
-
-		this.x = v1.x + ( v2.x - v1.x ) * alpha;
-		this.y = v1.y + ( v2.y - v1.y ) * alpha;
-		this.z = v1.z + ( v2.z - v1.z ) * alpha;
-
-		return this;
-
-	}
-
-	cross( v ) {
-
-		return this.crossVectors( this, v );
-
-	}
-
-	crossVectors( a, b ) {
-
-		const ax = a.x, ay = a.y, az = a.z;
-		const bx = b.x, by = b.y, bz = b.z;
-
-		this.x = ay * bz - az * by;
-		this.y = az * bx - ax * bz;
-		this.z = ax * by - ay * bx;
-
-		return this;
-
-	}
-
-	projectOnVector( v ) {
-
-		const denominator = v.lengthSq();
-
-		if ( denominator === 0 ) return this.set( 0, 0, 0 );
-
-		const scalar = v.dot( this ) / denominator;
-
-		return this.copy( v ).multiplyScalar( scalar );
-
-	}
-
-	projectOnPlane( planeNormal ) {
-
-		_vector$2.copy( this ).projectOnVector( planeNormal );
-
-		return this.sub( _vector$2 );
-
-	}
-
-	reflect( normal ) {
-
-		// reflect incident vector off plane orthogonal to normal
-		// normal is assumed to have unit length
-
-		return this.sub( _vector$2.copy( normal ).multiplyScalar( 2 * this.dot( normal ) ) );
-
-	}
-
-	angleTo( v ) {
-
-		const denominator = Math.sqrt( this.lengthSq() * v.lengthSq() );
-
-		if ( denominator === 0 ) return Math.PI / 2;
-
-		const theta = this.dot( v ) / denominator;
-
-		// clamp, to handle numerical problems
-
-		return Math.acos( clamp( theta, - 1, 1 ) );
-
-	}
-
-	distanceTo( v ) {
-
-		return Math.sqrt( this.distanceToSquared( v ) );
-
-	}
-
-	distanceToSquared( v ) {
-
-		const dx = this.x - v.x, dy = this.y - v.y, dz = this.z - v.z;
-
-		return dx * dx + dy * dy + dz * dz;
-
-	}
-
-	manhattanDistanceTo( v ) {
-
-		return Math.abs( this.x - v.x ) + Math.abs( this.y - v.y ) + Math.abs( this.z - v.z );
-
-	}
-
-	setFromSpherical( s ) {
-
-		return this.setFromSphericalCoords( s.radius, s.phi, s.theta );
-
-	}
-
-	setFromSphericalCoords( radius, phi, theta ) {
-
-		const sinPhiRadius = Math.sin( phi ) * radius;
-
-		this.x = sinPhiRadius * Math.sin( theta );
-		this.y = Math.cos( phi ) * radius;
-		this.z = sinPhiRadius * Math.cos( theta );
-
-		return this;
-
-	}
-
-	setFromCylindrical( c ) {
-
-		return this.setFromCylindricalCoords( c.radius, c.theta, c.y );
-
-	}
-
-	setFromCylindricalCoords( radius, theta, y ) {
-
-		this.x = radius * Math.sin( theta );
-		this.y = y;
-		this.z = radius * Math.cos( theta );
-
-		return this;
-
-	}
-
-	setFromMatrixPosition( m ) {
-
-		const e = m.elements;
-
-		this.x = e[ 12 ];
-		this.y = e[ 13 ];
-		this.z = e[ 14 ];
-
-		return this;
-
-	}
-
-	setFromMatrixScale( m ) {
-
-		const sx = this.setFromMatrixColumn( m, 0 ).length();
-		const sy = this.setFromMatrixColumn( m, 1 ).length();
-		const sz = this.setFromMatrixColumn( m, 2 ).length();
-
-		this.x = sx;
-		this.y = sy;
-		this.z = sz;
-
-		return this;
-
-	}
-
-	setFromMatrixColumn( m, index ) {
-
-		return this.fromArray( m.elements, index * 4 );
-
-	}
-
-	setFromMatrix3Column( m, index ) {
-
-		return this.fromArray( m.elements, index * 3 );
-
-	}
-
-	setFromEuler( e ) {
-
-		this.x = e._x;
-		this.y = e._y;
-		this.z = e._z;
-
-		return this;
-
-	}
-
-	setFromColor( c ) {
-
-		this.x = c.r;
-		this.y = c.g;
-		this.z = c.b;
-
-		return this;
-
-	}
-
-	equals( v ) {
-
-		return ( ( v.x === this.x ) && ( v.y === this.y ) && ( v.z === this.z ) );
-
-	}
-
-	fromArray( array, offset = 0 ) {
-
-		this.x = array[ offset ];
-		this.y = array[ offset + 1 ];
-		this.z = array[ offset + 2 ];
-
-		return this;
-
-	}
-
-	toArray( array = [], offset = 0 ) {
-
-		array[ offset ] = this.x;
-		array[ offset + 1 ] = this.y;
-		array[ offset + 2 ] = this.z;
-
-		return array;
-
-	}
-
-	fromBufferAttribute( attribute, index ) {
-
-		this.x = attribute.getX( index );
-		this.y = attribute.getY( index );
-		this.z = attribute.getZ( index );
-
-		return this;
-
-	}
-
-	random() {
-
-		this.x = Math.random();
-		this.y = Math.random();
-		this.z = Math.random();
-
-		return this;
-
-	}
-
-	randomDirection() {
-
-		// Derived from https://mathworld.wolfram.com/SpherePointPicking.html
-
-		const u = ( Math.random() - 0.5 ) * 2;
-		const t = Math.random() * Math.PI * 2;
-		const f = Math.sqrt( 1 - u ** 2 );
-
-		this.x = f * Math.cos( t );
-		this.y = f * Math.sin( t );
-		this.z = u;
-
-		return this;
-
-	}
-
-	*[ Symbol.iterator ]() {
-
-		yield this.x;
-		yield this.y;
-		yield this.z;
-
-	}
-
-}
-
-const _vector$2 = /*@__PURE__*/ new Vector3();
-const _quaternion = /*@__PURE__*/ new Quaternion();
-
-class Vector2 {
-
-	constructor( x = 0, y = 0 ) {
-
-		Vector2.prototype.isVector2 = true;
-
-		this.x = x;
-		this.y = y;
-
-	}
-
-	get width() {
-
-		return this.x;
-
-	}
-
-	set width( value ) {
-
-		this.x = value;
-
-	}
-
-	get height() {
-
-		return this.y;
-
-	}
-
-	set height( value ) {
-
-		this.y = value;
-
-	}
-
-	set( x, y ) {
-
-		this.x = x;
-		this.y = y;
-
-		return this;
-
-	}
-
-	setScalar( scalar ) {
-
-		this.x = scalar;
-		this.y = scalar;
-
-		return this;
-
-	}
-
-	setX( x ) {
-
-		this.x = x;
-
-		return this;
-
-	}
-
-	setY( y ) {
-
-		this.y = y;
-
-		return this;
-
-	}
-
-	setComponent( index, value ) {
-
-		switch ( index ) {
-
-			case 0: this.x = value; break;
-			case 1: this.y = value; break;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-		return this;
-
-	}
-
-	getComponent( index ) {
-
-		switch ( index ) {
-
-			case 0: return this.x;
-			case 1: return this.y;
-			default: throw new Error( 'index is out of range: ' + index );
-
-		}
-
-	}
-
-	clone() {
-
-		return new this.constructor( this.x, this.y );
-
-	}
-
-	copy( v ) {
-
-		this.x = v.x;
-		this.y = v.y;
-
-		return this;
-
-	}
-
-	add( v ) {
-
-		this.x += v.x;
-		this.y += v.y;
-
-		return this;
-
-	}
-
-	addScalar( s ) {
-
-		this.x += s;
-		this.y += s;
-
-		return this;
-
-	}
-
-	addVectors( a, b ) {
-
-		this.x = a.x + b.x;
-		this.y = a.y + b.y;
-
-		return this;
-
-	}
-
-	addScaledVector( v, s ) {
-
-		this.x += v.x * s;
-		this.y += v.y * s;
-
-		return this;
-
-	}
-
-	sub( v ) {
-
-		this.x -= v.x;
-		this.y -= v.y;
-
-		return this;
-
-	}
-
-	subScalar( s ) {
-
-		this.x -= s;
-		this.y -= s;
-
-		return this;
-
-	}
-
-	subVectors( a, b ) {
-
-		this.x = a.x - b.x;
-		this.y = a.y - b.y;
-
-		return this;
-
-	}
-
-	multiply( v ) {
-
-		this.x *= v.x;
-		this.y *= v.y;
-
-		return this;
-
-	}
-
-	multiplyScalar( scalar ) {
-
-		this.x *= scalar;
-		this.y *= scalar;
-
-		return this;
-
-	}
-
-	divide( v ) {
-
-		this.x /= v.x;
-		this.y /= v.y;
-
-		return this;
-
-	}
-
-	divideScalar( scalar ) {
-
-		return this.multiplyScalar( 1 / scalar );
-
-	}
-
-	applyMatrix3( m ) {
-
-		const x = this.x, y = this.y;
-		const e = m.elements;
-
-		this.x = e[ 0 ] * x + e[ 3 ] * y + e[ 6 ];
-		this.y = e[ 1 ] * x + e[ 4 ] * y + e[ 7 ];
-
-		return this;
-
-	}
-
-	min( v ) {
-
-		this.x = Math.min( this.x, v.x );
-		this.y = Math.min( this.y, v.y );
-
-		return this;
-
-	}
-
-	max( v ) {
-
-		this.x = Math.max( this.x, v.x );
-		this.y = Math.max( this.y, v.y );
-
-		return this;
-
-	}
-
-	clamp( min, max ) {
-
-		// assumes min < max, componentwise
-
-		this.x = Math.max( min.x, Math.min( max.x, this.x ) );
-		this.y = Math.max( min.y, Math.min( max.y, this.y ) );
-
-		return this;
-
-	}
-
-	clampScalar( minVal, maxVal ) {
-
-		this.x = Math.max( minVal, Math.min( maxVal, this.x ) );
-		this.y = Math.max( minVal, Math.min( maxVal, this.y ) );
-
-		return this;
-
-	}
-
-	clampLength( min, max ) {
-
-		const length = this.length();
-
-		return this.divideScalar( length || 1 ).multiplyScalar( Math.max( min, Math.min( max, length ) ) );
-
-	}
-
-	floor() {
-
-		this.x = Math.floor( this.x );
-		this.y = Math.floor( this.y );
-
-		return this;
-
-	}
-
-	ceil() {
-
-		this.x = Math.ceil( this.x );
-		this.y = Math.ceil( this.y );
-
-		return this;
-
-	}
-
-	round() {
-
-		this.x = Math.round( this.x );
-		this.y = Math.round( this.y );
-
-		return this;
-
-	}
-
-	roundToZero() {
-
-		this.x = Math.trunc( this.x );
-		this.y = Math.trunc( this.y );
-
-		return this;
-
-	}
-
-	negate() {
-
-		this.x = - this.x;
-		this.y = - this.y;
-
-		return this;
-
-	}
-
-	dot( v ) {
-
-		return this.x * v.x + this.y * v.y;
-
-	}
-
-	cross( v ) {
-
-		return this.x * v.y - this.y * v.x;
-
-	}
-
-	lengthSq() {
-
-		return this.x * this.x + this.y * this.y;
-
-	}
-
-	length() {
-
-		return Math.sqrt( this.x * this.x + this.y * this.y );
-
-	}
-
-	manhattanLength() {
-
-		return Math.abs( this.x ) + Math.abs( this.y );
-
-	}
-
-	normalize() {
-
-		return this.divideScalar( this.length() || 1 );
-
-	}
-
-	angle() {
-
-		// computes the angle in radians with respect to the positive x-axis
-
-		const angle = Math.atan2( - this.y, - this.x ) + Math.PI;
-
-		return angle;
-
-	}
-
-	angleTo( v ) {
-
-		const denominator = Math.sqrt( this.lengthSq() * v.lengthSq() );
-
-		if ( denominator === 0 ) return Math.PI / 2;
-
-		const theta = this.dot( v ) / denominator;
-
-		// clamp, to handle numerical problems
-
-		return Math.acos( clamp( theta, - 1, 1 ) );
-
-	}
-
-	distanceTo( v ) {
-
-		return Math.sqrt( this.distanceToSquared( v ) );
-
-	}
-
-	distanceToSquared( v ) {
-
-		const dx = this.x - v.x, dy = this.y - v.y;
-		return dx * dx + dy * dy;
-
-	}
-
-	manhattanDistanceTo( v ) {
-
-		return Math.abs( this.x - v.x ) + Math.abs( this.y - v.y );
-
-	}
-
-	setLength( length ) {
-
-		return this.normalize().multiplyScalar( length );
-
-	}
-
-	lerp( v, alpha ) {
-
-		this.x += ( v.x - this.x ) * alpha;
-		this.y += ( v.y - this.y ) * alpha;
-
-		return this;
-
-	}
-
-	lerpVectors( v1, v2, alpha ) {
-
-		this.x = v1.x + ( v2.x - v1.x ) * alpha;
-		this.y = v1.y + ( v2.y - v1.y ) * alpha;
-
-		return this;
-
-	}
-
-	equals( v ) {
-
-		return ( ( v.x === this.x ) && ( v.y === this.y ) );
-
-	}
-
-	fromArray( array, offset = 0 ) {
-
-		this.x = array[ offset ];
-		this.y = array[ offset + 1 ];
-
-		return this;
-
-	}
-
-	toArray( array = [], offset = 0 ) {
-
-		array[ offset ] = this.x;
-		array[ offset + 1 ] = this.y;
-
-		return array;
-
-	}
-
-	fromBufferAttribute( attribute, index ) {
-
-		this.x = attribute.getX( index );
-		this.y = attribute.getY( index );
-
-		return this;
-
-	}
-
-	rotateAround( center, angle ) {
-
-		const c = Math.cos( angle ), s = Math.sin( angle );
-
-		const x = this.x - center.x;
-		const y = this.y - center.y;
-
-		this.x = x * c - y * s + center.x;
-		this.y = x * s + y * c + center.y;
-
-		return this;
-
-	}
-
-	random() {
-
-		this.x = Math.random();
-		this.y = Math.random();
-
-		return this;
-
-	}
-
-	*[ Symbol.iterator ]() {
-
-		yield this.x;
-		yield this.y;
-
-	}
-
-}
-
-const FloatType = 1015;
-
-const StaticDrawUsage = 35044;
-
-const _vector$1 = /*@__PURE__*/ new Vector3();
-const _vector2 = /*@__PURE__*/ new Vector2();
-
-class BufferAttribute {
-
-	constructor( array, itemSize, normalized = false ) {
-
-		if ( Array.isArray( array ) ) {
-
-			throw new TypeError( 'THREE.BufferAttribute: array should be a Typed Array.' );
-
-		}
-
-		this.isBufferAttribute = true;
-
-		this.name = '';
-
-		this.array = array;
-		this.itemSize = itemSize;
-		this.count = array !== undefined ? array.length / itemSize : 0;
-		this.normalized = normalized;
-
-		this.usage = StaticDrawUsage;
-		this._updateRange = { offset: 0, count: - 1 };
-		this.updateRanges = [];
-		this.gpuType = FloatType;
-
-		this.version = 0;
-
-	}
-
-	onUploadCallback() {}
-
-	set needsUpdate( value ) {
-
-		if ( value === true ) this.version ++;
-
-	}
-
-	get updateRange() {
-
-		console.warn( 'THREE.BufferAttribute: updateRange() is deprecated and will be removed in r169. Use addUpdateRange() instead.' ); // @deprecated, r159
-		return this._updateRange;
-
-	}
-
-	setUsage( value ) {
-
-		this.usage = value;
-
-		return this;
-
-	}
-
-	addUpdateRange( start, count ) {
-
-		this.updateRanges.push( { start, count } );
-
-	}
-
-	clearUpdateRanges() {
-
-		this.updateRanges.length = 0;
-
-	}
-
-	copy( source ) {
-
-		this.name = source.name;
-		this.array = new source.array.constructor( source.array );
-		this.itemSize = source.itemSize;
-		this.count = source.count;
-		this.normalized = source.normalized;
-
-		this.usage = source.usage;
-		this.gpuType = source.gpuType;
-
-		return this;
-
-	}
-
-	copyAt( index1, attribute, index2 ) {
-
-		index1 *= this.itemSize;
-		index2 *= attribute.itemSize;
-
-		for ( let i = 0, l = this.itemSize; i < l; i ++ ) {
-
-			this.array[ index1 + i ] = attribute.array[ index2 + i ];
-
-		}
-
-		return this;
-
-	}
-
-	copyArray( array ) {
-
-		this.array.set( array );
-
-		return this;
-
-	}
-
-	applyMatrix3( m ) {
-
-		if ( this.itemSize === 2 ) {
-
-			for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-				_vector2.fromBufferAttribute( this, i );
-				_vector2.applyMatrix3( m );
-
-				this.setXY( i, _vector2.x, _vector2.y );
-
-			}
-
-		} else if ( this.itemSize === 3 ) {
-
-			for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-				_vector$1.fromBufferAttribute( this, i );
-				_vector$1.applyMatrix3( m );
-
-				this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-			}
-
-		}
-
-		return this;
-
-	}
-
-	applyMatrix4( m ) {
-
-		for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-			_vector$1.fromBufferAttribute( this, i );
-
-			_vector$1.applyMatrix4( m );
-
-			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-		}
-
-		return this;
-
-	}
-
-	applyNormalMatrix( m ) {
-
-		for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-			_vector$1.fromBufferAttribute( this, i );
-
-			_vector$1.applyNormalMatrix( m );
-
-			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-		}
-
-		return this;
-
-	}
-
-	transformDirection( m ) {
-
-		for ( let i = 0, l = this.count; i < l; i ++ ) {
-
-			_vector$1.fromBufferAttribute( this, i );
-
-			_vector$1.transformDirection( m );
-
-			this.setXYZ( i, _vector$1.x, _vector$1.y, _vector$1.z );
-
-		}
-
-		return this;
-
-	}
-
-	set( value, offset = 0 ) {
-
-		// Matching BufferAttribute constructor, do not normalize the array.
-		this.array.set( value, offset );
-
-		return this;
-
-	}
-
-	getComponent( index, component ) {
-
-		let value = this.array[ index * this.itemSize + component ];
-
-		if ( this.normalized ) value = denormalize( value, this.array );
-
-		return value;
-
-	}
-
-	setComponent( index, component, value ) {
-
-		if ( this.normalized ) value = normalize( value, this.array );
-
-		this.array[ index * this.itemSize + component ] = value;
-
-		return this;
-
-	}
-
-	getX( index ) {
-
-		let x = this.array[ index * this.itemSize ];
-
-		if ( this.normalized ) x = denormalize( x, this.array );
-
-		return x;
-
-	}
-
-	setX( index, x ) {
-
-		if ( this.normalized ) x = normalize( x, this.array );
-
-		this.array[ index * this.itemSize ] = x;
-
-		return this;
-
-	}
-
-	getY( index ) {
-
-		let y = this.array[ index * this.itemSize + 1 ];
-
-		if ( this.normalized ) y = denormalize( y, this.array );
-
-		return y;
-
-	}
-
-	setY( index, y ) {
-
-		if ( this.normalized ) y = normalize( y, this.array );
-
-		this.array[ index * this.itemSize + 1 ] = y;
-
-		return this;
-
-	}
-
-	getZ( index ) {
-
-		let z = this.array[ index * this.itemSize + 2 ];
-
-		if ( this.normalized ) z = denormalize( z, this.array );
-
-		return z;
-
-	}
-
-	setZ( index, z ) {
-
-		if ( this.normalized ) z = normalize( z, this.array );
-
-		this.array[ index * this.itemSize + 2 ] = z;
-
-		return this;
-
-	}
-
-	getW( index ) {
-
-		let w = this.array[ index * this.itemSize + 3 ];
-
-		if ( this.normalized ) w = denormalize( w, this.array );
-
-		return w;
-
-	}
-
-	setW( index, w ) {
-
-		if ( this.normalized ) w = normalize( w, this.array );
-
-		this.array[ index * this.itemSize + 3 ] = w;
-
-		return this;
-
-	}
-
-	setXY( index, x, y ) {
-
-		index *= this.itemSize;
-
-		if ( this.normalized ) {
-
-			x = normalize( x, this.array );
-			y = normalize( y, this.array );
-
-		}
-
-		this.array[ index + 0 ] = x;
-		this.array[ index + 1 ] = y;
-
-		return this;
-
-	}
-
-	setXYZ( index, x, y, z ) {
-
-		index *= this.itemSize;
-
-		if ( this.normalized ) {
-
-			x = normalize( x, this.array );
-			y = normalize( y, this.array );
-			z = normalize( z, this.array );
-
-		}
-
-		this.array[ index + 0 ] = x;
-		this.array[ index + 1 ] = y;
-		this.array[ index + 2 ] = z;
-
-		return this;
-
-	}
-
-	setXYZW( index, x, y, z, w ) {
-
-		index *= this.itemSize;
-
-		if ( this.normalized ) {
-
-			x = normalize( x, this.array );
-			y = normalize( y, this.array );
-			z = normalize( z, this.array );
-			w = normalize( w, this.array );
-
-		}
-
-		this.array[ index + 0 ] = x;
-		this.array[ index + 1 ] = y;
-		this.array[ index + 2 ] = z;
-		this.array[ index + 3 ] = w;
-
-		return this;
-
-	}
-
-	onUpload( callback ) {
-
-		this.onUploadCallback = callback;
-
-		return this;
-
-	}
-
-	clone() {
-
-		return new this.constructor( this.array, this.itemSize ).copy( this );
-
-	}
-
-	toJSON() {
-
-		const data = {
-			itemSize: this.itemSize,
-			type: this.array.constructor.name,
-			array: Array.from( this.array ),
-			normalized: this.normalized
-		};
-
-		if ( this.name !== '' ) data.name = this.name;
-		if ( this.usage !== StaticDrawUsage ) data.usage = this.usage;
-
-		return data;
-
-	}
-
-}
-
-class FragmentMesh extends InstancedMesh {
+class FragmentMesh extends THREE$1.InstancedMesh {
     constructor(geometry, material, count, fragment) {
         super(geometry, material, count);
-        this.elementCount = 0;
-        this.exportOptions = {
-            trs: false,
-            onlyVisible: false,
-            truncateDrawRange: true,
-            binary: true,
-            maxTextureSize: 0,
-        };
-        this.exporter = new GLTFExporter();
-        this.material = FragmentMesh.newMaterialArray(material);
-        this.geometry = this.newFragmentGeometry(geometry);
+        if (!Array.isArray(material)) {
+            material = [material];
+        }
+        this.material = material;
+        if (!geometry.index) {
+            throw new Error("The geometry for fragments must be indexed!");
+        }
+        this.geometry = geometry;
         this.fragment = fragment;
+        const size = geometry.index.count;
+        if (!geometry.groups.length) {
+            geometry.groups.push({
+                start: 0,
+                count: size,
+                materialIndex: 0,
+            });
+        }
     }
     exportData() {
         const position = this.geometry.attributes.position.array;
         const normal = this.geometry.attributes.normal.array;
-        const blockID = Array.from(this.geometry.attributes.blockID.array);
         const index = Array.from(this.geometry.index.array);
         const groups = [];
         for (const group of this.geometry.groups) {
@@ -21990,7 +15226,7 @@ class FragmentMesh extends InstancedMesh {
             for (const material of this.material) {
                 const opacity = material.opacity;
                 const transparent = material.transparent ? 1 : 0;
-                const color = new Color(material.color).toArray();
+                const color = new THREE$1.Color(material.color).toArray();
                 materials.push(opacity, transparent, ...color);
             }
         }
@@ -22006,122 +15242,11 @@ class FragmentMesh extends InstancedMesh {
             position,
             normal,
             index,
-            blockID,
             groups,
             materials,
             matrices,
             colors,
         };
-    }
-    export() {
-        const mesh = this;
-        return new Promise((resolve) => {
-            this.exporter.parse(mesh, (geometry) => resolve(geometry), (error) => console.log(error), this.exportOptions);
-        });
-    }
-    newFragmentGeometry(geometry) {
-        if (!geometry.index) {
-            throw new Error("The geometry must be indexed!");
-        }
-        if (!geometry.attributes.blockID) {
-            const vertexSize = geometry.attributes.position.count;
-            const array = new Uint16Array(vertexSize);
-            array.fill(this.elementCount++);
-            geometry.attributes.blockID = new BufferAttribute(array, 1);
-        }
-        const size = geometry.index.count;
-        FragmentMesh.initializeGroups(geometry, size);
-        return geometry;
-    }
-    static initializeGroups(geometry, size) {
-        if (!geometry.groups.length) {
-            geometry.groups.push({
-                start: 0,
-                count: size,
-                materialIndex: 0,
-            });
-        }
-    }
-    static newMaterialArray(material) {
-        if (!Array.isArray(material))
-            material = [material];
-        return material;
-    }
-}
-
-/**
- * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
- * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
- */
-class Blocks {
-    get count() {
-        return this.ids.size;
-    }
-    constructor(fragment) {
-        this.fragment = fragment;
-        this._visibilityInitialized = false;
-        this._originalIndex = new Map();
-        this._idIndexIndexMap = {};
-        const attrs = fragment.mesh.geometry.attributes;
-        const rawIds = attrs.blockID.array;
-        this.ids = new Set(rawIds);
-        this.visibleIds = new Set(this.ids);
-    }
-    setVisibility(visible, itemIDs = new Set(this.fragment.items), isolate = false) {
-        const geometry = this.fragment.mesh.geometry;
-        const index = geometry.index;
-        if (!this._visibilityInitialized) {
-            this.initializeVisibility(index, geometry);
-        }
-        if (isolate) {
-            index.array.fill(0);
-        }
-        for (const id of itemIDs) {
-            const indices = this._idIndexIndexMap[id];
-            if (!indices)
-                continue;
-            for (const i of indices) {
-                const originalIndex = this._originalIndex.get(i);
-                if (originalIndex === undefined)
-                    continue;
-                const blockID = geometry.attributes.blockID.getX(originalIndex);
-                const itemID = this.fragment.items[blockID];
-                if (itemIDs.has(itemID)) {
-                    if (visible) {
-                        this.visibleIds.add(blockID);
-                    }
-                    else {
-                        this.visibleIds.delete(blockID);
-                    }
-                    const newIndex = visible ? originalIndex : 0;
-                    index.setX(i, newIndex);
-                }
-            }
-        }
-        index.needsUpdate = true;
-    }
-    initializeVisibility(index, geometry) {
-        for (let i = 0; i < index.count; i++) {
-            const foundIndex = index.getX(i);
-            this._originalIndex.set(i, foundIndex);
-            const blockID = geometry.attributes.blockID.getX(foundIndex);
-            const itemID = this.fragment.getItemID(0, blockID);
-            if (!this._idIndexIndexMap[itemID]) {
-                this._idIndexIndexMap[itemID] = [];
-            }
-            this._idIndexIndexMap[itemID].push(i);
-        }
-        this._visibilityInitialized = true;
-    }
-    // Use this only for destroying the current Fragment instance
-    dispose() {
-        this._idIndexIndexMap = {};
-        this.ids.clear();
-        this.visibleIds.clear();
-        this._originalIndex.clear();
-        this.ids = null;
-        this.visibleIds = null;
-        this._originalIndex = null;
     }
 }
 
@@ -22277,7 +15402,7 @@ function ensureIndex( geo, options ) {
 
 		}
 
-		geo.setIndex( new BufferAttribute$1( index, 1 ) );
+		geo.setIndex( new BufferAttribute( index, 1 ) );
 
 		for ( let i = 0; i < vertexCount; i ++ ) {
 
@@ -23182,7 +16307,7 @@ class SeparatingAxisBounds {
 
 SeparatingAxisBounds.prototype.setFromBox = ( function () {
 
-	const p = new Vector3$1();
+	const p = new Vector3();
 	return function setFromBox( axis, box ) {
 
 		const boxMin = box.min;
@@ -23219,9 +16344,9 @@ SeparatingAxisBounds.prototype.setFromBox = ( function () {
 const closestPointLineToLine = ( function () {
 
 	// https://github.com/juj/MathGeoLib/blob/master/src/Geometry/Line.cpp#L56
-	const dir1 = new Vector3$1();
-	const dir2 = new Vector3$1();
-	const v02 = new Vector3$1();
+	const dir1 = new Vector3();
+	const dir2 = new Vector3();
+	const v02 = new Vector3();
 	return function closestPointLineToLine( l1, l2, result ) {
 
 		const v0 = l1.start;
@@ -23274,9 +16399,9 @@ const closestPointLineToLine = ( function () {
 const closestPointsSegmentToSegment = ( function () {
 
 	// https://github.com/juj/MathGeoLib/blob/master/src/Geometry/LineSegment.cpp#L187
-	const paramResult = new Vector2$1();
-	const temp1 = new Vector3$1();
-	const temp2 = new Vector3$1();
+	const paramResult = new Vector2();
+	const temp1 = new Vector3();
+	const temp2 = new Vector3();
 	return function closestPointsSegmentToSegment( l1, l2, target1, target2 ) {
 
 		closestPointLineToLine( l1, l2, paramResult );
@@ -23376,8 +16501,8 @@ const closestPointsSegmentToSegment = ( function () {
 const sphereIntersectTriangle = ( function () {
 
 	// https://stackoverflow.com/questions/34043955/detect-collision-between-sphere-and-triangle-in-three-js
-	const closestPointTemp = new Vector3$1();
-	const projectedPointTemp = new Vector3$1();
+	const closestPointTemp = new Vector3();
+	const projectedPointTemp = new Vector3();
 	const planeTemp = new Plane();
 	const lineTemp = new Line3();
 	return function sphereIntersectTriangle( sphere, triangle ) {
@@ -23432,7 +16557,7 @@ class ExtendedTriangle extends Triangle {
 		super( ...args );
 
 		this.isExtendedTriangle = true;
-		this.satAxes = new Array( 4 ).fill().map( () => new Vector3$1() );
+		this.satAxes = new Array( 4 ).fill().map( () => new Vector3() );
 		this.satBounds = new Array( 4 ).fill().map( () => new SeparatingAxisBounds() );
 		this.points = [ this.a, this.b, this.c ];
 		this.sphere = new Sphere();
@@ -23487,8 +16612,8 @@ class ExtendedTriangle extends Triangle {
 
 ExtendedTriangle.prototype.closestPointToSegment = ( function () {
 
-	const point1 = new Vector3$1();
-	const point2 = new Vector3$1();
+	const point1 = new Vector3();
+	const point2 = new Vector3();
 	const edge = new Line3();
 
 	return function distanceToSegment( segment, target1 = null, target2 = null ) {
@@ -23552,10 +16677,10 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 	const arr2 = new Array( 3 );
 	const cachedSatBounds = new SeparatingAxisBounds();
 	const cachedSatBounds2 = new SeparatingAxisBounds();
-	const cachedAxis = new Vector3$1();
-	const dir1 = new Vector3$1();
-	const dir2 = new Vector3$1();
-	const tempDir = new Vector3$1();
+	const cachedAxis = new Vector3();
+	const dir1 = new Vector3();
+	const dir2 = new Vector3();
+	const tempDir = new Vector3();
 	const edge = new Line3();
 	const edge1 = new Line3();
 	const edge2 = new Line3();
@@ -23830,7 +16955,7 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 
 ExtendedTriangle.prototype.distanceToPoint = ( function () {
 
-	const target = new Vector3$1();
+	const target = new Vector3();
 	return function distanceToPoint( point ) {
 
 		this.closestPointToPoint( point, target );
@@ -23843,8 +16968,8 @@ ExtendedTriangle.prototype.distanceToPoint = ( function () {
 
 ExtendedTriangle.prototype.distanceToTriangle = ( function () {
 
-	const point = new Vector3$1();
-	const point2 = new Vector3$1();
+	const point = new Vector3();
+	const point2 = new Vector3();
 	const cornerFields = [ 'a', 'b', 'c' ];
 	const line1 = new Line3();
 	const line2 = new Line3();
@@ -23938,12 +17063,12 @@ class OrientedBox {
 	constructor( min, max, matrix ) {
 
 		this.isOrientedBox = true;
-		this.min = new Vector3$1();
-		this.max = new Vector3$1();
+		this.min = new Vector3();
+		this.max = new Vector3();
 		this.matrix = new Matrix4();
 		this.invMatrix = new Matrix4();
-		this.points = new Array( 8 ).fill().map( () => new Vector3$1() );
-		this.satAxes = new Array( 3 ).fill().map( () => new Vector3$1() );
+		this.points = new Array( 8 ).fill().map( () => new Vector3() );
+		this.satAxes = new Array( 3 ).fill().map( () => new Vector3() );
 		this.satBounds = new Array( 3 ).fill().map( () => new SeparatingAxisBounds() );
 		this.alignedSatBounds = new Array( 3 ).fill().map( () => new SeparatingAxisBounds() );
 		this.needsUpdate = false;
@@ -24081,7 +17206,7 @@ OrientedBox.prototype.intersectsTriangle = ( function () {
 	const pointsArr = new Array( 3 );
 	const cachedSatBounds = new SeparatingAxisBounds();
 	const cachedSatBounds2 = new SeparatingAxisBounds();
-	const cachedAxis = new Vector3$1();
+	const cachedAxis = new Vector3();
 	return function intersectsTriangle( triangle ) {
 
 		if ( this.needsUpdate ) {
@@ -24176,7 +17301,7 @@ OrientedBox.prototype.closestPointToPoint = ( function () {
 
 OrientedBox.prototype.distanceToPoint = ( function () {
 
-	const target = new Vector3$1();
+	const target = new Vector3();
 	return function distanceToPoint( point ) {
 
 		this.closestPointToPoint( point, target );
@@ -24192,8 +17317,8 @@ OrientedBox.prototype.distanceToBox = ( function () {
 	const segments1 = new Array( 12 ).fill().map( () => new Line3() );
 	const segments2 = new Array( 12 ).fill().map( () => new Line3() );
 
-	const point1 = new Vector3$1();
-	const point2 = new Vector3$1();
+	const point1 = new Vector3();
+	const point2 = new Vector3();
 
 	// early out if we find a value below threshold
 	return function distanceToBox( box, threshold = 0, target1 = null, target2 = null ) {
@@ -24352,19 +17477,19 @@ OrientedBox.prototype.distanceToBox = ( function () {
 
 // Ripped and modified From THREE.js Mesh raycast
 // https://github.com/mrdoob/three.js/blob/0aa87c999fe61e216c1133fba7a95772b503eddf/src/objects/Mesh.js#L115
-const _vA = /* @__PURE__ */ new Vector3$1();
-const _vB = /* @__PURE__ */ new Vector3$1();
-const _vC = /* @__PURE__ */ new Vector3$1();
+const _vA = /* @__PURE__ */ new Vector3();
+const _vB = /* @__PURE__ */ new Vector3();
+const _vC = /* @__PURE__ */ new Vector3();
 
-const _uvA = /* @__PURE__ */ new Vector2$1();
-const _uvB = /* @__PURE__ */ new Vector2$1();
-const _uvC = /* @__PURE__ */ new Vector2$1();
+const _uvA = /* @__PURE__ */ new Vector2();
+const _uvB = /* @__PURE__ */ new Vector2();
+const _uvC = /* @__PURE__ */ new Vector2();
 
-const _normalA = /* @__PURE__ */ new Vector3$1();
-const _normalB = /* @__PURE__ */ new Vector3$1();
-const _normalC = /* @__PURE__ */ new Vector3$1();
+const _normalA = /* @__PURE__ */ new Vector3();
+const _normalB = /* @__PURE__ */ new Vector3();
+const _normalC = /* @__PURE__ */ new Vector3();
 
-const _intersectionPoint = /* @__PURE__ */ new Vector3$1();
+const _intersectionPoint = /* @__PURE__ */ new Vector3();
 function checkIntersection( ray, pA, pB, pC, point, side ) {
 
 	let intersect;
@@ -24407,7 +17532,7 @@ function checkBufferGeometryIntersection( ray, position, normal, uv, uv1, a, b, 
 			_uvB.fromBufferAttribute( uv, b );
 			_uvC.fromBufferAttribute( uv, c );
 
-			intersection.uv = Triangle.getInterpolation( _intersectionPoint, _vA, _vB, _vC, _uvA, _uvB, _uvC, new Vector2$1() );
+			intersection.uv = Triangle.getInterpolation( _intersectionPoint, _vA, _vB, _vC, _uvA, _uvB, _uvC, new Vector2() );
 
 		}
 
@@ -24417,7 +17542,7 @@ function checkBufferGeometryIntersection( ray, position, normal, uv, uv1, a, b, 
 			_uvB.fromBufferAttribute( uv1, b );
 			_uvC.fromBufferAttribute( uv1, c );
 
-			intersection.uv1 = Triangle.getInterpolation( _intersectionPoint, _vA, _vB, _vC, _uvA, _uvB, _uvC, new Vector2$1() );
+			intersection.uv1 = Triangle.getInterpolation( _intersectionPoint, _vA, _vB, _vC, _uvA, _uvB, _uvC, new Vector2() );
 
 		}
 
@@ -24427,7 +17552,7 @@ function checkBufferGeometryIntersection( ray, position, normal, uv, uv1, a, b, 
 			_normalB.fromBufferAttribute( normal, b );
 			_normalC.fromBufferAttribute( normal, c );
 
-			intersection.normal = Triangle.getInterpolation( _intersectionPoint, _vA, _vB, _vC, _normalA, _normalB, _normalC, new Vector3$1() );
+			intersection.normal = Triangle.getInterpolation( _intersectionPoint, _vA, _vB, _vC, _normalA, _normalB, _normalC, new Vector3() );
 			if ( intersection.normal.dot( ray.direction ) > 0 ) {
 
 				intersection.normal.multiplyScalar( - 1 );
@@ -24440,7 +17565,7 @@ function checkBufferGeometryIntersection( ray, position, normal, uv, uv1, a, b, 
 			a: a,
 			b: b,
 			c: c,
-			normal: new Vector3$1(),
+			normal: new Vector3(),
 			materialIndex: 0
 		};
 
@@ -24670,7 +17795,7 @@ function BOUNDING_DATA_INDEX( n32 ) {
 }
 
 const boundingBox = new Box3();
-const boxIntersection = new Vector3$1();
+const boxIntersection = new Vector3();
 const xyzFields = [ 'x', 'y', 'z' ];
 
 function raycast( nodeIndex32, geometry, side, ray, intersects ) {
@@ -25171,11 +18296,11 @@ const aabb2 = /* @__PURE__ */ new Box3();
 const tempMatrix = /* @__PURE__ */ new Matrix4();
 const obb = /* @__PURE__ */ new OrientedBox();
 const obb2 = /* @__PURE__ */ new OrientedBox();
-const temp = /* @__PURE__ */ new Vector3$1();
-const temp1 = /* @__PURE__ */ new Vector3$1();
-const temp2 = /* @__PURE__ */ new Vector3$1();
-const temp3 = /* @__PURE__ */ new Vector3$1();
-const temp4 = /* @__PURE__ */ new Vector3$1();
+const temp = /* @__PURE__ */ new Vector3();
+const temp1 = /* @__PURE__ */ new Vector3();
+const temp2 = /* @__PURE__ */ new Vector3();
+const temp3 = /* @__PURE__ */ new Vector3();
+const temp4 = /* @__PURE__ */ new Vector3();
 const tempBox = /* @__PURE__ */ new Box3();
 const trianglePool = /* @__PURE__ */ new PrimitivePool( () => new ExtendedTriangle() );
 
@@ -25255,7 +18380,7 @@ class MeshBVH {
 			const indexAttribute = geometry.getIndex();
 			if ( indexAttribute === null ) {
 
-				const newIndex = new BufferAttribute$1( data.index, 1, false );
+				const newIndex = new BufferAttribute( data.index, 1, false );
 				geometry.setIndex( newIndex );
 
 			} else if ( indexAttribute.array !== index ) {
@@ -26233,61 +19358,37 @@ class BVH {
 BVH.initialized = false;
 
 /*
- * Fragments can contain one or multiple Instances of one or multiple Blocks
- * Each Instance is identified by an instanceID (property of THREE.InstancedMesh)
- * Each Block identified by a blockID (custom bufferAttribute per vertex)
- * Both instanceId and blockId are unsigned integers starting at 0 and going up sequentially
- * A specific Block of a specific Instance is an Item, identified by an itemID
+ * Fragments are just a simple wrapper around THREE.InstancedMesh.
+ * Each fragments can contain Items (identified by ItemID) which
+ * are mapped to one or many instances inside this THREE.InstancedMesh.
  *
- * For example:
- * Imagine a fragment mesh with 8 instances and 2 elements (16 items, identified from A to P)
- * It will have instanceIds from 0 to 8, and blockIds from 0 to 2
- * If we raycast it, we will get an instanceId and the index of the found triangle
- * We can use the index to get the blockId for that triangle
- * Combining instanceId and blockId using the elementMap will give us the itemId
- * The items will look like this:
- *
- *    [ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P ]
- *
- *  Where the criteria to sort the items is the following (Y-axis is instance, X-axis is block):
- *
- *        A  C  E  G  I  K  M  O
- *        B  D  F  H  J  L  N  P
+ * Fragments also implement features like instance buffer resizing and
+ * hiding out of the box.
  * */
 let Fragment$1 = class Fragment {
-    get ids() {
-        const ids = new Set();
-        for (const id of this.items) {
-            ids.add(id);
-        }
-        for (const id in this.hiddenInstances) {
-            ids.add(id);
-        }
-        return ids;
-    }
     constructor(geometry, material, count) {
+        this.ids = new Set();
+        this.itemToInstances = new Map();
+        this.instanceToItem = new Map();
+        this.hiddenItems = new Set();
+        this.capacity = 0;
+        this.capacityOffset = 10;
         this.fragments = {};
-        this.items = [];
-        this.hiddenInstances = {};
-        // When multiple instances represent the same object
-        // this allows to create a composite ID for each instance
-        // E.g. all the steps in a stair are a single thing
-        // so if the ID of the stair is asdf, then each step could be
-        // asdf.1, asdf.2, asdf.3, etc
-        // the value is the number of instances
-        this.composites = {};
+        this._settingVisibility = false;
         this.mesh = new FragmentMesh(geometry, material, count, this);
         this.id = this.mesh.uuid;
         this.capacity = count;
-        this.blocks = new Blocks(this);
+        this.mesh.count = 0;
         BVH.apply(geometry);
     }
     dispose(disposeResources = true) {
-        this.items = null;
+        this.clear();
         this.group = undefined;
         if (this.mesh) {
             if (disposeResources) {
-                this.mesh.material.forEach((mat) => mat.dispose());
+                for (const mat of this.mesh.material) {
+                    mat.dispose();
+                }
                 this.mesh.material = [];
                 BVH.dispose(this.mesh.geometry);
                 this.mesh.geometry.dispose();
@@ -26298,71 +19399,121 @@ let Fragment$1 = class Fragment {
             this.mesh.fragment = null;
             this.mesh = null;
         }
-        this.disposeNestedFragments();
+        for (const key in this.fragments) {
+            const frag = this.fragments[key];
+            frag.dispose(disposeResources);
+        }
+        this.fragments = {};
     }
-    getItemID(instanceID, blockID) {
-        const index = this.getItemIndex(instanceID, blockID);
-        return this.items[index];
+    get(itemID) {
+        const instanceIDs = this.getInstancesIDs(itemID);
+        if (!instanceIDs) {
+            throw new Error("Item not found!");
+        }
+        const transforms = [];
+        const colorsArray = [];
+        for (const id of instanceIDs) {
+            const matrix = new THREE$1.Matrix4();
+            this.mesh.getMatrixAt(id, matrix);
+            transforms.push(matrix);
+            if (this.mesh.instanceColor) {
+                const color = new THREE$1.Color();
+                this.mesh.getColorAt(id, color);
+            }
+        }
+        const colors = colorsArray.length ? colorsArray : undefined;
+        return { id: itemID, transforms, colors };
     }
-    getInstanceAndBlockID(itemID) {
-        const index = this.items.indexOf(itemID);
-        const instanceID = this.getInstanceIDFromIndex(index);
-        const blockID = index % this.blocks.count;
-        return { instanceID, blockID };
+    getItemID(instanceID) {
+        return this.instanceToItem.get(instanceID) || null;
     }
-    getVertexBlockID(geometry, index) {
-        const blocks = geometry.attributes.blockID;
-        return blocks.array[index];
+    getInstancesIDs(itemID) {
+        return this.itemToInstances.get(itemID) || null;
     }
-    getItemData(itemID) {
-        const index = this.items.indexOf(itemID);
-        const instanceID = Math.ceil(index / this.blocks.count);
-        const blockID = index % this.blocks.count;
-        return { instanceID, blockID };
-    }
-    getInstance(instanceID, matrix) {
-        return this.mesh.getMatrixAt(instanceID, matrix);
-    }
-    setInstance(instanceID, items) {
-        this.checkIfInstanceExist(instanceID);
-        this.mesh.setMatrixAt(instanceID, items.transform);
-        this.mesh.instanceMatrix.needsUpdate = true;
-        if (items.color && this.mesh.instanceColor) {
-            this.mesh.setColorAt(instanceID, items.color);
+    update() {
+        if (this.mesh.instanceColor) {
             this.mesh.instanceColor.needsUpdate = true;
         }
-        if (items.ids) {
-            this.saveItemsInMap(items.ids, instanceID);
-        }
-    }
-    addInstances(items) {
-        this.resizeCapacityIfNeeded(items.length);
-        const start = this.mesh.count;
-        this.mesh.count += items.length;
-        for (let i = 0; i < items.length; i++) {
-            this.setInstance(start + i, items[i]);
-        }
-    }
-    removeInstances(itemsIDs) {
-        if (this.mesh.count <= 1) {
-            this.clear();
-            return;
-        }
-        this.deleteAndRearrangeInstances(itemsIDs);
-        this.mesh.count -= itemsIDs.length;
         this.mesh.instanceMatrix.needsUpdate = true;
     }
+    add(items) {
+        var _a;
+        let size = 0;
+        for (const item of items) {
+            size += item.transforms.length;
+        }
+        const necessaryCapacity = this.mesh.count + size;
+        if (necessaryCapacity > this.capacity) {
+            const newMesh = new FragmentMesh(this.mesh.geometry, this.mesh.material, necessaryCapacity + this.capacityOffset, this);
+            newMesh.count = this.mesh.count;
+            this.capacity = size;
+            const oldMesh = this.mesh;
+            (_a = oldMesh.parent) === null || _a === void 0 ? void 0 : _a.add(newMesh);
+            oldMesh.removeFromParent();
+            this.mesh = newMesh;
+            oldMesh.dispose();
+        }
+        for (let i = 0; i < items.length; i++) {
+            const { transforms, colors, id } = items[i];
+            const instances = new Set();
+            this.ids.add(id);
+            for (let j = 0; j < transforms.length; j++) {
+                const transform = transforms[j];
+                const newInstanceID = this.mesh.count;
+                this.mesh.setMatrixAt(newInstanceID, transform);
+                if (colors) {
+                    const color = colors[j];
+                    this.mesh.setColorAt(newInstanceID, color);
+                }
+                instances.add(newInstanceID);
+                this.instanceToItem.set(newInstanceID, id);
+                this.mesh.count++;
+            }
+            this.itemToInstances.set(id, instances);
+        }
+        this.update();
+    }
+    remove(itemsIDs) {
+        if (this.mesh.count === 0) {
+            return;
+        }
+        for (const itemID of itemsIDs) {
+            const instancesToDelete = this.itemToInstances.get(itemID);
+            if (instancesToDelete === undefined) {
+                throw new Error("Instances not found!");
+            }
+            for (const instanceID of instancesToDelete) {
+                if (this.mesh.count === 0)
+                    throw new Error("Errow with mesh count!");
+                this.putLast(instanceID);
+                this.instanceToItem.delete(instanceID);
+                this.mesh.count--;
+            }
+            this.itemToInstances.delete(itemID);
+            this.ids.delete(itemID);
+        }
+        this.update();
+    }
     clear() {
-        this.mesh.clear();
+        this.hiddenItems.clear();
+        this.ids.clear();
+        this.instanceToItem.clear();
+        this.itemToInstances.clear();
         this.mesh.count = 0;
-        this.items = [];
     }
     addFragment(id, material = this.mesh.material) {
-        const newGeometry = this.initializeGeometry();
-        if (material === this.mesh.material) {
-            this.copyGroups(newGeometry);
-        }
+        const newGeometry = new THREE$1.BufferGeometry();
+        const attrs = this.mesh.geometry.attributes;
+        newGeometry.setAttribute("position", attrs.position);
+        newGeometry.setAttribute("normal", attrs.normal);
+        newGeometry.setIndex(Array.from(this.mesh.geometry.index.array));
         const newFragment = new Fragment(newGeometry, material, this.capacity);
+        const items = [];
+        for (const id of this.ids) {
+            const item = this.get(id);
+            items.push(item);
+        }
+        newFragment.add(items);
         newFragment.mesh.applyMatrix4(this.mesh.matrix);
         newFragment.mesh.updateMatrix();
         this.fragments[id] = newFragment;
@@ -26375,187 +19526,104 @@ let Fragment$1 = class Fragment {
             delete this.fragments[id];
         }
     }
-    resetVisibility() {
-        if (this.blocks.count > 1) {
-            this.blocks.setVisibility(true);
-        }
-        else {
-            const hiddenInstances = Object.keys(this.hiddenInstances);
-            this.makeInstancesVisible(hiddenInstances);
-            this.hiddenInstances = {};
-        }
-    }
     setVisibility(visible, itemIDs = this.ids) {
-        if (this.blocks.count > 1) {
-            this.blocks.setVisibility(visible, itemIDs);
+        if (this._settingVisibility)
+            return;
+        this._settingVisibility = true;
+        if (visible) {
+            for (const itemID of itemIDs) {
+                if (!this.hiddenItems.has(itemID)) {
+                    continue;
+                }
+                const instances = this.itemToInstances.get(itemID);
+                if (!instances)
+                    throw new Error("Instances not found!");
+                for (const instance of new Set(instances)) {
+                    this.mesh.count++;
+                    this.putLast(instance);
+                }
+                this.hiddenItems.delete(itemID);
+            }
         }
         else {
-            this.toggleInstanceVisibility(visible, itemIDs);
+            for (const itemID of itemIDs) {
+                if (this.hiddenItems.has(itemID)) {
+                    continue;
+                }
+                const instances = this.itemToInstances.get(itemID);
+                if (!instances)
+                    throw new Error("Instances not found!");
+                for (const instance of new Set(instances)) {
+                    this.putLast(instance);
+                    this.mesh.count--;
+                }
+                this.hiddenItems.add(itemID);
+            }
         }
+        this.update();
+        this._settingVisibility = false;
     }
-    resize(size) {
-        var _a;
-        const newMesh = this.createFragmentMeshWithNewSize(size);
-        this.capacity = size;
-        const oldMesh = this.mesh;
-        (_a = oldMesh.parent) === null || _a === void 0 ? void 0 : _a.add(newMesh);
-        oldMesh.removeFromParent();
-        this.mesh = newMesh;
-        oldMesh.dispose();
+    applyTransform(itemIDs, transform) {
+        const tempMatrix = new THREE$1.Matrix4();
+        for (const itemID of itemIDs) {
+            const instances = this.getInstancesIDs(itemID);
+            if (instances === null) {
+                continue;
+            }
+            for (const instanceID of instances) {
+                this.mesh.getMatrixAt(instanceID, tempMatrix);
+                tempMatrix.premultiply(transform);
+                this.mesh.setMatrixAt(instanceID, tempMatrix);
+            }
+        }
+        this.update();
     }
     exportData() {
         const geometry = this.mesh.exportData();
-        const ids = this.items.join("|");
+        const ids = Array.from(this.ids);
         const id = this.id;
         return { ...geometry, ids, id };
     }
-    copyGroups(newGeometry) {
-        newGeometry.groups = [];
-        for (const group of this.mesh.geometry.groups) {
-            newGeometry.groups.push({ ...group });
+    putLast(instanceID) {
+        if (this.mesh.count === 0)
+            return;
+        const id1 = this.instanceToItem.get(instanceID);
+        const instanceID2 = this.mesh.count - 1;
+        if (instanceID2 === instanceID) {
+            return;
         }
-    }
-    initializeGeometry() {
-        const newGeometry = new THREE$1.BufferGeometry();
-        newGeometry.setAttribute("position", this.mesh.geometry.attributes.position);
-        newGeometry.setAttribute("normal", this.mesh.geometry.attributes.normal);
-        newGeometry.setAttribute("blockID", this.mesh.geometry.attributes.blockID);
-        newGeometry.setIndex(Array.from(this.mesh.geometry.index.array));
-        return newGeometry;
-    }
-    saveItemsInMap(ids, instanceId) {
-        this.checkBlockNumberValid(ids);
-        let counter = 0;
-        for (const id of ids) {
-            const index = this.getItemIndex(instanceId, counter);
-            this.items[index] = id;
-            counter++;
+        const id2 = this.instanceToItem.get(instanceID2);
+        if (id1 === undefined || id2 === undefined) {
+            throw new Error("Keys not found");
         }
-    }
-    resizeCapacityIfNeeded(newSize) {
-        const necessaryCapacity = newSize + this.mesh.count;
-        if (necessaryCapacity > this.capacity) {
-            this.resize(necessaryCapacity);
+        const instances1 = this.itemToInstances.get(id1);
+        const instances2 = this.itemToInstances.get(id2);
+        if (!instances1 || !instances2) {
+            throw new Error("Instances not found");
         }
-    }
-    createFragmentMeshWithNewSize(capacity) {
-        const newMesh = new FragmentMesh(this.mesh.geometry, this.mesh.material, capacity, this);
-        newMesh.count = this.mesh.count;
-        return newMesh;
-    }
-    disposeNestedFragments() {
-        const fragments = Object.values(this.fragments);
-        for (let i = 0; i < fragments.length; i++) {
-            fragments[i].dispose();
+        if (!instances1.has(instanceID) || !instances2.has(instanceID2)) {
+            throw new Error("Malformed fragment structure");
         }
-        this.fragments = {};
-    }
-    checkBlockNumberValid(ids) {
-        if (ids.length > this.blocks.count) {
-            throw new Error(`You passed more items (${ids.length}) than blocks in this instance (${this.blocks.count})`);
+        instances1.delete(instanceID);
+        instances2.delete(instanceID2);
+        instances1.add(instanceID2);
+        instances2.add(instanceID);
+        this.instanceToItem.set(instanceID, id2);
+        this.instanceToItem.set(instanceID2, id1);
+        const transform1 = new THREE$1.Matrix4();
+        const transform2 = new THREE$1.Matrix4();
+        this.mesh.getMatrixAt(instanceID, transform1);
+        this.mesh.getMatrixAt(instanceID2, transform2);
+        this.mesh.setMatrixAt(instanceID, transform2);
+        this.mesh.setMatrixAt(instanceID2, transform1);
+        if (this.mesh.instanceColor !== null) {
+            const color1 = new THREE$1.Color();
+            const color2 = new THREE$1.Color();
+            this.mesh.getColorAt(instanceID, color1);
+            this.mesh.getColorAt(instanceID2, color2);
+            this.mesh.setColorAt(instanceID, color2);
+            this.mesh.setColorAt(instanceID2, color1);
         }
-    }
-    checkIfInstanceExist(index) {
-        if (index > this.mesh.count) {
-            throw new Error(`The given index (${index}) exceeds the instances in this fragment (${this.mesh.count})`);
-        }
-    }
-    // Assigns the index of the removed instance to the last instance
-    // F.e. let there be 6 instances: (A) (B) (C) (D) (E) (F)
-    // If instance (C) is removed: -> (A) (B) (F) (D) (E)
-    deleteAndRearrangeInstances(ids) {
-        const deletedItems = [];
-        for (const id of ids) {
-            const deleted = this.deleteAndRearrange(id);
-            if (deleted) {
-                deletedItems.push(deleted);
-            }
-        }
-        for (const id of ids) {
-            delete this.hiddenInstances[id];
-        }
-        return deletedItems;
-    }
-    deleteAndRearrange(id) {
-        const index = this.items.indexOf(id);
-        if (index === -1)
-            return null;
-        this.mesh.count--;
-        const isLastElement = index === this.mesh.count;
-        const instanceId = this.getInstanceIDFromIndex(index);
-        const tempMatrix = new THREE$1.Matrix4();
-        const tempColor = new THREE$1.Color();
-        const transform = new THREE$1.Matrix4();
-        this.mesh.getMatrixAt(instanceId, transform);
-        const result = { ids: [id], transform };
-        if (this.mesh.instanceColor) {
-            const color = new THREE$1.Color();
-            this.mesh.getColorAt(instanceId, color);
-            result.color = color;
-        }
-        if (isLastElement) {
-            this.items.pop();
-            return result;
-        }
-        const lastElement = this.mesh.count;
-        this.items[index] = this.items[lastElement];
-        this.items.pop();
-        this.mesh.getMatrixAt(lastElement, tempMatrix);
-        this.mesh.setMatrixAt(instanceId, tempMatrix);
-        this.mesh.instanceMatrix.needsUpdate = true;
-        if (this.mesh.instanceColor) {
-            this.mesh.getColorAt(lastElement, tempColor);
-            this.mesh.setColorAt(instanceId, tempColor);
-            this.mesh.instanceColor.needsUpdate = true;
-        }
-        return result;
-    }
-    getItemIndex(instanceId, blockId) {
-        return instanceId * this.blocks.count + blockId;
-    }
-    getInstanceIDFromIndex(itemIndex) {
-        return Math.trunc(itemIndex / this.blocks.count);
-    }
-    toggleInstanceVisibility(visible, itemIDs) {
-        if (visible) {
-            this.makeInstancesVisible(itemIDs);
-        }
-        else {
-            this.makeInstancesInvisible(itemIDs);
-        }
-    }
-    makeInstancesInvisible(itemIDs) {
-        itemIDs = this.filterHiddenItems(itemIDs, false);
-        const deletedItems = this.deleteAndRearrangeInstances(itemIDs);
-        for (const item of deletedItems) {
-            if (item.ids) {
-                this.hiddenInstances[item.ids[0]] = item;
-            }
-        }
-    }
-    makeInstancesVisible(itemIDs) {
-        const items = [];
-        itemIDs = this.filterHiddenItems(itemIDs, true);
-        for (const id of itemIDs) {
-            const found = this.hiddenInstances[id];
-            if (found !== undefined) {
-                items.push(found);
-                delete this.hiddenInstances[id];
-            }
-        }
-        this.addInstances(items);
-    }
-    filterHiddenItems(itemIDs, hidden) {
-        const hiddenItems = Object.keys(this.hiddenInstances);
-        const result = [];
-        for (const id of itemIDs) {
-            const isHidden = hidden && hiddenItems.includes(id);
-            const isNotHidden = !hidden && !hiddenItems.includes(id);
-            if (isHidden || isNotHidden) {
-                result.push(id);
-            }
-        }
-        return result;
     }
 };
 
@@ -27540,7 +20608,7 @@ class Fragment {
     }
     index(index) {
         const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     indexLength() {
         const offset = this.bb.__offset(this.bb_pos, 8);
@@ -27548,82 +20616,94 @@ class Fragment {
     }
     indexArray() {
         const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    blockId(index) {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    blockIdLength() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    blockIdArray() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     groups(index) {
-        const offset = this.bb.__offset(this.bb_pos, 12);
+        const offset = this.bb.__offset(this.bb_pos, 10);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     groupsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
+        const offset = this.bb.__offset(this.bb_pos, 10);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     groupsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 12);
+        const offset = this.bb.__offset(this.bb_pos, 10);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     materials(index) {
-        const offset = this.bb.__offset(this.bb_pos, 14);
+        const offset = this.bb.__offset(this.bb_pos, 12);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     materialsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
+        const offset = this.bb.__offset(this.bb_pos, 12);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     materialsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 14);
+        const offset = this.bb.__offset(this.bb_pos, 12);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     matrices(index) {
-        const offset = this.bb.__offset(this.bb_pos, 16);
+        const offset = this.bb.__offset(this.bb_pos, 14);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     matricesLength() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
+        const offset = this.bb.__offset(this.bb_pos, 14);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     matricesArray() {
-        const offset = this.bb.__offset(this.bb_pos, 16);
+        const offset = this.bb.__offset(this.bb_pos, 14);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     colors(index) {
-        const offset = this.bb.__offset(this.bb_pos, 18);
+        const offset = this.bb.__offset(this.bb_pos, 16);
         return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
     colorsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
+        const offset = this.bb.__offset(this.bb_pos, 16);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
     colorsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 18);
+        const offset = this.bb.__offset(this.bb_pos, 16);
         return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
-    ids(optionalEncoding) {
+    itemsSize(index) {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    itemsSizeLength() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    itemsSizeArray() {
+        const offset = this.bb.__offset(this.bb_pos, 18);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    ids(index) {
         const offset = this.bb.__offset(this.bb_pos, 20);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+        return offset ? this.bb.readUint32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    idsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 20);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    idsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 20);
+        return offset ? new Uint32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     id(optionalEncoding) {
         const offset = this.bb.__offset(this.bb_pos, 22);
         return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
     }
-    composites(optionalEncoding) {
+    capacity() {
         const offset = this.bb.__offset(this.bb_pos, 24);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+        return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
+    }
+    capacityOffset() {
+        const offset = this.bb.__offset(this.bb_pos, 26);
+        return offset ? this.bb.readUint32(this.bb_pos + offset) : 0;
     }
     static startFragment(builder) {
-        builder.startObject(11);
+        builder.startObject(12);
     }
     static addPosition(builder, positionOffset) {
         builder.addFieldOffset(0, positionOffset, 0);
@@ -27664,21 +20744,8 @@ class Fragment {
     static startIndexVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
-    static addBlockId(builder, blockIdOffset) {
-        builder.addFieldOffset(3, blockIdOffset, 0);
-    }
-    static createBlockIdVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startBlockIdVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
     static addGroups(builder, groupsOffset) {
-        builder.addFieldOffset(4, groupsOffset, 0);
+        builder.addFieldOffset(3, groupsOffset, 0);
     }
     static createGroupsVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -27691,7 +20758,7 @@ class Fragment {
         builder.startVector(4, numElems, 4);
     }
     static addMaterials(builder, materialsOffset) {
-        builder.addFieldOffset(5, materialsOffset, 0);
+        builder.addFieldOffset(4, materialsOffset, 0);
     }
     static createMaterialsVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -27704,7 +20771,7 @@ class Fragment {
         builder.startVector(4, numElems, 4);
     }
     static addMatrices(builder, matricesOffset) {
-        builder.addFieldOffset(6, matricesOffset, 0);
+        builder.addFieldOffset(5, matricesOffset, 0);
     }
     static createMatricesVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -27717,7 +20784,7 @@ class Fragment {
         builder.startVector(4, numElems, 4);
     }
     static addColors(builder, colorsOffset) {
-        builder.addFieldOffset(7, colorsOffset, 0);
+        builder.addFieldOffset(6, colorsOffset, 0);
     }
     static createColorsVector(builder, data) {
         builder.startVector(4, data.length, 4);
@@ -27729,32 +20796,59 @@ class Fragment {
     static startColorsVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
+    static addItemsSize(builder, itemsSizeOffset) {
+        builder.addFieldOffset(7, itemsSizeOffset, 0);
+    }
+    static createItemsSizeVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startItemsSizeVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
     static addIds(builder, idsOffset) {
         builder.addFieldOffset(8, idsOffset, 0);
+    }
+    static createIdsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addInt32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startIdsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
     }
     static addId(builder, idOffset) {
         builder.addFieldOffset(9, idOffset, 0);
     }
-    static addComposites(builder, compositesOffset) {
-        builder.addFieldOffset(10, compositesOffset, 0);
+    static addCapacity(builder, capacity) {
+        builder.addFieldInt32(10, capacity, 0);
+    }
+    static addCapacityOffset(builder, capacityOffset) {
+        builder.addFieldInt32(11, capacityOffset, 0);
     }
     static endFragment(builder) {
         const offset = builder.endObject();
         return offset;
     }
-    static createFragment(builder, positionOffset, normalOffset, indexOffset, blockIdOffset, groupsOffset, materialsOffset, matricesOffset, colorsOffset, idsOffset, idOffset, compositesOffset) {
+    static createFragment(builder, positionOffset, normalOffset, indexOffset, groupsOffset, materialsOffset, matricesOffset, colorsOffset, itemsSizeOffset, idsOffset, idOffset, capacity, capacityOffset) {
         Fragment.startFragment(builder);
         Fragment.addPosition(builder, positionOffset);
         Fragment.addNormal(builder, normalOffset);
         Fragment.addIndex(builder, indexOffset);
-        Fragment.addBlockId(builder, blockIdOffset);
         Fragment.addGroups(builder, groupsOffset);
         Fragment.addMaterials(builder, materialsOffset);
         Fragment.addMatrices(builder, matricesOffset);
         Fragment.addColors(builder, colorsOffset);
+        Fragment.addItemsSize(builder, itemsSizeOffset);
         Fragment.addIds(builder, idsOffset);
         Fragment.addId(builder, idOffset);
-        Fragment.addComposites(builder, compositesOffset);
+        Fragment.addCapacity(builder, capacity);
+        Fragment.addCapacityOffset(builder, capacityOffset);
         return Fragment.endFragment(builder);
     }
 }
@@ -28051,9 +21145,12 @@ class FragmentsGroup extends THREE$1.Group {
         this.items = [];
         this.boundingBox = new THREE$1.Box3();
         this.coordinationMatrix = new THREE$1.Matrix4();
-        this.keyFragments = {};
-        // data: [expressID: number]: [keys, rels]
-        this.data = {};
+        // Keys are uints mapped with fragmentIDs to save memory
+        this.keyFragments = new Map();
+        // Map<expressID, [keys, rels]>
+        // keys = fragmentKeys to which this asset belongs
+        // rels = [floor, categoryid]
+        this.data = new Map();
         this.ifcMetadata = {
             name: "",
             description: "",
@@ -28061,17 +21158,19 @@ class FragmentsGroup extends THREE$1.Group {
             maxExpressID: 0,
         };
     }
-    // TODO: Force all item IDs to be numbers or strings
     getFragmentMap(expressIDs) {
         const fragmentMap = {};
         for (const expressID of expressIDs) {
-            const data = this.data[expressID];
+            const data = this.data.get(expressID);
             if (!data)
                 continue;
             for (const key of data[0]) {
-                const fragmentID = this.keyFragments[key];
-                if (!fragmentMap[fragmentID])
+                const fragmentID = this.keyFragments.get(key);
+                if (fragmentID === undefined)
+                    continue;
+                if (!fragmentMap[fragmentID]) {
                     fragmentMap[fragmentID] = new Set();
+                }
                 fragmentMap[fragmentID].add(expressID);
             }
         }
@@ -28082,9 +21181,12 @@ class FragmentsGroup extends THREE$1.Group {
             fragment.dispose(disposeResources);
         }
         this.coordinationMatrix = new THREE$1.Matrix4();
-        this.keyFragments = {};
-        this.data = {};
+        this.keyFragments.clear();
+        this.data.clear();
         this.properties = {};
+        this.removeFromParent();
+        this.items = [];
+        this.ifcCivil = undefined;
     }
 }
 
@@ -28119,10 +21221,10 @@ class Serializer {
                 continue;
             const geometry = this.constructGeometry(fbFragment);
             const materials = this.constructMaterials(fbFragment);
-            const { instances, colors } = this.constructInstances(fbFragment);
-            const fragment = new Fragment$1(geometry, materials, instances.length);
-            this.getComposites(fbFragment, fragment);
-            this.setInstances(instances, colors, fragment);
+            const capacity = fbFragment.capacity();
+            const fragment = new Fragment$1(geometry, materials, capacity);
+            fragment.capacityOffset = fbFragment.capacityOffset();
+            this.setInstances(fbFragment, fragment);
             this.setID(fbFragment, fragment);
             fragmentsGroup.items.push(fragment);
             fragmentsGroup.add(fragment.mesh);
@@ -28130,14 +21232,13 @@ class Serializer {
         return fragmentsGroup;
     }
     export(group) {
-        var _a;
         const builder = new Builder(1024);
         const items = [];
         const G = FragmentsGroup$1;
         const F = Fragment;
         const C = Civil;
         let exportedCivil = null;
-        if ((_a = group.ifcCivil) === null || _a === void 0 ? void 0 : _a.horizontalAlignments) {
+        if (group.ifcCivil) {
             const A = Alignment;
             const resultH = group.ifcCivil.horizontalAlignments.exportData();
             const posVectorH = A.createPositionVector(builder, resultH.coordinates);
@@ -28174,39 +21275,47 @@ class Serializer {
         }
         for (const fragment of group.items) {
             const result = fragment.exportData();
+            const itemsSize = [];
+            for (const itemID of fragment.ids) {
+                const instances = fragment.getInstancesIDs(itemID);
+                if (!instances) {
+                    throw new Error("Instances not found!");
+                }
+                itemsSize.push(instances.size);
+            }
             const posVector = F.createPositionVector(builder, result.position);
             const normalVector = F.createNormalVector(builder, result.normal);
-            const blockVector = F.createBlockIdVector(builder, result.blockID);
             const indexVector = F.createIndexVector(builder, result.index);
             const groupsVector = F.createGroupsVector(builder, result.groups);
             const matsVector = F.createMaterialsVector(builder, result.materials);
             const matricesVector = F.createMatricesVector(builder, result.matrices);
             const colorsVector = F.createColorsVector(builder, result.colors);
-            const idsStr = builder.createString(result.ids);
+            const idsVector = F.createIdsVector(builder, result.ids);
+            const itemsSizeVector = F.createItemsSizeVector(builder, itemsSize);
             const idStr = builder.createString(result.id);
-            const compositeStr = builder.createString(JSON.stringify(fragment.composites));
             F.startFragment(builder);
             F.addPosition(builder, posVector);
             F.addNormal(builder, normalVector);
-            F.addBlockId(builder, blockVector);
             F.addIndex(builder, indexVector);
             F.addGroups(builder, groupsVector);
             F.addMaterials(builder, matsVector);
             F.addMatrices(builder, matricesVector);
             F.addColors(builder, colorsVector);
-            F.addIds(builder, idsStr);
+            F.addIds(builder, idsVector);
+            F.addItemsSize(builder, itemsSizeVector);
             F.addId(builder, idStr);
-            F.addComposites(builder, compositeStr);
+            F.addCapacity(builder, fragment.capacity);
+            F.addCapacityOffset(builder, fragment.capacityOffset);
             const exported = Fragment.endFragment(builder);
             items.push(exported);
         }
         const itemsVector = G.createItemsVector(builder, items);
         const matrixVector = G.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
         let fragmentKeys = "";
-        for (const key in group.keyFragments) {
-            const fragmentID = group.keyFragments[key];
-            if (fragmentKeys.length)
+        for (const fragmentID of group.keyFragments.values()) {
+            if (fragmentKeys.length) {
                 fragmentKeys += this.fragmentIDSeparator;
+            }
             fragmentKeys += fragmentID;
         }
         const fragmentKeysRef = builder.createString(fragmentKeys);
@@ -28217,12 +21326,10 @@ class Serializer {
         const ids = [];
         let keysCounter = 0;
         let relsCounter = 0;
-        for (const expressID in group.data) {
+        for (const [expressID, [keys, rels]] of group.data) {
             keyIndices.push(keysCounter);
             relsIndices.push(relsCounter);
-            const [keys, rels] = group.data[expressID];
-            const id = parseInt(expressID, 10);
-            ids.push(id);
+            ids.push(expressID);
             for (const key of keys) {
                 itemsKeys.push(key);
             }
@@ -28268,10 +21375,6 @@ class Serializer {
         builder.finish(result);
         return builder.asUint8Array();
     }
-    getComposites(fbFragment, fragment) {
-        const composites = fbFragment.composites() || "{}";
-        fragment.composites = JSON.parse(composites);
-    }
     setID(fbFragment, fragment) {
         const id = fbFragment.id();
         if (id) {
@@ -28279,48 +21382,38 @@ class Serializer {
             fragment.mesh.uuid = id;
         }
     }
-    setInstances(instances, colors, fragment) {
-        for (let i = 0; i < instances.length; i++) {
-            fragment.setInstance(i, instances[i]);
-            if (colors.length) {
-                fragment.mesh.setColorAt(i, colors[i]);
+    setInstances(fbFragment, fragment) {
+        const matricesData = fbFragment.matricesArray();
+        const colorData = fbFragment.colorsArray();
+        const ids = fbFragment.idsArray();
+        const itemsSize = fbFragment.itemsSizeArray();
+        if (!matricesData || !ids || !itemsSize) {
+            throw new Error(`Error: Can't load empty fragment!`);
+        }
+        const items = [];
+        let offset = 0;
+        for (let i = 0; i < itemsSize.length; i++) {
+            const id = ids[i];
+            const size = itemsSize[i];
+            const transforms = [];
+            const colorsArray = [];
+            for (let j = 0; j < size; j++) {
+                const mStart = offset * 16;
+                const matrixArray = matricesData.subarray(mStart, mStart + 17);
+                const transform = new THREE$1.Matrix4().fromArray(matrixArray);
+                transforms.push(transform);
+                if (colorData) {
+                    const cStart = offset * 3;
+                    const [r, g, b] = colorData.subarray(cStart, cStart + 4);
+                    const color = new THREE$1.Color(r, g, b);
+                    colorsArray.push(color);
+                }
+                offset++;
             }
+            const colors = colorsArray.length ? colorsArray : undefined;
+            items.push({ id, transforms, colors });
         }
-    }
-    constructInstances(fragment) {
-        const matricesData = fragment.matricesArray();
-        const colorData = fragment.colorsArray();
-        const colors = [];
-        const idsString = fragment.ids();
-        const id = fragment.id();
-        if (!matricesData || !idsString) {
-            throw new Error(`Error: Can't load empty fragment: ${id}`);
-        }
-        const ids = idsString.split("|");
-        const singleInstance = matricesData.length === 16;
-        const manyItems = ids.length > 1;
-        const isMergedFragment = singleInstance && manyItems;
-        if (isMergedFragment) {
-            const transform = new THREE$1.Matrix4().fromArray(matricesData);
-            const instances = [{ ids, transform }];
-            return { instances, colors };
-        }
-        // Instanced fragment
-        const instances = [];
-        for (let i = 0; i < matricesData.length; i += 16) {
-            const matrixArray = matricesData.subarray(i, i + 17);
-            const transform = new THREE$1.Matrix4().fromArray(matrixArray);
-            const id = ids[i / 16];
-            instances.push({ ids: [id], transform });
-        }
-        if (colorData && colorData.length === instances.length * 3) {
-            for (let i = 0; i < colorData.length; i += 3) {
-                const [r, g, b] = colorData.subarray(i, i + 4);
-                const color = new THREE$1.Color(r, g, b);
-                colors.push(color);
-            }
-        }
-        return { instances, colors };
+        fragment.add(items);
     }
     constructMaterials(fragment) {
         const materials = fragment.materialsArray();
@@ -28387,7 +21480,7 @@ class Serializer {
         fragmentsGroup.boundingBox.min.set(minX, minY, minZ);
         fragmentsGroup.boundingBox.max.set(maxX, maxY, maxZ);
         for (let i = 0; i < keysIdsArray.length; i++) {
-            fragmentsGroup.keyFragments[i] = keysIdsArray[i];
+            fragmentsGroup.keyFragments.set(i, keysIdsArray[i]);
         }
         if (matrixArray.length === 16) {
             fragmentsGroup.coordinationMatrix.fromArray(matrixArray);
@@ -28416,42 +21509,35 @@ class Serializer {
             for (let j = currentIndex; j < nextIndex; j++) {
                 keys.push(array[j]);
             }
-            if (!group.data[expressID]) {
-                group.data[expressID] = [[], []];
+            if (!group.data.has(expressID)) {
+                group.data.set(expressID, [[], []]);
             }
-            group.data[expressID][index] = keys;
+            const data = group.data.get(expressID);
+            if (!data)
+                continue;
+            data[index] = keys;
         }
     }
     constructGeometry(fragment) {
-        const position = fragment.positionArray();
-        const normal = fragment.normalArray();
-        const blockID = fragment.blockIdArray();
+        const position = fragment.positionArray() || new Float32Array();
+        const normal = fragment.normalArray() || new Float32Array();
         const index = fragment.indexArray();
         const groups = fragment.groupsArray();
         if (!index)
             throw new Error("Index not found!");
         const geometry = new THREE$1.BufferGeometry();
         geometry.setIndex(Array.from(index));
-        this.loadAttribute(geometry, "position", position, 3);
-        this.loadAttribute(geometry, "normal", normal, 3);
-        this.loadAttribute(geometry, "blockID", blockID, 1);
-        this.loadGeometryGroups(groups, geometry);
-        return geometry;
-    }
-    loadGeometryGroups(groups, geometry) {
-        if (!groups)
-            return;
-        for (let i = 0; i < groups.length; i += 3) {
-            const start = groups[i];
-            const count = groups[i + 1];
-            const materialIndex = groups[i + 2];
-            geometry.addGroup(start, count, materialIndex);
+        geometry.setAttribute("position", new THREE$1.BufferAttribute(position, 3));
+        geometry.setAttribute("normal", new THREE$1.BufferAttribute(normal, 3));
+        if (groups) {
+            for (let i = 0; i < groups.length; i += 3) {
+                const start = groups[i];
+                const count = groups[i + 1];
+                const materialIndex = groups[i + 2];
+                geometry.addGroup(start, count, materialIndex);
+            }
         }
-    }
-    loadAttribute(geometry, name, data, size) {
-        if (!data)
-            return;
-        geometry.setAttribute(name, new THREE$1.BufferAttribute(data, size));
+        return geometry;
     }
 }
 
@@ -28536,7 +21622,7 @@ class FragmentManager extends Component {
     /** {@link Component.get} */
     async dispose(disposeUI = false) {
         if (disposeUI) {
-            this.uiElement.dispose();
+            await this.uiElement.dispose();
         }
         for (const group of this.groups) {
             group.dispose(true);
@@ -29180,7 +22266,7 @@ class EffectComposer {
 
 		if ( renderTarget === undefined ) {
 
-			const size = renderer.getSize( new Vector2$1() );
+			const size = renderer.getSize( new Vector2() );
 			this._width = size.width;
 			this._height = size.height;
 
@@ -29330,7 +22416,7 @@ class EffectComposer {
 
 		if ( renderTarget === undefined ) {
 
-			const size = this.renderer.getSize( new Vector2$1() );
+			const size = this.renderer.getSize( new Vector2() );
 			this._pixelRatio = this.renderer.getPixelRatio();
 			this._width = size.width;
 			this._height = size.height;
@@ -29493,7 +22579,7 @@ class RenderPass extends Pass {
 Number(REVISION.replace(/\D+/g, ""));
 
 const $e4ca8dcb0218f846$var$_geometry = new BufferGeometry();
-$e4ca8dcb0218f846$var$_geometry.setAttribute("position", new BufferAttribute$1(new Float32Array([
+$e4ca8dcb0218f846$var$_geometry.setAttribute("position", new BufferAttribute(new Float32Array([
     -1,
     -1,
     3,
@@ -29501,7 +22587,7 @@ $e4ca8dcb0218f846$var$_geometry.setAttribute("position", new BufferAttribute$1(n
     -1,
     3
 ]), 2));
-$e4ca8dcb0218f846$var$_geometry.setAttribute("uv", new BufferAttribute$1(new Float32Array([
+$e4ca8dcb0218f846$var$_geometry.setAttribute("uv", new BufferAttribute(new Float32Array([
     0,
     0,
     2,
@@ -29562,10 +22648,10 @@ const $1ed45968c1160c3c$export$c9b263b9a17dffd7 = {
             value: new Matrix4()
         },
         "cameraPos": {
-            value: new Vector3$1()
+            value: new Vector3()
         },
         "resolution": {
-            value: new Vector2$1()
+            value: new Vector2()
         },
         "time": {
             value: 0.0
@@ -29810,13 +22896,13 @@ const $12b21d24d1192a04$export$a815acccbd2c9a49 = {
             value: new Matrix4()
         },
         "cameraPos": {
-            value: new Vector3$1()
+            value: new Vector3()
         },
         "resolution": {
-            value: new Vector2$1()
+            value: new Vector2()
         },
         "color": {
-            value: new Vector3$1(0, 0, 0)
+            value: new Vector3(0, 0, 0)
         },
         "blueNoise": {
             value: null
@@ -30073,10 +23159,10 @@ const $e52378cd0f5a973d$export$57856b59f317262e = {
             value: new Matrix4()
         },
         "cameraPos": {
-            value: new Vector3$1()
+            value: new Vector3()
         },
         "resolution": {
-            value: new Vector2$1()
+            value: new Vector2()
         },
         "time": {
             value: 0.0
@@ -30244,7 +23330,7 @@ const $26aca173e0984d99$export$1efdf491687cd442 = {
             value: null
         },
         "resolution": {
-            value: new Vector2$1()
+            value: new Vector2()
         },
         "near": {
             value: 0.1
@@ -30533,7 +23619,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         this.bluenoise.magFilter = NearestFilter;
         this.bluenoise.needsUpdate = true;
         this.lastTime = 0;
-        this._r = new Vector2$1();
+        this._r = new Vector2();
         this._c = new Color();
     }
     configureHalfResTargets() {
@@ -30546,7 +23632,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
                                type: THREE.FloatType
                            });*/ new WebGLMultipleRenderTargets(this.width / 2, this.height / 2, 2);
             this.depthDownsampleTarget.texture[0].format = RedFormat;
-            this.depthDownsampleTarget.texture[0].type = FloatType$1;
+            this.depthDownsampleTarget.texture[0].type = FloatType;
             this.depthDownsampleTarget.texture[0].minFilter = NearestFilter;
             this.depthDownsampleTarget.texture[0].magFilter = NearestFilter;
             this.depthDownsampleTarget.texture[0].depthBuffer = false;
@@ -30621,7 +23707,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
             const y = r * Math.sin(theta);
             // Project to hemisphere
             const z = Math.sqrt(1 - (x * x + y * y));
-            points.push(new Vector3$1(x, y, z));
+            points.push(new Vector3(x, y, z));
         }
         return points;
     }
@@ -30647,7 +23733,7 @@ class $05f6997e4b65da14$export$2d57db20b5eb5e0a extends (Pass) {
         let radius = invNumSamples;
         let angle = 0;
         for(let i = 0; i < numSamples; i++){
-            samples.push(new Vector2$1(Math.cos(angle), Math.sin(angle)).multiplyScalar(Math.pow(radius, 0.75)));
+            samples.push(new Vector2(Math.cos(angle), Math.sin(angle)).multiplyScalar(Math.pow(radius, 0.75)));
             radius += radiusStep;
             angle += angleStep;
         }
@@ -32318,7 +25404,6 @@ class FragmentHighlighter extends Component {
         this.onAfterUpdate.trigger(this);
     }
     async highlight(name, removePrevious = true, zoomToSelection = this.zoomToSelection) {
-        var _a;
         if (!this.enabled)
             return null;
         this.checkSelection(name);
@@ -32326,13 +25411,13 @@ class FragmentHighlighter extends Component {
         const fragList = [];
         const meshes = fragments.meshes;
         const result = this.components.raycaster.castRay(meshes);
-        if (!result) {
+        if (!result || !result.face) {
             await this.clear(name);
             return null;
         }
         const mesh = result.object;
         const geometry = mesh.geometry;
-        const index = (_a = result.face) === null || _a === void 0 ? void 0 : _a.a;
+        const index = result.face.a;
         const instanceID = result.instanceId;
         if (!geometry || index === undefined || instanceID === undefined) {
             return null;
@@ -32344,20 +25429,25 @@ class FragmentHighlighter extends Component {
             this.selection[name][mesh.uuid] = new Set();
         }
         fragList.push(mesh.fragment);
-        const blockID = mesh.fragment.getVertexBlockID(geometry, index);
-        const itemID = mesh.fragment
-            .getItemID(instanceID, blockID)
-            .replace(/\..*/, "");
-        const idNum = parseInt(itemID, 10);
+        const itemID = mesh.fragment.getItemID(instanceID);
+        if (itemID === null) {
+            throw new Error("Item ID not found!");
+        }
         this.selection[name][mesh.uuid].add(itemID);
-        this.addComposites(mesh, idNum, name);
         await this.regenerate(name, mesh.uuid);
         const group = mesh.fragment.group;
         if (group) {
-            const keys = group.data[idNum][0];
+            const data = group.data.get(itemID);
+            if (!data) {
+                throw new Error("Data not found!");
+            }
+            const keys = data[0];
             for (let i = 0; i < keys.length; i++) {
                 const fragKey = keys[i];
-                const fragID = group.keyFragments[fragKey];
+                const fragID = group.keyFragments.get(fragKey);
+                if (!fragID) {
+                    throw new Error("Fragment ID not found!");
+                }
                 if (fragID === mesh.uuid)
                     continue;
                 const fragment = fragments.list[fragID];
@@ -32366,7 +25456,6 @@ class FragmentHighlighter extends Component {
                     this.selection[name][fragID] = new Set();
                 }
                 this.selection[name][fragID].add(itemID);
-                this.addComposites(fragment.mesh, idNum, name);
                 await this.regenerate(name, fragID);
             }
         }
@@ -32387,15 +25476,8 @@ class FragmentHighlighter extends Component {
             if (!styles[fragID]) {
                 styles[fragID] = new Set();
             }
-            const fragments = this.components.tools.get(FragmentManager);
-            const fragment = fragments.list[fragID];
-            const idsNum = new Set();
             for (const id of ids[fragID]) {
                 styles[fragID].add(id);
-                idsNum.add(parseInt(id, 10));
-            }
-            for (const id of idsNum) {
-                this.addComposites(fragment.mesh, id, name);
             }
             await this.regenerate(name, fragID);
         }
@@ -32474,15 +25556,6 @@ class FragmentHighlighter extends Component {
         const camera = this.components.camera;
         await camera.controls.fitToSphere(sphere, true);
     }
-    addComposites(mesh, itemID, name) {
-        const composites = mesh.fragment.composites[itemID];
-        if (composites) {
-            for (let i = 1; i < composites; i++) {
-                const compositeID = toCompositeID(itemID, i);
-                this.selection[name][mesh.uuid].add(compositeID);
-            }
-        }
-    }
     async clearStyle(name) {
         const fragments = this.components.tools.get(FragmentManager);
         for (const fragID in this.selection[name]) {
@@ -32510,34 +25583,8 @@ class FragmentHighlighter extends Component {
         if (!fragmentParent)
             return;
         fragmentParent.add(selection.mesh);
-        const isBlockFragment = selection.blocks.count > 1;
-        if (isBlockFragment) {
-            fragment.getInstance(0, this._tempMatrix);
-            selection.setInstance(0, {
-                ids: Array.from(fragment.ids),
-                transform: this._tempMatrix,
-            });
-            // Only highlight visible blocks
-            const visibleIDs = new Set();
-            let counter = 0;
-            for (const id of ids) {
-                if (fragment.blocks.visibleIds.has(counter)) {
-                    visibleIDs.add(id);
-                }
-                counter++;
-            }
-            selection.blocks.setVisibility(true, visibleIDs, true);
-        }
-        else {
-            let i = 0;
-            for (const id of ids) {
-                selection.mesh.count = i + 1;
-                const { instanceID } = fragment.getInstanceAndBlockID(id);
-                fragment.getInstance(instanceID, this._tempMatrix);
-                selection.setInstance(i, { ids: [id], transform: this._tempMatrix });
-                i++;
-            }
-        }
+        selection.setVisibility(false);
+        selection.setVisibility(true, ids);
     }
     checkSelection(name) {
         if (!this.selection[name]) {
@@ -32550,13 +25597,6 @@ class FragmentHighlighter extends Component {
                 const material = this.highlightMats[name];
                 const subFragment = fragment.addFragment(name, material);
                 subFragment.group = fragment.group;
-                if (fragment.blocks.count > 1) {
-                    subFragment.setInstance(0, {
-                        ids: Array.from(fragment.ids),
-                        transform: this._tempMatrix,
-                    });
-                    subFragment.blocks.setVisibility(false);
-                }
                 subFragment.mesh.renderOrder = 2;
                 subFragment.mesh.frustumCulled = false;
             }
@@ -32569,22 +25609,14 @@ class FragmentHighlighter extends Component {
         }
     }
     async clearOutlines() {
-        const fragments = this.components.tools.get(FragmentManager);
         const effects = this._postproduction.customEffects;
         const fragmentsOutline = effects.outlinedMeshes.fragments;
         if (fragmentsOutline) {
             fragmentsOutline.meshes.clear();
         }
         for (const fragID in this._outlinedMeshes) {
-            const fragment = fragments.list[fragID];
-            const isBlockFragment = fragment.blocks.count > 1;
             const mesh = this._outlinedMeshes[fragID];
-            if (isBlockFragment) {
-                mesh.geometry.setIndex([]);
-            }
-            else {
-                mesh.count = 0;
-            }
+            mesh.count = 0;
         }
     }
     async updateFragmentOutline(name, fragmentID) {
@@ -32624,32 +25656,19 @@ class FragmentHighlighter extends Component {
         }
         const outlineMesh = this._outlinedMeshes[fragmentID];
         outlineEffect.meshes.add(outlineMesh);
-        const isBlockFragment = fragment.blocks.count > 1;
-        if (isBlockFragment) {
-            const indices = fragment.mesh.geometry.index.array;
-            const newIndex = [];
-            const idsSet = new Set(ids);
-            for (let i = 0; i < indices.length - 2; i += 3) {
-                const index = indices[i];
-                const blockID = fragment.mesh.geometry.attributes.blockID.array;
-                const block = blockID[index];
-                const itemID = fragment.mesh.fragment.getItemID(0, block);
-                if (idsSet.has(itemID)) {
-                    newIndex.push(indices[i], indices[i + 1], indices[i + 2]);
-                }
+        let counter = 0;
+        for (const id of ids) {
+            const instancesIDs = fragment.getInstancesIDs(id);
+            if (!instancesIDs) {
+                throw new Error("Instances IDs not found!");
             }
-            outlineMesh.geometry.setIndex(newIndex);
-        }
-        else {
-            let counter = 0;
-            for (const id of ids) {
-                const { instanceID } = fragment.getInstanceAndBlockID(id);
-                fragment.mesh.getMatrixAt(instanceID, this._tempMatrix);
+            for (const instance of instancesIDs) {
+                fragment.mesh.getMatrixAt(instance, this._tempMatrix);
                 outlineMesh.setMatrixAt(counter++, this._tempMatrix);
             }
-            outlineMesh.count = counter;
-            outlineMesh.instanceMatrix.needsUpdate = true;
         }
+        outlineMesh.count = counter;
+        outlineMesh.instanceMatrix.needsUpdate = true;
     }
     setupEvents(active) {
         const container = this.components.renderer.get().domElement;
@@ -38294,7 +31313,7 @@ class SimpleSVGViewport extends Component {
         /** {@link Disposable.onDisposed} */
         this.onDisposed = new Event();
         this._viewport = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        this._size = new Vector2$1();
+        this._size = new Vector2();
         this._undoList = [];
         this.config = {
             fillColor: "transparent",
@@ -38419,6 +31438,50 @@ class SimpleSVGViewport extends Component {
         const toolbar = new Toolbar(this.components, { position: "top" });
         toolbar.addChild(settingsBtn, undoDrawingBtn, redoDrawingBtn, clearDrawingBtn);
         this.uiElement.set({ toolbar, settingsWindow });
+    }
+}
+
+class Simple2DMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        this._marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
+    // Define marker as setup configuration?
+    constructor(components, marker) {
+        super(components);
+        /** {@link Component.enabled} */
+        this.enabled = true;
+        this._visible = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        let _marker;
+        if (marker) {
+            _marker = marker;
+        }
+        else {
+            _marker = document.createElement("div");
+            _marker.className =
+                "w-[15px] h-[15px] border-3 border-solid border-red-600";
+        }
+        this._marker = new CSS2DObject(_marker);
+        this.components.scene.get().add(this._marker);
+        this.visible = true;
+    }
+    /** {@link Component.get} */
+    get() {
+        return this._marker;
+    }
+    toggleVisibility() {
+        this.visible = !this.visible;
+    }
+    async dispose() {
+        this._marker.removeFromParent();
+        this._marker.element.remove();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
     }
 }
 
@@ -38570,10 +31633,10 @@ class OrbitControls extends EventDispatcher$1 {
 		this.enabled = true;
 
 		// "target" sets the location of focus, where the object orbits around
-		this.target = new Vector3$1();
+		this.target = new Vector3();
 
 		// Sets the 3D cursor (similar to Blender), from which the maxTargetRadius takes effect
-		this.cursor = new Vector3$1();
+		this.cursor = new Vector3();
 
 		// How far you can dolly in and out ( PerspectiveCamera only )
 		this.minDistance = 0;
@@ -38702,15 +31765,15 @@ class OrbitControls extends EventDispatcher$1 {
 		// this method is exposed, but perhaps it would be better if we can make it private...
 		this.update = function () {
 
-			const offset = new Vector3$1();
+			const offset = new Vector3();
 
 			// so camera.up is the orbit axis
-			const quat = new Quaternion$1().setFromUnitVectors( object.up, new Vector3$1( 0, 1, 0 ) );
+			const quat = new Quaternion().setFromUnitVectors( object.up, new Vector3( 0, 1, 0 ) );
 			const quatInverse = quat.clone().invert();
 
-			const lastPosition = new Vector3$1();
-			const lastQuaternion = new Quaternion$1();
-			const lastTargetPosition = new Vector3$1();
+			const lastPosition = new Vector3();
+			const lastQuaternion = new Quaternion();
+			const lastTargetPosition = new Vector3();
 
 			const twoPI = 2 * Math.PI;
 
@@ -38847,14 +31910,14 @@ class OrbitControls extends EventDispatcher$1 {
 					} else if ( scope.object.isOrthographicCamera ) {
 
 						// adjust the ortho camera position based on zoom changes
-						const mouseBefore = new Vector3$1( mouse.x, mouse.y, 0 );
+						const mouseBefore = new Vector3( mouse.x, mouse.y, 0 );
 						mouseBefore.unproject( scope.object );
 
 						scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / scale ) );
 						scope.object.updateProjectionMatrix();
 						zoomChanged = true;
 
-						const mouseAfter = new Vector3$1( mouse.x, mouse.y, 0 );
+						const mouseAfter = new Vector3( mouse.x, mouse.y, 0 );
 						mouseAfter.unproject( scope.object );
 
 						scope.object.position.sub( mouseAfter ).add( mouseBefore );
@@ -38988,22 +32051,22 @@ class OrbitControls extends EventDispatcher$1 {
 		const sphericalDelta = new Spherical();
 
 		let scale = 1;
-		const panOffset = new Vector3$1();
+		const panOffset = new Vector3();
 
-		const rotateStart = new Vector2$1();
-		const rotateEnd = new Vector2$1();
-		const rotateDelta = new Vector2$1();
+		const rotateStart = new Vector2();
+		const rotateEnd = new Vector2();
+		const rotateDelta = new Vector2();
 
-		const panStart = new Vector2$1();
-		const panEnd = new Vector2$1();
-		const panDelta = new Vector2$1();
+		const panStart = new Vector2();
+		const panEnd = new Vector2();
+		const panDelta = new Vector2();
 
-		const dollyStart = new Vector2$1();
-		const dollyEnd = new Vector2$1();
-		const dollyDelta = new Vector2$1();
+		const dollyStart = new Vector2();
+		const dollyEnd = new Vector2();
+		const dollyDelta = new Vector2();
 
-		const dollyDirection = new Vector3$1();
-		const mouse = new Vector2$1();
+		const dollyDirection = new Vector3();
+		const mouse = new Vector2();
 		let performCursorZoom = false;
 
 		const pointers = [];
@@ -39046,7 +32109,7 @@ class OrbitControls extends EventDispatcher$1 {
 
 		const panLeft = function () {
 
-			const v = new Vector3$1();
+			const v = new Vector3();
 
 			return function panLeft( distance, objectMatrix ) {
 
@@ -39061,7 +32124,7 @@ class OrbitControls extends EventDispatcher$1 {
 
 		const panUp = function () {
 
-			const v = new Vector3$1();
+			const v = new Vector3();
 
 			return function panUp( distance, objectMatrix ) {
 
@@ -39087,7 +32150,7 @@ class OrbitControls extends EventDispatcher$1 {
 		// deltaX and deltaY are in pixels; right and down are positive
 		const pan = function () {
 
-			const offset = new Vector3$1();
+			const offset = new Vector3();
 
 			return function pan( deltaX, deltaY ) {
 
@@ -39972,7 +33035,7 @@ class OrbitControls extends EventDispatcher$1 {
 
 			if ( position === undefined ) {
 
-				position = new Vector2$1();
+				position = new Vector2();
 				pointerPositions[ event.pointerId ] = position;
 
 			}
@@ -106660,294 +99723,6 @@ var WEBIFC = /*#__PURE__*/Object.freeze({
     ms: ms
 });
 
-const IfcElements = {
-    103090709: "IFCPROJECT",
-    4097777520: "IFCSITE",
-    4031249490: "IFCBUILDING",
-    3124254112: "IFCBUILDINGSTOREY",
-    3856911033: "IFCSPACE",
-    1674181508: "IFCANNOTATION",
-    25142252: "IFCCONTROLLER",
-    32344328: "IFCBOILER",
-    76236018: "IFCLAMP",
-    90941305: "IFCPUMP",
-    177149247: "IFCAIRTERMINALBOX",
-    182646315: "IFCFLOWINSTRUMENT",
-    263784265: "IFCFURNISHINGELEMENT",
-    264262732: "IFCELECTRICGENERATOR",
-    277319702: "IFCAUDIOVISUALAPPLIANCE",
-    310824031: "IFCPIPEFITTING",
-    331165859: "IFCSTAIR",
-    342316401: "IFCDUCTFITTING",
-    377706215: "IFCMECHANICALFASTENER",
-    395920057: "IFCDOOR",
-    402227799: "IFCELECTRICMOTOR",
-    413509423: "IFCSYSTEMFURNITUREELEMENT",
-    484807127: "IFCEVAPORATOR",
-    486154966: "IFCWINDOWSTANDARDCASE",
-    629592764: "IFCLIGHTFIXTURE",
-    630975310: "IFCUNITARYCONTROLELEMENT",
-    635142910: "IFCCABLECARRIERFITTING",
-    639361253: "IFCCOIL",
-    647756555: "IFCFASTENER",
-    707683696: "IFCFLOWSTORAGEDEVICE",
-    738039164: "IFCPROTECTIVEDEVICE",
-    753842376: "IFCBEAM",
-    812556717: "IFCTANK",
-    819412036: "IFCFILTER",
-    843113511: "IFCCOLUMN",
-    862014818: "IFCELECTRICDISTRIBUTIONBOARD",
-    900683007: "IFCFOOTING",
-    905975707: "IFCCOLUMNSTANDARDCASE",
-    926996030: "IFCVOIDINGFEATURE",
-    979691226: "IFCREINFORCINGBAR",
-    987401354: "IFCFLOWSEGMENT",
-    1003880860: "IFCELECTRICTIMECONTROL",
-    1051757585: "IFCCABLEFITTING",
-    1052013943: "IFCDISTRIBUTIONCHAMBERELEMENT",
-    1062813311: "IFCDISTRIBUTIONCONTROLELEMENT",
-    1073191201: "IFCMEMBER",
-    1095909175: "IFCBUILDINGELEMENTPROXY",
-    1156407060: "IFCPLATESTANDARDCASE",
-    1162798199: "IFCSWITCHINGDEVICE",
-    1329646415: "IFCSHADINGDEVICE",
-    1335981549: "IFCDISCRETEACCESSORY",
-    1360408905: "IFCDUCTSILENCER",
-    1404847402: "IFCSTACKTERMINAL",
-    1426591983: "IFCFIRESUPPRESSIONTERMINAL",
-    1437502449: "IFCMEDICALDEVICE",
-    1509553395: "IFCFURNITURE",
-    1529196076: "IFCSLAB",
-    1620046519: "IFCTRANSPORTELEMENT",
-    1634111441: "IFCAIRTERMINAL",
-    1658829314: "IFCENERGYCONVERSIONDEVICE",
-    1677625105: "IFCCIVILELEMENT",
-    1687234759: "IFCPILE",
-    1904799276: "IFCELECTRICAPPLIANCE",
-    1911478936: "IFCMEMBERSTANDARDCASE",
-    1945004755: "IFCDISTRIBUTIONELEMENT",
-    1973544240: "IFCCOVERING",
-    1999602285: "IFCSPACEHEATER",
-    2016517767: "IFCROOF",
-    2056796094: "IFCAIRTOAIRHEATRECOVERY",
-    2058353004: "IFCFLOWCONTROLLER",
-    2068733104: "IFCHUMIDIFIER",
-    2176052936: "IFCJUNCTIONBOX",
-    2188021234: "IFCFLOWMETER",
-    2223149337: "IFCFLOWTERMINAL",
-    2262370178: "IFCRAILING",
-    2272882330: "IFCCONDENSER",
-    2295281155: "IFCPROTECTIVEDEVICETRIPPINGUNIT",
-    2320036040: "IFCREINFORCINGMESH",
-    2347447852: "IFCTENDONANCHOR",
-    2391383451: "IFCVIBRATIONISOLATOR",
-    2391406946: "IFCWALL",
-    2474470126: "IFCMOTORCONNECTION",
-    2769231204: "IFCVIRTUALELEMENT",
-    2814081492: "IFCENGINE",
-    2906023776: "IFCBEAMSTANDARDCASE",
-    2938176219: "IFCBURNER",
-    2979338954: "IFCBUILDINGELEMENTPART",
-    3024970846: "IFCRAMP",
-    3026737570: "IFCTUBEBUNDLE",
-    3027962421: "IFCSLABSTANDARDCASE",
-    3040386961: "IFCDISTRIBUTIONFLOWELEMENT",
-    3053780830: "IFCSANITARYTERMINAL",
-    3079942009: "IFCOPENINGSTANDARDCASE",
-    3087945054: "IFCALARM",
-    3101698114: "IFCSURFACEFEATURE",
-    3127900445: "IFCSLABELEMENTEDCASE",
-    3132237377: "IFCFLOWMOVINGDEVICE",
-    3171933400: "IFCPLATE",
-    3221913625: "IFCCOMMUNICATIONSAPPLIANCE",
-    3242481149: "IFCDOORSTANDARDCASE",
-    3283111854: "IFCRAMPFLIGHT",
-    3296154744: "IFCCHIMNEY",
-    3304561284: "IFCWINDOW",
-    3310460725: "IFCELECTRICFLOWSTORAGEDEVICE",
-    3319311131: "IFCHEATEXCHANGER",
-    3415622556: "IFCFAN",
-    3420628829: "IFCSOLARDEVICE",
-    3493046030: "IFCGEOGRAPHICELEMENT",
-    3495092785: "IFCCURTAINWALL",
-    3508470533: "IFCFLOWTREATMENTDEVICE",
-    3512223829: "IFCWALLSTANDARDCASE",
-    3518393246: "IFCDUCTSEGMENT",
-    3571504051: "IFCCOMPRESSOR",
-    3588315303: "IFCOPENINGELEMENT",
-    3612865200: "IFCPIPESEGMENT",
-    3640358203: "IFCCOOLINGTOWER",
-    3651124850: "IFCPROJECTIONELEMENT",
-    3694346114: "IFCOUTLET",
-    3747195512: "IFCEVAPORATIVECOOLER",
-    3758799889: "IFCCABLECARRIERSEGMENT",
-    3824725483: "IFCTENDON",
-    3825984169: "IFCTRANSFORMER",
-    3902619387: "IFCCHILLER",
-    4074379575: "IFCDAMPER",
-    4086658281: "IFCSENSOR",
-    4123344466: "IFCELEMENTASSEMBLY",
-    4136498852: "IFCCOOLEDBEAM",
-    4156078855: "IFCWALLELEMENTEDCASE",
-    4175244083: "IFCINTERCEPTOR",
-    4207607924: "IFCVALVE",
-    4217484030: "IFCCABLESEGMENT",
-    4237592921: "IFCWASTETERMINAL",
-    4252922144: "IFCSTAIRFLIGHT",
-    4278956645: "IFCFLOWFITTING",
-    4288193352: "IFCACTUATOR",
-    4292641817: "IFCUNITARYEQUIPMENT",
-    3009204131: "IFCGRID",
-};
-
-class IfcCategories {
-    getAll(webIfc, modelID) {
-        const elementsCategories = {};
-        const categoriesIDs = Object.keys(IfcElements).map((e) => parseInt(e, 10));
-        for (let i = 0; i < categoriesIDs.length; i++) {
-            const element = categoriesIDs[i];
-            const lines = webIfc.GetLineIDsWithType(modelID, element);
-            const size = lines.size();
-            for (let i = 0; i < size; i++) {
-                elementsCategories[lines.get(i)] = element;
-            }
-        }
-        return elementsCategories;
-    }
-}
-
-const GeometryTypes = new Set([
-    1123145078, 574549367, 1675464909, 2059837836, 3798115385, 32440307,
-    3125803723, 3207858831, 2740243338, 2624227202, 4240577450, 3615266464,
-    3724593414, 220341763, 477187591, 1878645084, 1300840506, 3303107099,
-    1607154358, 1878645084, 846575682, 1351298697, 2417041796, 3049322572,
-    3331915920, 1416205885, 776857604, 3285139300, 3958052878, 2827736869,
-    2732653382, 673634403, 3448662350, 4142052618, 2924175390, 803316827,
-    2556980723, 1809719519, 2205249479, 807026263, 3737207727, 1660063152,
-    2347385850, 3940055652, 2705031697, 3732776249, 2485617015, 2611217952,
-    1704287377, 2937912522, 2770003689, 1281925730, 1484403080, 3448662350,
-    4142052618, 3800577675, 4006246654, 3590301190, 1383045692, 2775532180,
-    2047409740, 370225590, 3593883385, 2665983363, 4124623270, 812098782,
-    3649129432, 987898635, 1105321065, 3510044353, 1635779807, 2603310189,
-    3406155212, 1310608509, 4261334040, 2736907675, 3649129432, 1136057603,
-    1260505505, 4182860854, 2713105998, 2898889636, 59481748, 3749851601,
-    3486308946, 3150382593, 1062206242, 3264961684, 15328376, 1485152156,
-    370225590, 1981873012, 2859738748, 45288368, 2614616156, 2732653382,
-    775493141, 2147822146, 2601014836, 2629017746, 1186437898, 2367409068,
-    1213902940, 3632507154, 3900360178, 476780140, 1472233963, 2804161546,
-    3008276851, 738692330, 374418227, 315944413, 3905492369, 3570813810,
-    2571569899, 178912537, 2294589976, 1437953363, 2133299955, 572779678,
-    3092502836, 388784114, 2624227202, 1425443689, 3057273783, 2347385850,
-    1682466193, 2519244187, 2839578677, 3958567839, 2513912981, 2830218821,
-    427810014,
-]);
-
-/**
- * Object to export all the properties from an IFC to a JS object.
- */
-class IfcJsonExporter {
-    constructor() {
-        this.onLoadProgress = new Event();
-        this.onPropertiesSerialized = new Event();
-        this._progress = 0;
-    }
-    /**
-     * Exports all the properties of an IFC into an array of JS objects.
-     * @webIfc The instance of [web-ifc]{@link https://github.com/ifcjs/web-ifc} to use.
-     * @modelID ID of the IFC model whose properties to extract.
-     */
-    async export(webIfc, modelID) {
-        const geometriesIDs = await this.getAllGeometriesIDs(modelID, webIfc);
-        let properties = {};
-        properties.coordinationMatrix = webIfc.GetCoordinationMatrix(modelID);
-        const allLinesIDs = await webIfc.GetAllLines(modelID);
-        const linesCount = allLinesIDs.size();
-        this._progress = 0.1;
-        let counter = 0;
-        for (let i = 0; i < linesCount; i++) {
-            const id = allLinesIDs.get(i);
-            if (!geometriesIDs.has(id)) {
-                try {
-                    properties[id] = await webIfc.GetLine(modelID, id);
-                }
-                catch (e) {
-                    console.log(`Properties of the element ${id} could not be processed`);
-                }
-                counter++;
-            }
-            if (this.size !== undefined && counter > this.size) {
-                await this.onPropertiesSerialized.trigger(properties);
-                properties = null;
-                properties = {};
-                counter = 0;
-            }
-            if (i / linesCount > this._progress) {
-                await this.onLoadProgress.trigger({
-                    progress: i,
-                    total: linesCount,
-                });
-                this._progress += 0.1;
-            }
-        }
-        await this.onPropertiesSerialized.trigger(properties);
-        properties = null;
-    }
-    async getAllGeometriesIDs(modelID, webIfc) {
-        // Exclude location info of spatial structure
-        const placementIDs = new Set();
-        const structures = new Set();
-        this.getStructure(IFCPROJECT, structures, webIfc);
-        this.getStructure(IFCSITE, structures, webIfc);
-        this.getStructure(IFCBUILDING, structures, webIfc);
-        this.getStructure(IFCBUILDINGSTOREY, structures, webIfc);
-        this.getStructure(IFCSPACE, structures, webIfc);
-        for (const id of structures) {
-            const properties = webIfc.GetLine(0, id);
-            const placementRef = properties.ObjectPlacement;
-            if (!placementRef || placementRef.value === null) {
-                continue;
-            }
-            const placementID = placementRef.value;
-            placementIDs.add(placementID);
-            const placementProps = webIfc.GetLine(0, placementID);
-            const relPlacementID = placementProps.RelativePlacement;
-            if (!relPlacementID || relPlacementID.value === null) {
-                continue;
-            }
-            placementIDs.add(relPlacementID.value);
-            const relPlacement = webIfc.GetLine(0, relPlacementID.value);
-            const location = relPlacement.Location;
-            if (location && location.value !== null) {
-                placementIDs.add(location.value);
-            }
-        }
-        const geometriesIDs = new Set();
-        const geomTypesArray = Array.from(GeometryTypes);
-        for (let i = 0; i < geomTypesArray.length; i++) {
-            const category = geomTypesArray[i];
-            // eslint-disable-next-line no-await-in-loop
-            const ids = await webIfc.GetLineIDsWithType(modelID, category);
-            const idsSize = ids.size();
-            for (let j = 0; j < idsSize; j++) {
-                const id = ids.get(j);
-                if (placementIDs.has(id)) {
-                    continue;
-                }
-                geometriesIDs.add(id);
-            }
-        }
-        return geometriesIDs;
-    }
-    getStructure(type, result, webIfc) {
-        const found = webIfc.GetLineIDsWithType(0, type);
-        const size = found.size();
-        for (let i = 0; i < size; i++) {
-            const id = found.get(i);
-            result.add(id);
-        }
-    }
-}
-
 class Units {
     constructor() {
         this.factor = 1;
@@ -107130,6 +99905,7 @@ class IfcFragmentSettings {
         this.wasm = {
             path: "",
             absolute: false,
+            logLevel: LogLevel.LOG_LEVEL_OFF,
         };
         /** List of categories that won't be converted to fragments. */
         this.excludedCategories = new Set();
@@ -107141,113 +99917,24 @@ class IfcFragmentSettings {
             USE_FAST_BOOLS: true,
             OPTIMIZE_PROFILES: true,
         };
+        this.autoSetWasm = true;
+        this.customLocateFileHandler = null;
     }
 }
 
-class DataConverter {
-    constructor(components) {
-        this.settings = new IfcFragmentSettings();
-        this.categories = {};
-        this._model = new FragmentsGroup();
-        this._ifcCategories = new IfcCategories();
-        this._fragmentKey = 0;
-        this._keyFragmentMap = {};
-        this._itemKeyMap = {};
-        this._propertyExporter = new IfcJsonExporter();
-        this._spatialTree = new SpatialStructure();
-        this.components = components;
+class CivilReader {
+    read(webIfc) {
+        const IfcAlignment = webIfc.GetAllAlignments(0);
+        const IfcCrossSection2D = webIfc.GetAllCrossSections2D(0);
+        const IfcCrossSection3D = webIfc.GetAllCrossSections3D(0);
+        const civilItems = {
+            IfcAlignment,
+            IfcCrossSection2D,
+            IfcCrossSection3D,
+        };
+        return this.get(civilItems);
     }
-    cleanUp() {
-        this._fragmentKey = 0;
-        this._spatialTree.cleanUp();
-        this.categories = {};
-        this._model = new FragmentsGroup();
-        this._ifcCategories = new IfcCategories();
-        this._propertyExporter = new IfcJsonExporter();
-        this._keyFragmentMap = {};
-        this._itemKeyMap = {};
-    }
-    saveIfcCategories(webIfc) {
-        this.categories = this._ifcCategories.getAll(webIfc, 0);
-    }
-    async generate(webIfc, geometries, civilItems) {
-        await this._spatialTree.setUp(webIfc);
-        this.createAllFragments(geometries, civilItems);
-        await this.saveModelData(webIfc);
-        return this._model;
-    }
-    async saveModelData(webIfc) {
-        const itemsData = this.getFragmentsGroupData();
-        this._model.keyFragments = this._keyFragmentMap;
-        this._model.data = itemsData;
-        this._model.coordinationMatrix = this.getCoordinationMatrix(webIfc);
-        this._model.properties = await this.getModelProperties(webIfc);
-        this._model.uuid = this.getProjectID(webIfc) || this._model.uuid;
-        this._model.ifcMetadata = this.getIfcMetadata(webIfc);
-        this._model.boundingBox = await this.getBoundingBox();
-    }
-    async getBoundingBox() {
-        const bbox = await this.components.tools.get(FragmentBoundingBox);
-        bbox.reset();
-        bbox.add(this._model);
-        return bbox.get();
-    }
-    getIfcMetadata(webIfc) {
-        const { FILE_NAME, FILE_DESCRIPTION } = WEBIFC;
-        const name = this.getMetadataEntry(webIfc, FILE_NAME);
-        const description = this.getMetadataEntry(webIfc, FILE_DESCRIPTION);
-        const schema = webIfc.GetModelSchema(0) || "IFC2X3";
-        const maxExpressID = webIfc.GetMaxExpressID(0);
-        return { name, description, schema, maxExpressID };
-    }
-    getMetadataEntry(webIfc, type) {
-        let description = "";
-        const descriptionData = webIfc.GetHeaderLine(0, type) || "";
-        if (!descriptionData)
-            return description;
-        for (const arg of descriptionData.arguments) {
-            if (arg === null || arg === undefined) {
-                continue;
-            }
-            if (Array.isArray(arg)) {
-                for (const subArg of arg) {
-                    if (!subArg)
-                        continue;
-                    description += `${subArg.value}|`;
-                }
-            }
-            else {
-                description += `${arg.value}|`;
-            }
-        }
-        return description;
-    }
-    getProjectID(webIfc) {
-        const projectsIDs = webIfc.GetLineIDsWithType(0, IFCPROJECT);
-        const projectID = projectsIDs.get(0);
-        const project = webIfc.GetLine(0, projectID);
-        return project.GlobalId.value;
-    }
-    getCoordinationMatrix(webIfc) {
-        const coordArray = webIfc.GetCoordinationMatrix(0);
-        return new THREE$1.Matrix4().fromArray(coordArray);
-    }
-    async getModelProperties(webIfc) {
-        if (!this.settings.includeProperties) {
-            return {};
-        }
-        return new Promise((resolve) => {
-            this._propertyExporter.onPropertiesSerialized.add((properties) => {
-                resolve(properties);
-            });
-            this._propertyExporter.export(webIfc, 0);
-        });
-    }
-    createAllFragments(geometries, civilItems) {
-        const uniqueItems = {};
-        const matrix = new THREE$1.Matrix4();
-        const color = new THREE$1.Color();
-        // Add alignments data
+    get(civilItems) {
         if (civilItems.IfcAlignment) {
             const horizontalAlignments = new IfcAlignmentData();
             const verticalAlignments = new IfcAlignmentData();
@@ -107296,452 +99983,194 @@ class DataConverter {
             horizontalAlignments.coordinates = new Float32Array(valuesH);
             verticalAlignments.coordinates = new Float32Array(valuesV);
             realAlignments.coordinates = new Float32Array(valuesR);
-            this._model.ifcCivil = {
+            return {
                 horizontalAlignments,
                 verticalAlignments,
                 realAlignments,
             };
         }
-        for (const id in geometries) {
-            const { buffer, instances } = geometries[id];
-            const transparent = instances[0].color.w !== 1;
-            const opacity = transparent ? 0.4 : 1;
-            const material = new THREE$1.MeshLambertMaterial({ transparent, opacity });
-            // This prevents z-fighting for ifc spaces
-            if (opacity !== 1) {
-                material.depthWrite = false;
-                material.polygonOffset = true;
-                material.polygonOffsetFactor = 5;
-                material.polygonOffsetUnits = 1;
-            }
-            if (instances.length === 1) {
-                const instance = instances[0];
-                const { x, y, z, w } = instance.color;
-                const matID = `${x}-${y}-${z}-${w}`;
-                if (!uniqueItems[matID]) {
-                    material.color = new THREE$1.Color().setRGB(x, y, z, "srgb");
-                    uniqueItems[matID] = { material, geometries: [], expressIDs: [] };
-                }
-                matrix.fromArray(instance.matrix);
-                buffer.applyMatrix4(matrix);
-                uniqueItems[matID].geometries.push(buffer);
-                uniqueItems[matID].expressIDs.push(instance.expressID.toString());
+        return undefined;
+    }
+}
+
+class IfcMetadataReader {
+    get(webIfc, type) {
+        let description = "";
+        const descriptionData = webIfc.GetHeaderLine(0, type) || "";
+        if (!descriptionData)
+            return description;
+        for (const arg of descriptionData.arguments) {
+            if (arg === null || arg === undefined) {
                 continue;
             }
-            const fragment = new Fragment$1(buffer, material, instances.length);
-            this._keyFragmentMap[this._fragmentKey] = fragment.id;
-            const previousIDs = new Set();
-            for (let i = 0; i < instances.length; i++) {
-                const instance = instances[i];
-                matrix.fromArray(instance.matrix);
-                const { expressID } = instance;
-                let instanceID = expressID.toString();
-                let isComposite = false;
-                if (!previousIDs.has(expressID)) {
-                    previousIDs.add(expressID);
+            if (Array.isArray(arg)) {
+                for (const subArg of arg) {
+                    description += `${subArg.value}|`;
                 }
-                else {
-                    if (!fragment.composites[expressID]) {
-                        fragment.composites[expressID] = 1;
-                    }
-                    const count = fragment.composites[expressID];
-                    instanceID = toCompositeID(expressID, count);
-                    isComposite = true;
-                    fragment.composites[expressID]++;
-                }
-                fragment.setInstance(i, {
-                    ids: [instanceID],
-                    transform: matrix,
-                });
-                const { x, y, z } = instance.color;
-                color.setRGB(x, y, z, "srgb");
-                fragment.mesh.setColorAt(i, color);
-                if (!isComposite) {
-                    this.saveExpressID(expressID.toString());
-                }
-            }
-            fragment.mesh.updateMatrix();
-            this._model.items.push(fragment);
-            this._model.add(fragment.mesh);
-            this._fragmentKey++;
-        }
-        const transform = new THREE$1.Matrix4();
-        for (const matID in uniqueItems) {
-            const { material, geometries, expressIDs } = uniqueItems[matID];
-            const geometriesByItem = {};
-            for (let i = 0; i < expressIDs.length; i++) {
-                const id = expressIDs[i];
-                if (!geometriesByItem[id]) {
-                    geometriesByItem[id] = [];
-                }
-                geometriesByItem[id].push(geometries[i]);
-            }
-            const sortedGeometries = [];
-            const sortedIDs = [];
-            for (const id in geometriesByItem) {
-                sortedIDs.push(id);
-                const geometries = geometriesByItem[id];
-                if (geometries.length) {
-                    const merged = mergeGeometries(geometries);
-                    sortedGeometries.push(merged);
-                }
-                else {
-                    sortedGeometries.push(geometries[0]);
-                }
-                for (const geometry of geometries) {
-                    geometry.dispose();
-                }
-            }
-            const geometry = GeometryUtils.merge([sortedGeometries], true);
-            const fragment = new Fragment$1(geometry, material, 1);
-            this._keyFragmentMap[this._fragmentKey] = fragment.id;
-            for (const id of sortedIDs) {
-                this.saveExpressID(id);
-            }
-            this._fragmentKey++;
-            fragment.setInstance(0, { ids: sortedIDs, transform });
-            this._model.items.push(fragment);
-            this._model.add(fragment.mesh);
-        }
-    }
-    saveExpressID(expressID) {
-        if (!this._itemKeyMap[expressID]) {
-            this._itemKeyMap[expressID] = [];
-        }
-        this._itemKeyMap[expressID].push(this._fragmentKey);
-    }
-    getFragmentsGroupData() {
-        const itemsData = {};
-        for (const id in this._itemKeyMap) {
-            const keys = [];
-            const rels = [];
-            const idNum = parseInt(id, 10);
-            const level = this._spatialTree.itemsByFloor[idNum] || 0;
-            const category = this.categories[idNum] || 0;
-            rels.push(level, category);
-            for (const key of this._itemKeyMap[id]) {
-                keys.push(key);
-            }
-            itemsData[idNum] = [keys, rels];
-        }
-        return itemsData;
-    }
-}
-
-class GeometryReader {
-    constructor() {
-        this.saveLocations = false;
-        this.items = {};
-        this.locations = {};
-        this.CivilItems = {
-            IfcAlignment: [],
-            IfcCrossSection2D: [],
-            IfcCrossSection3D: [],
-        };
-    }
-    get webIfc() {
-        if (!this._webIfc) {
-            throw new Error("web-ifc not found!");
-        }
-        return this._webIfc;
-    }
-    cleanUp() {
-        this.items = {};
-        this.locations = {};
-        this._webIfc = null;
-    }
-    streamMesh(webifc, mesh, forceTransparent = false) {
-        this._webIfc = webifc;
-        const size = mesh.geometries.size();
-        const totalTransform = new THREE$1.Vector3();
-        const tempMatrix = new THREE$1.Matrix4();
-        const tempVector = new THREE$1.Vector3();
-        for (let i = 0; i < size; i++) {
-            const geometry = mesh.geometries.get(i);
-            const geometryID = geometry.geometryExpressID;
-            if (this.saveLocations) {
-                tempVector.set(0, 0, 0);
-                tempMatrix.fromArray(geometry.flatTransformation);
-                tempVector.applyMatrix4(tempMatrix);
-                totalTransform.add(tempVector);
-            }
-            // Transparent geometries need to be separated
-            const isColorTransparent = geometry.color.w !== 1;
-            const isTransparent = isColorTransparent || forceTransparent;
-            const prefix = isTransparent ? "-" : "+";
-            const idWithTransparency = prefix + geometryID;
-            if (forceTransparent)
-                geometry.color.w = 0.1;
-            if (!this.items[idWithTransparency]) {
-                const buffer = this.newBufferGeometry(geometryID);
-                if (!buffer)
-                    continue;
-                this.items[idWithTransparency] = { buffer, instances: [] };
-            }
-            this.items[idWithTransparency].instances.push({
-                color: { ...geometry.color },
-                matrix: geometry.flatTransformation,
-                expressID: mesh.expressID,
-            });
-        }
-        if (this.saveLocations) {
-            const { x, y, z } = totalTransform.divideScalar(size);
-            this.locations[mesh.expressID] = [x, y, z];
-        }
-    }
-    streamAlignment(webifc) {
-        this.CivilItems.IfcAlignment = webifc.GetAllAlignments(0);
-    }
-    streamCrossSection(webifc) {
-        this.CivilItems.IfcCrossSection2D = webifc.GetAllCrossSections2D(0);
-        this.CivilItems.IfcCrossSection3D = webifc.GetAllCrossSections3D(0);
-    }
-    newBufferGeometry(geometryID) {
-        const geometry = this.webIfc.GetGeometry(0, geometryID);
-        const verts = this.getVertices(geometry);
-        if (!verts.length)
-            return null;
-        const indices = this.getIndices(geometry);
-        if (!indices.length)
-            return null;
-        const buffer = this.constructBuffer(verts, indices);
-        // @ts-ignore
-        geometry.delete();
-        return buffer;
-    }
-    getIndices(geometryData) {
-        const indices = this.webIfc.GetIndexArray(geometryData.GetIndexData(), geometryData.GetIndexDataSize());
-        return indices;
-    }
-    getVertices(geometryData) {
-        const verts = this.webIfc.GetVertexArray(geometryData.GetVertexData(), geometryData.GetVertexDataSize());
-        return verts;
-    }
-    constructBuffer(vertexData, indexData) {
-        const geometry = new THREE$1.BufferGeometry();
-        const posFloats = new Float32Array(vertexData.length / 2);
-        const normFloats = new Float32Array(vertexData.length / 2);
-        for (let i = 0; i < vertexData.length; i += 6) {
-            posFloats[i / 2] = vertexData[i];
-            posFloats[i / 2 + 1] = vertexData[i + 1];
-            posFloats[i / 2 + 2] = vertexData[i + 2];
-            normFloats[i / 2] = vertexData[i + 3];
-            normFloats[i / 2 + 1] = vertexData[i + 4];
-            normFloats[i / 2 + 2] = vertexData[i + 5];
-        }
-        geometry.setAttribute("position", new THREE$1.BufferAttribute(posFloats, 3));
-        geometry.setAttribute("normal", new THREE$1.BufferAttribute(normFloats, 3));
-        geometry.setIndex(new THREE$1.BufferAttribute(indexData, 1));
-        return geometry;
-    }
-}
-
-/**
- * Reads all the geometry of the IFC file and generates a set of
- * [fragments](https://github.com/ifcjs/fragment). It can also return the
- * properties as a JSON file, as well as other sets of information within
- * the IFC file.
- */
-class FragmentIfcLoader extends Component {
-    constructor(components) {
-        super(components);
-        /** {@link Disposable.onDisposed} */
-        this.onDisposed = new Event();
-        this.enabled = true;
-        this.uiElement = new UIElement();
-        this.onIfcLoaded = new Event();
-        this.config = {
-            autoSetWasm: true,
-            logLevel: LogLevel.LOG_LEVEL_ERROR,
-            customLocateFileHandler: null,
-        };
-        this.onSetup = new Event();
-        // For debugging purposes
-        // isolatedItems = new Set<number>();
-        this.onLocationsSaved = new Event();
-        this._webIfc = new IfcAPI2();
-        this._geometry = new GeometryReader();
-        this._converter = new DataConverter(components);
-        this.components.tools.add(FragmentIfcLoader.uuid, this);
-        if (components.uiEnabled) {
-            this.setupUI();
-        }
-    }
-    async autoSetWasm() {
-        var _a;
-        const componentsPackage = await fetch(`https://unpkg.com/openbim-components@${Components.release}/package.json`);
-        if (!componentsPackage.ok) {
-            console.warn("Couldn't get openbim-components package.json. Set wasm settings manually.");
-            return;
-        }
-        const componentsPackageJSON = await componentsPackage.json();
-        if (!((_a = "web-ifc" in componentsPackageJSON.peerDependencies) !== null && _a !== void 0 ? _a : {})) {
-            console.warn("Couldn't get web-ifc from peer dependencies in openbim-components. Set wasm settings manually.");
-        }
-        else {
-            const componentsWebIfcVersion = componentsPackageJSON.peerDependencies["web-ifc"];
-            const path = `https://unpkg.com/web-ifc@${componentsWebIfcVersion}/`;
-            this.settings.wasm = {
-                path,
-                absolute: true,
-            };
-        }
-    }
-    async setup(config) {
-        this.config = { ...this.config, ...config };
-        if (this.config.autoSetWasm)
-            await this.autoSetWasm();
-        await this.onSetup.trigger();
-    }
-    get() {
-        return this._webIfc;
-    }
-    get settings() {
-        return this._converter.settings;
-    }
-    /** {@link Disposable.dispose} */
-    async dispose() {
-        this._geometry.cleanUp();
-        this._converter.cleanUp();
-        this.onIfcLoaded.reset();
-        this.onLocationsSaved.reset();
-        this.onSetup.reset();
-        this.uiElement.dispose();
-        this._webIfc = null;
-        this._geometry = null;
-        this._converter = null;
-        await this.onDisposed.trigger(FragmentIfcLoader.uuid);
-        this.onDisposed.reset();
-    }
-    /** Loads the IFC file and converts it to a set of fragments. */
-    async load(data, name) {
-        if (this.settings.saveLocations) {
-            this._geometry.saveLocations = true;
-        }
-        const before = performance.now();
-        await this.readIfcFile(data);
-        await this.readAllGeometries();
-        this._geometry.streamAlignment(this._webIfc);
-        this._geometry.streamCrossSection(this._webIfc);
-        const items = this._geometry.items;
-        const civItems = this._geometry.CivilItems;
-        const model = await this._converter.generate(this._webIfc, items, civItems);
-        model.name = name;
-        if (this.settings.saveLocations) {
-            await this.onLocationsSaved.trigger(this._geometry.locations);
-        }
-        const fragments = this.components.tools.get(FragmentManager);
-        if (this.settings.coordinate) {
-            const isFirstModel = fragments.groups.length === 0;
-            if (isFirstModel) {
-                fragments.baseCoordinationModel = model.uuid;
             }
             else {
-                fragments.coordinate([model]);
+                description += `${arg.value}|`;
             }
         }
-        this.cleanUp();
-        fragments.groups.push(model);
-        for (const fragment of model.items) {
-            fragment.group = model;
-            fragments.list[fragment.id] = fragment;
-            this.components.meshes.push(fragment.mesh);
-        }
-        await this.onIfcLoaded.trigger(model);
-        console.log(`Loading the IFC took ${performance.now() - before} ms!`);
-        return model;
-    }
-    setupUI() {
-        const main = new Button(this.components);
-        main.materialIcon = "upload_file";
-        main.tooltip = "Load IFC";
-        const toast = new ToastNotification(this.components, {
-            message: "IFC model successfully loaded!",
-        });
-        main.onClick.add(() => {
-            const fileOpener = document.createElement("input");
-            fileOpener.type = "file";
-            fileOpener.accept = ".ifc";
-            fileOpener.style.display = "none";
-            fileOpener.onchange = async () => {
-                const fragments = this.components.tools.get(FragmentManager);
-                if (fileOpener.files === null || fileOpener.files.length === 0)
-                    return;
-                const file = fileOpener.files[0];
-                const buffer = await file.arrayBuffer();
-                const data = new Uint8Array(buffer);
-                const model = await this.load(data, file.name);
-                const scene = this.components.scene.get();
-                scene.add(model);
-                toast.visible = true;
-                await fragments.updateWindow();
-                fileOpener.remove();
-            };
-            fileOpener.click();
-        });
-        this.components.ui.add(toast);
-        toast.visible = false;
-        this.uiElement.set({ main, toast });
-    }
-    async readIfcFile(data) {
-        var _a;
-        const { path, absolute } = this.settings.wasm;
-        this._webIfc.SetWasmPath(path, absolute);
-        await this._webIfc.Init((_a = this.config.customLocateFileHandler) !== null && _a !== void 0 ? _a : undefined);
-        this._webIfc.SetLogLevel(this.config.logLevel);
-        return this._webIfc.OpenModel(data, this.settings.webIfc);
-    }
-    async readAllGeometries() {
-        this._converter.saveIfcCategories(this._webIfc);
-        // Some categories (like IfcSpace) need to be created explicitly
-        const optionals = [...this.settings.optionalCategories];
-        // Force IFC space to be transparent
-        if (optionals.includes(IFCSPACE)) {
-            const index = optionals.indexOf(IFCSPACE);
-            optionals.splice(index, 1);
-            this._webIfc.StreamAllMeshesWithTypes(0, [IFCSPACE], (mesh) => {
-                if (this.isExcluded(mesh.expressID)) {
-                    return;
-                }
-                this._geometry.streamMesh(this._webIfc, mesh, true);
-            });
-        }
-        // Load rest of optional categories (if any)
-        if (optionals.length) {
-            this._webIfc.StreamAllMeshesWithTypes(0, optionals, (mesh) => {
-                if (this.isExcluded(mesh.expressID)) {
-                    return;
-                }
-                this._geometry.streamMesh(this._webIfc, mesh);
-            });
-        }
-        // Load common categories
-        this._webIfc.StreamAllMeshes(0, (mesh) => {
-            if (this.isExcluded(mesh.expressID)) {
-                return;
-            }
-            this._geometry.streamMesh(this._webIfc, mesh);
-        });
-        // Load civil items
-        this._geometry.streamAlignment(this._webIfc);
-        this._geometry.streamCrossSection(this._webIfc);
-    }
-    cleanIfcApi() {
-        this._webIfc = null;
-        this._webIfc = new IfcAPI2();
-    }
-    cleanUp() {
-        this.cleanIfcApi();
-        this._geometry.cleanUp();
-        this._converter.cleanUp();
-    }
-    isExcluded(id) {
-        const category = this._converter.categories[id];
-        return this.settings.excludedCategories.has(category);
+        return description;
     }
 }
-FragmentIfcLoader.uuid = "a659add7-1418-4771-a0d6-7d4d438e4624";
-ToolComponent.libraryUUIDs.add(FragmentIfcLoader.uuid);
+
+const IfcElements = {
+    103090709: "IFCPROJECT",
+    4097777520: "IFCSITE",
+    4031249490: "IFCBUILDING",
+    3124254112: "IFCBUILDINGSTOREY",
+    3856911033: "IFCSPACE",
+    1674181508: "IFCANNOTATION",
+    25142252: "IFCCONTROLLER",
+    32344328: "IFCBOILER",
+    76236018: "IFCLAMP",
+    90941305: "IFCPUMP",
+    177149247: "IFCAIRTERMINALBOX",
+    182646315: "IFCFLOWINSTRUMENT",
+    263784265: "IFCFURNISHINGELEMENT",
+    264262732: "IFCELECTRICGENERATOR",
+    277319702: "IFCAUDIOVISUALAPPLIANCE",
+    310824031: "IFCPIPEFITTING",
+    331165859: "IFCSTAIR",
+    342316401: "IFCDUCTFITTING",
+    377706215: "IFCMECHANICALFASTENER",
+    395920057: "IFCDOOR",
+    402227799: "IFCELECTRICMOTOR",
+    413509423: "IFCSYSTEMFURNITUREELEMENT",
+    484807127: "IFCEVAPORATOR",
+    486154966: "IFCWINDOWSTANDARDCASE",
+    629592764: "IFCLIGHTFIXTURE",
+    630975310: "IFCUNITARYCONTROLELEMENT",
+    635142910: "IFCCABLECARRIERFITTING",
+    639361253: "IFCCOIL",
+    647756555: "IFCFASTENER",
+    707683696: "IFCFLOWSTORAGEDEVICE",
+    738039164: "IFCPROTECTIVEDEVICE",
+    753842376: "IFCBEAM",
+    812556717: "IFCTANK",
+    819412036: "IFCFILTER",
+    843113511: "IFCCOLUMN",
+    862014818: "IFCELECTRICDISTRIBUTIONBOARD",
+    900683007: "IFCFOOTING",
+    905975707: "IFCCOLUMNSTANDARDCASE",
+    926996030: "IFCVOIDINGFEATURE",
+    979691226: "IFCREINFORCINGBAR",
+    987401354: "IFCFLOWSEGMENT",
+    1003880860: "IFCELECTRICTIMECONTROL",
+    1051757585: "IFCCABLEFITTING",
+    1052013943: "IFCDISTRIBUTIONCHAMBERELEMENT",
+    1062813311: "IFCDISTRIBUTIONCONTROLELEMENT",
+    1073191201: "IFCMEMBER",
+    1095909175: "IFCBUILDINGELEMENTPROXY",
+    1156407060: "IFCPLATESTANDARDCASE",
+    1162798199: "IFCSWITCHINGDEVICE",
+    1329646415: "IFCSHADINGDEVICE",
+    1335981549: "IFCDISCRETEACCESSORY",
+    1360408905: "IFCDUCTSILENCER",
+    1404847402: "IFCSTACKTERMINAL",
+    1426591983: "IFCFIRESUPPRESSIONTERMINAL",
+    1437502449: "IFCMEDICALDEVICE",
+    1509553395: "IFCFURNITURE",
+    1529196076: "IFCSLAB",
+    1620046519: "IFCTRANSPORTELEMENT",
+    1634111441: "IFCAIRTERMINAL",
+    1658829314: "IFCENERGYCONVERSIONDEVICE",
+    1677625105: "IFCCIVILELEMENT",
+    1687234759: "IFCPILE",
+    1904799276: "IFCELECTRICAPPLIANCE",
+    1911478936: "IFCMEMBERSTANDARDCASE",
+    1945004755: "IFCDISTRIBUTIONELEMENT",
+    1973544240: "IFCCOVERING",
+    1999602285: "IFCSPACEHEATER",
+    2016517767: "IFCROOF",
+    2056796094: "IFCAIRTOAIRHEATRECOVERY",
+    2058353004: "IFCFLOWCONTROLLER",
+    2068733104: "IFCHUMIDIFIER",
+    2176052936: "IFCJUNCTIONBOX",
+    2188021234: "IFCFLOWMETER",
+    2223149337: "IFCFLOWTERMINAL",
+    2262370178: "IFCRAILING",
+    2272882330: "IFCCONDENSER",
+    2295281155: "IFCPROTECTIVEDEVICETRIPPINGUNIT",
+    2320036040: "IFCREINFORCINGMESH",
+    2347447852: "IFCTENDONANCHOR",
+    2391383451: "IFCVIBRATIONISOLATOR",
+    2391406946: "IFCWALL",
+    2474470126: "IFCMOTORCONNECTION",
+    2769231204: "IFCVIRTUALELEMENT",
+    2814081492: "IFCENGINE",
+    2906023776: "IFCBEAMSTANDARDCASE",
+    2938176219: "IFCBURNER",
+    2979338954: "IFCBUILDINGELEMENTPART",
+    3024970846: "IFCRAMP",
+    3026737570: "IFCTUBEBUNDLE",
+    3027962421: "IFCSLABSTANDARDCASE",
+    3040386961: "IFCDISTRIBUTIONFLOWELEMENT",
+    3053780830: "IFCSANITARYTERMINAL",
+    3079942009: "IFCOPENINGSTANDARDCASE",
+    3087945054: "IFCALARM",
+    3101698114: "IFCSURFACEFEATURE",
+    3127900445: "IFCSLABELEMENTEDCASE",
+    3132237377: "IFCFLOWMOVINGDEVICE",
+    3171933400: "IFCPLATE",
+    3221913625: "IFCCOMMUNICATIONSAPPLIANCE",
+    3242481149: "IFCDOORSTANDARDCASE",
+    3283111854: "IFCRAMPFLIGHT",
+    3296154744: "IFCCHIMNEY",
+    3304561284: "IFCWINDOW",
+    3310460725: "IFCELECTRICFLOWSTORAGEDEVICE",
+    3319311131: "IFCHEATEXCHANGER",
+    3415622556: "IFCFAN",
+    3420628829: "IFCSOLARDEVICE",
+    3493046030: "IFCGEOGRAPHICELEMENT",
+    3495092785: "IFCCURTAINWALL",
+    3508470533: "IFCFLOWTREATMENTDEVICE",
+    3512223829: "IFCWALLSTANDARDCASE",
+    3518393246: "IFCDUCTSEGMENT",
+    3571504051: "IFCCOMPRESSOR",
+    3588315303: "IFCOPENINGELEMENT",
+    3612865200: "IFCPIPESEGMENT",
+    3640358203: "IFCCOOLINGTOWER",
+    3651124850: "IFCPROJECTIONELEMENT",
+    3694346114: "IFCOUTLET",
+    3747195512: "IFCEVAPORATIVECOOLER",
+    3758799889: "IFCCABLECARRIERSEGMENT",
+    3824725483: "IFCTENDON",
+    3825984169: "IFCTRANSFORMER",
+    3902619387: "IFCCHILLER",
+    4074379575: "IFCDAMPER",
+    4086658281: "IFCSENSOR",
+    4123344466: "IFCELEMENTASSEMBLY",
+    4136498852: "IFCCOOLEDBEAM",
+    4156078855: "IFCWALLELEMENTEDCASE",
+    4175244083: "IFCINTERCEPTOR",
+    4207607924: "IFCVALVE",
+    4217484030: "IFCCABLESEGMENT",
+    4237592921: "IFCWASTETERMINAL",
+    4252922144: "IFCSTAIRFLIGHT",
+    4278956645: "IFCFLOWFITTING",
+    4288193352: "IFCACTUATOR",
+    4292641817: "IFCUNITARYEQUIPMENT",
+    3009204131: "IFCGRID",
+};
+
+class IfcCategories {
+    getAll(webIfc, modelID) {
+        const elementsCategories = {};
+        const categoriesIDs = Object.keys(IfcElements).map((e) => parseInt(e, 10));
+        for (let i = 0; i < categoriesIDs.length; i++) {
+            const element = categoriesIDs[i];
+            const lines = webIfc.GetLineIDsWithType(modelID, element);
+            const size = lines.size();
+            for (let i = 0; i < size; i++) {
+                elementsCategories[lines.get(i)] = element;
+            }
+        }
+        return elementsCategories;
+    }
+}
 
 const IfcCategoryMap = {
     3821786052: "IFCACTIONREQUEST",
@@ -108562,6 +100991,739 @@ const IfcCategoryMap = {
     1033361043: "IFCZONE",
 };
 
+const GeometryTypes = new Set([
+    1123145078, 574549367, 1675464909, 2059837836, 3798115385, 32440307,
+    3125803723, 3207858831, 2740243338, 2624227202, 4240577450, 3615266464,
+    3724593414, 220341763, 477187591, 1878645084, 1300840506, 3303107099,
+    1607154358, 1878645084, 846575682, 1351298697, 2417041796, 3049322572,
+    3331915920, 1416205885, 776857604, 3285139300, 3958052878, 2827736869,
+    2732653382, 673634403, 3448662350, 4142052618, 2924175390, 803316827,
+    2556980723, 1809719519, 2205249479, 807026263, 3737207727, 1660063152,
+    2347385850, 3940055652, 2705031697, 3732776249, 2485617015, 2611217952,
+    1704287377, 2937912522, 2770003689, 1281925730, 1484403080, 3448662350,
+    4142052618, 3800577675, 4006246654, 3590301190, 1383045692, 2775532180,
+    2047409740, 370225590, 3593883385, 2665983363, 4124623270, 812098782,
+    3649129432, 987898635, 1105321065, 3510044353, 1635779807, 2603310189,
+    3406155212, 1310608509, 4261334040, 2736907675, 3649129432, 1136057603,
+    1260505505, 4182860854, 2713105998, 2898889636, 59481748, 3749851601,
+    3486308946, 3150382593, 1062206242, 3264961684, 15328376, 1485152156,
+    370225590, 1981873012, 2859738748, 45288368, 2614616156, 2732653382,
+    775493141, 2147822146, 2601014836, 2629017746, 1186437898, 2367409068,
+    1213902940, 3632507154, 3900360178, 476780140, 1472233963, 2804161546,
+    3008276851, 738692330, 374418227, 315944413, 3905492369, 3570813810,
+    2571569899, 178912537, 2294589976, 1437953363, 2133299955, 572779678,
+    3092502836, 388784114, 2624227202, 1425443689, 3057273783, 2347385850,
+    1682466193, 2519244187, 2839578677, 3958567839, 2513912981, 2830218821,
+    427810014,
+]);
+
+/**
+ * Object to export all the properties from an IFC to a JS object.
+ */
+class IfcJsonExporter {
+    constructor() {
+        this.onLoadProgress = new Event();
+        this.onPropertiesSerialized = new Event();
+        this._progress = 0;
+    }
+    /**
+     * Exports all the properties of an IFC into an array of JS objects.
+     * @webIfc The instance of [web-ifc]{@link https://github.com/ifcjs/web-ifc} to use.
+     * @modelID ID of the IFC model whose properties to extract.
+     */
+    async export(webIfc, modelID) {
+        const geometriesIDs = await this.getAllGeometriesIDs(modelID, webIfc);
+        let properties = {};
+        properties.coordinationMatrix = webIfc.GetCoordinationMatrix(modelID);
+        const allLinesIDs = await webIfc.GetAllLines(modelID);
+        const linesCount = allLinesIDs.size();
+        this._progress = 0.1;
+        let counter = 0;
+        for (let i = 0; i < linesCount; i++) {
+            const id = allLinesIDs.get(i);
+            if (!geometriesIDs.has(id)) {
+                try {
+                    properties[id] = await webIfc.GetLine(modelID, id);
+                }
+                catch (e) {
+                    console.log(`Properties of the element ${id} could not be processed`);
+                }
+                counter++;
+            }
+            if (this.size !== undefined && counter > this.size) {
+                await this.onPropertiesSerialized.trigger(properties);
+                properties = null;
+                properties = {};
+                counter = 0;
+            }
+            if (i / linesCount > this._progress) {
+                await this.onLoadProgress.trigger({
+                    progress: i,
+                    total: linesCount,
+                });
+                this._progress += 0.1;
+            }
+        }
+        await this.onPropertiesSerialized.trigger(properties);
+        properties = null;
+    }
+    async getAllGeometriesIDs(modelID, webIfc) {
+        // Exclude location info of spatial structure
+        const placementIDs = new Set();
+        const structures = new Set();
+        this.getStructure(IFCPROJECT, structures, webIfc);
+        this.getStructure(IFCSITE, structures, webIfc);
+        this.getStructure(IFCBUILDING, structures, webIfc);
+        this.getStructure(IFCBUILDINGSTOREY, structures, webIfc);
+        this.getStructure(IFCSPACE, structures, webIfc);
+        for (const id of structures) {
+            const properties = webIfc.GetLine(0, id);
+            const placementRef = properties.ObjectPlacement;
+            if (!placementRef || placementRef.value === null) {
+                continue;
+            }
+            const placementID = placementRef.value;
+            placementIDs.add(placementID);
+            const placementProps = webIfc.GetLine(0, placementID);
+            const relPlacementID = placementProps.RelativePlacement;
+            if (!relPlacementID || relPlacementID.value === null) {
+                continue;
+            }
+            placementIDs.add(relPlacementID.value);
+            const relPlacement = webIfc.GetLine(0, relPlacementID.value);
+            const location = relPlacement.Location;
+            if (location && location.value !== null) {
+                placementIDs.add(location.value);
+            }
+        }
+        const geometriesIDs = new Set();
+        const geomTypesArray = Array.from(GeometryTypes);
+        for (let i = 0; i < geomTypesArray.length; i++) {
+            const category = geomTypesArray[i];
+            // eslint-disable-next-line no-await-in-loop
+            const ids = await webIfc.GetLineIDsWithType(modelID, category);
+            const idsSize = ids.size();
+            for (let j = 0; j < idsSize; j++) {
+                const id = ids.get(j);
+                if (placementIDs.has(id)) {
+                    continue;
+                }
+                geometriesIDs.add(id);
+            }
+        }
+        return geometriesIDs;
+    }
+    getStructure(type, result, webIfc) {
+        const found = webIfc.GetLineIDsWithType(0, type);
+        const size = found.size();
+        for (let i = 0; i < size; i++) {
+            const id = found.get(i);
+            result.add(id);
+        }
+    }
+}
+
+function generateExpressIDFragmentIDMap(fragmentsList) {
+    const map = {};
+    fragmentsList.forEach((fragment) => {
+        map[fragment.id] = new Set(fragment.ids);
+    });
+    return map;
+}
+// Would need to review this!
+function generateIfcGUID() {
+    // prettier-ignore
+    const base64Chars = [
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H",
+        "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r",
+        "s", "t", "u", "v", "w", "x", "y", "z", "_", "$",
+    ];
+    const guid = THREE$1.MathUtils.generateUUID();
+    const tailBytes = ((guid) => {
+        const bytes = [];
+        guid.split("-").map((number) => {
+            const bytesInChar = number.match(/.{1,2}/g);
+            if (bytesInChar) {
+                return bytesInChar.map((byte) => bytes.push(parseInt(byte, 16)));
+            }
+            return null;
+        });
+        return bytes;
+    })(guid);
+    const headBytes = ((guid) => {
+        const bytes = [];
+        guid.split("-").map((number) => {
+            const bytesInChar = number.match(/.{1,2}/g);
+            if (bytesInChar) {
+                return bytesInChar.map((byte) => bytes.push(byte));
+            }
+            return null;
+        });
+        return bytes;
+    })(guid);
+    const cvTo64 = (number, result, start, len) => {
+        let num = number;
+        const n = len;
+        let i;
+        for (i = 0; i < n; i += 1) {
+            result[start + len - i - 1] =
+                base64Chars[parseInt((num % 64).toString(), 10)];
+            num /= 64;
+        }
+        return result;
+    };
+    const toUInt16 = (bytes, index) => 
+    // eslint-disable-next-line no-bitwise
+    parseInt(bytes.slice(index, index + 2).reduce((str, v) => str + v, ""), 16) >>> 0;
+    const toUInt32 = (bytes, index) => 
+    // eslint-disable-next-line no-bitwise
+    parseInt(bytes.slice(index, index + 4).reduce((str, v) => str + v, ""), 16) >>> 0;
+    const num = [];
+    let str = [];
+    let i;
+    let n = 2;
+    let pos = 0;
+    num[0] = toUInt32(headBytes, 0) / 16777216;
+    num[1] = toUInt32(headBytes, 0) % 16777216;
+    // eslint-disable-next-line no-bitwise
+    num[2] = (toUInt16(headBytes, 4) * 256 + toUInt16(headBytes, 6) / 256) >>> 0;
+    num[3] =
+        // eslint-disable-next-line no-bitwise
+        ((toUInt16(headBytes, 6) % 256) * 65536 +
+            tailBytes[8] * 256 +
+            tailBytes[9]) >>>
+            0;
+    // eslint-disable-next-line no-bitwise
+    num[4] = (tailBytes[10] * 65536 + tailBytes[11] * 256 + tailBytes[12]) >>> 0;
+    // eslint-disable-next-line no-bitwise
+    num[5] = (tailBytes[13] * 65536 + tailBytes[14] * 256 + tailBytes[15]) >>> 0;
+    for (i = 0; i < 6; i++) {
+        str = cvTo64(num[i], str, pos, n);
+        pos += n;
+        n = 4;
+    }
+    return str.join("");
+}
+function bufferGeometryToIndexed(geometry) {
+    const bufferAttribute = geometry.getAttribute("position");
+    const size = bufferAttribute.itemSize;
+    const positions = bufferAttribute.array;
+    const indices = [];
+    const vertices = [];
+    const outVertices = [];
+    for (let i = 0; i < positions.length; i += size) {
+        const x = positions[i];
+        const y = positions[i + 1];
+        let vertex = `${x},${y}`;
+        const z = positions[i + 2];
+        if (size >= 3) {
+            vertex += `,${z}`;
+        }
+        else {
+            vertex += `,0`;
+        }
+        const w = positions[i + 3];
+        if (size === 4) {
+            vertex += `,${w}`;
+        }
+        if (vertices.indexOf(vertex) === -1) {
+            vertices.push(vertex);
+            indices.push(vertices.length - 1);
+            const split = vertex.split(",");
+            split.forEach((component) => outVertices.push(Number(component)));
+        }
+        else {
+            const index = vertices.indexOf(vertex);
+            indices.push(index);
+        }
+    }
+    const outIndices = new Uint16Array(indices);
+    const realVertices = new Float32Array(outVertices);
+    geometry.setAttribute("position", new THREE$1.BufferAttribute(realVertices, size === 2 ? 3 : size));
+    geometry.setIndex(new THREE$1.BufferAttribute(outIndices, 1));
+    geometry.getAttribute("position").needsUpdate = true;
+}
+
+class LineIntersectionPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    get config() {
+        return this._config;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    constructor(components, config) {
+        super(components);
+        this.name = "LineIntersectionPicker";
+        this.onAfterUpdate = new Event();
+        this.onBeforeUpdate = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this._pickedPoint = null;
+        this._raycaster = new Raycaster();
+        this._originVector = new Vector3();
+        this.config = {
+            snapDistance: 0.25,
+            ...config,
+        };
+        if (this._raycaster.params.Line) {
+            this._raycaster.params.Line.threshold = 0.2;
+        }
+        this._mouse = new Mouse(components.renderer.get().domElement);
+        const marker = document.createElement("div");
+        marker.className = "w-[15px] h-[15px] border-3 border-solid border-red-500";
+        this._marker = new CSS2DObject(marker);
+        this._marker.visible = false;
+        this.components.scene.get().add(this._marker);
+        this.enabled = false;
+    }
+    async dispose() {
+        this.onAfterUpdate.reset();
+        this.onBeforeUpdate.reset();
+        this._marker.removeFromParent();
+        this._marker.element.remove();
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
+    }
+    /** {@link Updateable.update} */
+    update() {
+        if (!this.enabled) {
+            return;
+        }
+        this.onBeforeUpdate.trigger(this);
+        this._raycaster.setFromCamera(this._mouse.position, this.components.camera.get());
+        // @ts-ignore
+        const lines = this.components.meshes.filter((mesh) => mesh.isLine);
+        const intersects = this._raycaster.intersectObjects(lines);
+        // console.log(intersects)
+        if (intersects.length !== 2) {
+            this._pickedPoint = null;
+            this.updateMarker();
+            return;
+        }
+        // if (!intersects[0].index || !intersects[1].index) {return}
+        const lineA = intersects[0].object;
+        const lineB = intersects[1].object;
+        const indices = [intersects[0].index, intersects[1].index];
+        const hitPoint = new Vector3()
+            .copy(intersects[0].point)
+            .add(intersects[1].point)
+            .multiplyScalar(0.5);
+        const isSameElement = lineA.uuid === lineB.uuid;
+        if (isSameElement) {
+            const line = lineA;
+            const pos = line.geometry.getAttribute("position");
+            const vectorA = new Vector3().fromBufferAttribute(pos, indices[0]);
+            const vectorB = new Vector3().fromBufferAttribute(pos, indices[0] + 1);
+            const vectorC = new Vector3().fromBufferAttribute(pos, indices[1]);
+            const vectorD = new Vector3().fromBufferAttribute(pos, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        else {
+            const pos1 = lineA.geometry.getAttribute("position");
+            const pos2 = lineB.geometry.getAttribute("position");
+            const vectorA = new Vector3().fromBufferAttribute(pos1, indices[0]);
+            const vectorB = new Vector3().fromBufferAttribute(pos1, indices[0] + 1);
+            const vectorC = new Vector3().fromBufferAttribute(pos2, indices[1]);
+            const vectorD = new Vector3().fromBufferAttribute(pos2, indices[1] + 1);
+            const point = this.findIntersection(vectorA, vectorB, vectorC, vectorD);
+            if (!point) {
+                return;
+            }
+            this._pickedPoint = point;
+            if (this._pickedPoint.distanceTo(hitPoint) > 0.25) {
+                return;
+            }
+            this.updateMarker();
+        }
+        this.onAfterUpdate.trigger(this);
+    }
+    findIntersection(p1, p2, p3, p4) {
+        const line1Dir = p2.sub(p1);
+        const line2Dir = p4.sub(p3);
+        const lineDirCross = new Vector3().crossVectors(line1Dir, line2Dir);
+        const denominator = lineDirCross.lengthSq();
+        if (denominator === 0) {
+            return null;
+        }
+        const lineToPoint = p3.sub(p1);
+        const lineToPointCross = new Vector3().crossVectors(lineDirCross, lineToPoint);
+        const t1 = lineToPointCross.dot(line2Dir) / denominator;
+        return new Vector3().addVectors(p1, line1Dir.multiplyScalar(t1));
+    }
+    updateMarker() {
+        var _a;
+        this._marker.visible = !!this._pickedPoint;
+        this._marker.position.copy((_a = this._pickedPoint) !== null && _a !== void 0 ? _a : this._originVector);
+    }
+    get() {
+        return this._pickedPoint;
+    }
+}
+
+class VertexPicker extends Component {
+    set enabled(value) {
+        this._enabled = value;
+        if (!value) {
+            this._marker.visible = false;
+            this._pickedPoint = null;
+        }
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    get _raycaster() {
+        return this._components.raycaster;
+    }
+    constructor(components, config) {
+        super(components);
+        this.name = "VertexPicker";
+        this.afterUpdate = new Event();
+        this.beforeUpdate = new Event();
+        this._pickedPoint = null;
+        this._enabled = false;
+        this._workingPlane = null;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this.update = () => {
+            if (!this.enabled)
+                return;
+            this.beforeUpdate.trigger(this);
+            const intersects = this._raycaster.castRay();
+            if (!intersects) {
+                this._marker.visible = false;
+                this._pickedPoint = null;
+                return;
+            }
+            const point = this.getClosestVertex(intersects);
+            if (!point) {
+                this._marker.visible = false;
+                this._pickedPoint = null;
+                return;
+            }
+            const isOnPlane = !this.workingPlane
+                ? true
+                : Math.abs(this.workingPlane.distanceToPoint(point)) < 0.001;
+            if (!isOnPlane) {
+                this._marker.visible = false;
+                this._pickedPoint = null;
+                return;
+            }
+            this._pickedPoint = point;
+            this._marker.visible = true;
+            this._marker
+                .get()
+                .position.set(this._pickedPoint.x, this._pickedPoint.y, this._pickedPoint.z);
+            this.afterUpdate.trigger(this);
+        };
+        this._components = components;
+        this.config = {
+            snapDistance: 0.25,
+            showOnlyVertex: false,
+            ...config,
+        };
+        this._marker = new Simple2DMarker(components, this.config.previewElement);
+        this._marker.visible = false;
+        this.setupEvents(true);
+        this.enabled = false;
+    }
+    set workingPlane(plane) {
+        this._workingPlane = plane;
+    }
+    get workingPlane() {
+        return this._workingPlane;
+    }
+    set config(value) {
+        this._config = { ...this._config, ...value };
+    }
+    get config() {
+        return this._config;
+    }
+    async dispose() {
+        this.setupEvents(false);
+        await this._marker.dispose();
+        this.afterUpdate.reset();
+        this.beforeUpdate.reset();
+        this._components = null;
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
+    }
+    get() {
+        return this._pickedPoint;
+    }
+    getClosestVertex(intersects) {
+        let closestVertex = new THREE$1.Vector3();
+        let vertexFound = false;
+        let closestDistance = Number.MAX_SAFE_INTEGER;
+        const vertices = this.getVertices(intersects);
+        vertices === null || vertices === void 0 ? void 0 : vertices.forEach((vertex) => {
+            if (!vertex)
+                return;
+            const distance = intersects.point.distanceTo(vertex);
+            if (distance > closestDistance || distance > this._config.snapDistance)
+                return;
+            vertexFound = true;
+            closestVertex = vertex;
+            closestDistance = intersects.point.distanceTo(vertex);
+        });
+        if (vertexFound)
+            return closestVertex;
+        return this.config.showOnlyVertex ? null : intersects.point;
+    }
+    getVertices(intersects) {
+        const mesh = intersects.object;
+        if (!intersects.face || !mesh)
+            return null;
+        const geom = mesh.geometry;
+        return [
+            this.getVertex(intersects.face.a, geom),
+            this.getVertex(intersects.face.b, geom),
+            this.getVertex(intersects.face.c, geom),
+        ].map((vertex) => vertex === null || vertex === void 0 ? void 0 : vertex.applyMatrix4(mesh.matrixWorld));
+    }
+    getVertex(index, geom) {
+        if (index === undefined)
+            return null;
+        const vertices = geom.attributes.position;
+        return new THREE$1.Vector3(vertices.getX(index), vertices.getY(index), vertices.getZ(index));
+    }
+    setupEvents(active) {
+        const container = this.components.renderer.get().domElement.parentElement;
+        if (!container)
+            return;
+        if (active) {
+            container.addEventListener("mousemove", this.update);
+        }
+        else {
+            container.removeEventListener("mousemove", this.update);
+        }
+    }
+}
+
+class GeometryVerticesMarker extends Component {
+    set visible(value) {
+        this._visible = value;
+        for (const marker of this._markers)
+            marker.visible = value;
+    }
+    get visible() {
+        return this._visible;
+    }
+    constructor(components, geometry) {
+        super(components);
+        this.name = "GeometryVerticesMarker";
+        this.enabled = true;
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this._markers = [];
+        this._visible = true;
+        const position = geometry.getAttribute("position");
+        for (let index = 0; index < position.count; index++) {
+            const marker = new Simple2DMarker(components);
+            marker
+                .get()
+                .position.set(position.getX(index), position.getY(index), position.getZ(index));
+            this._markers.push(marker);
+        }
+    }
+    async dispose() {
+        for (const marker of this._markers) {
+            await marker.dispose();
+        }
+        this._markers = [];
+        await this.onDisposed.trigger();
+        this.onDisposed.reset();
+    }
+    get() {
+        return this._markers;
+    }
+}
+
+function roundVector(vector, factor = 100) {
+    vector.x = Math.round(vector.x * factor) / factor;
+    vector.y = Math.round(vector.y * factor) / factor;
+    vector.z = Math.round(vector.z * factor) / factor;
+}
+function getIndices(index, i) {
+    const i1 = index[i] * 3;
+    const i2 = index[i + 1] * 3;
+    const i3 = index[i + 2] * 3;
+    return [i1, i2, i3];
+}
+function getIndexAndPos(mesh) {
+    const { geometry } = mesh;
+    if (!geometry.index) {
+        throw new Error("Geometry must be indexed!");
+    }
+    const index = geometry.index.array;
+    const pos = geometry.attributes.position.array;
+    return { index, pos };
+}
+function getVertices(mesh, i, instance) {
+    const { index, pos } = getIndexAndPos(mesh);
+    const [i1, i2, i3] = getIndices(index, i);
+    const v1 = new THREE$1.Vector3();
+    const v2 = new THREE$1.Vector3();
+    const v3 = new THREE$1.Vector3();
+    v1.set(pos[i1], pos[i1 + 1], pos[i1 + 2]);
+    v2.set(pos[i2], pos[i2 + 1], pos[i2 + 2]);
+    v3.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
+    v1.applyMatrix4(mesh.matrixWorld);
+    v2.applyMatrix4(mesh.matrixWorld);
+    v3.applyMatrix4(mesh.matrixWorld);
+    if (mesh instanceof THREE$1.InstancedMesh && instance !== undefined) {
+        const instanceTransform = new THREE$1.Matrix4();
+        mesh.getMatrixAt(instance, instanceTransform);
+        v1.applyMatrix4(instanceTransform);
+        v2.applyMatrix4(instanceTransform);
+        v3.applyMatrix4(instanceTransform);
+    }
+    return { v1, v2, v3 };
+}
+function getPlane(mesh, i, instance) {
+    const { v1, v2, v3 } = getVertices(mesh, i, instance);
+    roundVector(v1);
+    roundVector(v2);
+    roundVector(v3);
+    const plane = new THREE$1.Plane().setFromCoplanarPoints(v1, v2, v3);
+    roundVector(plane.normal);
+    plane.constant = Math.round(plane.constant * 10) / 10;
+    return { plane, v1, v2, v3 };
+}
+function distanceFromPointToLine(point, lineStart, lineEnd, clamp = false) {
+    const tempLine = new THREE$1.Line3();
+    const tempPoint = new THREE$1.Vector3();
+    tempLine.set(lineStart, lineEnd);
+    tempLine.closestPointToPoint(point, clamp, tempPoint);
+    return tempPoint.distanceTo(point);
+}
+// TODO: Not perfect, fails in more difficult geometries
+function getRaycastedFace(mesh, faceIndex, instance) {
+    const addTriangleToIsland = (loop, e1, e2, e3) => {
+        loop.ids.delete(e1);
+        if (loop.ids.has(e2)) {
+            // When a triangle has 2 edges matching the island
+            loop.ids.delete(e2);
+        }
+        else {
+            loop.ids.add(e2);
+        }
+        if (loop.ids.has(e3)) {
+            // When a triangle has 2 edges matching the island
+            loop.ids.delete(e3);
+        }
+        else {
+            loop.ids.add(e3);
+        }
+    };
+    const addTriangleToFace = (face, iterator, e1, e2, e3, i, raycasted) => {
+        const loop = face[iterator.i];
+        if (iterator.found === null) {
+            // When a triangle matches an island of triangles for the first time
+            addTriangleToIsland(loop, e1, e2, e3);
+            loop.indices.push(i);
+            iterator.found = iterator.i;
+        }
+        else {
+            // This triangle has matched more than one island: fusion both islands
+            const previous = face[iterator.found];
+            for (const item of loop.ids) {
+                if (previous.ids.has(item)) {
+                    previous.ids.delete(item);
+                }
+                else {
+                    previous.ids.add(item);
+                }
+            }
+            for (const item of loop.indices) {
+                previous.indices.push(item);
+            }
+            face.splice(iterator.i, 1);
+            iterator.i--;
+        }
+        if (raycasted.index === i) {
+            raycasted.island = iterator.found;
+        }
+    };
+    const target = getPlane(mesh, faceIndex * 3, instance);
+    const { index } = getIndexAndPos(mesh);
+    const face = [];
+    const allDistances = {};
+    const allEdges = {};
+    // Which of the face island was hit by the raycaster
+    const raycasted = { index: faceIndex * 3, island: 0 };
+    for (let i = 0; i < index.length - 2; i += 3) {
+        const current = getPlane(mesh, i, instance);
+        const isCoplanar = target.plane.equals(current.plane);
+        if (isCoplanar) {
+            const vectors = [current.v1, current.v2, current.v3];
+            vectors.sort((a, b) => a.x - b.x || a.y - b.y || a.z - b.z);
+            const [v1, v2, v3] = vectors;
+            const v1ID = `${v1.x}_${v1.y}_${v1.z}`;
+            const v2ID = `${v2.x}_${v2.y}_${v2.z}`;
+            const v3ID = `${v3.x}_${v3.y}_${v3.z}`;
+            const e1 = `${v1ID}|${v2ID}`;
+            const e2 = `${v2ID}|${v3ID}`;
+            const e3 = `${v1ID}|${v3ID}`;
+            allDistances[e1] = v1.distanceTo(v2);
+            allDistances[e2] = v2.distanceTo(v3);
+            allDistances[e3] = v3.distanceTo(v1);
+            allEdges[e1] = [v1, v2];
+            allEdges[e2] = [v2, v3];
+            allEdges[e3] = [v3, v1];
+            const iterator = {
+                found: null,
+                i: 0,
+            };
+            for (iterator.i; iterator.i < face.length; iterator.i++) {
+                const loop = face[iterator.i];
+                if (loop.ids.has(e1)) {
+                    addTriangleToFace(face, iterator, e1, e2, e3, i, raycasted);
+                }
+                else if (loop.ids.has(e2)) {
+                    addTriangleToFace(face, iterator, e2, e3, e1, i, raycasted);
+                }
+                else if (loop.ids.has(e3)) {
+                    addTriangleToFace(face, iterator, e3, e1, e2, i, raycasted);
+                }
+            }
+            {
+                if (raycasted.index === i) {
+                    raycasted.island = face.length;
+                }
+                face.push({ indices: [i], ids: new Set([e1, e2, e3]) });
+            }
+        }
+    }
+    const currentFace = face[raycasted.island];
+    if (!currentFace)
+        return null;
+    const distances = {};
+    const edges = {};
+    for (const id of currentFace.ids) {
+        distances[id] = allDistances[id];
+        edges[id] = allEdges[id];
+    }
+    return { face: currentFace, distances, edges };
+}
+
 class IfcPropertiesUtils {
     static getUnits(properties) {
         var _a;
@@ -109318,7 +102480,7 @@ class IfcPropertiesManager extends Component {
         }
         const modifiedIFC = ifcApi.SaveModel(modelID);
         ifcLoader.get().CloseModel(modelID);
-        ifcLoader.cleanIfcApi();
+        ifcLoader.cleanUp();
         return modifiedIFC;
     }
     setAttributeListener(model, expressID, attributeName) {
@@ -110443,11 +103605,11 @@ class IfcPropertiesFinder extends Component {
                         : [...relations, ...groupRelations];
             }
             const modelEntities = new Set();
-            for (const expressID in model.data) {
-                const included = relations.includes(Number(expressID));
-                if (!included)
-                    continue;
-                modelEntities.add(Number(expressID));
+            for (const [expressID] of model.data) {
+                const included = relations.includes(expressID);
+                if (included) {
+                    modelEntities.add(expressID);
+                }
             }
             const otherEntities = new Set();
             for (const expressID of relations) {
@@ -110471,15 +103633,18 @@ class IfcPropertiesFinder extends Component {
                 continue;
             const matchingEntities = data[modelID].modelEntities;
             for (const expressID of matchingEntities) {
-                const data = model.data[expressID];
+                const data = model.data.get(expressID);
                 if (!data)
                     continue;
                 for (const key of data[0]) {
-                    const fragmentID = model.keyFragments[key];
+                    const fragmentID = model.keyFragments.get(key);
+                    if (!fragmentID) {
+                        throw new Error("Fragment ID not found!");
+                    }
                     if (!fragmentMap[fragmentID]) {
                         fragmentMap[fragmentID] = new Set();
                     }
-                    fragmentMap[fragmentID].add(String(expressID));
+                    fragmentMap[fragmentID].add(expressID);
                 }
             }
         }
@@ -110616,6 +103781,272 @@ class IfcPropertiesFinder extends Component {
         };
     }
 }
+
+class FragmentIfcLoader extends Component {
+    constructor(components) {
+        super(components);
+        this.onIfcLoaded = new Event();
+        this.onSetup = new Event();
+        /** {@link Disposable.onDisposed} */
+        this.onDisposed = new Event();
+        this.settings = new IfcFragmentSettings();
+        this.enabled = true;
+        this.uiElement = new UIElement();
+        this._material = new THREE$1.MeshLambertMaterial();
+        this._materialT = new THREE$1.MeshLambertMaterial({
+            transparent: true,
+            opacity: 0.5,
+        });
+        this._spatialTree = new SpatialStructure();
+        this._metaData = new IfcMetadataReader();
+        this._visitedFragments = new Map();
+        this._fragmentInstances = new Map();
+        this._webIfc = new IfcAPI2();
+        this._civil = new CivilReader();
+        this._propertyExporter = new IfcJsonExporter();
+        this.components.tools.add(FragmentIfcLoader.uuid, this);
+        if (components.uiEnabled) {
+            this.setupUI();
+        }
+        this.settings.excludedCategories.add(IFCOPENINGELEMENT);
+    }
+    get() {
+        return this._webIfc;
+    }
+    async dispose() {
+        this.onIfcLoaded.reset();
+        await this.uiElement.dispose();
+        this._webIfc = null;
+        await this.onDisposed.trigger(FragmentIfcLoader.uuid);
+        this.onDisposed.reset();
+    }
+    async setup(config) {
+        this.settings = { ...this.settings, ...config };
+        if (this.settings.autoSetWasm) {
+            await this.autoSetWasm();
+        }
+        await this.onSetup.trigger();
+    }
+    async load(data) {
+        const before = performance.now();
+        await this.readIfcFile(data);
+        const group = await this.getAllGeometries();
+        group.properties = await this.getModelProperties();
+        this.cleanUp();
+        console.log(`Streaming the IFC took ${performance.now() - before} ms!`);
+        const fragments = this.components.tools.get(FragmentManager);
+        fragments.groups.push(group);
+        const scene = this.components.scene.get();
+        scene.add(group);
+        return group;
+    }
+    setupUI() {
+        const main = new Button(this.components);
+        main.materialIcon = "upload_file";
+        main.tooltip = "Load IFC";
+        const toast = new ToastNotification(this.components, {
+            message: "IFC model successfully loaded!",
+        });
+        main.onClick.add(() => {
+            const fileOpener = document.createElement("input");
+            fileOpener.type = "file";
+            fileOpener.accept = ".ifc";
+            fileOpener.style.display = "none";
+            fileOpener.onchange = async () => {
+                const fragments = this.components.tools.get(FragmentManager);
+                if (fileOpener.files === null || fileOpener.files.length === 0)
+                    return;
+                const file = fileOpener.files[0];
+                const buffer = await file.arrayBuffer();
+                const data = new Uint8Array(buffer);
+                await this.load(data);
+                toast.visible = true;
+                await fragments.updateWindow();
+                fileOpener.remove();
+            };
+            fileOpener.click();
+        });
+        this.components.ui.add(toast);
+        toast.visible = false;
+        this.uiElement.set({ main, toast });
+    }
+    async readIfcFile(data) {
+        const { path, absolute, logLevel } = this.settings.wasm;
+        this._webIfc.SetWasmPath(path, absolute);
+        await this._webIfc.Init();
+        if (logLevel) {
+            this._webIfc.SetLogLevel(logLevel);
+        }
+        return this._webIfc.OpenModel(data, this.settings.webIfc);
+    }
+    async getAllGeometries() {
+        // Precompute the level and category to which each item belongs
+        await this._spatialTree.setUp(this._webIfc);
+        const allIfcEntities = this._webIfc.GetIfcEntityList(0);
+        const group = new FragmentsGroup();
+        const { FILE_NAME, FILE_DESCRIPTION } = WEBIFC;
+        group.ifcMetadata = {
+            name: this._metaData.get(this._webIfc, FILE_NAME),
+            description: this._metaData.get(this._webIfc, FILE_DESCRIPTION),
+            schema: this._webIfc.GetModelSchema(0) || "IFC2X3",
+            maxExpressID: this._webIfc.GetMaxExpressID(0),
+        };
+        for (const type of allIfcEntities) {
+            if (!this._webIfc.IsIfcElement(type) && type !== IFCSPACE) {
+                continue;
+            }
+            if (this.settings.excludedCategories.has(type)) {
+                continue;
+            }
+            const result = this._webIfc.GetLineIDsWithType(0, type);
+            const size = result.size();
+            for (let i = 0; i < size; i++) {
+                const itemID = result.get(i);
+                const level = this._spatialTree.itemsByFloor[itemID] || 0;
+                group.data.set(itemID, [[], [level, type]]);
+            }
+        }
+        this._spatialTree.cleanUp();
+        this._webIfc.StreamAllMeshes(0, (mesh) => {
+            this.getMesh(this._webIfc, mesh, group);
+        });
+        for (const entry of this._visitedFragments) {
+            const { index, fragment } = entry[1];
+            group.keyFragments.set(index, fragment.id);
+        }
+        for (const fragment of group.items) {
+            const fragmentData = this._fragmentInstances.get(fragment.id);
+            if (!fragmentData) {
+                throw new Error("Fragment not found!");
+            }
+            const items = [];
+            for (const [_geomID, item] of fragmentData) {
+                items.push(item);
+            }
+            fragment.add(items);
+        }
+        const matrix = this._webIfc.GetCoordinationMatrix(0);
+        group.coordinationMatrix.fromArray(matrix);
+        group.ifcCivil = this._civil.read(this._webIfc);
+        await this.onIfcLoaded.trigger(group);
+        return group;
+    }
+    cleanUp() {
+        this._webIfc = null;
+        this._webIfc = new IfcAPI2();
+        this._visitedFragments.clear();
+        this._fragmentInstances.clear();
+    }
+    getMesh(webIfc, mesh, group) {
+        const size = mesh.geometries.size();
+        const id = mesh.expressID;
+        // Create geometry if it doesn't exist
+        for (let i = 0; i < size; i++) {
+            const geometry = mesh.geometries.get(i);
+            const { x, y, z, w } = geometry.color;
+            const transparent = w !== 1;
+            const { geometryExpressID } = geometry;
+            const geometryID = `${geometryExpressID}-${transparent}`;
+            if (!this._visitedFragments.has(geometryID)) {
+                const bufferGeometry = this.getGeometry(webIfc, geometryExpressID);
+                const material = transparent ? this._materialT : this._material;
+                const fragment = new Fragment$1(bufferGeometry, material, 1);
+                group.add(fragment.mesh);
+                group.items.push(fragment);
+                const index = this._visitedFragments.size;
+                this._visitedFragments.set(geometryID, { index, fragment });
+            }
+            // Save this instance of this geometry
+            const color = new THREE$1.Color().setRGB(x, y, z, "srgb");
+            const transform = new THREE$1.Matrix4();
+            transform.fromArray(geometry.flatTransformation);
+            const fragmentData = this._visitedFragments.get(geometryID);
+            if (fragmentData === undefined) {
+                throw new Error("Error getting geometry data for streaming!");
+            }
+            const data = group.data.get(id);
+            if (!data) {
+                throw new Error("Data not found!");
+            }
+            data[0].push(fragmentData.index);
+            const { fragment } = fragmentData;
+            if (!this._fragmentInstances.has(fragment.id)) {
+                this._fragmentInstances.set(fragment.id, new Map());
+            }
+            const instances = this._fragmentInstances.get(fragment.id);
+            if (!instances) {
+                throw new Error("Instances not found!");
+            }
+            if (instances.has(id)) {
+                // This item has more than one instance in this fragment
+                const instance = instances.get(id);
+                if (!instance) {
+                    throw new Error("Instance not found!");
+                }
+                instance.transforms.push(transform);
+                if (instance.colors) {
+                    instance.colors.push(color);
+                }
+            }
+            else {
+                instances.set(id, { id, transforms: [transform], colors: [color] });
+            }
+        }
+    }
+    getGeometry(webIfc, id) {
+        const geometry = webIfc.GetGeometry(0, id);
+        const index = webIfc.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
+        const vertexData = webIfc.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
+        const position = new Float32Array(vertexData.length / 2);
+        const normal = new Float32Array(vertexData.length / 2);
+        for (let i = 0; i < vertexData.length; i += 6) {
+            position[i / 2] = vertexData[i];
+            position[i / 2 + 1] = vertexData[i + 1];
+            position[i / 2 + 2] = vertexData[i + 2];
+            normal[i / 2] = vertexData[i + 3];
+            normal[i / 2 + 1] = vertexData[i + 4];
+            normal[i / 2 + 2] = vertexData[i + 5];
+        }
+        const bufferGeometry = new THREE$1.BufferGeometry();
+        const posAttr = new THREE$1.BufferAttribute(position, 3);
+        const norAttr = new THREE$1.BufferAttribute(normal, 3);
+        bufferGeometry.setAttribute("position", posAttr);
+        bufferGeometry.setAttribute("normal", norAttr);
+        bufferGeometry.setIndex(Array.from(index));
+        geometry.delete();
+        return bufferGeometry;
+    }
+    async getModelProperties() {
+        if (!this.settings.includeProperties) {
+            return {};
+        }
+        return new Promise((resolve) => {
+            this._propertyExporter.onPropertiesSerialized.add((properties) => {
+                resolve(properties);
+            });
+            this._propertyExporter.export(this._webIfc, 0);
+        });
+    }
+    async autoSetWasm() {
+        var _a;
+        const componentsPackage = await fetch(`https://unpkg.com/openbim-components@${Components.release}/package.json`);
+        if (!componentsPackage.ok) {
+            console.warn("Couldn't get openbim-components package.json. Set wasm settings manually.");
+            return;
+        }
+        const componentsPackageJSON = await componentsPackage.json();
+        if (!((_a = "web-ifc" in componentsPackageJSON.peerDependencies) !== null && _a !== void 0 ? _a : {})) {
+            console.warn("Couldn't get web-ifc from peer dependencies in openbim-components. Set wasm settings manually.");
+        }
+        else {
+            const webIfcVer = componentsPackageJSON.peerDependencies["web-ifc"];
+            this.settings.wasm.path = `https://unpkg.com/web-ifc@${webIfcVer}/`;
+            this.settings.wasm.absolute = true;
+        }
+    }
+}
+FragmentIfcLoader.uuid = "a659add7-1418-4771-a0d6-7d4d438e4624";
+ToolComponent.libraryUUIDs.add(FragmentIfcLoader.uuid);
 
 class FragmentHider extends Component {
     constructor(components) {
@@ -111001,13 +104432,14 @@ class FragmentClassifier extends Component {
             const fragList = fragments.list;
             for (const id in fragList) {
                 const fragment = fragList[id];
-                const items = fragment.items;
-                const hidden = Object.keys(fragment.hiddenInstances);
-                result[id] = new Set(...items, ...hidden);
+                result[id] = new Set(fragment.ids);
             }
             return result;
         }
-        const size = Object.keys(filter).length;
+        // There must be as many matches as conditions.
+        // E.g.: if the filter is "floor 1 and category wall",
+        // this gets the items with 2 matches (1 match per condition)
+        const filterCount = Object.keys(filter).length;
         const models = {};
         for (const name in filter) {
             const values = filter[name];
@@ -111020,14 +104452,15 @@ class FragmentClassifier extends Component {
                 if (found) {
                     for (const guid in found) {
                         if (!models[guid]) {
-                            models[guid] = {};
+                            models[guid] = new Map();
                         }
                         for (const id of found[guid]) {
-                            if (!models[guid][id]) {
-                                models[guid][id] = 1;
+                            const matchCount = models[guid].get(id);
+                            if (matchCount === undefined) {
+                                models[guid].set(id, 1);
                             }
                             else {
-                                models[guid][id]++;
+                                models[guid].set(id, matchCount + 1);
                             }
                         }
                     }
@@ -111037,22 +104470,15 @@ class FragmentClassifier extends Component {
         const result = {};
         for (const guid in models) {
             const model = models[guid];
-            for (const id in model) {
-                const numberOfMatches = model[id];
-                if (numberOfMatches === size) {
+            for (const [id, numberOfMatches] of model) {
+                if (numberOfMatches === undefined) {
+                    throw new Error("Malformed fragments map!");
+                }
+                if (numberOfMatches === filterCount) {
                     if (!result[guid]) {
                         result[guid] = new Set();
                     }
                     result[guid].add(id);
-                    const fragment = fragments.list[guid];
-                    const composites = fragment.composites[id];
-                    if (composites) {
-                        const idNum = parseInt(id, 10);
-                        for (let i = 1; i < composites; i++) {
-                            const compositeID = toCompositeID(idNum, i);
-                            result[guid].add(compositeID);
-                        }
-                    }
                 }
             }
         }
@@ -111067,10 +104493,12 @@ class FragmentClassifier extends Component {
             modelsClassification[modelID] = {};
         }
         const currentModel = modelsClassification[modelID];
-        for (const expressID in group.data) {
-            const keys = group.data[expressID][0];
+        for (const [expressID, data] of group.data) {
+            const keys = data[0];
             for (const key of keys) {
-                const fragID = group.keyFragments[key];
+                const fragID = group.keyFragments.get(key);
+                if (!fragID)
+                    continue;
                 if (!currentModel[fragID]) {
                     currentModel[fragID] = new Set();
                 }
@@ -111096,15 +104524,18 @@ class FragmentClassifier extends Component {
                 currentTypes[predefinedType] = {};
             }
             const currentType = currentTypes[predefinedType];
-            for (const expressID in group.data) {
-                const keys = group.data[expressID][0];
+            for (const [_expressID, data] of group.data) {
+                const keys = data[0];
                 for (const key of keys) {
-                    const fragmentID = group.keyFragments[key];
+                    const fragmentID = group.keyFragments.get(key);
+                    if (!fragmentID) {
+                        throw new Error("Fragment ID not found!");
+                    }
                     if (!currentType[fragmentID]) {
                         currentType[fragmentID] = new Set();
                     }
                     const currentFragment = currentType[fragmentID];
-                    currentFragment.add(String(entity.expressID));
+                    currentFragment.add(entity.expressID);
                 }
             }
         }
@@ -111113,8 +104544,8 @@ class FragmentClassifier extends Component {
         if (!this._groupSystems.entities) {
             this._groupSystems.entities = {};
         }
-        for (const expressID in group.data) {
-            const rels = group.data[expressID][1];
+        for (const [expressID, data] of group.data) {
+            const rels = data[1];
             const type = rels[1];
             const entity = IfcCategoryMap[type];
             this.saveItem(group, "entities", entity, expressID);
@@ -111124,8 +104555,8 @@ class FragmentClassifier extends Component {
         if (!group.properties) {
             throw new Error("To group by storey, properties are needed");
         }
-        for (const expressID in group.data) {
-            const rels = group.data[expressID][1];
+        for (const [expressID, data] of group.data) {
+            const rels = data[1];
             const storeyID = rels[0];
             const storey = group.properties[storeyID];
             if (storey === undefined)
@@ -111143,7 +104574,7 @@ class FragmentClassifier extends Component {
         IfcPropertiesUtils.getRelationMap(properties, ifcRel, (relatingID, relatedIDs) => {
             const { name: relatingName } = IfcPropertiesUtils.getEntityName(properties, relatingID);
             for (const expressID of relatedIDs) {
-                this.saveItem(group, systemName, relatingName !== null && relatingName !== void 0 ? relatingName : "NO REL NAME", String(expressID));
+                this.saveItem(group, systemName, relatingName !== null && relatingName !== void 0 ? relatingName : "NO REL NAME", expressID);
             }
         });
     }
@@ -111151,11 +104582,11 @@ class FragmentClassifier extends Component {
         if (!this._groupSystems[systemName]) {
             this._groupSystems[systemName] = {};
         }
-        const keys = group.data[expressID];
+        const keys = group.data.get(expressID);
         if (!keys)
             return;
         for (const key of keys[0]) {
-            const fragmentID = group.keyFragments[key];
+            const fragmentID = group.keyFragments.get(key);
             if (fragmentID) {
                 const system = this._groupSystems[systemName];
                 if (!system[className]) {
@@ -111434,7 +104865,7 @@ class FragmentExploder extends Component {
     }
     async dispose() {
         this._explodedFragments.clear();
-        this.uiElement.dispose();
+        await this.uiElement.dispose();
         await this.onDisposed.trigger(FragmentExploder.uuid);
         this.onDisposed.reset();
     }
@@ -111453,86 +104884,28 @@ class FragmentExploder extends Component {
         let i = 0;
         const systems = classifier.get();
         const groups = systems[this.groupName];
-        const mergedIDHeightMap = {};
         const yTransform = new THREE$1.Matrix4();
         for (const groupName in groups) {
             yTransform.elements[13] = i * factor * this.height;
             for (const fragID in groups[groupName]) {
                 const fragment = fragments.list[fragID];
-                const customID = groupName + fragID;
-                if (!fragment) {
-                    continue;
-                }
-                if (this.enabled && this._explodedFragments.has(customID)) {
-                    continue;
-                }
-                if (!this.enabled && !this._explodedFragments.has(customID)) {
+                const itemsID = groupName + fragID;
+                const areItemsExploded = this._explodedFragments.has(itemsID);
+                if (!fragment ||
+                    (this.enabled && areItemsExploded) ||
+                    (!this.enabled && !areItemsExploded)) {
                     continue;
                 }
                 if (this.enabled) {
-                    this._explodedFragments.add(customID);
+                    this._explodedFragments.add(itemsID);
                 }
                 else {
-                    this._explodedFragments.delete(customID);
+                    this._explodedFragments.delete(itemsID);
                 }
-                if (fragment.blocks.count === 1) {
-                    // For instanced fragments
-                    const ids = groups[groupName][fragID];
-                    for (const id of ids) {
-                        const tempMatrix = new THREE$1.Matrix4();
-                        const { instanceID } = fragment.getInstanceAndBlockID(id);
-                        fragment.getInstance(instanceID, tempMatrix);
-                        tempMatrix.premultiply(yTransform);
-                        fragment.mesh.setMatrixAt(instanceID, tempMatrix);
-                        const composites = fragment.composites[id];
-                        if (composites) {
-                            for (let i = 1; i < composites; i++) {
-                                const idNum = parseInt(id, 10);
-                                const compID = toCompositeID(idNum, i);
-                                const { instanceID } = fragment.getInstanceAndBlockID(compID);
-                                fragment.getInstance(instanceID, tempMatrix);
-                                tempMatrix.premultiply(yTransform);
-                                fragment.mesh.setMatrixAt(instanceID, tempMatrix);
-                            }
-                        }
-                    }
-                    fragment.mesh.instanceMatrix.needsUpdate = true;
-                }
-                else {
-                    if (!mergedIDHeightMap[fragID]) {
-                        mergedIDHeightMap[fragID] = {};
-                    }
-                    const ids = groups[groupName][fragID];
-                    for (const id of ids) {
-                        mergedIDHeightMap[fragID][id] = i * factor * this.height;
-                    }
-                }
+                const ids = groups[groupName][fragID];
+                fragment.applyTransform(ids, yTransform);
             }
             i++;
-        }
-        const v = new THREE$1.Vector3();
-        // Update merged fragments
-        for (const fragID in mergedIDHeightMap) {
-            const heights = mergedIDHeightMap[fragID];
-            const fragment = fragments.list[fragID];
-            const geometry = fragment.mesh.geometry;
-            const position = geometry.attributes.position;
-            for (let i = 0; i < geometry.index.count; i++) {
-                const index = geometry.index.array[i];
-                const blockID = geometry.attributes.blockID.array[index];
-                const id = fragment.getItemID(0, blockID);
-                const height = heights[id];
-                if (height === undefined)
-                    continue;
-                yTransform.elements[13] = height;
-                const x = position.array[index * 3];
-                const y = position.array[index * 3 + 1];
-                const z = position.array[index * 3 + 2];
-                v.set(x, y, z);
-                v.applyMatrix4(yTransform);
-                position.setXYZ(index, v.x, v.y, v.z);
-            }
-            position.needsUpdate = true;
         }
     }
     setupUI(components) {
@@ -112472,37 +105845,24 @@ class ClippingFills {
         this._plane = null;
         this._geometry = null;
     }
-    update(elements, blockByIndex) {
+    update(trianglesIndices) {
         const buffer = this._geometry.attributes.position.array;
         if (!buffer)
             return;
         this.updatePlane2DCoordinateSystem();
         const allIndices = [];
-        let start = 0;
-        for (let i = 0; i < elements.length; i++) {
-            const end = elements[i];
-            const verticesByBlock = {};
-            for (let j = start; j < end; j += 2) {
-                let block = blockByIndex[j];
-                if (block === undefined) {
-                    block = -1;
-                }
-                if (!verticesByBlock[block]) {
-                    verticesByBlock[block] = [];
-                }
-                verticesByBlock[block].push(j * 3);
+        let currentTriangle = 0;
+        for (let i = 0; i < trianglesIndices.length; i++) {
+            const nextTriangle = trianglesIndices[i];
+            const vertices = [];
+            for (let j = currentTriangle; j < nextTriangle; j += 2) {
+                vertices.push(j * 3);
             }
-            for (const block in verticesByBlock) {
-                const vertices = verticesByBlock[block];
-                if (!vertices.length) {
-                    continue;
-                }
-                const indices = this.computeFill(vertices, buffer);
-                for (const index of indices) {
-                    allIndices.push(index);
-                }
+            const indices = this.computeFill(vertices, buffer);
+            for (const index of indices) {
+                allIndices.push(index);
             }
-            start = end;
+            currentTriangle = nextTriangle;
         }
         this.mesh.geometry.setIndex(allIndices);
     }
@@ -112803,7 +106163,6 @@ class ClippingEdges extends Component {
         /** {@link Component.enabled}. */
         this.enabled = true;
         this.fillNeedsUpdate = false;
-        this.blockByIndex = {};
         this._edges = {};
         this._visible = true;
         this._inverseMatrix = new THREE$1.Matrix4();
@@ -112886,7 +106245,6 @@ class ClippingEdges extends Component {
     }
     // Source: https://gkjohnson.github.io/three-mesh-bvh/example/bundle/clippedEdges.html
     drawEdges(styleName) {
-        this.blockByIndex = {};
         const style = this._styles.get()[styleName];
         if (!this._edges[styleName]) {
             this.initializeStyle(styleName);
@@ -112896,6 +106254,7 @@ class ClippingEdges extends Component {
         const posAttr = edges.mesh.geometry.attributes.position;
         // @ts-ignore
         posAttr.array.fill(0);
+        // The indexex of the points that draw the lines
         const indexes = [];
         let lastIndex = 0;
         for (const mesh of style.meshes) {
@@ -112905,19 +106264,19 @@ class ClippingEdges extends Component {
             if (!mesh.geometry.boundsTree) {
                 throw new Error("Boundstree not found for clipping edges subset.");
             }
-            const instanced = mesh;
-            if (instanced.count === 0) {
-                continue;
-            }
-            if (instanced.count > 1) {
+            if (mesh instanceof THREE$1.InstancedMesh) {
+                if (mesh.count === 0) {
+                    continue;
+                }
+                const instanced = mesh;
                 for (let i = 0; i < instanced.count; i++) {
                     // Exclude fragment instances that don't belong to this style
                     const isFragment = instanced instanceof FragmentMesh;
                     const fMesh = instanced;
                     const ids = style.fragments[fMesh.fragment.id];
                     if (isFragment && ids) {
-                        const itemID = fMesh.fragment.items[i];
-                        if (!ids.has(itemID)) {
+                        const itemID = fMesh.fragment.getItemID(i);
+                        if (itemID === null || !ids.has(itemID)) {
                             continue;
                         }
                     }
@@ -112931,7 +106290,7 @@ class ClippingEdges extends Component {
                     tempMesh.updateMatrixWorld();
                     this._inverseMatrix.copy(tempMesh.matrixWorld).invert();
                     this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
-                    index = this.shapecast(tempMesh, posAttr, index, style);
+                    index = this.shapecast(tempMesh, posAttr, index);
                     if (index !== lastIndex) {
                         indexes.push(index);
                         lastIndex = index;
@@ -112941,8 +106300,7 @@ class ClippingEdges extends Component {
             else {
                 this._inverseMatrix.copy(mesh.matrixWorld).invert();
                 this._localPlane.copy(this._plane).applyMatrix4(this._inverseMatrix);
-                const isFragment = mesh instanceof FragmentMesh;
-                index = this.shapecast(mesh, posAttr, index, style, isFragment);
+                index = this.shapecast(mesh, posAttr, index);
                 if (index !== lastIndex) {
                     indexes.push(index);
                     lastIndex = index;
@@ -112961,7 +106319,7 @@ class ClippingEdges extends Component {
             scene.add(edges.mesh);
             if (this.fillNeedsUpdate && edges.fill) {
                 edges.fill.geometry = edges.mesh.geometry;
-                edges.fill.update(indexes, this.blockByIndex);
+                edges.fill.update(indexes);
             }
         }
     }
@@ -112971,27 +106329,14 @@ class ClippingEdges extends Component {
         const fill = this.newFillMesh(name, geometry);
         this._edges[name] = { mesh, name, fill };
     }
-    shapecast(mesh, posAttr, index, style, isMultiblockFragment = false) {
+    shapecast(mesh, posAttr, index) {
         // @ts-ignore
         mesh.geometry.boundsTree.shapecast({
             intersectsBounds: (box) => {
                 return this._localPlane.intersectsBox(box);
             },
             // @ts-ignore
-            intersectsTriangle: (tri, triangleIndex) => {
-                // Exclude triangles of fragment items that don't belong to this style
-                if (isMultiblockFragment && style.fragments) {
-                    const fMesh = mesh;
-                    const ids = style.fragments[fMesh.fragment.id];
-                    if (ids !== undefined) {
-                        const index = fMesh.geometry.index.array[triangleIndex * 3];
-                        const blockID = fMesh.geometry.attributes.blockID.array[index];
-                        const id = fMesh.fragment.getItemID(0, blockID);
-                        if (!ids.has(id)) {
-                            return;
-                        }
-                    }
-                }
+            intersectsTriangle: (tri) => {
                 // check each triangle edge to see if it intersects with the plane. If so then
                 // add it to the list of segments.
                 let count = 0;
@@ -113024,12 +106369,6 @@ class ClippingEdges extends Component {
                 if (count !== 2) {
                     index -= count;
                 }
-                if (count === 2 && isMultiblockFragment) {
-                    const fMesh = mesh;
-                    const vertexIndex = fMesh.geometry.index.array[triangleIndex * 3];
-                    const block = fMesh.geometry.attributes.blockID.array[vertexIndex];
-                    this.blockByIndex[index - 2] = block;
-                }
             },
         });
         return index;
@@ -113052,7 +106391,7 @@ class ClippingEdges extends Component {
         const names = Object.keys(this._edges);
         for (const name of names) {
             if (styles[name] === undefined) {
-                await this.disposeEdge(name);
+                this.disposeEdge(name);
                 this.disposeOutline(name);
             }
         }
@@ -113642,7 +106981,7 @@ class FragmentClipStyler extends Component {
             localStorage.setItem(this.localStorageID, this._defaultStyles);
             await this.loadCachedStyles();
         }
-        this.onSetup.trigger(this);
+        await this.onSetup.trigger(this);
     }
     get() {
         const saved = localStorage.getItem(this.localStorageID);
@@ -115858,7 +109197,7 @@ UniformsLib.line = {
 
 	worldUnits: { value: 1 },
 	linewidth: { value: 1 },
-	resolution: { value: new Vector2$1( 1, 1 ) },
+	resolution: { value: new Vector2( 1, 1 ) },
 	dashOffset: { value: 0 },
 	dashScale: { value: 1 },
 	dashSize: { value: 1 },
@@ -116451,7 +109790,7 @@ class LineMaterial extends ShaderMaterial {
 }
 
 const _box$1 = new Box3();
-const _vector = new Vector3$1();
+const _vector = new Vector3();
 
 class LineSegmentsGeometry extends InstancedBufferGeometry {
 
@@ -116755,17 +110094,17 @@ class LineGeometry extends LineSegmentsGeometry {
 
 }
 
-const _start = new Vector3$1();
-const _end = new Vector3$1();
+const _start = new Vector3();
+const _end = new Vector3();
 
 const _start4 = new Vector4();
 const _end4 = new Vector4();
 
 const _ssOrigin = new Vector4();
-const _ssOrigin3 = new Vector3$1();
+const _ssOrigin3 = new Vector3();
 const _mvMatrix = new Matrix4();
 const _line = new Line3();
-const _closestPoint = new Vector3$1();
+const _closestPoint = new Vector3();
 
 const _box = new Box3();
 const _sphere = new Sphere();
@@ -116806,8 +110145,8 @@ function raycastWorldUnits( lineSegments, intersects ) {
 
 		_line.applyMatrix4( matrixWorld );
 
-		const pointOnLine = new Vector3$1();
-		const point = new Vector3$1();
+		const pointOnLine = new Vector3();
+		const point = new Vector3();
 
 		_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
 		const isInside = point.distanceTo( pointOnLine ) < _lineWidth * 0.5;
@@ -116942,8 +110281,8 @@ function raycastScreenSpace( lineSegments, camera, intersects ) {
 			_line.start.applyMatrix4( matrixWorld );
 			_line.end.applyMatrix4( matrixWorld );
 
-			const pointOnLine = new Vector3$1();
-			const point = new Vector3$1();
+			const pointOnLine = new Vector3();
+			const point = new Vector3();
 
 			_ray.distanceSqToSegment( _line.start, _line.end, point, pointOnLine );
 
@@ -118383,8 +111722,8 @@ class ViewpointsManager extends Component {
         // #region Store camera position and target
         const camera = this.components.camera;
         const controls = camera.controls;
-        const target = new Vector3$1();
-        const position = new Vector3$1();
+        const target = new Vector3();
+        const position = new Vector3();
         controls.getTarget(target);
         controls.getPosition(position);
         const projection = camera.getProjection();
@@ -118816,15 +112155,15 @@ class SVGArrow extends Component {
         super(components);
         this.name = "SVGRectangle";
         this.enabled = true;
-        this.id = tooeenRandomId();
+        this.id = generateUUID();
         /** {@link Disposable.onDisposed} */
         this.onDisposed = new Event();
         this._line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         this._polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
         this._marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
         this._arrow = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        this._startPoint = new Vector2$1();
-        this._endPoint = new Vector2$1();
+        this._startPoint = new Vector2();
+        this._endPoint = new Vector2();
         // Create marker for the arrow head
         this._marker.setAttribute("id", `${this.id}-arrowhead`);
         this._marker.setAttribute("markerWidth", "5");
@@ -119076,13 +112415,13 @@ class ArrowAnnotation extends BaseSVGAnnotation {
 class SVGCircle extends Component {
     constructor(components, centerPoint, radius) {
         super(components);
-        this.id = tooeenRandomId();
+        this.id = generateUUID();
         this.name = "SVGRectangle";
         this.enabled = true;
         /** {@link Disposable.onDisposed} */
         this.onDisposed = new Event();
         this._circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        this._centerPoint = new Vector2$1();
+        this._centerPoint = new Vector2();
         this._radius = 20;
         this.centerPoint = centerPoint !== null && centerPoint !== void 0 ? centerPoint : this.centerPoint;
         this.radius = radius !== null && radius !== void 0 ? radius : this.radius;
@@ -119142,7 +112481,7 @@ class CircleAnnotation extends BaseSVGAnnotation {
         this.name = "CircleAnnotation";
         this.canvas = null;
         this.uiElement = new UIElement();
-        this._cursorPosition = new Vector2$1();
+        this._cursorPosition = new Vector2();
         this.start = (e) => {
             var _a, _b;
             if (!this.canDraw) {
@@ -119207,12 +112546,12 @@ class CircleAnnotation extends BaseSVGAnnotation {
 class SVGText extends Component {
     constructor(components, text, startPoint) {
         super(components);
-        this.id = tooeenRandomId();
+        this.id = generateUUID();
         this.name = "SVGRectangle";
         this.enabled = true;
         /** {@link Disposable.onDisposed} */
         this.onDisposed = new Event();
-        this._startPoint = new Vector2$1();
+        this._startPoint = new Vector2();
         this._text = document.createElementNS("http://www.w3.org/2000/svg", "text");
         this._text.setAttribute("fill", "red");
         this._text.classList.add("text-2xl", "font-medium");
@@ -119338,14 +112677,14 @@ class TextAnnotation extends BaseSVGAnnotation {
 class SVGRectangle extends Component {
     constructor(components, startPoint, endPoint) {
         super(components);
-        this.id = tooeenRandomId();
+        this.id = generateUUID();
         this.name = "SVGRectangle";
         this.enabled = true;
         /** {@link Disposable.onDisposed} */
         this.onDisposed = new Event();
-        this._startPoint = new Vector2$1();
-        this._endPoint = new Vector2$1();
-        this._dimensions = new Vector2$1();
+        this._startPoint = new Vector2();
+        this._endPoint = new Vector2();
+        this._dimensions = new Vector2();
         this._rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         this.startPoint = startPoint !== null && startPoint !== void 0 ? startPoint : this.startPoint;
         this.endPoint = endPoint !== null && endPoint !== void 0 ? endPoint : this.endPoint;
@@ -119440,7 +112779,7 @@ class RectangleAnnotation extends BaseSVGAnnotation {
         this.name = "RectangleAnnotation";
         this.canvas = null;
         this.uiElement = new UIElement();
-        this._startPoint = new Vector2$1();
+        this._startPoint = new Vector2();
         this.start = (e) => {
             var _a, _b;
             if (!this.canDraw) {
@@ -121480,13 +114819,13 @@ var dxfWriter = Drawing_1;
 var Drawing = /*@__PURE__*/getDefaultExportFromCjs(dxfWriter);
 
 /* eslint-disable */
-const _upVector = new Vector3$1(0, 1, 0);
+const _upVector = new Vector3(0, 1, 0);
 const EPSILON = 1e-16;
 // Modified version of js EdgesGeometry logic to handle silhouette edges
 const generateEdges = (function () {
-    const _v0 = new Vector3$1();
-    const _v1 = new Vector3$1();
-    const _normal = new Vector3$1();
+    const _v0 = new Vector3();
+    const _v1 = new Vector3();
+    const _normal = new Vector3();
     const _triangle = new Triangle();
     return function generateEdges(geometry, projectionDir, thresholdAngle = 1) {
         const edges = [];
@@ -121575,9 +114914,9 @@ const generateEdges = (function () {
 })();
 // outputs the overlapping segment of a coplanar line and triangle
 const getOverlappingLine = (function () {
-    const _dir0 = new Vector3$1();
-    const _dir1 = new Vector3$1();
-    const _tempDir = new Vector3$1();
+    const _dir0 = new Vector3();
+    const _dir1 = new Vector3();
+    const _tempDir = new Vector3();
     const _orthoPlane = new Plane();
     const _line0 = new Line3();
     const _line1 = new Line3();
@@ -121685,8 +115024,8 @@ const getPlaneYAtPoint = (function () {
 })();
 // returns whether the given line is above the given triangle plane
 const isLineAbovePlane = (function () {
-    const _v0 = new Vector3$1();
-    const _v1 = new Vector3$1();
+    const _v0 = new Vector3();
+    const _v1 = new Vector3();
     return function isLineAbovePlane(plane, line) {
         _v0.lerpVectors(line.start, line.end, 0.5);
         getPlaneYAtPoint(plane, _v0, _v1);
@@ -121694,8 +115033,8 @@ const isLineAbovePlane = (function () {
     };
 })();
 const isYProjectedLineDegenerate = (function () {
-    const _tempDir = new Vector3$1();
-    const _upVector = new Vector3$1(0, 1, 0);
+    const _tempDir = new Vector3();
+    const _upVector = new Vector3(0, 1, 0);
     return function isYProjectedLineDegenerate(line) {
         line.delta(_tempDir).normalize();
         return Math.abs(_tempDir.dot(_upVector)) >= 1.0 - EPSILON;
@@ -121729,9 +115068,9 @@ function isLineTriangleEdge(tri, line) {
 // projected along the y axis
 const getProjectedOverlaps = (function () {
     const _target = new Line3();
-    const _tempDir = new Vector3$1();
-    const _tempVec0 = new Vector3$1();
-    const _tempVec1 = new Vector3$1();
+    const _tempDir = new Vector3();
+    const _tempVec0 = new Vector3();
+    const _tempVec1 = new Vector3();
     const _line = new Line3();
     const _tri = new ExtendedTriangle$1();
     return function getProjectedOverlaps(tri, line, overlapsTarget) {
@@ -121765,10 +115104,10 @@ const getProjectedOverlaps = (function () {
 })();
 // Trim the provided line to just the section below the given triangle plane
 const trimToBeneathTriPlane = (function () {
-    const _lineDirection = new Vector3$1();
-    const _planeHit = new Vector3$1();
-    const _centerPoint = new Vector3$1();
-    const _planePoint = new Vector3$1();
+    const _lineDirection = new Vector3();
+    const _planeHit = new Vector3();
+    const _centerPoint = new Vector3();
+    const _planePoint = new Vector3();
     return function trimToBeneathTriPlane(tri, line, lineTarget) {
         if (tri.needsUpdate) {
             tri.update();
@@ -121862,7 +115201,7 @@ function edgesToGeometry(edges, y = null) {
         edgeArray[c++] = line[5];
     }
     const edgeGeom = new BufferGeometry();
-    const edgeBuffer = new BufferAttribute$1(edgeArray, 3, true);
+    const edgeBuffer = new BufferAttribute(edgeArray, 3, true);
     edgeGeom.setAttribute('position', edgeBuffer);
     return edgeGeom;
 }
@@ -122422,4 +115761,4 @@ class RoadNavigator extends Component {
 RoadNavigator.uuid = "85f2c89c-4c6b-4c7d-bc20-5b675874b228";
 ToolComponent.libraryUUIDs.add(RoadNavigator.uuid);
 
-export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, numberOfDigits, roundVector, toCompositeID, tooeenRandomId };
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentCacher, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentManager, FragmentPlans, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, LengthMeasurement, LineIntersectionPicker, LocalCacher, MapboxWindow, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, roundVector };
