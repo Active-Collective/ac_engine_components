@@ -17522,7 +17522,7 @@ function getRaycastedFace(mesh, faceIndex, instance) {
                     addTriangleToFace(face, iterator, e3, e1, e2, i, raycasted);
                 }
             }
-            {
+            if (iterator.found === null) {
                 if (raycasted.index === i) {
                     raycasted.island = face.length;
                 }
