@@ -101925,6 +101925,7 @@ class FragmentHighlighter extends Component {
         this.onBeforeUpdate = new Event();
         /** {@link Updateable.onAfterUpdate} */
         this.onAfterUpdate = new Event();
+        this.needsUpdate = false;
         /** {@link Configurable.isSetup} */
         this.isSetup = false;
         this.enabled = true;
@@ -102062,10 +102063,9 @@ class FragmentHighlighter extends Component {
             onHighlight: new Event(),
             onClear: new Event(),
         };
-        await this.update();
+        await this.updateHighlight();
     }
-    /** {@link Updateable.update} */
-    async update() {
+    async updateHighlight() {
         if (!this.fillEnabled) {
             return;
         }
@@ -102077,6 +102077,9 @@ class FragmentHighlighter extends Component {
             const outlinedMesh = this._outlinedMeshes[fragmentID];
             if (outlinedMesh) {
                 fragment.mesh.updateMatrixWorld(true);
+                outlinedMesh.position.set(0, 0, 0);
+                outlinedMesh.rotation.set(0, 0, 0);
+                outlinedMesh.scale.set(1, 1, 1);
                 outlinedMesh.applyMatrix4(fragment.mesh.matrixWorld);
             }
         }
