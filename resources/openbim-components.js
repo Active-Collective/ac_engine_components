@@ -108538,11 +108538,16 @@ class FragmentPropsStreamConverter extends Component {
                     count++;
                     // finalCount++;
                     const nextProperty = ids.get(i + j);
-                    const property = this._webIfc.GetLine(0, nextProperty, isSpatial);
-                    if (relationTypes.includes(type)) {
-                        this.getIndices(property, nextProperty, propertyIndices);
+                    try {
+                        const property = this._webIfc.GetLine(0, nextProperty, isSpatial);
+                        if (relationTypes.includes(type)) {
+                            this.getIndices(property, nextProperty, propertyIndices);
+                        }
+                        data[property.expressID] = property;
                     }
-                    data[property.expressID] = property;
+                    catch (e) {
+                        console.log(`Could not get property: ${nextProperty}`);
+                    }
                 }
                 await this.onPropertiesStreamed.trigger({ type, data });
             }
@@ -108552,11 +108557,16 @@ class FragmentPropsStreamConverter extends Component {
                 for (let i = count; i < idCount; i++) {
                     // finalCount++;
                     const nextProperty = ids.get(i);
-                    const property = this._webIfc.GetLine(0, nextProperty, isSpatial);
-                    if (relationTypes.includes(type)) {
-                        this.getIndices(property, nextProperty, propertyIndices);
+                    try {
+                        const property = this._webIfc.GetLine(0, nextProperty, isSpatial);
+                        if (relationTypes.includes(type)) {
+                            this.getIndices(property, nextProperty, propertyIndices);
+                        }
+                        data[property.expressID] = property;
                     }
-                    data[property.expressID] = property;
+                    catch (e) {
+                        console.log(`Could not get property: ${nextProperty}`);
+                    }
                 }
                 await this.onPropertiesStreamed.trigger({ type, data });
             }
