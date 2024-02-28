@@ -11907,7 +11907,7 @@ class UIManager extends Component {
         materialIconsLink.href =
             "https://fonts.googleapis.com/icon?family=Material+Icons";
         // Get openbim-components styles
-        const fetchResponse = await fetch("https://raw.githubusercontent.com/IFCjs/components/main/resources/styles.css");
+        const fetchResponse = await fetch("https://raw.githubusercontent.com/ThatOpen/engine_components/main/resources/styles.css");
         const componentsCSS = await fetchResponse.text();
         const styleElement = document.createElement("style");
         styleElement.id = "openbim-components";
@@ -26896,7 +26896,7 @@ class StreamSerializer {
 
 /**
  * Object that can efficiently load binary files that contain
- * [fragment geometry](https://github.com/ifcjs/fragment).
+ * [fragment geometry](https://github.com/ThatOpen/engine_fragment).
  */
 class FragmentManager extends Component {
     /** The list of meshes of the created fragments. */
@@ -26913,7 +26913,7 @@ class FragmentManager extends Component {
         this.onDisposed = new Event();
         /** {@link Component.enabled} */
         this.enabled = true;
-        /** All the created [fragments](https://github.com/ifcjs/fragment). */
+        /** All the created [fragments](https://github.com/ThatOpen/engine_fragment). */
         this.list = {};
         this.groups = [];
         this.baseCoordinationModel = "";
@@ -101283,7 +101283,7 @@ class IfcFragmentSettings {
         this.optionalCategories = [IFCSPACE];
         /** Whether to use the coordination data coming from the IFC files. */
         this.coordinate = true;
-        /** Path of the WASM for [web-ifc](https://github.com/ifcjs/web-ifc). */
+        /** Path of the WASM for [web-ifc](https://github.com/ThatOpen/engine_web-ifc). */
         this.wasm = {
             path: "",
             absolute: false,
@@ -101293,7 +101293,7 @@ class IfcFragmentSettings {
         this.excludedCategories = new Set();
         /** Whether to save the absolute location of all IFC items. */
         this.saveLocations = false;
-        /** Loader settings for [web-ifc](https://github.com/ifcjs/web-ifc). */
+        /** Loader settings for [web-ifc](https://github.com/ThatOpen/engine_web-ifc). */
         this.webIfc = {
             COORDINATE_TO_ORIGIN: true,
             OPTIMIZE_PROFILES: true,
@@ -101429,7 +101429,7 @@ const GeometryTypes = new Set([
 class IfcJsonExporter {
     /**
      * Exports all the properties of an IFC into an array of JS objects.
-     * @param webIfc The instance of [web-ifc]{@link https://github.com/ifcjs/web-ifc} to use.
+     * @param webIfc The instance of [web-ifc]{@link https://github.com/ThatOpen/engine_web-ifc} to use.
      * @param modelID ID of the IFC model whose properties to extract.
      * @param indirect whether to get the indirect relationships as well.
      * @param recursiveSpatial whether to get the properties of spatial items recursively
