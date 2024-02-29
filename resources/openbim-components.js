@@ -101522,6 +101522,11 @@ class FragmentIfcLoader extends Component {
         console.log(`Streaming the IFC took ${performance.now() - before} ms!`);
         const fragments = this.components.tools.get(FragmentManager);
         fragments.groups.push(group);
+        for (const frag of group.items) {
+            fragments.list[frag.id] = frag;
+            frag.mesh.uuid = frag.id;
+            frag.group = group;
+        }
         await this.onIfcLoaded.trigger(group);
         return group;
     }
@@ -102107,16 +102112,16 @@ class FragmentHighlighter extends Component {
         if (removePrevious) {
             await this.clear(name);
         }
-        if (!this.selection[name][mesh.uuid]) {
-            this.selection[name][mesh.uuid] = new Set();
+        if (!this.selection[name][mesh.fragment.id]) {
+            this.selection[name][mesh.fragment.id] = new Set();
         }
         fragList.push(mesh.fragment);
         const itemID = mesh.fragment.getItemID(instanceID);
         if (itemID === null) {
             throw new Error("Item ID not found!");
         }
-        this.selection[name][mesh.uuid].add(itemID);
-        await this.regenerate(name, mesh.uuid);
+        this.selection[name][mesh.fragment.id].add(itemID);
+        await this.regenerate(name, mesh.fragment.id);
         const group = mesh.fragment.group;
         if (group) {
             const data = group.data.get(itemID);
@@ -102130,7 +102135,7 @@ class FragmentHighlighter extends Component {
                 if (!fragID) {
                     throw new Error("Fragment ID not found!");
                 }
-                if (fragID === mesh.uuid)
+                if (fragID === mesh.fragment.id)
                     continue;
                 const fragment = fragments.list[fragID];
                 fragList.push(fragment);
