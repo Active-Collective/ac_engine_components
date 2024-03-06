@@ -101482,7 +101482,6 @@ class FragmentIfcLoader extends Component {
         this.onDisposed = new Event();
         this.settings = new IfcFragmentSettings();
         this.enabled = true;
-        this.autoCoordinate = true;
         this.uiElement = new UIElement();
         this._material = new THREE$1.MeshLambertMaterial();
         this._spatialTree = new SpatialStructure();
@@ -101519,7 +101518,7 @@ class FragmentIfcLoader extends Component {
         }
         await this.onSetup.trigger();
     }
-    async load(data) {
+    async load(data, coordinate = true) {
         const before = performance.now();
         await this.onIfcStartedLoading.trigger();
         await this.readIfcFile(data);
@@ -101536,8 +101535,10 @@ class FragmentIfcLoader extends Component {
             frag.group = group;
             this.components.meshes.add(frag.mesh);
         }
+        if (coordinate) {
+            fragments.coordinate([group]);
+        }
         await this.onIfcLoaded.trigger(group);
-        fragments.coordinate();
         return group;
     }
     setupUI() {
