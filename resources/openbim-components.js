@@ -26999,13 +26999,7 @@ class FragmentManager extends Component {
             this.components.meshes.add(fragment.mesh);
         }
         if (coordinate) {
-            const isFirstModel = this.groups.length === 0;
-            if (isFirstModel) {
-                this.baseCoordinationModel = model.uuid;
-            }
-            else {
-                this.coordinate([model]);
-            }
+            this.coordinate([model]);
         }
         this.groups.push(model);
         await this.onFragmentsLoaded.trigger(model);
@@ -27045,6 +27039,17 @@ class FragmentManager extends Component {
         }
     }
     coordinate(models = this.groups) {
+        const isFirstModel = this.baseCoordinationModel.length === 0;
+        if (isFirstModel) {
+            const first = models.pop();
+            if (!first) {
+                return;
+            }
+            this.baseCoordinationModel = first.uuid;
+        }
+        if (!models.length) {
+            return;
+        }
         const baseModel = this.groups.find((group) => group.uuid === this.baseCoordinationModel);
         if (!baseModel) {
             console.log("No base model found for coordination!");
@@ -101471,11 +101476,13 @@ class FragmentIfcLoader extends Component {
     constructor(components) {
         super(components);
         this.onIfcLoaded = new Event();
+        this.onIfcStartedLoading = new Event();
         this.onSetup = new Event();
         /** {@link Disposable.onDisposed} */
         this.onDisposed = new Event();
         this.settings = new IfcFragmentSettings();
         this.enabled = true;
+        this.autoCoordinate = true;
         this.uiElement = new UIElement();
         this._material = new THREE$1.MeshLambertMaterial();
         this._spatialTree = new SpatialStructure();
@@ -101514,6 +101521,7 @@ class FragmentIfcLoader extends Component {
     }
     async load(data) {
         const before = performance.now();
+        await this.onIfcStartedLoading.trigger();
         await this.readIfcFile(data);
         const group = await this.getAllGeometries();
         const properties = await this._propertyExporter.export(this._webIfc, 0);
@@ -101529,6 +101537,7 @@ class FragmentIfcLoader extends Component {
             this.components.meshes.add(frag.mesh);
         }
         await this.onIfcLoaded.trigger(group);
+        fragments.coordinate();
         return group;
     }
     setupUI() {
@@ -101584,6 +101593,7 @@ class FragmentIfcLoader extends Component {
             schema: this._webIfc.GetModelSchema(0) || "IFC2X3",
             maxExpressID: this._webIfc.GetMaxExpressID(0),
         };
+        const ids = [];
         for (const type of allIfcEntities) {
             if (!this._webIfc.IsIfcElement(type) && type !== IFCSPACE) {
                 continue;
@@ -101595,13 +101605,14 @@ class FragmentIfcLoader extends Component {
             const size = result.size();
             for (let i = 0; i < size; i++) {
                 const itemID = result.get(i);
+                ids.push(itemID);
                 const level = this._spatialTree.itemsByFloor[itemID] || 0;
                 group.data.set(itemID, [[], [level, type]]);
             }
         }
         this._spatialTree.cleanUp();
-        this._webIfc.StreamAllMeshes(0, (mesh) => {
-            this.getMesh(this._webIfc, mesh, group);
+        this._webIfc.StreamMeshes(0, ids, (mesh) => {
+            this.getMesh(mesh, group);
         });
         for (const entry of this._visitedFragments) {
             const { index, fragment } = entry[1];
@@ -101629,7 +101640,7 @@ class FragmentIfcLoader extends Component {
         this._visitedFragments.clear();
         this._fragmentInstances.clear();
     }
-    getMesh(webIfc, mesh, group) {
+    getMesh(mesh, group) {
         const size = mesh.geometries.size();
         const id = mesh.expressID;
         for (let i = 0; i < size; i++) {
@@ -101640,7 +101651,7 @@ class FragmentIfcLoader extends Component {
             const geometryID = `${geometryExpressID}-${transparent}`;
             // Create geometry if it doesn't exist
             if (!this._visitedFragments.has(geometryID)) {
-                const bufferGeometry = this.getGeometry(webIfc, geometryExpressID);
+                const bufferGeometry = this.getGeometry(this._webIfc, geometryExpressID);
                 const material = transparent ? this._materialT : this._material;
                 const fragment = new Fragment$1(bufferGeometry, material, 1);
                 group.add(fragment.mesh);
@@ -101657,9 +101668,10 @@ class FragmentIfcLoader extends Component {
                 throw new Error("Error getting geometry data for streaming!");
             }
             const data = group.data.get(id);
-            if (data) {
-                data[0].push(fragmentData.index);
+            if (!data) {
+                throw new Error("Data not found!");
             }
+            data[0].push(fragmentData.index);
             const { fragment } = fragmentData;
             if (!this._fragmentInstances.has(fragment.id)) {
                 this._fragmentInstances.set(fragment.id, new Map());
