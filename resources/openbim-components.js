@@ -23022,6 +23022,9 @@ class Infinite2dGrid {
  * with all the power of Three.js.
  */
 class Simple2DScene extends Component {
+    get size() {
+        return this._size.clone();
+    }
     get scaleX() {
         return this._scaleX;
     }
@@ -121857,4 +121860,130 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
-export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, isPointInFrontOfPlane, isTransparent, obbFromPoints, roundVector };
+class RoadNavigator extends Component {
+    constructor(components) {
+        super(components);
+        this.enabled = true;
+        this.caster = new THREE$1.Raycaster();
+        this._curves = new Set();
+        this.caster.params.Line = { threshold: 5 };
+        this.scene = new Simple2DScene(this.components, false);
+    }
+    get() {
+        return null;
+    }
+    draw(model, ids) {
+        if (!model.civilData) {
+            throw new Error("The provided model doesn't have civil data!");
+        }
+        const { alignments } = model.civilData;
+        const allIDs = ids || alignments.keys();
+        const scene = this.scene.get();
+        for (const id of allIDs) {
+            const alignment = alignments.get(id);
+            if (!alignment) {
+                throw new Error("Alignment not found!");
+            }
+            let firstCurve = true;
+            for (const curve of alignment[this.view]) {
+                this._curves.add(curve);
+                scene.add(curve.mesh);
+                if (firstCurve) {
+                    const pos = curve.mesh.geometry.attributes.position.array;
+                    const [x, y, z] = pos;
+                    this.scene.controls.target.set(x, y, z);
+                    this.scene.camera.position.set(x, y, z + 10);
+                    firstCurve = false;
+                }
+            }
+        }
+    }
+    clear() {
+        for (const curve of this._curves) {
+            curve.mesh.removeFromParent();
+        }
+        this._curves.clear();
+    }
+}
+
+class RoadPlanNavigator extends RoadNavigator {
+    constructor(components) {
+        super(components);
+        this.view = "horizontal";
+        this.uiElement = new UIElement();
+        this.setUI();
+    }
+    setUI() {
+        const floatingWindow = new FloatingWindow(this.components);
+        this.components.ui.add(floatingWindow);
+        floatingWindow.visible = false;
+        const hContainer = this.scene.uiElement.get("container");
+        floatingWindow.addChild(hContainer);
+        floatingWindow.onResized.add(() => this.scene.grid.regenerate());
+        floatingWindow.slots.content.domElement.style.padding = "0";
+        floatingWindow.slots.content.domElement.style.overflow = "hidden";
+        floatingWindow.onResized.add(() => {
+            const { width, height } = floatingWindow.containerSize;
+            this.scene.setSize(height, width);
+        });
+        floatingWindow.domElement.style.width = "20rem";
+        floatingWindow.domElement.style.height = "20rem";
+        floatingWindow.onVisible.add(() => {
+            if (floatingWindow.visible) {
+                this.scene.grid.regenerate();
+            }
+        });
+        if (this.components.renderer.isUpdateable()) {
+            this.components.renderer.onAfterUpdate.add(async () => {
+                if (floatingWindow.visible) {
+                    await this.scene.update();
+                }
+            });
+        }
+        this.uiElement.set({ floatingWindow });
+    }
+}
+RoadPlanNavigator.uuid = "3096dea0-5bc2-41c7-abce-9089b6c9431b";
+
+class RoadElevationNavigator extends RoadNavigator {
+    constructor(components) {
+        super(components);
+        this.view = "vertical";
+        this.uiElement = new UIElement();
+        this.setUI();
+    }
+    get() {
+        return null;
+    }
+    setUI() {
+        const drawer = new Drawer(this.components);
+        this.components.ui.add(drawer);
+        drawer.alignment = "top";
+        drawer.onVisible.add(() => {
+            this.scene.grid.regenerate();
+        });
+        drawer.visible = false;
+        drawer.slots.content.domElement.style.padding = "0";
+        drawer.slots.content.domElement.style.overflow = "hidden";
+        const { clientWidth, clientHeight } = drawer.domElement;
+        this.scene.setSize(clientHeight, clientWidth);
+        const vContainer = this.scene.uiElement.get("container");
+        drawer.addChild(vContainer);
+        this.uiElement.set({ drawer });
+        drawer.onResized.add(() => {
+            const width = window.innerWidth;
+            const height = this.scene.size.y;
+            this.scene.setSize(height, width);
+        });
+        if (this.components.renderer.isUpdateable()) {
+            this.components.renderer.onAfterUpdate.add(async () => {
+                if (drawer.visible) {
+                    await this.scene.update();
+                }
+            });
+        }
+    }
+}
+RoadElevationNavigator.uuid = "097eea29-2d5a-431a-a247-204d44670621";
+
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, RoadElevationNavigator, RoadNavigator, RoadPlanNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, isPointInFrontOfPlane, isTransparent, obbFromPoints, roundVector };
