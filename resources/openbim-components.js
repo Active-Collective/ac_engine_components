@@ -22978,9 +22978,9 @@ class Infinite2dGrid {
         const sBuffer = new THREE$1.BufferAttribute(new Float32Array(sPoints), 3);
         const { main, secondary } = this.grids;
         main.geometry.setAttribute("position", mBuffer);
-        main.geometry.setIndex(mIndices);
+        // main.geometry.setIndex(mIndices);
         secondary.geometry.setAttribute("position", sBuffer);
-        secondary.geometry.setIndex(sIndices);
+        // secondary.geometry.setIndex(sIndices);
     }
     fillIndices(points, indices) {
         for (let i = 0; i < points.length / 2 - 1; i += 2) {
@@ -26718,6 +26718,11 @@ class Serializer {
             const geometry = new THREE$1.EdgesGeometry();
             const posAttr = new THREE$1.BufferAttribute(points, 3);
             geometry.setAttribute("position", posAttr);
+            const index = [];
+            for (let i = 0; i < points.length / 3 - 1; i++) {
+                index.push(i, i + 1);
+            }
+            geometry.setIndex(index);
             const mesh = new THREE$1.LineSegments(geometry, lineMat);
             curves.push({ data, mesh });
         }
@@ -109466,7 +109471,7 @@ class GeometryCullerRenderer extends CullerRenderer {
  *
  * By David Fahlander, david.fahlander@gmail.com
  *
- * Version 3.2.4, Tue May 30 2023
+ * Version 3.2.6, Tue Feb 13 2024
  *
  * https://dexie.org
  *
@@ -109560,7 +109565,7 @@ function tryCatch(fn, onerror, args) {
     }
 }
 function getByKeyPath(obj, keyPath) {
-    if (hasOwn(obj, keyPath))
+    if (typeof keyPath === 'string' && hasOwn(obj, keyPath))
         return obj[keyPath];
     if (!keyPath)
         return obj;
@@ -109575,7 +109580,7 @@ function getByKeyPath(obj, keyPath) {
     var period = keyPath.indexOf('.');
     if (period !== -1) {
         var innerObj = obj[keyPath.substr(0, period)];
-        return innerObj === undefined ? undefined : getByKeyPath(innerObj, keyPath.substr(period + 1));
+        return innerObj == null ? undefined : getByKeyPath(innerObj, keyPath.substr(period + 1));
     }
     return undefined;
 }
@@ -109643,7 +109648,7 @@ const concat = [].concat;
 function flatten(a) {
     return concat.apply([], a);
 }
-const intrinsicTypeNames = "Boolean,String,Date,RegExp,Blob,File,FileList,FileSystemFileHandle,ArrayBuffer,DataView,Uint8ClampedArray,ImageBitmap,ImageData,Map,Set,CryptoKey"
+const intrinsicTypeNames = "BigUint64Array,BigInt64Array,Array,Boolean,String,Date,RegExp,Blob,File,FileList,FileSystemFileHandle,FileSystemDirectoryHandle,ArrayBuffer,DataView,Uint8ClampedArray,ImageBitmap,ImageData,Map,Set,CryptoKey"
     .split(',').concat(flatten([8, 16, 32, 64].map(num => ["Int", "Uint", "Float"].map(t => t + num + "Array")))).filter(t => _global[t]);
 const intrinsicTypes = intrinsicTypeNames.map(t => _global[t]);
 arrayToObject(intrinsicTypeNames, x => [x, true]);
@@ -110704,7 +110709,7 @@ function tempTransaction(db, mode, storeNames, fn) {
     }
 }
 
-const DEXIE_VERSION = '3.2.4';
+const DEXIE_VERSION = '3.2.6';
 const maxString = String.fromCharCode(65535);
 const minKey = -Infinity;
 const INVALID_KEY_ARGUMENT = "Invalid key provided. Keys must be of type string, number, Date or Array<string | number | Date>.";
@@ -110786,13 +110791,23 @@ let Table$3 = class Table {
             return this
                 .where(keyPaths[0])
                 .equals(indexOrCrit[keyPaths[0]]);
-        const compoundIndex = this.schema.indexes.concat(this.schema.primKey).filter(ix => ix.compound &&
-            keyPaths.every(keyPath => ix.keyPath.indexOf(keyPath) >= 0) &&
-            ix.keyPath.every(keyPath => keyPaths.indexOf(keyPath) >= 0))[0];
-        if (compoundIndex && this.db._maxKey !== maxString)
+        const compoundIndex = this.schema.indexes.concat(this.schema.primKey).filter(ix => {
+            if (ix.compound &&
+                keyPaths.every(keyPath => ix.keyPath.indexOf(keyPath) >= 0)) {
+                for (let i = 0; i < keyPaths.length; ++i) {
+                    if (keyPaths.indexOf(ix.keyPath[i]) === -1)
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }).sort((a, b) => a.keyPath.length - b.keyPath.length)[0];
+        if (compoundIndex && this.db._maxKey !== maxString) {
+            const keyPathsInValidOrder = compoundIndex.keyPath.slice(0, keyPaths.length);
             return this
-                .where(compoundIndex.name)
-                .equals(compoundIndex.keyPath.map(kp => indexOrCrit[kp]));
+                .where(keyPathsInValidOrder)
+                .equals(keyPathsInValidOrder.map(kp => indexOrCrit[kp]));
+        }
         if (!compoundIndex && debug)
             console.warn(`The query ${JSON.stringify(indexOrCrit)} on ${this.name} would benefit of a ` +
                 `compound index [${keyPaths.join('+')}]`);
@@ -113075,69 +113090,82 @@ function dexieOpen(db) {
     }
     let resolveDbReady = state.dbReadyResolve,
     upgradeTransaction = null, wasCreated = false;
-    return DexiePromise.race([openCanceller, (typeof navigator === 'undefined' ? DexiePromise.resolve() : idbReady()).then(() => new DexiePromise((resolve, reject) => {
-            throwIfCancelled();
-            if (!indexedDB)
-                throw new exceptions.MissingAPI();
-            const dbName = db.name;
-            const req = state.autoSchema ?
-                indexedDB.open(dbName) :
-                indexedDB.open(dbName, Math.round(db.verno * 10));
-            if (!req)
-                throw new exceptions.MissingAPI();
-            req.onerror = eventRejectHandler(reject);
-            req.onblocked = wrap(db._fireOnBlocked);
-            req.onupgradeneeded = wrap(e => {
-                upgradeTransaction = req.transaction;
-                if (state.autoSchema && !db._options.allowEmptyDB) {
-                    req.onerror = preventDefault;
-                    upgradeTransaction.abort();
-                    req.result.close();
-                    const delreq = indexedDB.deleteDatabase(dbName);
-                    delreq.onsuccess = delreq.onerror = wrap(() => {
-                        reject(new exceptions.NoSuchDatabase(`Database ${dbName} doesnt exist`));
-                    });
-                }
-                else {
-                    upgradeTransaction.onerror = eventRejectHandler(reject);
-                    var oldVer = e.oldVersion > Math.pow(2, 62) ? 0 : e.oldVersion;
-                    wasCreated = oldVer < 1;
-                    db._novip.idbdb = req.result;
-                    runUpgraders(db, oldVer / 10, upgradeTransaction, reject);
-                }
-            }, reject);
-            req.onsuccess = wrap(() => {
-                upgradeTransaction = null;
-                const idbdb = db._novip.idbdb = req.result;
-                const objectStoreNames = slice(idbdb.objectStoreNames);
-                if (objectStoreNames.length > 0)
-                    try {
-                        const tmpTrans = idbdb.transaction(safariMultiStoreFix(objectStoreNames), 'readonly');
-                        if (state.autoSchema)
-                            readGlobalSchema(db, idbdb, tmpTrans);
-                        else {
-                            adjustToExistingIndexNames(db, db._dbSchema, tmpTrans);
-                            if (!verifyInstalledSchema(db, tmpTrans)) {
-                                console.warn(`Dexie SchemaDiff: Schema was extended without increasing the number passed to db.version(). Some queries may fail.`);
-                            }
+    const tryOpenDB = () => new DexiePromise((resolve, reject) => {
+        throwIfCancelled();
+        if (!indexedDB)
+            throw new exceptions.MissingAPI();
+        const dbName = db.name;
+        const req = state.autoSchema ?
+            indexedDB.open(dbName) :
+            indexedDB.open(dbName, Math.round(db.verno * 10));
+        if (!req)
+            throw new exceptions.MissingAPI();
+        req.onerror = eventRejectHandler(reject);
+        req.onblocked = wrap(db._fireOnBlocked);
+        req.onupgradeneeded = wrap(e => {
+            upgradeTransaction = req.transaction;
+            if (state.autoSchema && !db._options.allowEmptyDB) {
+                req.onerror = preventDefault;
+                upgradeTransaction.abort();
+                req.result.close();
+                const delreq = indexedDB.deleteDatabase(dbName);
+                delreq.onsuccess = delreq.onerror = wrap(() => {
+                    reject(new exceptions.NoSuchDatabase(`Database ${dbName} doesnt exist`));
+                });
+            }
+            else {
+                upgradeTransaction.onerror = eventRejectHandler(reject);
+                var oldVer = e.oldVersion > Math.pow(2, 62) ? 0 : e.oldVersion;
+                wasCreated = oldVer < 1;
+                db._novip.idbdb = req.result;
+                runUpgraders(db, oldVer / 10, upgradeTransaction, reject);
+            }
+        }, reject);
+        req.onsuccess = wrap(() => {
+            upgradeTransaction = null;
+            const idbdb = db._novip.idbdb = req.result;
+            const objectStoreNames = slice(idbdb.objectStoreNames);
+            if (objectStoreNames.length > 0)
+                try {
+                    const tmpTrans = idbdb.transaction(safariMultiStoreFix(objectStoreNames), 'readonly');
+                    if (state.autoSchema)
+                        readGlobalSchema(db, idbdb, tmpTrans);
+                    else {
+                        adjustToExistingIndexNames(db, db._dbSchema, tmpTrans);
+                        if (!verifyInstalledSchema(db, tmpTrans)) {
+                            console.warn(`Dexie SchemaDiff: Schema was extended without increasing the number passed to db.version(). Some queries may fail.`);
                         }
-                        generateMiddlewareStacks(db, tmpTrans);
                     }
-                    catch (e) {
-                    }
-                connections.push(db);
-                idbdb.onversionchange = wrap(ev => {
-                    state.vcFired = true;
-                    db.on("versionchange").fire(ev);
-                });
-                idbdb.onclose = wrap(ev => {
-                    db.on("close").fire(ev);
-                });
-                if (wasCreated)
-                    _onDatabaseCreated(db._deps, dbName);
-                resolve();
-            }, reject);
-        }))]).then(() => {
+                    generateMiddlewareStacks(db, tmpTrans);
+                }
+                catch (e) {
+                }
+            connections.push(db);
+            idbdb.onversionchange = wrap(ev => {
+                state.vcFired = true;
+                db.on("versionchange").fire(ev);
+            });
+            idbdb.onclose = wrap(ev => {
+                db.on("close").fire(ev);
+            });
+            if (wasCreated)
+                _onDatabaseCreated(db._deps, dbName);
+            resolve();
+        }, reject);
+    }).catch(err => {
+        if (err && err.name === 'UnknownError' && state.PR1398_maxLoop > 0) {
+            state.PR1398_maxLoop--;
+            console.warn('Dexie: Workaround for Chrome UnknownError on open()');
+            return tryOpenDB();
+        }
+        else {
+            return DexiePromise.reject(err);
+        }
+    });
+    return DexiePromise.race([
+        openCanceller,
+        (typeof navigator === 'undefined' ? DexiePromise.resolve() : idbReady()).then(tryOpenDB)
+    ]).then(() => {
         throwIfCancelled();
         state.onReadyBeingFired = [];
         return DexiePromise.resolve(vip(() => db.on.ready.fire(db.vip))).then(function fireRemainders() {
@@ -121860,14 +121888,49 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
+class CurveHighlighter {
+    constructor(scene) {
+        this.scene = scene;
+        this._highlightColor = 0xbcf124;
+    }
+    set highlightColor(color) {
+        this._highlightColor = color;
+    }
+    highlight(curve) {
+        if (this.activeSelection) {
+            this.scene.remove(this.activeSelection);
+        }
+        const lGeom = new LineGeometry();
+        lGeom.setPositions(new Float32Array(curve.geometry.attributes.position.array));
+        const lMat = new LineMaterial({
+            color: this._highlightColor,
+            linewidth: 0.015,
+            worldUnits: false,
+        });
+        const line = new Line2(lGeom, lMat);
+        this.scene.add(line);
+        this.activeSelection = line;
+    }
+    dispose() {
+        if (this.activeSelection) {
+            this.scene.remove(this.activeSelection);
+        }
+        this.activeSelection = null;
+        this.scene = null;
+        this._highlightColor = null;
+    }
+}
+
 class RoadNavigator extends Component {
     constructor(components) {
         super(components);
         this.enabled = true;
         this.caster = new THREE$1.Raycaster();
         this._curves = new Set();
+        this.onHighlight = new Event();
         this.caster.params.Line = { threshold: 5 };
         this.scene = new Simple2DScene(this.components, false);
+        this.highlighter = new CurveHighlighter(this.scene.get());
     }
     get() {
         return null;
@@ -121897,6 +121960,56 @@ class RoadNavigator extends Component {
                 }
             }
         }
+        const curveMesh = [];
+        for (const curve of this._curves) {
+            curveMesh.push(curve.mesh);
+        }
+        const mousePositionSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry(0.5), new THREE$1.MeshBasicMaterial({ color: 0xff0000 }));
+        scene.add(mousePositionSphere);
+        this.scene.uiElement.get("container").domElement.addEventListener("mousemove", (event) => {
+            const dom = this.scene.uiElement.get("container").domElement;
+            const mouse = new THREE$1.Vector2();
+            const rect = dom.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            const raycaster = new THREE$1.Raycaster();
+            raycaster.setFromCamera(mouse, this.scene.camera);
+            const intersects = raycaster.intersectObjects(curveMesh);
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const { point } = intersect;
+                mousePositionSphere.position.copy(point);
+            }
+        });
+        this.setupEvents();
+    }
+    setupEvents() {
+        const curveMesh = [];
+        for (const curve of this._curves) {
+            curveMesh.push(curve.mesh);
+        }
+        this.scene.uiElement.get("container").domElement.addEventListener("click", (event) => {
+            const dom = this.scene.uiElement.get("container").domElement;
+            const mouse = new THREE$1.Vector2();
+            const rect = dom.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            const raycaster = new THREE$1.Raycaster();
+            raycaster.setFromCamera(mouse, this.scene.camera);
+            const intersects = raycaster.intersectObjects(curveMesh);
+            if (intersects.length > 0) {
+                const curve = intersects[0].object;
+                this.onHighlight.trigger(curve);
+            }
+        });
+    }
+    dispose() {
+        this.highlighter.dispose();
+        this.clear();
+        this.onHighlight.reset();
+        this.caster = null;
+        this.scene.dispose();
+        this._curves = null;
     }
     clear() {
         for (const curve of this._curves) {
