@@ -22970,22 +22970,11 @@ class Infinite2dGrid {
             const offset = sTrueBottom + i * sDistanceVert;
             sPoints.push(left, offset, 0, right, offset, 0);
         }
-        const mIndices = [];
-        const sIndices = [];
-        this.fillIndices(mPoints, mIndices);
-        this.fillIndices(sPoints, sIndices);
         const mBuffer = new THREE$1.BufferAttribute(new Float32Array(mPoints), 3);
         const sBuffer = new THREE$1.BufferAttribute(new Float32Array(sPoints), 3);
         const { main, secondary } = this.grids;
         main.geometry.setAttribute("position", mBuffer);
-        // main.geometry.setIndex(mIndices);
         secondary.geometry.setAttribute("position", sBuffer);
-        // secondary.geometry.setIndex(sIndices);
-    }
-    fillIndices(points, indices) {
-        for (let i = 0; i < points.length / 2 - 1; i += 2) {
-            indices.push(i, i + 1);
-        }
     }
     newNumber(offset) {
         const text = document.createElement("div");
