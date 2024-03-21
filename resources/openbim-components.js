@@ -21634,6 +21634,7 @@ class Simple2DScene extends Component {
         this.controls.setTarget(0, 0, 0);
         this.controls.addEventListener("update", () => this.grid.regenerate());
         this.controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
+        this.controls.dollyToCursor = true;
     }
     /**
      * {@link Component.get}
@@ -120496,10 +120497,12 @@ class RoadNavigator extends Component {
         this.enabled = true;
         this.caster = new THREE$1.Raycaster();
         this._curves = new Set();
+        this.curveMeshes = [];
         this.onHighlight = new Event();
         this.caster.params.Line = { threshold: 5 };
         this.scene = new Simple2DScene(this.components, false);
         this.highlighter = new CurveHighlighter(this.scene.get());
+        this.setupEvents();
     }
     get() {
         return null;
@@ -120523,6 +120526,7 @@ class RoadNavigator extends Component {
             for (const curve of alignment[this.view]) {
                 this._curves.add(curve);
                 scene.add(curve.mesh);
+                this.curveMeshes.push(curve.mesh);
                 if (!totalBBox.isEmpty()) {
                     totalBBox.expandByObject(curve.mesh);
                 }
@@ -120536,12 +120540,10 @@ class RoadNavigator extends Component {
             }
         }
         await this.scene.controls.fitToBox(totalBBox, false);
-        const curveMesh = [];
-        for (const curve of this._curves) {
-            curveMesh.push(curve.mesh);
-        }
+    }
+    setupEvents() {
         const mousePositionSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry(0.5), new THREE$1.MeshBasicMaterial({ color: 0xff0000 }));
-        scene.add(mousePositionSphere);
+        this.scene.get().add(mousePositionSphere);
         this.scene.uiElement
             .get("container")
             .domElement.addEventListener("mousemove", (event) => {
@@ -120552,20 +120554,13 @@ class RoadNavigator extends Component {
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             const raycaster = new THREE$1.Raycaster();
             raycaster.setFromCamera(mouse, this.scene.camera);
-            const intersects = raycaster.intersectObjects(curveMesh);
+            const intersects = raycaster.intersectObjects(this.curveMeshes);
             if (intersects.length > 0) {
                 const intersect = intersects[0];
                 const { point } = intersect;
                 mousePositionSphere.position.copy(point);
             }
         });
-        this.setupEvents();
-    }
-    setupEvents() {
-        const curveMesh = [];
-        for (const curve of this._curves) {
-            curveMesh.push(curve.mesh);
-        }
         this.scene.uiElement
             .get("container")
             .domElement.addEventListener("click", (event) => {
@@ -120576,7 +120571,7 @@ class RoadNavigator extends Component {
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             const raycaster = new THREE$1.Raycaster();
             raycaster.setFromCamera(mouse, this.scene.camera);
-            const intersects = raycaster.intersectObjects(curveMesh);
+            const intersects = raycaster.intersectObjects(this.curveMeshes);
             if (intersects.length > 0) {
                 const curve = intersects[0].object;
                 this.onHighlight.trigger(curve);
