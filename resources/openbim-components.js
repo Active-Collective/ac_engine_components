@@ -120475,36 +120475,95 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
+// 1. Highlight all alignment lines ✅
+// 2. Show all endpoints of curves ✅
+// 3. Highlight curves on hover ✅
+// 4. Adjust raycaster Line threshold to zoom
+// 5. Center camera on selected alignment / selected curve
+// 6. Use a different color depending on the curve type
 class CurveHighlighter {
     constructor(scene) {
         this.scene = scene;
-        this._highlightColor = 0xbcf124;
-    }
-    set highlightColor(color) {
-        this._highlightColor = color;
-    }
-    highlight(curve) {
-        if (this.activeSelection) {
-            this.scene.remove(this.activeSelection);
-        }
-        const lGeom = new LineGeometry();
-        lGeom.setPositions(new Float32Array(curve.geometry.attributes.position.array));
-        const lMat = new LineMaterial({
-            color: this._highlightColor,
-            linewidth: 0.015,
-            worldUnits: false,
-        });
-        const line = new Line2(lGeom, lMat);
-        this.scene.add(line);
-        this.activeSelection = line;
+        this.hoverCurve = this.newCurve(0x444444, 0.003);
+        this.hoverPoints = this.newPoints(5, 0x444444);
+        this.selectCurve = this.newCurve(0xbcf124, 0.005);
+        this.selectPoints = this.newPoints(7, 0xffffff);
     }
     dispose() {
-        if (this.activeSelection) {
-            this.scene.remove(this.activeSelection);
+        if (this.selectCurve) {
+            this.scene.remove(this.selectCurve);
         }
-        this.activeSelection = null;
+        this.selectCurve.material.dispose();
+        this.selectCurve.geometry.dispose();
+        this.selectCurve = null;
+        this.hoverCurve.material.dispose();
+        this.hoverCurve.geometry.dispose();
+        this.hoverCurve = null;
+        this.hoverPoints.material.dispose();
+        this.hoverPoints.geometry.dispose();
+        this.selectPoints.material.dispose();
+        this.selectPoints.geometry.dispose();
         this.scene = null;
-        this._highlightColor = null;
+    }
+    select(mesh) {
+        this.highlight(mesh, this.selectCurve, this.selectPoints);
+    }
+    unSelect() {
+        this.selectCurve.removeFromParent();
+        this.selectPoints.removeFromParent();
+    }
+    hover(mesh) {
+        this.highlight(mesh, this.hoverCurve, this.hoverPoints);
+    }
+    unHover() {
+        this.hoverCurve.removeFromParent();
+        this.hoverPoints.removeFromParent();
+    }
+    highlight(mesh, curve, points) {
+        const { alignment } = mesh.curve;
+        this.scene.add(curve);
+        this.scene.add(points);
+        const lines = [];
+        const vertices = [];
+        for (const foundCurve of alignment.horizontal) {
+            const position = foundCurve.mesh.geometry.attributes.position;
+            for (const coord of position.array) {
+                lines.push(coord);
+            }
+            const [x, y, z] = position.array;
+            vertices.push(new THREE$1.Vector3(x, y, z));
+        }
+        const lastX = lines[lines.length - 3];
+        const lastY = lines[lines.length - 2];
+        const lastZ = lines[lines.length - 1];
+        vertices.push(new THREE$1.Vector3(lastX, lastY, lastZ));
+        if (lines.length / 3 > curve.geometry.attributes.position.count) {
+            curve.geometry.dispose();
+            curve.geometry = new LineGeometry();
+        }
+        curve.geometry.setPositions(lines);
+        points.geometry.setFromPoints(vertices);
+    }
+    newCurve(color, linewidth) {
+        const selectGeometry = new LineGeometry();
+        const selectMaterial = new LineMaterial({
+            color,
+            linewidth,
+            worldUnits: false,
+        });
+        const curve = new Line2(selectGeometry, selectMaterial);
+        this.scene.add(curve);
+        return curve;
+    }
+    newPoints(size, color) {
+        const pointsGeometry = new THREE$1.BufferGeometry();
+        const pointsAttr = new THREE$1.BufferAttribute(new Float32Array(), 3);
+        pointsGeometry.setAttribute("position", pointsAttr);
+        const pointsMaterial = new THREE$1.PointsMaterial({ size, color });
+        const points = new THREE$1.Points(pointsGeometry, pointsMaterial);
+        points.frustumCulled = false;
+        this.scene.add(points);
+        return points;
     }
 }
 
@@ -120516,10 +120575,11 @@ class RoadNavigator extends Component {
         this._curves = new Set();
         this.curveMeshes = [];
         this.onHighlight = new Event();
-        this.caster.params.Line = { threshold: 5 };
+        this.caster.params.Line = { threshold: 10 };
         this.scene = new Simple2DScene(this.components, false);
         this.highlighter = new CurveHighlighter(this.scene.get());
         this.setupEvents();
+        this.adjustRaycasterOnZoom();
     }
     get() {
         return null;
@@ -120569,30 +120629,37 @@ class RoadNavigator extends Component {
             const rect = dom.getBoundingClientRect();
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            const raycaster = new THREE$1.Raycaster();
-            raycaster.setFromCamera(mouse, this.scene.camera);
-            const intersects = raycaster.intersectObjects(this.curveMeshes);
+            this.caster.setFromCamera(mouse, this.scene.camera);
+            const intersects = this.caster.intersectObjects(this.curveMeshes);
             if (intersects.length > 0) {
-                const intersect = intersects[0];
-                const { point } = intersect;
-                mousePositionSphere.position.copy(point);
+                const { point, object } = intersects[0];
+                if (object instanceof CurveMesh) {
+                    mousePositionSphere.position.copy(point);
+                    this.highlighter.hover(object);
+                    return;
+                }
             }
+            this.highlighter.unHover();
         });
         this.scene.uiElement
             .get("container")
-            .domElement.addEventListener("click", (event) => {
+            .domElement.addEventListener("click", async (event) => {
             const dom = this.scene.uiElement.get("container").domElement;
             const mouse = new THREE$1.Vector2();
             const rect = dom.getBoundingClientRect();
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            const raycaster = new THREE$1.Raycaster();
-            raycaster.setFromCamera(mouse, this.scene.camera);
-            const intersects = raycaster.intersectObjects(this.curveMeshes);
+            this.caster.setFromCamera(mouse, this.scene.camera);
+            const intersects = this.caster.intersectObjects(this.curveMeshes);
             if (intersects.length > 0) {
                 const curve = intersects[0].object;
-                this.onHighlight.trigger(curve);
+                if (curve instanceof CurveMesh) {
+                    this.highlighter.select(curve);
+                    await this.onHighlight.trigger(curve);
+                    return;
+                }
             }
+            this.highlighter.unSelect();
         });
     }
     dispose() {
@@ -120608,6 +120675,17 @@ class RoadNavigator extends Component {
             curve.mesh.removeFromParent();
         }
         this._curves.clear();
+    }
+    adjustRaycasterOnZoom() {
+        this.scene.controls.addEventListener("update", () => {
+            const { zoom, left, right, top, bottom } = this.scene.camera;
+            const width = left - right;
+            const height = top - bottom;
+            const screenSize = Math.max(width, height);
+            const realScreenSize = screenSize / zoom;
+            const range = 50;
+            this.caster.params.Line.threshold = realScreenSize / range;
+        });
     }
 }
 
@@ -120645,6 +120723,7 @@ class RoadPlanNavigator extends RoadNavigator {
                 }
             });
         }
+        floatingWindow.onResized.trigger();
         this.uiElement.set({ floatingWindow });
     }
 }
