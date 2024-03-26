@@ -1,5 +1,5 @@
 import * as THREE$1 from 'three';
-import { Vector3, Matrix4, Object3D, Vector2, BufferAttribute, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, HalfFloatType, NoBlending, Clock, Color, REVISION, LinearFilter, NearestFilter, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, NoColorSpace, RepeatWrapping, WebGLMultipleRenderTargets, RedFormat, FloatType, RGBAFormat, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4, MathUtils } from 'three';
+import { Vector3, Matrix4, Object3D, Vector2, BufferAttribute, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, MathUtils, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, HalfFloatType, NoBlending, Clock, Color, REVISION, LinearFilter, NearestFilter, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, NoColorSpace, RepeatWrapping, WebGLMultipleRenderTargets, RedFormat, FloatType, RGBAFormat, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'three';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -13181,7 +13181,7 @@ const _unit = {
 	Z: new Vector3( 0, 0, 1 )
 };
 
-const _changeEvent = { type: 'change' };
+const _changeEvent$1 = { type: 'change' };
 const _mouseDownEvent = { type: 'mouseDown' };
 const _mouseUpEvent = { type: 'mouseUp', mode: null };
 const _objectChangeEvent = { type: 'objectChange' };
@@ -13237,7 +13237,7 @@ class TransformControls extends Object3D {
 						_gizmo[ propName ] = value;
 
 						scope.dispatchEvent( { type: propName + '-changed', value: value } );
-						scope.dispatchEvent( _changeEvent );
+						scope.dispatchEvent( _changeEvent$1 );
 
 					}
 
@@ -13682,7 +13682,7 @@ class TransformControls extends Object3D {
 
 		}
 
-		this.dispatchEvent( _changeEvent );
+		this.dispatchEvent( _changeEvent$1 );
 		this.dispatchEvent( _objectChangeEvent );
 
 	}
@@ -13750,7 +13750,7 @@ class TransformControls extends Object3D {
 			this.object.quaternion.copy( this._quaternionStart );
 			this.object.scale.copy( this._scaleStart );
 
-			this.dispatchEvent( _changeEvent );
+			this.dispatchEvent( _changeEvent$1 );
 			this.dispatchEvent( _objectChangeEvent );
 
 			this.pointStart.copy( this.pointEnd );
@@ -15878,7 +15878,7 @@ const Deleted = 1;
 
 const _v1 = new Vector3();
 const _line3 = new Line3();
-const _plane = new Plane();
+const _plane$1 = new Plane();
 const _closestPoint$1 = new Vector3();
 const _triangle = new Triangle();
 
@@ -16403,7 +16403,7 @@ class ConvexHull {
 		// 3. The next vertex 'v3' is the one farthest to the plane 'v0', 'v1', 'v2'
 
 		maxDistance = - 1;
-		_plane.setFromCoplanarPoints( v0.point, v1.point, v2.point );
+		_plane$1.setFromCoplanarPoints( v0.point, v1.point, v2.point );
 
 		for ( let i = 0, l = this.vertices.length; i < l; i ++ ) {
 
@@ -16411,7 +16411,7 @@ class ConvexHull {
 
 			if ( vertex !== v0 && vertex !== v1 && vertex !== v2 ) {
 
-				const distance = Math.abs( _plane.distanceToPoint( vertex.point ) );
+				const distance = Math.abs( _plane$1.distanceToPoint( vertex.point ) );
 
 				if ( distance > maxDistance ) {
 
@@ -16426,7 +16426,7 @@ class ConvexHull {
 
 		const faces = [];
 
-		if ( _plane.distanceToPoint( v3.point ) < 0 ) {
+		if ( _plane$1.distanceToPoint( v3.point ) < 0 ) {
 
 			// the face is not able to see the point so 'plane.normal' is pointing outside the tetrahedron
 
@@ -18106,6 +18106,1471 @@ class MaterialManager extends Component {
 }
 MaterialManager.uuid = "24989d27-fa2f-4797-8b08-35918f74e502";
 ToolComponent.libraryUUIDs.add(MaterialManager.uuid);
+
+// OrbitControls performs orbiting, dollying (zooming), and panning.
+// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
+//
+//    Orbit - left mouse / touch: one-finger move
+//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
+//    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
+
+const _changeEvent = { type: 'change' };
+const _startEvent = { type: 'start' };
+const _endEvent = { type: 'end' };
+const _ray$1 = new Ray();
+const _plane = new Plane();
+const TILT_LIMIT = Math.cos( 70 * MathUtils.DEG2RAD );
+
+class OrbitControls extends EventDispatcher$1 {
+
+	constructor( object, domElement ) {
+
+		super();
+
+		this.object = object;
+		this.domElement = domElement;
+		this.domElement.style.touchAction = 'none'; // disable touch scroll
+
+		// Set to false to disable this control
+		this.enabled = true;
+
+		// "target" sets the location of focus, where the object orbits around
+		this.target = new Vector3();
+
+		// Sets the 3D cursor (similar to Blender), from which the maxTargetRadius takes effect
+		this.cursor = new Vector3();
+
+		// How far you can dolly in and out ( PerspectiveCamera only )
+		this.minDistance = 0;
+		this.maxDistance = Infinity;
+
+		// How far you can zoom in and out ( OrthographicCamera only )
+		this.minZoom = 0;
+		this.maxZoom = Infinity;
+
+		// Limit camera target within a spherical area around the cursor
+		this.minTargetRadius = 0;
+		this.maxTargetRadius = Infinity;
+
+		// How far you can orbit vertically, upper and lower limits.
+		// Range is 0 to Math.PI radians.
+		this.minPolarAngle = 0; // radians
+		this.maxPolarAngle = Math.PI; // radians
+
+		// How far you can orbit horizontally, upper and lower limits.
+		// If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
+		this.minAzimuthAngle = - Infinity; // radians
+		this.maxAzimuthAngle = Infinity; // radians
+
+		// Set to true to enable damping (inertia)
+		// If damping is enabled, you must call controls.update() in your animation loop
+		this.enableDamping = false;
+		this.dampingFactor = 0.05;
+
+		// This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
+		// Set to false to disable zooming
+		this.enableZoom = true;
+		this.zoomSpeed = 1.0;
+
+		// Set to false to disable rotating
+		this.enableRotate = true;
+		this.rotateSpeed = 1.0;
+
+		// Set to false to disable panning
+		this.enablePan = true;
+		this.panSpeed = 1.0;
+		this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
+		this.keyPanSpeed = 7.0;	// pixels moved per arrow key push
+		this.zoomToCursor = false;
+
+		// Set to true to automatically rotate around the target
+		// If auto-rotate is enabled, you must call controls.update() in your animation loop
+		this.autoRotate = false;
+		this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+
+		// The four arrow keys
+		this.keys = { LEFT: 'ArrowLeft', UP: 'ArrowUp', RIGHT: 'ArrowRight', BOTTOM: 'ArrowDown' };
+
+		// Mouse buttons
+		this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
+
+		// Touch fingers
+		this.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
+
+		// for reset
+		this.target0 = this.target.clone();
+		this.position0 = this.object.position.clone();
+		this.zoom0 = this.object.zoom;
+
+		// the target DOM element for key events
+		this._domElementKeyEvents = null;
+
+		//
+		// public methods
+		//
+
+		this.getPolarAngle = function () {
+
+			return spherical.phi;
+
+		};
+
+		this.getAzimuthalAngle = function () {
+
+			return spherical.theta;
+
+		};
+
+		this.getDistance = function () {
+
+			return this.object.position.distanceTo( this.target );
+
+		};
+
+		this.listenToKeyEvents = function ( domElement ) {
+
+			domElement.addEventListener( 'keydown', onKeyDown );
+			this._domElementKeyEvents = domElement;
+
+		};
+
+		this.stopListenToKeyEvents = function () {
+
+			this._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
+			this._domElementKeyEvents = null;
+
+		};
+
+		this.saveState = function () {
+
+			scope.target0.copy( scope.target );
+			scope.position0.copy( scope.object.position );
+			scope.zoom0 = scope.object.zoom;
+
+		};
+
+		this.reset = function () {
+
+			scope.target.copy( scope.target0 );
+			scope.object.position.copy( scope.position0 );
+			scope.object.zoom = scope.zoom0;
+
+			scope.object.updateProjectionMatrix();
+			scope.dispatchEvent( _changeEvent );
+
+			scope.update();
+
+			state = STATE.NONE;
+
+		};
+
+		// this method is exposed, but perhaps it would be better if we can make it private...
+		this.update = function () {
+
+			const offset = new Vector3();
+
+			// so camera.up is the orbit axis
+			const quat = new Quaternion().setFromUnitVectors( object.up, new Vector3( 0, 1, 0 ) );
+			const quatInverse = quat.clone().invert();
+
+			const lastPosition = new Vector3();
+			const lastQuaternion = new Quaternion();
+			const lastTargetPosition = new Vector3();
+
+			const twoPI = 2 * Math.PI;
+
+			return function update( deltaTime = null ) {
+
+				const position = scope.object.position;
+
+				offset.copy( position ).sub( scope.target );
+
+				// rotate offset to "y-axis-is-up" space
+				offset.applyQuaternion( quat );
+
+				// angle from z-axis around y-axis
+				spherical.setFromVector3( offset );
+
+				if ( scope.autoRotate && state === STATE.NONE ) {
+
+					rotateLeft( getAutoRotationAngle( deltaTime ) );
+
+				}
+
+				if ( scope.enableDamping ) {
+
+					spherical.theta += sphericalDelta.theta * scope.dampingFactor;
+					spherical.phi += sphericalDelta.phi * scope.dampingFactor;
+
+				} else {
+
+					spherical.theta += sphericalDelta.theta;
+					spherical.phi += sphericalDelta.phi;
+
+				}
+
+				// restrict theta to be between desired limits
+
+				let min = scope.minAzimuthAngle;
+				let max = scope.maxAzimuthAngle;
+
+				if ( isFinite( min ) && isFinite( max ) ) {
+
+					if ( min < - Math.PI ) min += twoPI; else if ( min > Math.PI ) min -= twoPI;
+
+					if ( max < - Math.PI ) max += twoPI; else if ( max > Math.PI ) max -= twoPI;
+
+					if ( min <= max ) {
+
+						spherical.theta = Math.max( min, Math.min( max, spherical.theta ) );
+
+					} else {
+
+						spherical.theta = ( spherical.theta > ( min + max ) / 2 ) ?
+							Math.max( min, spherical.theta ) :
+							Math.min( max, spherical.theta );
+
+					}
+
+				}
+
+				// restrict phi to be between desired limits
+				spherical.phi = Math.max( scope.minPolarAngle, Math.min( scope.maxPolarAngle, spherical.phi ) );
+
+				spherical.makeSafe();
+
+
+				// move target to panned location
+
+				if ( scope.enableDamping === true ) {
+
+					scope.target.addScaledVector( panOffset, scope.dampingFactor );
+
+				} else {
+
+					scope.target.add( panOffset );
+
+				}
+
+				// Limit the target distance from the cursor to create a sphere around the center of interest
+				scope.target.sub( scope.cursor );
+				scope.target.clampLength( scope.minTargetRadius, scope.maxTargetRadius );
+				scope.target.add( scope.cursor );
+
+				// adjust the camera position based on zoom only if we're not zooming to the cursor or if it's an ortho camera
+				// we adjust zoom later in these cases
+				if ( scope.zoomToCursor && performCursorZoom || scope.object.isOrthographicCamera ) {
+
+					spherical.radius = clampDistance( spherical.radius );
+
+				} else {
+
+					spherical.radius = clampDistance( spherical.radius * scale );
+
+				}
+
+				offset.setFromSpherical( spherical );
+
+				// rotate offset back to "camera-up-vector-is-up" space
+				offset.applyQuaternion( quatInverse );
+
+				position.copy( scope.target ).add( offset );
+
+				scope.object.lookAt( scope.target );
+
+				if ( scope.enableDamping === true ) {
+
+					sphericalDelta.theta *= ( 1 - scope.dampingFactor );
+					sphericalDelta.phi *= ( 1 - scope.dampingFactor );
+
+					panOffset.multiplyScalar( 1 - scope.dampingFactor );
+
+				} else {
+
+					sphericalDelta.set( 0, 0, 0 );
+
+					panOffset.set( 0, 0, 0 );
+
+				}
+
+				// adjust camera position
+				let zoomChanged = false;
+				if ( scope.zoomToCursor && performCursorZoom ) {
+
+					let newRadius = null;
+					if ( scope.object.isPerspectiveCamera ) {
+
+						// move the camera down the pointer ray
+						// this method avoids floating point error
+						const prevRadius = offset.length();
+						newRadius = clampDistance( prevRadius * scale );
+
+						const radiusDelta = prevRadius - newRadius;
+						scope.object.position.addScaledVector( dollyDirection, radiusDelta );
+						scope.object.updateMatrixWorld();
+
+					} else if ( scope.object.isOrthographicCamera ) {
+
+						// adjust the ortho camera position based on zoom changes
+						const mouseBefore = new Vector3( mouse.x, mouse.y, 0 );
+						mouseBefore.unproject( scope.object );
+
+						scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / scale ) );
+						scope.object.updateProjectionMatrix();
+						zoomChanged = true;
+
+						const mouseAfter = new Vector3( mouse.x, mouse.y, 0 );
+						mouseAfter.unproject( scope.object );
+
+						scope.object.position.sub( mouseAfter ).add( mouseBefore );
+						scope.object.updateMatrixWorld();
+
+						newRadius = offset.length();
+
+					} else {
+
+						console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - zoom to cursor disabled.' );
+						scope.zoomToCursor = false;
+
+					}
+
+					// handle the placement of the target
+					if ( newRadius !== null ) {
+
+						if ( this.screenSpacePanning ) {
+
+							// position the orbit target in front of the new camera position
+							scope.target.set( 0, 0, - 1 )
+								.transformDirection( scope.object.matrix )
+								.multiplyScalar( newRadius )
+								.add( scope.object.position );
+
+						} else {
+
+							// get the ray and translation plane to compute target
+							_ray$1.origin.copy( scope.object.position );
+							_ray$1.direction.set( 0, 0, - 1 ).transformDirection( scope.object.matrix );
+
+							// if the camera is 20 degrees above the horizon then don't adjust the focus target to avoid
+							// extremely large values
+							if ( Math.abs( scope.object.up.dot( _ray$1.direction ) ) < TILT_LIMIT ) {
+
+								object.lookAt( scope.target );
+
+							} else {
+
+								_plane.setFromNormalAndCoplanarPoint( scope.object.up, scope.target );
+								_ray$1.intersectPlane( _plane, scope.target );
+
+							}
+
+						}
+
+					}
+
+				} else if ( scope.object.isOrthographicCamera ) {
+
+					scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / scale ) );
+					scope.object.updateProjectionMatrix();
+					zoomChanged = true;
+
+				}
+
+				scale = 1;
+				performCursorZoom = false;
+
+				// update condition is:
+				// min(camera displacement, camera rotation in radians)^2 > EPS
+				// using small-angle approximation cos(x/2) = 1 - x^2 / 8
+
+				if ( zoomChanged ||
+					lastPosition.distanceToSquared( scope.object.position ) > EPS ||
+					8 * ( 1 - lastQuaternion.dot( scope.object.quaternion ) ) > EPS ||
+					lastTargetPosition.distanceToSquared( scope.target ) > 0 ) {
+
+					scope.dispatchEvent( _changeEvent );
+
+					lastPosition.copy( scope.object.position );
+					lastQuaternion.copy( scope.object.quaternion );
+					lastTargetPosition.copy( scope.target );
+
+					return true;
+
+				}
+
+				return false;
+
+			};
+
+		}();
+
+		this.dispose = function () {
+
+			scope.domElement.removeEventListener( 'contextmenu', onContextMenu );
+
+			scope.domElement.removeEventListener( 'pointerdown', onPointerDown );
+			scope.domElement.removeEventListener( 'pointercancel', onPointerUp );
+			scope.domElement.removeEventListener( 'wheel', onMouseWheel );
+
+			scope.domElement.removeEventListener( 'pointermove', onPointerMove );
+			scope.domElement.removeEventListener( 'pointerup', onPointerUp );
+
+
+			if ( scope._domElementKeyEvents !== null ) {
+
+				scope._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
+				scope._domElementKeyEvents = null;
+
+			}
+
+			//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
+
+		};
+
+		//
+		// internals
+		//
+
+		const scope = this;
+
+		const STATE = {
+			NONE: - 1,
+			ROTATE: 0,
+			DOLLY: 1,
+			PAN: 2,
+			TOUCH_ROTATE: 3,
+			TOUCH_PAN: 4,
+			TOUCH_DOLLY_PAN: 5,
+			TOUCH_DOLLY_ROTATE: 6
+		};
+
+		let state = STATE.NONE;
+
+		const EPS = 0.000001;
+
+		// current position in spherical coordinates
+		const spherical = new Spherical();
+		const sphericalDelta = new Spherical();
+
+		let scale = 1;
+		const panOffset = new Vector3();
+
+		const rotateStart = new Vector2();
+		const rotateEnd = new Vector2();
+		const rotateDelta = new Vector2();
+
+		const panStart = new Vector2();
+		const panEnd = new Vector2();
+		const panDelta = new Vector2();
+
+		const dollyStart = new Vector2();
+		const dollyEnd = new Vector2();
+		const dollyDelta = new Vector2();
+
+		const dollyDirection = new Vector3();
+		const mouse = new Vector2();
+		let performCursorZoom = false;
+
+		const pointers = [];
+		const pointerPositions = {};
+
+		let controlActive = false;
+
+		function getAutoRotationAngle( deltaTime ) {
+
+			if ( deltaTime !== null ) {
+
+				return ( 2 * Math.PI / 60 * scope.autoRotateSpeed ) * deltaTime;
+
+			} else {
+
+				return 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
+
+			}
+
+		}
+
+		function getZoomScale( delta ) {
+
+			const normalizedDelta = Math.abs( delta * 0.01 );
+			return Math.pow( 0.95, scope.zoomSpeed * normalizedDelta );
+
+		}
+
+		function rotateLeft( angle ) {
+
+			sphericalDelta.theta -= angle;
+
+		}
+
+		function rotateUp( angle ) {
+
+			sphericalDelta.phi -= angle;
+
+		}
+
+		const panLeft = function () {
+
+			const v = new Vector3();
+
+			return function panLeft( distance, objectMatrix ) {
+
+				v.setFromMatrixColumn( objectMatrix, 0 ); // get X column of objectMatrix
+				v.multiplyScalar( - distance );
+
+				panOffset.add( v );
+
+			};
+
+		}();
+
+		const panUp = function () {
+
+			const v = new Vector3();
+
+			return function panUp( distance, objectMatrix ) {
+
+				if ( scope.screenSpacePanning === true ) {
+
+					v.setFromMatrixColumn( objectMatrix, 1 );
+
+				} else {
+
+					v.setFromMatrixColumn( objectMatrix, 0 );
+					v.crossVectors( scope.object.up, v );
+
+				}
+
+				v.multiplyScalar( distance );
+
+				panOffset.add( v );
+
+			};
+
+		}();
+
+		// deltaX and deltaY are in pixels; right and down are positive
+		const pan = function () {
+
+			const offset = new Vector3();
+
+			return function pan( deltaX, deltaY ) {
+
+				const element = scope.domElement;
+
+				if ( scope.object.isPerspectiveCamera ) {
+
+					// perspective
+					const position = scope.object.position;
+					offset.copy( position ).sub( scope.target );
+					let targetDistance = offset.length();
+
+					// half of the fov is center to top of screen
+					targetDistance *= Math.tan( ( scope.object.fov / 2 ) * Math.PI / 180.0 );
+
+					// we use only clientHeight here so aspect ratio does not distort speed
+					panLeft( 2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix );
+					panUp( 2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix );
+
+				} else if ( scope.object.isOrthographicCamera ) {
+
+					// orthographic
+					panLeft( deltaX * ( scope.object.right - scope.object.left ) / scope.object.zoom / element.clientWidth, scope.object.matrix );
+					panUp( deltaY * ( scope.object.top - scope.object.bottom ) / scope.object.zoom / element.clientHeight, scope.object.matrix );
+
+				} else {
+
+					// camera neither orthographic nor perspective
+					console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
+					scope.enablePan = false;
+
+				}
+
+			};
+
+		}();
+
+		function dollyOut( dollyScale ) {
+
+			if ( scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera ) {
+
+				scale /= dollyScale;
+
+			} else {
+
+				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+				scope.enableZoom = false;
+
+			}
+
+		}
+
+		function dollyIn( dollyScale ) {
+
+			if ( scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera ) {
+
+				scale *= dollyScale;
+
+			} else {
+
+				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+				scope.enableZoom = false;
+
+			}
+
+		}
+
+		function updateZoomParameters( x, y ) {
+
+			if ( ! scope.zoomToCursor ) {
+
+				return;
+
+			}
+
+			performCursorZoom = true;
+
+			const rect = scope.domElement.getBoundingClientRect();
+			const dx = x - rect.left;
+			const dy = y - rect.top;
+			const w = rect.width;
+			const h = rect.height;
+
+			mouse.x = ( dx / w ) * 2 - 1;
+			mouse.y = - ( dy / h ) * 2 + 1;
+
+			dollyDirection.set( mouse.x, mouse.y, 1 ).unproject( scope.object ).sub( scope.object.position ).normalize();
+
+		}
+
+		function clampDistance( dist ) {
+
+			return Math.max( scope.minDistance, Math.min( scope.maxDistance, dist ) );
+
+		}
+
+		//
+		// event callbacks - update the object state
+		//
+
+		function handleMouseDownRotate( event ) {
+
+			rotateStart.set( event.clientX, event.clientY );
+
+		}
+
+		function handleMouseDownDolly( event ) {
+
+			updateZoomParameters( event.clientX, event.clientX );
+			dollyStart.set( event.clientX, event.clientY );
+
+		}
+
+		function handleMouseDownPan( event ) {
+
+			panStart.set( event.clientX, event.clientY );
+
+		}
+
+		function handleMouseMoveRotate( event ) {
+
+			rotateEnd.set( event.clientX, event.clientY );
+
+			rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
+
+			const element = scope.domElement;
+
+			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+
+			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
+
+			rotateStart.copy( rotateEnd );
+
+			scope.update();
+
+		}
+
+		function handleMouseMoveDolly( event ) {
+
+			dollyEnd.set( event.clientX, event.clientY );
+
+			dollyDelta.subVectors( dollyEnd, dollyStart );
+
+			if ( dollyDelta.y > 0 ) {
+
+				dollyOut( getZoomScale( dollyDelta.y ) );
+
+			} else if ( dollyDelta.y < 0 ) {
+
+				dollyIn( getZoomScale( dollyDelta.y ) );
+
+			}
+
+			dollyStart.copy( dollyEnd );
+
+			scope.update();
+
+		}
+
+		function handleMouseMovePan( event ) {
+
+			panEnd.set( event.clientX, event.clientY );
+
+			panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
+
+			pan( panDelta.x, panDelta.y );
+
+			panStart.copy( panEnd );
+
+			scope.update();
+
+		}
+
+		function handleMouseWheel( event ) {
+
+			updateZoomParameters( event.clientX, event.clientY );
+
+			if ( event.deltaY < 0 ) {
+
+				dollyIn( getZoomScale( event.deltaY ) );
+
+			} else if ( event.deltaY > 0 ) {
+
+				dollyOut( getZoomScale( event.deltaY ) );
+
+			}
+
+			scope.update();
+
+		}
+
+		function handleKeyDown( event ) {
+
+			let needsUpdate = false;
+
+			switch ( event.code ) {
+
+				case scope.keys.UP:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateUp( 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( 0, scope.keyPanSpeed );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+				case scope.keys.BOTTOM:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateUp( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( 0, - scope.keyPanSpeed );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+				case scope.keys.LEFT:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateLeft( 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( scope.keyPanSpeed, 0 );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+				case scope.keys.RIGHT:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						rotateLeft( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+					} else {
+
+						pan( - scope.keyPanSpeed, 0 );
+
+					}
+
+					needsUpdate = true;
+					break;
+
+			}
+
+			if ( needsUpdate ) {
+
+				// prevent the browser from scrolling on cursor keys
+				event.preventDefault();
+
+				scope.update();
+
+			}
+
+
+		}
+
+		function handleTouchStartRotate( event ) {
+
+			if ( pointers.length === 1 ) {
+
+				rotateStart.set( event.pageX, event.pageY );
+
+			} else {
+
+				const position = getSecondPointerPosition( event );
+
+				const x = 0.5 * ( event.pageX + position.x );
+				const y = 0.5 * ( event.pageY + position.y );
+
+				rotateStart.set( x, y );
+
+			}
+
+		}
+
+		function handleTouchStartPan( event ) {
+
+			if ( pointers.length === 1 ) {
+
+				panStart.set( event.pageX, event.pageY );
+
+			} else {
+
+				const position = getSecondPointerPosition( event );
+
+				const x = 0.5 * ( event.pageX + position.x );
+				const y = 0.5 * ( event.pageY + position.y );
+
+				panStart.set( x, y );
+
+			}
+
+		}
+
+		function handleTouchStartDolly( event ) {
+
+			const position = getSecondPointerPosition( event );
+
+			const dx = event.pageX - position.x;
+			const dy = event.pageY - position.y;
+
+			const distance = Math.sqrt( dx * dx + dy * dy );
+
+			dollyStart.set( 0, distance );
+
+		}
+
+		function handleTouchStartDollyPan( event ) {
+
+			if ( scope.enableZoom ) handleTouchStartDolly( event );
+
+			if ( scope.enablePan ) handleTouchStartPan( event );
+
+		}
+
+		function handleTouchStartDollyRotate( event ) {
+
+			if ( scope.enableZoom ) handleTouchStartDolly( event );
+
+			if ( scope.enableRotate ) handleTouchStartRotate( event );
+
+		}
+
+		function handleTouchMoveRotate( event ) {
+
+			if ( pointers.length == 1 ) {
+
+				rotateEnd.set( event.pageX, event.pageY );
+
+			} else {
+
+				const position = getSecondPointerPosition( event );
+
+				const x = 0.5 * ( event.pageX + position.x );
+				const y = 0.5 * ( event.pageY + position.y );
+
+				rotateEnd.set( x, y );
+
+			}
+
+			rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
+
+			const element = scope.domElement;
+
+			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+
+			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
+
+			rotateStart.copy( rotateEnd );
+
+		}
+
+		function handleTouchMovePan( event ) {
+
+			if ( pointers.length === 1 ) {
+
+				panEnd.set( event.pageX, event.pageY );
+
+			} else {
+
+				const position = getSecondPointerPosition( event );
+
+				const x = 0.5 * ( event.pageX + position.x );
+				const y = 0.5 * ( event.pageY + position.y );
+
+				panEnd.set( x, y );
+
+			}
+
+			panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
+
+			pan( panDelta.x, panDelta.y );
+
+			panStart.copy( panEnd );
+
+		}
+
+		function handleTouchMoveDolly( event ) {
+
+			const position = getSecondPointerPosition( event );
+
+			const dx = event.pageX - position.x;
+			const dy = event.pageY - position.y;
+
+			const distance = Math.sqrt( dx * dx + dy * dy );
+
+			dollyEnd.set( 0, distance );
+
+			dollyDelta.set( 0, Math.pow( dollyEnd.y / dollyStart.y, scope.zoomSpeed ) );
+
+			dollyOut( dollyDelta.y );
+
+			dollyStart.copy( dollyEnd );
+
+			const centerX = ( event.pageX + position.x ) * 0.5;
+			const centerY = ( event.pageY + position.y ) * 0.5;
+
+			updateZoomParameters( centerX, centerY );
+
+		}
+
+		function handleTouchMoveDollyPan( event ) {
+
+			if ( scope.enableZoom ) handleTouchMoveDolly( event );
+
+			if ( scope.enablePan ) handleTouchMovePan( event );
+
+		}
+
+		function handleTouchMoveDollyRotate( event ) {
+
+			if ( scope.enableZoom ) handleTouchMoveDolly( event );
+
+			if ( scope.enableRotate ) handleTouchMoveRotate( event );
+
+		}
+
+		//
+		// event handlers - FSM: listen for events and reset state
+		//
+
+		function onPointerDown( event ) {
+
+			if ( scope.enabled === false ) return;
+
+			if ( pointers.length === 0 ) {
+
+				scope.domElement.setPointerCapture( event.pointerId );
+
+				scope.domElement.addEventListener( 'pointermove', onPointerMove );
+				scope.domElement.addEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			//
+
+			addPointer( event );
+
+			if ( event.pointerType === 'touch' ) {
+
+				onTouchStart( event );
+
+			} else {
+
+				onMouseDown( event );
+
+			}
+
+		}
+
+		function onPointerMove( event ) {
+
+			if ( scope.enabled === false ) return;
+
+			if ( event.pointerType === 'touch' ) {
+
+				onTouchMove( event );
+
+			} else {
+
+				onMouseMove( event );
+
+			}
+
+		}
+
+		function onPointerUp( event ) {
+
+			removePointer( event );
+
+			if ( pointers.length === 0 ) {
+
+				scope.domElement.releasePointerCapture( event.pointerId );
+
+				scope.domElement.removeEventListener( 'pointermove', onPointerMove );
+				scope.domElement.removeEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			scope.dispatchEvent( _endEvent );
+
+			state = STATE.NONE;
+
+		}
+
+		function onMouseDown( event ) {
+
+			let mouseAction;
+
+			switch ( event.button ) {
+
+				case 0:
+
+					mouseAction = scope.mouseButtons.LEFT;
+					break;
+
+				case 1:
+
+					mouseAction = scope.mouseButtons.MIDDLE;
+					break;
+
+				case 2:
+
+					mouseAction = scope.mouseButtons.RIGHT;
+					break;
+
+				default:
+
+					mouseAction = - 1;
+
+			}
+
+			switch ( mouseAction ) {
+
+				case MOUSE.DOLLY:
+
+					if ( scope.enableZoom === false ) return;
+
+					handleMouseDownDolly( event );
+
+					state = STATE.DOLLY;
+
+					break;
+
+				case MOUSE.ROTATE:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						if ( scope.enablePan === false ) return;
+
+						handleMouseDownPan( event );
+
+						state = STATE.PAN;
+
+					} else {
+
+						if ( scope.enableRotate === false ) return;
+
+						handleMouseDownRotate( event );
+
+						state = STATE.ROTATE;
+
+					}
+
+					break;
+
+				case MOUSE.PAN:
+
+					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+						if ( scope.enableRotate === false ) return;
+
+						handleMouseDownRotate( event );
+
+						state = STATE.ROTATE;
+
+					} else {
+
+						if ( scope.enablePan === false ) return;
+
+						handleMouseDownPan( event );
+
+						state = STATE.PAN;
+
+					}
+
+					break;
+
+				default:
+
+					state = STATE.NONE;
+
+			}
+
+			if ( state !== STATE.NONE ) {
+
+				scope.dispatchEvent( _startEvent );
+
+			}
+
+		}
+
+		function onMouseMove( event ) {
+
+			switch ( state ) {
+
+				case STATE.ROTATE:
+
+					if ( scope.enableRotate === false ) return;
+
+					handleMouseMoveRotate( event );
+
+					break;
+
+				case STATE.DOLLY:
+
+					if ( scope.enableZoom === false ) return;
+
+					handleMouseMoveDolly( event );
+
+					break;
+
+				case STATE.PAN:
+
+					if ( scope.enablePan === false ) return;
+
+					handleMouseMovePan( event );
+
+					break;
+
+			}
+
+		}
+
+		function onMouseWheel( event ) {
+
+			if ( scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE ) return;
+
+			event.preventDefault();
+
+			scope.dispatchEvent( _startEvent );
+
+			handleMouseWheel( customWheelEvent( event ) );
+
+			scope.dispatchEvent( _endEvent );
+
+		}
+
+		function customWheelEvent( event ) {
+
+			const mode = event.deltaMode;
+
+			// minimal wheel event altered to meet delta-zoom demand
+			const newEvent = {
+				clientX: event.clientX,
+				clientY: event.clientY,
+				deltaY: event.deltaY,
+			};
+
+			switch ( mode ) {
+
+				case 1: // LINE_MODE
+					newEvent.deltaY *= 16;
+					break;
+
+				case 2: // PAGE_MODE
+					newEvent.deltaY *= 100;
+					break;
+
+			}
+
+			// detect if event was triggered by pinching
+			if ( event.ctrlKey && !controlActive ) {
+
+				newEvent.deltaY *= 10;
+
+			}
+
+			return newEvent;
+
+		}
+
+		function interceptControlDown( event ) {
+
+			if ( event.key === "Control" ) {
+
+				controlActive = true;
+				
+				document.addEventListener('keyup', interceptControlUp, { passive: true, capture: true });
+
+			}
+
+		}
+
+		function interceptControlUp( event ) {
+
+			if ( event.key === "Control" ) {
+
+				controlActive = false;
+				
+				document.removeEventListener('keyup', interceptControlUp, { passive: true, capture: true });
+
+			}
+
+		}
+
+		function onKeyDown( event ) {
+
+			if ( scope.enabled === false || scope.enablePan === false ) return;
+
+			handleKeyDown( event );
+
+		}
+
+		function onTouchStart( event ) {
+
+			trackPointer( event );
+
+			switch ( pointers.length ) {
+
+				case 1:
+
+					switch ( scope.touches.ONE ) {
+
+						case TOUCH.ROTATE:
+
+							if ( scope.enableRotate === false ) return;
+
+							handleTouchStartRotate( event );
+
+							state = STATE.TOUCH_ROTATE;
+
+							break;
+
+						case TOUCH.PAN:
+
+							if ( scope.enablePan === false ) return;
+
+							handleTouchStartPan( event );
+
+							state = STATE.TOUCH_PAN;
+
+							break;
+
+						default:
+
+							state = STATE.NONE;
+
+					}
+
+					break;
+
+				case 2:
+
+					switch ( scope.touches.TWO ) {
+
+						case TOUCH.DOLLY_PAN:
+
+							if ( scope.enableZoom === false && scope.enablePan === false ) return;
+
+							handleTouchStartDollyPan( event );
+
+							state = STATE.TOUCH_DOLLY_PAN;
+
+							break;
+
+						case TOUCH.DOLLY_ROTATE:
+
+							if ( scope.enableZoom === false && scope.enableRotate === false ) return;
+
+							handleTouchStartDollyRotate( event );
+
+							state = STATE.TOUCH_DOLLY_ROTATE;
+
+							break;
+
+						default:
+
+							state = STATE.NONE;
+
+					}
+
+					break;
+
+				default:
+
+					state = STATE.NONE;
+
+			}
+
+			if ( state !== STATE.NONE ) {
+
+				scope.dispatchEvent( _startEvent );
+
+			}
+
+		}
+
+		function onTouchMove( event ) {
+
+			trackPointer( event );
+
+			switch ( state ) {
+
+				case STATE.TOUCH_ROTATE:
+
+					if ( scope.enableRotate === false ) return;
+
+					handleTouchMoveRotate( event );
+
+					scope.update();
+
+					break;
+
+				case STATE.TOUCH_PAN:
+
+					if ( scope.enablePan === false ) return;
+
+					handleTouchMovePan( event );
+
+					scope.update();
+
+					break;
+
+				case STATE.TOUCH_DOLLY_PAN:
+
+					if ( scope.enableZoom === false && scope.enablePan === false ) return;
+
+					handleTouchMoveDollyPan( event );
+
+					scope.update();
+
+					break;
+
+				case STATE.TOUCH_DOLLY_ROTATE:
+
+					if ( scope.enableZoom === false && scope.enableRotate === false ) return;
+
+					handleTouchMoveDollyRotate( event );
+
+					scope.update();
+
+					break;
+
+				default:
+
+					state = STATE.NONE;
+
+			}
+
+		}
+
+		function onContextMenu( event ) {
+
+			if ( scope.enabled === false ) return;
+
+			event.preventDefault();
+
+		}
+
+		function addPointer( event ) {
+
+			pointers.push( event.pointerId );
+
+		}
+
+		function removePointer( event ) {
+
+			delete pointerPositions[ event.pointerId ];
+
+			for ( let i = 0; i < pointers.length; i ++ ) {
+
+				if ( pointers[ i ] == event.pointerId ) {
+
+					pointers.splice( i, 1 );
+					return;
+
+				}
+
+			}
+
+		}
+
+		function trackPointer( event ) {
+
+			let position = pointerPositions[ event.pointerId ];
+
+			if ( position === undefined ) {
+
+				position = new Vector2();
+				pointerPositions[ event.pointerId ] = position;
+
+			}
+
+			position.set( event.pageX, event.pageY );
+
+		}
+
+		function getSecondPointerPosition( event ) {
+
+			const pointerId = ( event.pointerId === pointers[ 0 ] ) ? pointers[ 1 ] : pointers[ 0 ];
+
+			return pointerPositions[ pointerId ];
+
+		}
+
+		//
+
+		scope.domElement.addEventListener( 'contextmenu', onContextMenu );
+
+		scope.domElement.addEventListener( 'pointerdown', onPointerDown );
+		scope.domElement.addEventListener( 'pointercancel', onPointerUp );
+		scope.domElement.addEventListener( 'wheel', onMouseWheel, { passive: false } );
+
+		document.addEventListener( 'keydown', interceptControlDown, { passive: true, capture: true } );
+
+		// force an update at start
+
+		this.update();
+
+	}
+
+}
 
 /**
  * Full-screen textured quad shader
@@ -21505,11 +22970,22 @@ class Infinite2dGrid {
             const offset = sTrueBottom + i * sDistanceVert;
             sPoints.push(left, offset, 0, right, offset, 0);
         }
+        const mIndices = [];
+        const sIndices = [];
+        this.fillIndices(mPoints, mIndices);
+        this.fillIndices(sPoints, sIndices);
         const mBuffer = new THREE$1.BufferAttribute(new Float32Array(mPoints), 3);
         const sBuffer = new THREE$1.BufferAttribute(new Float32Array(sPoints), 3);
         const { main, secondary } = this.grids;
         main.geometry.setAttribute("position", mBuffer);
+        main.geometry.setIndex(mIndices);
         secondary.geometry.setAttribute("position", sBuffer);
+        secondary.geometry.setIndex(sIndices);
+    }
+    fillIndices(points, indices) {
+        for (let i = 0; i < points.length / 2 - 1; i += 2) {
+            indices.push(i, i + 1);
+        }
     }
     newNumber(offset) {
         const text = document.createElement("div");
@@ -21546,9 +23022,6 @@ class Infinite2dGrid {
  * with all the power of Three.js.
  */
 class Simple2DScene extends Component {
-    get size() {
-        return this._size.clone();
-    }
     get scaleX() {
         return this._scaleX;
     }
@@ -21608,9 +23081,7 @@ class Simple2DScene extends Component {
         this._size.set(window.innerWidth, window.innerHeight);
         const { width, height } = this._size;
         // Creates the camera (point of view of the user)
-        const aspect = width / height;
-        const halfSize = this._frustumSize * 0.5;
-        this.camera = new THREE$1.OrthographicCamera(-halfSize * aspect, halfSize * aspect, halfSize, -halfSize, -1000, 1000);
+        this.camera = new THREE$1.OrthographicCamera(75, width / height);
         this.scene.add(this.camera);
         this.camera.position.z = 10;
         const domContainer = container.domElement;
@@ -21629,12 +23100,11 @@ class Simple2DScene extends Component {
         this.renderer.setupEvents(false);
         this.renderer.overrideScene = this.scene;
         this.renderer.overrideCamera = this.camera;
-        this.controls = new CameraControls(this.camera, renderer.domElement);
-        this.controls.smoothTime = 0.6;
-        this.controls.setTarget(0, 0, 0);
-        this.controls.addEventListener("update", () => this.grid.regenerate());
-        this.controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
-        this.controls.dollyToCursor = true;
+        this.controls = new OrbitControls(this.camera, renderer.domElement);
+        this.controls.target.set(0, 0, 0);
+        this.controls.enableRotate = false;
+        this.controls.enableZoom = true;
+        this.controls.addEventListener("change", () => this.grid.regenerate());
     }
     /**
      * {@link Component.get}
@@ -21660,7 +23130,7 @@ class Simple2DScene extends Component {
     /** {@link Updateable.update} */
     async update() {
         await this.onBeforeUpdate.trigger();
-        this.controls.update(1 / 60);
+        this.controls.update();
         await this.renderer.update();
         await this.onAfterUpdate.trigger();
     }
@@ -21777,9 +23247,7 @@ let Fragment$1 = class Fragment {
         this.id = this.mesh.uuid;
         this.capacity = count;
         this.mesh.count = 0;
-        if (this.mesh.geometry.index.count) {
-            BVH.apply(this.mesh.geometry);
-        }
+        BVH.apply(geometry);
     }
     dispose(disposeResources = true) {
         this.clear();
@@ -22832,72 +24300,7 @@ class Builder {
 }
 
 // automatically generated by the FlatBuffers compiler, do not modify
-class CivilCurve {
-    constructor() {
-        this.bb = null;
-        this.bb_pos = 0;
-    }
-    __init(i, bb) {
-        this.bb_pos = i;
-        this.bb = bb;
-        return this;
-    }
-    static getRootAsCivilCurve(bb, obj) {
-        return (obj || new CivilCurve()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    static getSizePrefixedRootAsCivilCurve(bb, obj) {
-        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new CivilCurve()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-    }
-    points(index) {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
-    }
-    pointsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    pointsArray() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    data(optionalEncoding) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
-    }
-    static startCivilCurve(builder) {
-        builder.startObject(2);
-    }
-    static addPoints(builder, pointsOffset) {
-        builder.addFieldOffset(0, pointsOffset, 0);
-    }
-    static createPointsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startPointsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addData(builder, dataOffset) {
-        builder.addFieldOffset(1, dataOffset, 0);
-    }
-    static endCivilCurve(builder) {
-        const offset = builder.endObject();
-        return offset;
-    }
-    static createCivilCurve(builder, pointsOffset, dataOffset) {
-        CivilCurve.startCivilCurve(builder);
-        CivilCurve.addPoints(builder, pointsOffset);
-        CivilCurve.addData(builder, dataOffset);
-        return CivilCurve.endCivilCurve(builder);
-    }
-}
-
-// automatically generated by the FlatBuffers compiler, do not modify
-let Alignment$1 = class Alignment {
+class Alignment {
     constructor() {
         this.bb = null;
         this.bb_pos = 0;
@@ -22914,95 +24317,99 @@ let Alignment$1 = class Alignment {
         bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
         return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
-    vertical(index, obj) {
+    position(index) {
         const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? (obj || new CivilCurve()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
-    verticalLength() {
+    positionLength() {
         const offset = this.bb.__offset(this.bb_pos, 4);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    horizontal(index, obj) {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new CivilCurve()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    positionArray() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
-    horizontalLength() {
+    curve(index) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    curveLength() {
         const offset = this.bb.__offset(this.bb_pos, 6);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    absolute(index, obj) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? (obj || new CivilCurve()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    curveArray() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
-    absoluteLength() {
+    segment(index) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    segmentLength() {
         const offset = this.bb.__offset(this.bb_pos, 8);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    initialPk() {
-        const offset = this.bb.__offset(this.bb_pos, 10);
-        return offset ? this.bb.readFloat32(this.bb_pos + offset) : 0.0;
+    segmentArray() {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
     static startAlignment(builder) {
-        builder.startObject(4);
+        builder.startObject(3);
     }
-    static addVertical(builder, verticalOffset) {
-        builder.addFieldOffset(0, verticalOffset, 0);
+    static addPosition(builder, positionOffset) {
+        builder.addFieldOffset(0, positionOffset, 0);
     }
-    static createVerticalVector(builder, data) {
+    static createPositionVector(builder, data) {
         builder.startVector(4, data.length, 4);
         for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
+            builder.addFloat32(data[i]);
         }
         return builder.endVector();
     }
-    static startVerticalVector(builder, numElems) {
+    static startPositionVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
-    static addHorizontal(builder, horizontalOffset) {
-        builder.addFieldOffset(1, horizontalOffset, 0);
+    static addCurve(builder, curveOffset) {
+        builder.addFieldOffset(1, curveOffset, 0);
     }
-    static createHorizontalVector(builder, data) {
+    static createCurveVector(builder, data) {
         builder.startVector(4, data.length, 4);
         for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
+            builder.addInt32(data[i]);
         }
         return builder.endVector();
     }
-    static startHorizontalVector(builder, numElems) {
+    static startCurveVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
-    static addAbsolute(builder, absoluteOffset) {
-        builder.addFieldOffset(2, absoluteOffset, 0);
+    static addSegment(builder, segmentOffset) {
+        builder.addFieldOffset(2, segmentOffset, 0);
     }
-    static createAbsoluteVector(builder, data) {
+    static createSegmentVector(builder, data) {
         builder.startVector(4, data.length, 4);
         for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
+            builder.addInt32(data[i]);
         }
         return builder.endVector();
     }
-    static startAbsoluteVector(builder, numElems) {
+    static startSegmentVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
-    }
-    static addInitialPk(builder, initialPk) {
-        builder.addFieldFloat32(3, initialPk, 0.0);
     }
     static endAlignment(builder) {
         const offset = builder.endObject();
         return offset;
     }
-    static createAlignment(builder, verticalOffset, horizontalOffset, absoluteOffset, initialPk) {
+    static createAlignment(builder, positionOffset, curveOffset, segmentOffset) {
         Alignment.startAlignment(builder);
-        Alignment.addVertical(builder, verticalOffset);
-        Alignment.addHorizontal(builder, horizontalOffset);
-        Alignment.addAbsolute(builder, absoluteOffset);
-        Alignment.addInitialPk(builder, initialPk);
+        Alignment.addPosition(builder, positionOffset);
+        Alignment.addCurve(builder, curveOffset);
+        Alignment.addSegment(builder, segmentOffset);
         return Alignment.endAlignment(builder);
     }
-};
+}
 
 // automatically generated by the FlatBuffers compiler, do not modify
-class CivilData {
+class Civil {
     constructor() {
         this.bb = null;
         this.bb_pos = 0;
@@ -23012,71 +24419,40 @@ class CivilData {
         this.bb = bb;
         return this;
     }
-    static getRootAsCivilData(bb, obj) {
-        return (obj || new CivilData()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    static getRootAsCivil(bb, obj) {
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
-    static getSizePrefixedRootAsCivilData(bb, obj) {
+    static getSizePrefixedRootAsCivil(bb, obj) {
         bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new CivilData()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
-    alignments(index, obj) {
+    alignmentHorizontal(obj) {
         const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? (obj || new Alignment$1()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
     }
-    alignmentsLength() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
-    }
-    coordinationMatrix(index) {
+    alignmentVertical(obj) {
         const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
     }
-    coordinationMatrixLength() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    alignment3d(obj) {
+        const offset = this.bb.__offset(this.bb_pos, 8);
+        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
     }
-    coordinationMatrixArray() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    static startCivil(builder) {
+        builder.startObject(3);
     }
-    static startCivilData(builder) {
-        builder.startObject(2);
+    static addAlignmentHorizontal(builder, alignmentHorizontalOffset) {
+        builder.addFieldOffset(0, alignmentHorizontalOffset, 0);
     }
-    static addAlignments(builder, alignmentsOffset) {
-        builder.addFieldOffset(0, alignmentsOffset, 0);
+    static addAlignmentVertical(builder, alignmentVerticalOffset) {
+        builder.addFieldOffset(1, alignmentVerticalOffset, 0);
     }
-    static createAlignmentsVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addOffset(data[i]);
-        }
-        return builder.endVector();
+    static addAlignment3d(builder, alignment3dOffset) {
+        builder.addFieldOffset(2, alignment3dOffset, 0);
     }
-    static startAlignmentsVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static addCoordinationMatrix(builder, coordinationMatrixOffset) {
-        builder.addFieldOffset(1, coordinationMatrixOffset, 0);
-    }
-    static createCoordinationMatrixVector(builder, data) {
-        builder.startVector(4, data.length, 4);
-        for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
-        }
-        return builder.endVector();
-    }
-    static startCoordinationMatrixVector(builder, numElems) {
-        builder.startVector(4, numElems, 4);
-    }
-    static endCivilData(builder) {
+    static endCivil(builder) {
         const offset = builder.endObject();
         return offset;
-    }
-    static createCivilData(builder, alignmentsOffset, coordinationMatrixOffset) {
-        CivilData.startCivilData(builder);
-        CivilData.addAlignments(builder, alignmentsOffset);
-        CivilData.addCoordinationMatrix(builder, coordinationMatrixOffset);
-        return CivilData.endCivilData(builder);
     }
 }
 
@@ -23397,7 +24773,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     civil(obj) {
         const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new CivilData()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+        return offset ? (obj || new Civil()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
     }
     coordinationMatrix(index) {
         const offset = this.bb.__offset(this.bb_pos, 8);
@@ -24795,15 +26171,7 @@ class FragmentsGroup extends THREE$1.Group {
         this._properties = {};
         this.removeFromParent();
         this.items = [];
-        if (this.civilData) {
-            const { alignments } = this.civilData;
-            for (const [_id, alignment] of alignments) {
-                this.disposeAlignment(alignment.vertical);
-                this.disposeAlignment(alignment.horizontal);
-                this.disposeAlignment(alignment.absolute);
-            }
-        }
-        this.civilData = undefined;
+        this.ifcCivil = undefined;
     }
     setLocalProperties(properties) {
         this._properties = properties;
@@ -24920,41 +26288,17 @@ class FragmentsGroup extends THREE$1.Group {
         const { baseUrl } = this.streamSettings;
         return `${baseUrl}${name}`;
     }
-    disposeAlignment(alignment) {
-        for (const curve of alignment) {
-            curve.mesh.geometry.dispose();
-            if (Array.isArray(curve.mesh.material)) {
-                for (const mat of curve.mesh.material) {
-                    mat.dispose();
-                }
-            }
-            else {
-                curve.mesh.material.dispose();
-            }
-        }
-        alignment.length = 0;
-    }
 }
 
-/* eslint no-use-before-define: 0 */
-// eslint-disable-next-line max-classes-per-file
-class CurveMesh extends THREE$1.LineSegments {
-    constructor(index, data, alignment, geometry, material) {
-        super(geometry, material);
-        this.curve = {
-            index,
-            data,
-            alignment,
-            mesh: this,
-        };
-    }
-}
-class Alignment {
+class IfcAlignmentData {
     constructor() {
-        this.vertical = [];
-        this.horizontal = [];
-        this.absolute = [];
-        this.initialKP = 0;
+        this.coordinates = new Float32Array(0);
+        this.alignmentIndex = [];
+        this.curveIndex = [];
+    }
+    exportData() {
+        const { coordinates, alignmentIndex, curveIndex } = this;
+        return { coordinates, alignmentIndex, curveIndex };
     }
 }
 
@@ -24992,33 +26336,42 @@ class Serializer {
         const items = [];
         const G = FragmentsGroup$1;
         const F = Fragment;
-        let civilData = null;
-        if (group.civilData) {
-            const alignments = [];
-            const A = Alignment$1;
-            const C = CivilData;
-            for (const [_id, alignment] of group.civilData.alignments) {
-                const { absolute, horizontal, vertical } = alignment;
-                const horCurves = this.saveCivilCurves(horizontal, builder);
-                const verCurves = this.saveCivilCurves(vertical, builder);
-                const absCurves = this.saveCivilCurves(absolute, builder);
-                const horVector = A.createHorizontalVector(builder, horCurves);
-                const verVector = A.createVerticalVector(builder, verCurves);
-                const absVector = A.createAbsoluteVector(builder, absCurves);
-                A.startAlignment(builder);
-                A.addHorizontal(builder, horVector);
-                A.addVertical(builder, verVector);
-                A.addAbsolute(builder, absVector);
-                A.addInitialPk(builder, alignment.initialKP);
-                const exported = A.endAlignment(builder);
-                alignments.push(exported);
-            }
-            const algVector = C.createAlignmentsVector(builder, alignments);
-            const coordVector = C.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
-            C.startCivilData(builder);
-            C.addAlignments(builder, algVector);
-            C.addCoordinationMatrix(builder, coordVector);
-            civilData = C.endCivilData(builder);
+        const C = Civil;
+        let exportedCivil = null;
+        if (group.ifcCivil) {
+            const A = Alignment;
+            const resultH = group.ifcCivil.horizontalAlignments.exportData();
+            const posVectorH = A.createPositionVector(builder, resultH.coordinates);
+            const curveVectorH = A.createSegmentVector(builder, resultH.curveIndex);
+            const alignVectorH = A.createCurveVector(builder, resultH.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorH);
+            A.addSegment(builder, curveVectorH);
+            A.addCurve(builder, alignVectorH);
+            const exportedH = Alignment.endAlignment(builder);
+            const resultV = group.ifcCivil.verticalAlignments.exportData();
+            const posVectorV = A.createPositionVector(builder, resultV.coordinates);
+            const curveVectorV = A.createSegmentVector(builder, resultV.curveIndex);
+            const alignVectorV = A.createCurveVector(builder, resultV.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorV);
+            A.addSegment(builder, curveVectorV);
+            A.addCurve(builder, alignVectorV);
+            const exportedV = Alignment.endAlignment(builder);
+            const resultR = group.ifcCivil.realAlignments.exportData();
+            const posVectorR = A.createPositionVector(builder, resultR.coordinates);
+            const curveVectorR = A.createSegmentVector(builder, resultR.curveIndex);
+            const alignVectorR = A.createCurveVector(builder, resultR.alignmentIndex);
+            A.startAlignment(builder);
+            A.addPosition(builder, posVectorR);
+            A.addSegment(builder, curveVectorR);
+            A.addCurve(builder, alignVectorR);
+            const exportedR = Alignment.endAlignment(builder);
+            C.startCivil(builder);
+            C.addAlignmentHorizontal(builder, exportedH);
+            C.addAlignmentVertical(builder, exportedV);
+            C.addAlignment3d(builder, exportedR);
+            exportedCivil = Civil.endCivil(builder);
         }
         for (const fragment of group.items) {
             const result = fragment.exportData();
@@ -25110,6 +26463,9 @@ class Serializer {
         const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
         const bboxVector = G.createBoundingBoxVector(builder, bbox);
         G.startFragmentsGroup(builder);
+        if (exportedCivil !== null) {
+            G.addCivil(builder, exportedCivil);
+        }
         G.addId(builder, groupID);
         G.addName(builder, groupName);
         G.addIfcName(builder, ifcName);
@@ -25127,9 +26483,6 @@ class Serializer {
         G.addBoundingBox(builder, bboxVector);
         G.addOpaqueGeometriesIds(builder, oIdsVector);
         G.addTransparentGeometriesIds(builder, tIdsVector);
-        if (civilData !== null) {
-            G.addCivil(builder, civilData);
-        }
         const result = FragmentsGroup$1.endFragmentsGroup(builder);
         builder.finish(result);
         return builder.asUint8Array();
@@ -25197,31 +26550,22 @@ class Serializer {
     }
     constructFragmentGroup(group) {
         const fragmentsGroup = new FragmentsGroup();
-        const civil = group.civil();
-        if (civil) {
-            const matArray = civil.coordinationMatrixArray();
-            const coordinationMatrix = new THREE$1.Matrix4();
-            if (matArray) {
-                coordinationMatrix.fromArray(matArray);
-            }
-            fragmentsGroup.civilData = { alignments: new Map(), coordinationMatrix };
-            const aligLength = civil.alignmentsLength();
-            for (let i = 0; i < aligLength; i++) {
-                const lineMat = new THREE$1.LineBasicMaterial({ color: 0xffffff });
-                const alignment = new Alignment();
-                const aligData = civil.alignments(i);
-                if (!aligData) {
-                    throw new Error("Alignment not found!");
-                }
-                const horLength = aligData.horizontalLength();
-                alignment.horizontal = this.constructCivilCurves(aligData, alignment, "horizontal", horLength, lineMat);
-                const verLength = aligData.verticalLength();
-                alignment.vertical = this.constructCivilCurves(aligData, alignment, "vertical", verLength, lineMat);
-                const absLength = aligData.horizontalLength();
-                alignment.absolute = this.constructCivilCurves(aligData, alignment, "absolute", absLength, lineMat);
-                alignment.initialKP = aligData.initialPk();
-                fragmentsGroup.civilData.alignments.set(i, alignment);
-            }
+        const FBcivil = group.civil();
+        const horizontalAlignments = new IfcAlignmentData();
+        const verticalAlignments = new IfcAlignmentData();
+        const realAlignments = new IfcAlignmentData();
+        if (FBcivil) {
+            const FBalignmentH = FBcivil.alignmentHorizontal();
+            this.getAlignmentData(FBalignmentH, horizontalAlignments);
+            const FBalignmentV = FBcivil.alignmentVertical();
+            this.getAlignmentData(FBalignmentV, verticalAlignments);
+            const FBalignment3D = FBcivil.alignment3d();
+            this.getAlignmentData(FBalignment3D, realAlignments);
+            fragmentsGroup.ifcCivil = {
+                horizontalAlignments,
+                verticalAlignments,
+                realAlignments,
+            };
         }
         // fragmentsGroup.ifcCivil?.horizontalAlignments
         fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
@@ -25270,6 +26614,19 @@ class Serializer {
         }
         return fragmentsGroup;
     }
+    getAlignmentData(alignment, result) {
+        if (alignment) {
+            if (alignment.positionArray) {
+                result.coordinates = alignment.positionArray();
+                for (let j = 0; j < alignment.curveLength(); j++) {
+                    result.alignmentIndex.push(alignment.curve(j));
+                }
+                for (let j = 0; j < alignment.segmentLength(); j++) {
+                    result.curveIndex.push(alignment.segment(j));
+                }
+            }
+        }
+    }
     setGroupData(group, ids, indices, array, index) {
         for (let i = 0; i < indices.length; i++) {
             const expressID = ids[i];
@@ -25308,51 +26665,6 @@ class Serializer {
             }
         }
         return geometry;
-    }
-    constructCivilCurves(alignData, alignment, option, length, lineMat) {
-        const curves = [];
-        for (let i = 0; i < length; i++) {
-            const found = alignData[option](i);
-            if (!found) {
-                throw new Error("Curve not found!");
-            }
-            const points = found.pointsArray();
-            if (points === null) {
-                throw new Error("Curve points not found!");
-            }
-            let data = {};
-            const curveData = found.data();
-            if (curveData) {
-                data = JSON.parse(curveData);
-            }
-            const geometry = new THREE$1.EdgesGeometry();
-            const posAttr = new THREE$1.BufferAttribute(points, 3);
-            geometry.setAttribute("position", posAttr);
-            const index = [];
-            for (let i = 0; i < points.length / 3 - 1; i++) {
-                index.push(i, i + 1);
-            }
-            geometry.setIndex(index);
-            const curveMesh = new CurveMesh(i, data, alignment, geometry, lineMat);
-            curves.push(curveMesh.curve);
-        }
-        return curves;
-    }
-    saveCivilCurves(curves, builder) {
-        const CC = CivilCurve;
-        const curvesRef = [];
-        for (const curve of curves) {
-            const attrs = curve.mesh.geometry.attributes;
-            const position = attrs.position.array;
-            const posVector = CC.createPointsVector(builder, position);
-            const dataStr = builder.createString(JSON.stringify(curve.data));
-            CC.startCivilCurve(builder);
-            CC.addPoints(builder, posVector);
-            CC.addData(builder, dataStr);
-            const exported = CC.endCivilCurve(builder);
-            curvesRef.push(exported);
-        }
-        return curvesRef;
     }
 }
 
@@ -99997,9 +101309,6 @@ class IfcFragmentSettings {
 }
 
 class CivilReader {
-    constructor() {
-        this.defLineMat = new THREE$1.LineBasicMaterial({ color: 0xffffff });
-    }
     read(webIfc) {
         const IfcAlignment = webIfc.GetAllAlignments(0);
         const IfcCrossSection2D = webIfc.GetAllCrossSections2D(0);
@@ -100013,46 +101322,60 @@ class CivilReader {
     }
     get(civilItems) {
         if (civilItems.IfcAlignment) {
-            const alignments = new Map();
-            for (const ifcAlign of civilItems.IfcAlignment) {
-                const alignment = new Alignment();
-                alignment.absolute = this.getCurves(ifcAlign.curve3D, alignment);
-                alignment.horizontal = this.getCurves(ifcAlign.horizontal, alignment);
-                alignment.vertical = this.getCurves(ifcAlign.vertical, alignment);
-                alignments.set(alignments.size, alignment);
-            }
-            return { alignments, coordinationMatrix: new THREE$1.Matrix4() };
-        }
-        return undefined;
-    }
-    getCurves(ifcAlignData, alignment) {
-        const curves = [];
-        let index = 0;
-        for (const curve of ifcAlignData) {
-            const data = {};
-            if (curve.data) {
-                for (const entry of curve.data) {
-                    const [key, value] = entry.split(": ");
-                    const numValue = parseFloat(value);
-                    data[key] = numValue || value;
+            const horizontalAlignments = new IfcAlignmentData();
+            const verticalAlignments = new IfcAlignmentData();
+            const realAlignments = new IfcAlignmentData();
+            let countH = 0;
+            let countV = 0;
+            let countR = 0;
+            const valuesH = [];
+            const valuesV = [];
+            const valuesR = [];
+            for (const alignment of civilItems.IfcAlignment) {
+                horizontalAlignments.alignmentIndex.push(countH);
+                verticalAlignments.alignmentIndex.push(countV);
+                if (alignment.horizontal) {
+                    for (const hAlignment of alignment.horizontal) {
+                        horizontalAlignments.curveIndex.push(countH);
+                        for (const point of hAlignment.points) {
+                            valuesH.push(point.x);
+                            valuesH.push(point.y);
+                            countH++;
+                        }
+                    }
+                }
+                if (alignment.vertical) {
+                    for (const vAlignment of alignment.vertical) {
+                        verticalAlignments.curveIndex.push(countV);
+                        for (const point of vAlignment.points) {
+                            valuesV.push(point.x);
+                            valuesV.push(point.y);
+                            countV++;
+                        }
+                    }
+                }
+                if (alignment.curve3D) {
+                    for (const rAlignment of alignment.curve3D) {
+                        realAlignments.curveIndex.push(countR);
+                        for (const point of rAlignment.points) {
+                            valuesR.push(point.x);
+                            valuesR.push(point.y);
+                            valuesR.push(point.z);
+                            countR++;
+                        }
+                    }
                 }
             }
-            const { points } = curve;
-            const array = new Float32Array(points.length * 3);
-            for (let i = 0; i < points.length; i++) {
-                const { x, y, z } = points[i];
-                array[i * 3] = x;
-                array[i * 3 + 1] = y;
-                array[i * 3 + 2] = z || 0;
-            }
-            const attr = new THREE$1.BufferAttribute(array, 3);
-            const geometry = new THREE$1.EdgesGeometry();
-            geometry.setAttribute("position", attr);
-            const mesh = new CurveMesh(index, data, alignment, geometry, this.defLineMat);
-            curves.push(mesh.curve);
-            index++;
+            horizontalAlignments.coordinates = new Float32Array(valuesH);
+            verticalAlignments.coordinates = new Float32Array(valuesV);
+            realAlignments.coordinates = new Float32Array(valuesR);
+            return {
+                horizontalAlignments,
+                verticalAlignments,
+                realAlignments,
+            };
         }
-        return curves;
+        return undefined;
     }
 }
 
@@ -100309,7 +101632,7 @@ class FragmentIfcLoader extends Component {
         }
         const matrix = this._webIfc.GetCoordinationMatrix(0);
         group.coordinationMatrix.fromArray(matrix);
-        group.civilData = this._civil.read(this._webIfc);
+        group.ifcCivil = this._civil.read(this._webIfc);
         return group;
     }
     cleanUp() {
@@ -107472,7 +108795,7 @@ class FragmentIfcStreamConverter extends Component {
         }
         const matrix = this._webIfc.GetCoordinationMatrix(0);
         group.coordinationMatrix.fromArray(matrix);
-        group.civilData = this._civil.read(this._webIfc);
+        group.ifcCivil = this._civil.read(this._webIfc);
         const buffer = this._groupSerializer.export(group);
         await this.onIfcLoaded.trigger(buffer);
         group.dispose(true);
@@ -120475,381 +121798,280 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
-class CurveHighlighter {
-    constructor(scene) {
-        this.scene = scene;
-        this._highlightColor = 0xbcf124;
-    }
-    set highlightColor(color) {
-        this._highlightColor = color;
-    }
-    highlight(curve) {
-        if (this.activeSelection) {
-            this.scene.remove(this.activeSelection);
-        }
-        const lGeom = new LineGeometry();
-        lGeom.setPositions(new Float32Array(curve.geometry.attributes.position.array));
-        const lMat = new LineMaterial({
-            color: this._highlightColor,
-            linewidth: 0.015,
-            worldUnits: false,
-        });
-        const line = new Line2(lGeom, lMat);
-        this.scene.add(line);
-        this.activeSelection = line;
-    }
-    dispose() {
-        if (this.activeSelection) {
-            this.scene.remove(this.activeSelection);
-        }
-        this.activeSelection = null;
-        this.scene = null;
-        this._highlightColor = null;
-    }
-}
-
-class AnchorPosition {
-    constructor(components, container, navigator, modelAlignments) {
-        this.model = [];
-        this.model3DPosition = new THREE$1.Vector3(0, 0, 0);
-        this.completedAlignment = false;
-        this.mousePositionSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry(0.5), new THREE$1.MeshBasicMaterial({ color: 0xff0000 }));
-        this._components = components;
-        this._container = container;
-        this._navigator = navigator;
-        this._modelAlignments = modelAlignments;
-    }
-    get modelAlignments() {
-        return this._modelAlignments;
-    }
-    set modelAlignments(model) {
-        this._modelAlignments = model;
-    }
-    get navigator() {
-        return this._navigator;
-    }
-    set navigator(navigator) {
-        this._navigator = navigator;
-    }
-    get container() {
-        return this._container;
-    }
-    set container(value) {
-        this._container = value;
-    }
-    get components() {
-        return this._components;
-    }
-    set components(value) {
-        this._components = value;
-    }
-    get alignment2D() {
-        return this._alignment2D;
-    }
-    set alignment2D(alignment) {
-        this._alignment2D = alignment;
-    }
-    get model2DPosition() {
-        return this._model2DPosition;
-    }
-    set model2DPosition(position) {
-        this._model2DPosition = position;
-    }
-    setAnchorPosition() {
-        if (!this.container)
-            return;
-        this.getModel3DFragments(this.components);
-        const scene = this.components.scene.get();
-        scene.add(this.mousePositionSphere);
-        this.handleMouseMove();
-        this.handleClick();
-    }
-    getModel3DFragments(components) {
-        components.meshes.forEach((m) => {
-            this.model.push(m);
-        });
-    }
-    handleMouseMove() {
-        this.container.addEventListener("mousemove", (event) => {
-            const { alignment2D } = this.navigator.anchor;
-            const { domElement } = this.components.renderer._renderer;
-            if (!alignment2D)
-                return;
-            if (this.model3DPosition.x !== 0)
-                return;
-            if (this.completedAlignment)
-                return;
-            const rect = domElement.getBoundingClientRect();
-            const mouse = new THREE$1.Vector2();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            this.components.raycaster._raycaster.setFromCamera(mouse, this.components.camera.activeCamera);
-            const intersects = this.components.raycaster._raycaster.intersectObjects(this.model, true);
-            if (intersects.length > 0) {
-                const intersect = intersects[0];
-                const { point } = intersect;
-                this.mousePositionSphere.visible = true;
-                this.mousePositionSphere.position.copy(point);
-            }
-            else {
-                this.mousePositionSphere.visible = false;
-            }
-        });
-    }
-    handleClick() {
-        this.container.addEventListener("click", () => {
-            const { alignment2D, model2DPosition } = this.navigator.anchor;
-            this.model3DPosition = this.mousePositionSphere.position.clone();
-            if (!model2DPosition)
-                return;
-            if (this.model3DPosition.x === 0)
-                return;
-            if (this.completedAlignment)
-                return;
-            const { index } = alignment2D.curve;
-            const curve = alignment2D.curve;
-            const mesh = curve.alignment.vertical[index].mesh;
-            const position = mesh.geometry.attributes.position.array;
-            let altitudes = [];
-            for (let i = 0; i < position.length; i += 3) {
-                altitudes.push({
-                    x: position[i],
-                    y: position[i + 1],
-                    z: position[i + 2],
-                });
-            }
-            let altitude = 0;
-            for (const alt of altitudes) {
-                altitude += alt.y;
-            }
-            const result = altitude / altitudes.length;
-            const threshold = 8;
-            const mat = new THREE$1.Matrix4();
-            mat.makeTranslation(-model2DPosition.x + this.model3DPosition.x, -result - threshold, model2DPosition.y + this.model3DPosition.z);
-            const scene = this.components.scene.get();
-            // @ts-ignore
-            for (const [id, alignment] of this.modelAlignments.civilData.alignments) {
-                for (const align of alignment.absolute) {
-                    align.mesh.applyMatrix4(mat);
-                    scene.add(align.mesh);
-                }
-            }
-            this.completedAlignment = true;
-        });
-    }
-}
-
 class RoadNavigator extends Component {
     constructor(components) {
         super(components);
         this.enabled = true;
-        this.caster = new THREE$1.Raycaster();
-        this._curves = new Set();
-        this.curveMeshes = [];
-        this.onHighlight = new Event();
-        this.caster.params.Line = { threshold: 5 };
-        this.scene = new Simple2DScene(this.components, false);
-        this.highlighter = new CurveHighlighter(this.scene.get());
-        this.model = null;
-        // Anchor function
-        const { domElement } = components.renderer.get();
-        this.anchor = new AnchorPosition(components, domElement, this, this.model);
-        this.setupEvents();
-    }
-    get getAnchor() {
-        return this.anchor;
-    }
-    get() {
-        return null;
-    }
-    get navigatorVertical() {
-        return this._navigatorVertical;
-    }
-    set navigatorVertical(navigatorVertical) {
-        this._navigatorVertical = navigatorVertical;
-    }
-    async draw(model, ids) {
-        if (!model.civilData) {
-            throw new Error("The provided model doesn't have civil data!");
-        }
-        this.model = model;
-        const { alignments } = model.civilData;
-        const allIDs = ids || alignments.keys();
-        const scene = this.scene.get();
-        const totalBBox = new THREE$1.Box3();
-        totalBBox.makeEmpty();
-        totalBBox.min.set(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-        totalBBox.max.set(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
-        for (const id of allIDs) {
-            const alignment = alignments.get(id);
-            if (!alignment) {
-                throw new Error("Alignment not found!");
-            }
-            for (const curve of alignment[this.view]) {
-                this._curves.add(curve);
-                scene.add(curve.mesh);
-                this.curveMeshes.push(curve.mesh);
-                if (!totalBBox.isEmpty()) {
-                    totalBBox.expandByObject(curve.mesh);
+        this.uiElement = new UIElement();
+        this._selected = null;
+        this._anchor = new THREE$1.Vector3();
+        this._anchorID = "thatopen-roadnavigator-anchor";
+        this._anchors = {
+            horizontal: new THREE$1.Vector2(),
+            horizontalIndex: 0,
+            real: new THREE$1.Vector3(),
+        };
+        this._caster = new THREE$1.Raycaster();
+        const threshold = 5;
+        this._caster.params.Line = { threshold };
+        this.components.tools.add(RoadNavigator.uuid, this);
+        this._scenes = {
+            horizontal: new Simple2DScene(this.components, false),
+            vertical: new Simple2DScene(this.components, false),
+        };
+        this._points = {
+            horizontal: new THREE$1.Points(new THREE$1.BufferGeometry(), new THREE$1.PointsMaterial({
+                size: 10,
+            })),
+        };
+        this._points.horizontal.frustumCulled = false;
+        this._scenes.horizontal.scene.add(this._points.horizontal);
+        this._alignments = {
+            horizontal: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
+            vertical: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
+            real: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
+        };
+        this._alignments.real.frustumCulled = false;
+        this._scenes.vertical.get().add(this._alignments.vertical);
+        this._scenes.horizontal.get().add(this._alignments.horizontal);
+        const scene = this.components.scene.get();
+        scene.add(this._alignments.real);
+        const hRenderer = this._scenes.horizontal.renderer.get();
+        const hCamera = this._scenes.horizontal.camera;
+        hRenderer.domElement.addEventListener("click", (event) => {
+            if (!this._selected || !this._selected.ifcCivil)
+                return;
+            const lim = hRenderer.domElement.getBoundingClientRect();
+            const y = -((event.clientY - lim.top) / (lim.bottom - lim.top)) * 2 + 1;
+            const x = ((event.clientX - lim.left) / (lim.right - lim.left)) * 2 - 1;
+            const position = new THREE$1.Vector2(x, y);
+            this._caster.setFromCamera(position, hCamera);
+            const result = this._caster.intersectObject(this._alignments.horizontal);
+            if (result.length) {
+                const { index, point } = result[0];
+                if (index === undefined)
+                    return;
+                const geom = this._alignments.horizontal.geometry;
+                if (!geom.index)
+                    return;
+                const pos = geom.attributes.position;
+                const pointIndex1 = geom.index.array[index];
+                const pointIndex2 = geom.index.array[index + 1];
+                const x1 = pos.getX(pointIndex1);
+                const y1 = pos.getY(pointIndex1);
+                const x2 = pos.getX(pointIndex2);
+                const y2 = pos.getY(pointIndex2);
+                const dist1 = new THREE$1.Vector3(x1, y1, 0).distanceTo(point);
+                const dist2 = new THREE$1.Vector3(x2, y2, 0).distanceTo(point);
+                const isFirst = dist1 < dist2;
+                const x = isFirst ? x1 : x2;
+                const y = isFirst ? y1 : y2;
+                this._anchors.horizontal.set(x, y);
+                this._anchors.horizontalIndex = isFirst ? pointIndex1 : pointIndex2;
+                const { horizontal } = this._points;
+                const coordsBuffer = new Float32Array([x, y, 0]);
+                const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
+                horizontal.geometry.setAttribute("position", coordsAttr);
+                let verticalIndex = -1;
+                const alignmentIndex = this._selected.ifcCivil.horizontalAlignments.alignmentIndex;
+                if (pointIndex1 >= alignmentIndex[alignmentIndex.length - 1]) {
+                    verticalIndex = alignmentIndex.length - 1;
                 }
                 else {
-                    curve.mesh.geometry.computeBoundingBox();
-                    const cbox = curve.mesh.geometry.boundingBox;
-                    if (cbox instanceof THREE$1.Box3) {
-                        totalBBox.copy(cbox).applyMatrix4(curve.mesh.matrixWorld);
+                    for (let i = 0; i < alignmentIndex.length - 1; i++) {
+                        const start = alignmentIndex[i];
+                        const end = alignmentIndex[i + 1];
+                        if (pointIndex1 >= start && pointIndex1 < end) {
+                            verticalIndex = i;
+                        }
+                    }
+                }
+                this.getAlignmentGeometry(this._selected.ifcCivil.verticalAlignments, this._alignments.vertical.geometry, false, verticalIndex);
+                // const { alignmentIndex } = this._selected.ifcCivil.horizontalAlignments;
+                // let counter = 0;
+                // for (let i = 0; i < alignmentIndex.length; i++) {
+                // const currentAlignment = alignmentIndex[i];
+                // if (currentAlignment > index) {
+                //   console.log(`Selected alignment: ${counter - 1}`);
+                //   break;
+                // }
+                // counter++;
+                // }
+            }
+        });
+        if (this.components.uiEnabled) {
+            this.setUI();
+        }
+    }
+    get() { }
+    select(model) {
+        if (!model.ifcCivil) {
+            console.warn("The provided model doesn't have civil data!");
+            return;
+        }
+        this._selected = model;
+        this.getAlignmentGeometry(model.ifcCivil.horizontalAlignments, this._alignments.horizontal.geometry, false);
+        this.getAlignmentGeometry(model.ifcCivil.realAlignments, this._alignments.real.geometry, true);
+    }
+    setAnchor() {
+        if (!this._selected || !this._selected.ifcCivil)
+            return;
+        const result = this.components.raycaster.castRay([this._selected]);
+        if (result === null)
+            return;
+        this._anchors.real.copy(result.point);
+        const { horizontal, real, horizontalIndex } = this._anchors;
+        const geom = this._alignments.real.geometry;
+        const yPosition3D = geom.attributes.position.getY(horizontalIndex);
+        this._anchor.x = real.x - horizontal.x;
+        this._anchor.z = real.z + horizontal.y;
+        this._anchor.y = real.y - yPosition3D;
+        this.updateAnchor();
+    }
+    saveAnchor() {
+        const { x, y, z } = this._anchor;
+        localStorage.setItem(this._anchorID, `${x}_${y}_${z}`);
+    }
+    loadAnchor() {
+        const serialized = localStorage.getItem(this._anchorID);
+        if (!serialized)
+            return;
+        const [x, y, z] = serialized.split("_").map((item) => parseFloat(item));
+        this._anchor.set(x, y, z);
+        this.updateAnchor();
+    }
+    updateAnchor() {
+        const position = this._alignments.real.position;
+        position.copy(this._anchor);
+    }
+    getAlignmentGeometry(alignment, geometry, is3D, selectedIndex = -1) {
+        const data = this.getAlignmentData(alignment, is3D, selectedIndex);
+        const coordsBuffer = new Float32Array(data.coords);
+        const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
+        geometry.setAttribute("position", coordsAttr);
+        geometry.setIndex(data.index);
+    }
+    getAlignmentData(alignment, is3D, selectedIndex = -1) {
+        const coords = [];
+        const index = [];
+        const { coordinates, curveIndex } = alignment;
+        const offsetX = coordinates[0];
+        const offsetY = coordinates[1];
+        const offsetZ = is3D ? coordinates[2] : 0;
+        let isSegmentStart = true;
+        const factor = is3D ? 3 : 2;
+        const last = coordinates.length / factor - 1;
+        if (selectedIndex === -1) {
+            for (let i = 0; i < curveIndex.length; i++) {
+                const start = curveIndex[i];
+                const isLast = i === curveIndex.length - 1;
+                const end = isLast ? last : curveIndex[i + 1];
+                isSegmentStart = true;
+                for (let j = start; j < end; j++) {
+                    const x = coordinates[j * factor] - offsetX;
+                    const y = coordinates[j * factor + 1] - offsetY;
+                    const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
+                    coords.push(x, y, z);
+                    if (isSegmentStart) {
+                        isSegmentStart = false;
+                    }
+                    else {
+                        index.push(j - 1, j);
                     }
                 }
             }
         }
-        await this.scene.controls.fitToBox(totalBBox, false);
-    }
-    setupEvents() {
-        const mousePositionSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry(0.5), new THREE$1.MeshBasicMaterial({ color: 0xff0000 }));
-        this.scene.get().add(mousePositionSphere);
-        this.scene.uiElement
-            .get("container")
-            .domElement.addEventListener("mousemove", (event) => {
-            const dom = this.scene.uiElement.get("container").domElement;
-            const mouse = new THREE$1.Vector2();
-            const rect = dom.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            const raycaster = new THREE$1.Raycaster();
-            raycaster.setFromCamera(mouse, this.scene.camera);
-            const intersects = raycaster.intersectObjects(this.curveMeshes);
-            if (intersects.length > 0) {
-                const intersect = intersects[0];
-                const { point } = intersect;
-                const alignment2DPosition = this.anchor.alignment2D;
-                if (!alignment2DPosition) {
-                    mousePositionSphere.position.copy(point);
+        else {
+            let counter = 0;
+            for (let i = 0; i < curveIndex.length; i++) {
+                if (selectedIndex === this.currentAlignment(alignment, curveIndex[i])) {
+                    const start = curveIndex[i];
+                    const isLast = i === curveIndex.length - 1;
+                    const end = isLast ? last : curveIndex[i + 1];
+                    isSegmentStart = true;
+                    for (let j = start; j < end; j++) {
+                        const x = coordinates[j * factor] - offsetX;
+                        const y = coordinates[j * factor + 1] - offsetY;
+                        const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
+                        coords.push(x, y, z);
+                        if (isSegmentStart) {
+                            isSegmentStart = false;
+                        }
+                        else {
+                            index.push(counter - 1, counter);
+                        }
+                        counter++;
+                    }
                 }
             }
-        });
-        this.scene.uiElement
-            .get("container")
-            .domElement.addEventListener("click", async (event) => {
-            const dom = this.scene.uiElement.get("container").domElement;
-            const mouse = new THREE$1.Vector2();
-            const rect = dom.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            const raycaster = new THREE$1.Raycaster();
-            raycaster.setFromCamera(mouse, this.scene.camera);
-            const intersects = raycaster.intersectObjects(this.curveMeshes);
-            if (intersects.length > 0) {
-                const curve = intersects[0].object;
-                await this.onHighlight.trigger(curve);
-                // Anchor set & load aligment vertical
-                const intersect = intersects[0];
-                const { point, object } = intersect;
-                this.anchor.model2DPosition = point;
-                this.anchor.alignment2D = object;
-                // @ts-ignore
-                const index = object.curve.index;
-                const verticalAlignment = 
-                // @ts-ignore
-                object.curve.alignment.vertical[index].mesh;
-                this.navigatorVertical.scene.get().add(verticalAlignment);
-                const controlsElevation = this.navigatorVertical.scene.controls;
-                await controlsElevation.fitToBox(verticalAlignment, true);
-            }
-        });
-    }
-    dispose() {
-        this.highlighter.dispose();
-        this.clear();
-        this.onHighlight.reset();
-        this.caster = null;
-        this.scene.dispose();
-        this._curves = null;
-    }
-    clear() {
-        for (const curve of this._curves) {
-            curve.mesh.removeFromParent();
         }
-        this._curves.clear();
+        return { coords, index };
     }
-}
-
-class RoadPlanNavigator extends RoadNavigator {
-    constructor(components) {
-        super(components);
-        this.view = "horizontal";
-        this.uiElement = new UIElement();
-        this.setUI();
+    currentAlignment(alignment, curveIndex) {
+        const last = alignment.alignmentIndex.length - 1;
+        if (curveIndex >= alignment.alignmentIndex[last]) {
+            return last;
+        }
+        for (let i = 0; i < alignment.alignmentIndex.length - 1; i++) {
+            const start = alignment.alignmentIndex[i];
+            const end = alignment.alignmentIndex[i + 1];
+            if (curveIndex >= start && curveIndex < end) {
+                return i;
+            }
+        }
+        return -1;
     }
     setUI() {
-        const floatingWindow = new FloatingWindow(this.components);
-        this.components.ui.add(floatingWindow);
-        floatingWindow.visible = false;
-        const hContainer = this.scene.uiElement.get("container");
-        floatingWindow.addChild(hContainer);
-        floatingWindow.onResized.add(() => this.scene.grid.regenerate());
-        floatingWindow.slots.content.domElement.style.padding = "0";
-        floatingWindow.slots.content.domElement.style.overflow = "hidden";
-        floatingWindow.onResized.add(() => {
-            const { width, height } = floatingWindow.containerSize;
-            this.scene.setSize(height, width);
+        const horizontalAlignment = new FloatingWindow(this.components);
+        this.components.ui.add(horizontalAlignment);
+        horizontalAlignment.visible = false;
+        const hContainer = this._scenes.horizontal.uiElement.get("container");
+        horizontalAlignment.addChild(hContainer);
+        horizontalAlignment.onResized.add(() => this._scenes.horizontal.grid.regenerate());
+        horizontalAlignment.slots.content.domElement.style.padding = "0";
+        horizontalAlignment.slots.content.domElement.style.overflow = "hidden";
+        horizontalAlignment.onResized.add(() => {
+            const { width, height } = horizontalAlignment.containerSize;
+            this._scenes.horizontal.setSize(height, width);
         });
-        floatingWindow.domElement.style.width = "20rem";
-        floatingWindow.domElement.style.height = "20rem";
-        floatingWindow.onVisible.add(() => {
-            if (floatingWindow.visible) {
-                this.scene.grid.regenerate();
+        horizontalAlignment.domElement.style.width = "20rem";
+        horizontalAlignment.domElement.style.height = "20rem";
+        horizontalAlignment.onVisible.add(() => {
+            if (horizontalAlignment.visible) {
+                this._scenes.horizontal.grid.regenerate();
             }
         });
+        const verticalAlignment = new Drawer(this.components);
+        this.components.ui.add(verticalAlignment);
+        verticalAlignment.alignment = "top";
+        verticalAlignment.onVisible.add(() => {
+            this._scenes.vertical.grid.regenerate();
+        });
+        verticalAlignment.visible = false;
+        verticalAlignment.slots.content.domElement.style.padding = "0";
+        verticalAlignment.slots.content.domElement.style.overflow = "hidden";
+        const { clientWidth, clientHeight } = verticalAlignment.domElement;
+        this._scenes.vertical.setSize(clientHeight, clientWidth);
+        const vContainer = this._scenes.vertical.uiElement.get("container");
+        verticalAlignment.addChild(vContainer);
         if (this.components.renderer.isUpdateable()) {
             this.components.renderer.onAfterUpdate.add(async () => {
-                if (floatingWindow.visible) {
-                    await this.scene.update();
+                if (horizontalAlignment.visible) {
+                    await this._scenes.horizontal.update();
+                }
+                if (verticalAlignment.visible) {
+                    await this._scenes.vertical.update();
                 }
             });
         }
-        this.uiElement.set({ floatingWindow });
+        this.uiElement.set({
+            horizontalAlignment,
+            verticalAlignment,
+        });
     }
 }
-RoadPlanNavigator.uuid = "3096dea0-5bc2-41c7-abce-9089b6c9431b";
+/** {@link Component.uuid} */
+RoadNavigator.uuid = "85f2c89c-4c6b-4c7d-bc20-5b675874b228";
+ToolComponent.libraryUUIDs.add(RoadNavigator.uuid);
 
-class RoadElevationNavigator extends RoadNavigator {
-    constructor(components) {
-        super(components);
-        this.view = "vertical";
-        this.uiElement = new UIElement();
-        this.setUI();
-    }
-    get() {
-        return null;
-    }
-    setUI() {
-        const drawer = new Drawer(this.components);
-        this.components.ui.add(drawer);
-        drawer.alignment = "top";
-        drawer.onVisible.add(() => {
-            this.scene.grid.regenerate();
-        });
-        drawer.visible = false;
-        drawer.slots.content.domElement.style.padding = "0";
-        drawer.slots.content.domElement.style.overflow = "hidden";
-        const { clientWidth, clientHeight } = drawer.domElement;
-        this.scene.setSize(clientHeight, clientWidth);
-        const vContainer = this.scene.uiElement.get("container");
-        drawer.addChild(vContainer);
-        this.uiElement.set({ drawer });
-        drawer.onResized.add(() => {
-            const width = window.innerWidth;
-            const height = this.scene.size.y;
-            this.scene.setSize(height, width);
-        });
-        if (this.components.renderer.isUpdateable()) {
-            this.components.renderer.onAfterUpdate.add(async () => {
-                if (drawer.visible) {
-                    await this.scene.update();
-                }
-            });
-        }
-    }
-}
-RoadElevationNavigator.uuid = "097eea29-2d5a-431a-a247-204d44670621";
-
-export { AnchorPosition, AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, RoadElevationNavigator, RoadNavigator, RoadPlanNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, isPointInFrontOfPlane, isTransparent, obbFromPoints, roundVector };
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, isPointInFrontOfPlane, isTransparent, obbFromPoints, roundVector };
