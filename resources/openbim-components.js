@@ -120402,19 +120402,18 @@ class RoadNavigator extends Component {
     get() {
         return null;
     }
-    async draw(model, ids) {
+    async draw(model, filter) {
         if (!model.civilData) {
             throw new Error("The provided model doesn't have civil data!");
         }
         const { alignments } = model.civilData;
-        const allIDs = ids || alignments.keys();
+        const allAlignments = filter || alignments.values();
         const scene = this.scene.get();
         const totalBBox = new THREE$1.Box3();
         totalBBox.makeEmpty();
         totalBBox.min.set(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
         totalBBox.max.set(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
-        for (const id of allIDs) {
-            const alignment = alignments.get(id);
+        for (const alignment of allAlignments) {
             if (!alignment) {
                 throw new Error("Alignment not found!");
             }
@@ -120459,9 +120458,9 @@ class RoadNavigator extends Component {
             if (intersects) {
                 const { point, object } = intersects;
                 mousePositionSphere.position.copy(point);
-                const curve = object;
-                this.highlighter.select(curve);
-                await this.onHighlight.trigger(curve);
+                const mesh = object;
+                this.highlighter.select(mesh);
+                await this.onHighlight.trigger({ mesh, point });
                 return;
             }
             this.highlighter.unSelect();
@@ -120475,9 +120474,12 @@ class RoadNavigator extends Component {
         this._curveMeshes = [];
     }
     clear() {
+        this.highlighter.unSelect();
+        this.highlighter.unHover();
         for (const mesh of this._curveMeshes) {
             mesh.removeFromParent();
         }
+        this._curveMeshes = [];
     }
     adjustRaycasterOnZoom() {
         this.scene.controls.addEventListener("update", () => {
@@ -120756,9 +120758,9 @@ class RoadPlanNavigator extends RoadNavigator {
         this.highlighter = new PlanHighlighter(scene);
         this.setUI();
         this.components.tools.add(RoadPlanNavigator.uuid, this);
-        this.onHighlight.add(async (curveMesh) => {
-            this.highlighter.showCurveInfo(curveMesh);
-            await this.fitCameraToAlignment(curveMesh);
+        this.onHighlight.add(({ mesh }) => {
+            this.highlighter.showCurveInfo(mesh);
+            this.fitCameraToAlignment(mesh);
         });
     }
     async fitCameraToAlignment(curveMesh) {
