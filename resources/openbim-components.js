@@ -120389,15 +120389,115 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
-// 1. Highlight all alignment lines ✅
-// 2. Show all endpoints of curves ✅
-// 3. Highlight curves on hover ✅
-// 4. Adjust raycaster Line threshold to zoom ✅
-// 5. Use a different color depending on the curve type ✅
-// 6. Method to center camera on selected alignment / selected curve ✅
+class RoadNavigator extends Component {
+    constructor(components) {
+        super(components);
+        this.enabled = true;
+        this.onHighlight = new Event();
+        this._curveMeshes = [];
+        this.scene = new Simple2DScene(this.components, false);
+        this.setupEvents();
+        this.adjustRaycasterOnZoom();
+    }
+    get() {
+        return null;
+    }
+    async draw(model, ids) {
+        if (!model.civilData) {
+            throw new Error("The provided model doesn't have civil data!");
+        }
+        const { alignments } = model.civilData;
+        const allIDs = ids || alignments.keys();
+        const scene = this.scene.get();
+        const totalBBox = new THREE$1.Box3();
+        totalBBox.makeEmpty();
+        totalBBox.min.set(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+        totalBBox.max.set(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+        for (const id of allIDs) {
+            const alignment = alignments.get(id);
+            if (!alignment) {
+                throw new Error("Alignment not found!");
+            }
+            for (const curve of alignment[this.view]) {
+                scene.add(curve.mesh);
+                this._curveMeshes.push(curve.mesh);
+                if (!totalBBox.isEmpty()) {
+                    totalBBox.expandByObject(curve.mesh);
+                }
+                else {
+                    curve.mesh.geometry.computeBoundingBox();
+                    const cbox = curve.mesh.geometry.boundingBox;
+                    if (cbox instanceof THREE$1.Box3) {
+                        totalBBox.copy(cbox).applyMatrix4(curve.mesh.matrixWorld);
+                    }
+                }
+            }
+        }
+        await this.scene.controls.fitToBox(totalBBox, false);
+    }
+    setupEvents() {
+        const mousePositionSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry(0.5), new THREE$1.MeshBasicMaterial({ color: 0xff0000 }));
+        this.scene.get().add(mousePositionSphere);
+        this.scene.uiElement
+            .get("container")
+            .domElement.addEventListener("mousemove", (event) => {
+            const dom = this.scene.uiElement.get("container").domElement;
+            const intersects = this.highlighter.castRay(event, this.scene.camera, dom, this._curveMeshes);
+            if (intersects) {
+                const { point, object } = intersects;
+                mousePositionSphere.position.copy(point);
+                this.highlighter.hover(object);
+                return;
+            }
+            this.highlighter.unHover();
+        });
+        this.scene.uiElement
+            .get("container")
+            .domElement.addEventListener("click", async (event) => {
+            const dom = this.scene.uiElement.get("container").domElement;
+            const intersects = this.highlighter.castRay(event, this.scene.camera, dom, this._curveMeshes);
+            if (intersects) {
+                const { point, object } = intersects;
+                mousePositionSphere.position.copy(point);
+                const curve = object;
+                this.highlighter.select(curve);
+                await this.onHighlight.trigger(curve);
+                return;
+            }
+            this.highlighter.unSelect();
+        });
+    }
+    async dispose() {
+        this.highlighter.dispose();
+        this.clear();
+        this.onHighlight.reset();
+        await this.scene.dispose();
+        this._curveMeshes = [];
+    }
+    clear() {
+        for (const mesh of this._curveMeshes) {
+            mesh.removeFromParent();
+        }
+    }
+    adjustRaycasterOnZoom() {
+        this.scene.controls.addEventListener("update", () => {
+            const { zoom, left, right, top, bottom } = this.scene.camera;
+            const width = left - right;
+            const height = top - bottom;
+            const screenSize = Math.max(width, height);
+            const realScreenSize = screenSize / zoom;
+            const range = 50;
+            const { caster } = this.highlighter;
+            caster.params.Line.threshold = realScreenSize / range;
+        });
+    }
+}
+
 class CurveHighlighter {
-    constructor(scene) {
+    constructor(scene, type) {
+        this.caster = new THREE$1.Raycaster();
         this.scene = scene;
+        this.type = type;
         this.hoverCurve = this.newCurve(0.003, 0x444444, false);
         this.hoverPoints = this.newPoints(5, 0x444444);
         this.selectCurve = this.newCurve(0.005, 0xffffff, true);
@@ -120418,6 +120518,18 @@ class CurveHighlighter {
         this.selectPoints.material.dispose();
         this.selectPoints.geometry.dispose();
         this.scene = null;
+    }
+    castRay(event, camera, dom, meshes) {
+        const mouse = new THREE$1.Vector2();
+        const rect = dom.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        this.caster.setFromCamera(mouse, camera);
+        const intersects = this.caster.intersectObjects(meshes);
+        if (!intersects.length) {
+            return null;
+        }
+        return intersects[0];
     }
     select(mesh) {
         this.highlight(mesh, this.selectCurve, this.selectPoints, true);
@@ -120440,13 +120552,21 @@ class CurveHighlighter {
         const lines = [];
         const colors = [];
         const vertices = [];
-        for (const foundCurve of alignment.horizontal) {
+        for (const foundCurve of alignment[this.type]) {
             const position = foundCurve.mesh.geometry.attributes.position;
             for (const coord of position.array) {
                 lines.push(coord);
             }
             if (useColors) {
-                const type = foundCurve.data.TYPE;
+                let type;
+                if (this.type === "absolute") {
+                    // 3D curves don't have type defined, so we take the horizontal
+                    const { horizontal } = foundCurve.alignment;
+                    type = horizontal[foundCurve.index].data.TYPE;
+                }
+                else {
+                    type = foundCurve.data.TYPE;
+                }
                 const found = CurveHighlighter.settings.colors[type] || [1, 1, 1];
                 for (let i = 0; i < position.count; i++) {
                     colors.push(...found);
@@ -120476,6 +120596,7 @@ class CurveHighlighter {
             linewidth,
             vertexColors,
             worldUnits: false,
+            depthTest: false,
         });
         const curve = new Line2(selectGeometry, selectMaterial);
         this.scene.add(curve);
@@ -120501,125 +120622,123 @@ CurveHighlighter.settings = {
     },
 };
 
-class RoadNavigator extends Component {
-    constructor(components) {
-        super(components);
-        this.enabled = true;
-        this.caster = new THREE$1.Raycaster();
-        this._curves = new Set();
-        this.curveMeshes = [];
-        this.onHighlight = new Event();
-        this.caster.params.Line = { threshold: 10 };
-        this.scene = new Simple2DScene(this.components, false);
-        this.highlighter = new CurveHighlighter(this.scene.get());
-        this.setupEvents();
-        this.adjustRaycasterOnZoom();
-    }
-    get() {
-        return null;
-    }
-    async draw(model, ids) {
-        if (!model.civilData) {
-            throw new Error("The provided model doesn't have civil data!");
-        }
-        const { alignments } = model.civilData;
-        const allIDs = ids || alignments.keys();
-        const scene = this.scene.get();
-        const totalBBox = new THREE$1.Box3();
-        totalBBox.makeEmpty();
-        totalBBox.min.set(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-        totalBBox.max.set(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
-        for (const id of allIDs) {
-            const alignment = alignments.get(id);
-            if (!alignment) {
-                throw new Error("Alignment not found!");
-            }
-            for (const curve of alignment[this.view]) {
-                this._curves.add(curve);
-                scene.add(curve.mesh);
-                this.curveMeshes.push(curve.mesh);
-                if (!totalBBox.isEmpty()) {
-                    totalBBox.expandByObject(curve.mesh);
-                }
-                else {
-                    curve.mesh.geometry.computeBoundingBox();
-                    const cbox = curve.mesh.geometry.boundingBox;
-                    if (cbox instanceof THREE$1.Box3) {
-                        totalBBox.copy(cbox).applyMatrix4(curve.mesh.matrixWorld);
-                    }
-                }
-            }
-        }
-        await this.scene.controls.fitToBox(totalBBox, false);
-    }
-    setupEvents() {
-        const mousePositionSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry(0.5), new THREE$1.MeshBasicMaterial({ color: 0xff0000 }));
-        this.scene.get().add(mousePositionSphere);
-        this.scene.uiElement
-            .get("container")
-            .domElement.addEventListener("mousemove", (event) => {
-            const dom = this.scene.uiElement.get("container").domElement;
-            const mouse = new THREE$1.Vector2();
-            const rect = dom.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            this.caster.setFromCamera(mouse, this.scene.camera);
-            const intersects = this.caster.intersectObjects(this.curveMeshes);
-            if (intersects.length > 0) {
-                const { point, object } = intersects[0];
-                if (object instanceof CurveMesh) {
-                    mousePositionSphere.position.copy(point);
-                    this.highlighter.hover(object);
-                    return;
-                }
-            }
-            this.highlighter.unHover();
-        });
-        this.scene.uiElement
-            .get("container")
-            .domElement.addEventListener("click", async (event) => {
-            const dom = this.scene.uiElement.get("container").domElement;
-            const mouse = new THREE$1.Vector2();
-            const rect = dom.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            this.caster.setFromCamera(mouse, this.scene.camera);
-            const intersects = this.caster.intersectObjects(this.curveMeshes);
-            if (intersects.length > 0) {
-                const curve = intersects[0].object;
-                if (curve instanceof CurveMesh) {
-                    this.highlighter.select(curve);
-                    await this.onHighlight.trigger(curve);
-                    return;
-                }
-            }
-            this.highlighter.unSelect();
+class PlanHighlighter extends CurveHighlighter {
+    constructor(scene) {
+        super(scene, "horizontal");
+        this.offset = 10;
+        this.markupLines = [];
+        this.markupMaterial = new THREE$1.LineBasicMaterial({
+            color: 0x686868,
         });
     }
-    dispose() {
-        this.highlighter.dispose();
-        this.clear();
-        this.onHighlight.reset();
-        this.caster = null;
-        this.scene.dispose();
-        this._curves = null;
-    }
-    clear() {
-        for (const curve of this._curves) {
-            curve.mesh.removeFromParent();
+    showCurveInfo(curveMesh) {
+        this.clearMarkups();
+        // eslint-disable-next-line default-case
+        switch (curveMesh.curve.data.TYPE) {
+            case "LINE":
+                this.showLineInfo(curveMesh);
+                break;
+            case "CIRCULARARC":
+                this.showCircularArcInfo(curveMesh);
+                break;
+            case "CLOTHOID":
+                this.showClothoidInfo(curveMesh);
+                break;
         }
-        this._curves.clear();
     }
-    adjustRaycasterOnZoom() {
-        this.scene.controls.addEventListener("update", () => {
-            const { zoom, left, right, top, bottom } = this.scene.camera;
-            const width = left - right;
-            const height = top - bottom;
-            const screenSize = Math.max(width, height);
-            const realScreenSize = screenSize / zoom;
-            const range = 50;
-            this.caster.params.Line.threshold = realScreenSize / range;
-        });
+    calculateTangent(positions, index) {
+        const numComponents = 3;
+        const pointIndex = index * numComponents;
+        const prevPointIndex = Math.max(0, pointIndex - numComponents);
+        const nextPointIndex = Math.min(positions.length - numComponents, pointIndex + numComponents);
+        const prevPoint = new THREE$1.Vector3().fromArray(positions, prevPointIndex);
+        const nextPoint = new THREE$1.Vector3().fromArray(positions, nextPointIndex);
+        const tangent = nextPoint.clone().sub(prevPoint).normalize();
+        return tangent;
+    }
+    calculateParallelCurve(positions, count, offset) {
+        const parallelCurvePoints = [];
+        console.log(offset);
+        for (let i = 0; i < count; i++) {
+            const tangentVector = this.calculateTangent(positions, i);
+            const perpendicularVector = tangentVector
+                .clone()
+                .applyAxisAngle(new THREE$1.Vector3(0, 0, 1), Math.PI / 2);
+            perpendicularVector.normalize();
+            const offsetVector = perpendicularVector.clone().multiplyScalar(offset);
+            const pointIndex = i * 3;
+            const parallelPoint = new THREE$1.Vector3()
+                .fromArray(positions, pointIndex)
+                .add(offsetVector);
+            parallelCurvePoints.push(parallelPoint);
+        }
+        return parallelCurvePoints;
+    }
+    clearMarkups() {
+        for (const line of this.markupLines) {
+            this.scene.remove(line);
+        }
+        this.markupLines = [];
+    }
+    addMarkupLine(geometry) {
+        const markupLine = new THREE$1.Line(geometry, this.markupMaterial);
+        this.scene.add(markupLine);
+        this.markupLines.push(markupLine);
+    }
+    showLineInfo(curveMesh) {
+        // console.log("ES LINE");
+        // console.log(curveMesh);
+        const positions = curveMesh.geometry.attributes.position.array;
+        const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, this.offset);
+        const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        this.addMarkupLine(lengthGeometry);
+    }
+    showCircularArcInfo(curveMesh) {
+        // console.log("ES CIRCULARARC");
+        // console.log(curveMesh);
+        const radius = curveMesh.curve.data.RADIUS;
+        const positions = curveMesh.geometry.attributes.position.array;
+        const count = curveMesh.geometry.attributes.position.count;
+        const linePoints = [];
+        const firstPoint = new THREE$1.Vector3(positions[0], positions[1], positions[2]);
+        const lastPointIndex = (count - 1) * 3;
+        const lastPoint = new THREE$1.Vector3(positions[lastPointIndex], positions[lastPointIndex + 1], positions[lastPointIndex + 2]);
+        const middlePointIndex = (count / 2) * 3;
+        const middlePoint = new THREE$1.Vector3(positions[middlePointIndex], positions[middlePointIndex + 1], positions[middlePointIndex + 2]);
+        const tangentVector = lastPoint.clone().sub(firstPoint).normalize();
+        const perpendicularVector = new THREE$1.Vector3(-tangentVector.y, tangentVector.x, 0);
+        perpendicularVector.multiplyScalar(radius);
+        const arcCenterPoint = middlePoint.clone().add(perpendicularVector);
+        linePoints.push(middlePoint);
+        linePoints.push(arcCenterPoint);
+        const radiusGeometry = new THREE$1.BufferGeometry().setFromPoints(linePoints);
+        this.addMarkupLine(radiusGeometry);
+        const parallelCurvePoints = [];
+        for (let i = 0; i < count; i++) {
+            const tangentVector = this.calculateTangent(positions, i);
+            const radius = curveMesh.curve.data.RADIUS;
+            const perpendicularVector = new THREE$1.Vector3(tangentVector.y, -tangentVector.x, 0);
+            perpendicularVector.normalize();
+            if (radius < 0) {
+                perpendicularVector.negate();
+            }
+            const offsetVector = perpendicularVector
+                .clone()
+                .multiplyScalar(this.offset);
+            const pointIndex = i * 3;
+            const parallelPoint = new THREE$1.Vector3(positions[pointIndex] + offsetVector.x, positions[pointIndex + 1] + offsetVector.y, positions[pointIndex + 2] + offsetVector.z);
+            parallelCurvePoints.push(parallelPoint);
+        }
+        const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        this.addMarkupLine(lengthGeometry);
+    }
+    showClothoidInfo(curveMesh) {
+        // console.log("ES CLOTHOID");
+        // console.log(curveMesh);
+        const positions = curveMesh.geometry.attributes.position.array;
+        const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, this.offset);
+        const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        this.addMarkupLine(lengthGeometry);
     }
 }
 
@@ -120628,23 +120747,30 @@ class RoadPlanNavigator extends RoadNavigator {
         super(components);
         this.view = "horizontal";
         this.uiElement = new UIElement();
+        const scene = this.scene.get();
+        this.highlighter = new PlanHighlighter(scene);
         this.setUI();
+        this.components.tools.add(RoadPlanNavigator.uuid, this);
         this.onHighlight.add(async (curveMesh) => {
-            const bbox = this.components.tools.get(FragmentBoundingBox);
-            const alignment = curveMesh.curve.alignment;
-            for (const curve of alignment.horizontal) {
-                bbox.addMesh(curve.mesh);
-            }
-            const box = bbox.get();
-            const center = new THREE$1.Vector3();
-            const { min, max } = box;
-            const offset = 1.2;
-            const size = new THREE$1.Vector3((max.x - min.x) * offset, (max.y - min.y) * offset, (max.z - min.z) * offset);
-            box.getCenter(center);
-            box.setFromCenterAndSize(center, size);
-            bbox.reset();
-            await this.scene.controls.fitToBox(box, true);
+            this.highlighter.showCurveInfo(curveMesh);
+            await this.fitCameraToAlignment(curveMesh);
         });
+    }
+    async fitCameraToAlignment(curveMesh) {
+        const bbox = this.components.tools.get(FragmentBoundingBox);
+        const alignment = curveMesh.curve.alignment;
+        for (const curve of alignment.horizontal) {
+            bbox.addMesh(curve.mesh);
+        }
+        const box = bbox.get();
+        const center = new THREE$1.Vector3();
+        const { min, max } = box;
+        const offset = 1.2;
+        const size = new THREE$1.Vector3((max.x - min.x) * offset, (max.y - min.y) * offset, (max.z - min.z) * offset);
+        box.getCenter(center);
+        box.setFromCenterAndSize(center, size);
+        bbox.reset();
+        await this.scene.controls.fitToBox(box, true);
     }
     setUI() {
         const floatingWindow = new FloatingWindow(this.components);
@@ -120679,6 +120805,7 @@ class RoadPlanNavigator extends RoadNavigator {
     }
 }
 RoadPlanNavigator.uuid = "3096dea0-5bc2-41c7-abce-9089b6c9431b";
+ToolComponent.libraryUUIDs.add(RoadPlanNavigator.uuid);
 
 class RoadElevationNavigator extends RoadNavigator {
     constructor(components) {
@@ -120686,6 +120813,8 @@ class RoadElevationNavigator extends RoadNavigator {
         this.view = "vertical";
         this.uiElement = new UIElement();
         this.setUI();
+        const scene = this.scene.get();
+        this.highlighter = new CurveHighlighter(scene, "vertical");
     }
     get() {
         return null;
@@ -120721,4 +120850,63 @@ class RoadElevationNavigator extends RoadNavigator {
 }
 RoadElevationNavigator.uuid = "097eea29-2d5a-431a-a247-204d44670621";
 
-export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, RoadElevationNavigator, RoadNavigator, RoadPlanNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, isPointInFrontOfPlane, isTransparent, obbFromPoints, roundVector };
+class Road3DNavigator extends Component {
+    constructor(components) {
+        super(components);
+        this.onHighlight = new Event();
+        this.enabled = true;
+        this._curves = [];
+        this.components.tools.add(Road3DNavigator.uuid, this);
+        const scene = this.components.scene.get();
+        this.highlighter = new CurveHighlighter(scene, "absolute");
+    }
+    get() {
+        return null;
+    }
+    draw(model) {
+        if (!model.civilData) {
+            throw new Error("Model must have civil data!");
+        }
+        const scene = this.components.scene.get();
+        for (const [_id, alignment] of model.civilData.alignments) {
+            for (const { mesh } of alignment.absolute) {
+                scene.add(mesh);
+                this._curves.push(mesh);
+            }
+        }
+    }
+    setup() {
+        const dom = this.components.renderer.get().domElement;
+        dom.addEventListener("click", async (event) => {
+            if (!this.enabled) {
+                return;
+            }
+            const camera = this.components.camera.get();
+            const found = this.highlighter.castRay(event, camera, dom, this._curves);
+            if (found) {
+                const curve = found.object;
+                this.highlighter.select(curve);
+                const { point } = found;
+                await this.onHighlight.trigger({ curve, point });
+                return;
+            }
+            this.highlighter.unSelect();
+        });
+        dom.addEventListener("mousemove", (event) => {
+            if (!this.enabled) {
+                return;
+            }
+            const camera = this.components.camera.get();
+            const found = this.highlighter.castRay(event, camera, dom, this._curves);
+            if (found) {
+                this.highlighter.hover(found.object);
+                return;
+            }
+            this.highlighter.unHover();
+        });
+    }
+}
+Road3DNavigator.uuid = "0a59c09e-2b49-474a-9320-99f51f40f182";
+ToolComponent.libraryUUIDs.add(Road3DNavigator.uuid);
+
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, Road3DNavigator, RoadElevationNavigator, RoadNavigator, RoadPlanNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, isPointInFrontOfPlane, isTransparent, obbFromPoints, roundVector };

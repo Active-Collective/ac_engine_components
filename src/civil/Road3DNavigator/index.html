@@ -81,7 +81,7 @@
   fragmentIfcLoader.settings.webIfc.COORDINATE_TO_ORIGIN = true;
   fragmentIfcLoader.settings.webIfc.OPTIMIZE_PROFILES = true;
 
-  const file = await fetch("../../../resources/asdf.frag");
+  const file = await fetch("../../../resources/asdf2.frag");
   const data = await file.arrayBuffer();
   const buffer = new Uint8Array(data);
   const model = await fragments.load(buffer);
@@ -108,15 +108,30 @@
 
   // Set up road navigator
 
-  const navigator = new OBC.RoadPlanNavigator(components);
-  const horizontalWindow = navigator.uiElement.get("floatingWindow");
-  horizontalWindow.visible = true;
+  const navigator = new OBC.Road3DNavigator(components);
   navigator.draw(model);
+  navigator.setup();
+
+  navigator.highlighter.hoverCurve.material.color.set(1, 1, 1);
+  navigator.highlighter.hoverPoints.material.color.set(1, 1, 1);
+  navigator.highlighter.selectPoints.material.size = 5;
+
+  const sphere = new THREE.Sphere(undefined, 20);
+
+  navigator.onHighlight.add(({ point }) => {
+    sphere.center.copy(point);
+    components.camera.controls.fitToSphere(sphere, true);
+  })
+
+  // navigator.highlighter.highlightColor = 0xff0000;
+  navigator.onHighlight.add((data) => {
+  });
+
+
 
   // const hider = new OBC.FragmentHider(components);
   // await hider.loadCached();
   // mainToolbar.addChild(hider.uiElement.get("main"));
-
 
   const stats = new Stats();
   stats.showPanel(2);
