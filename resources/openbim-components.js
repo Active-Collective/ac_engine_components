@@ -120606,7 +120606,12 @@ class CurveHighlighter {
         const pointsGeometry = new THREE$1.BufferGeometry();
         const pointsAttr = new THREE$1.BufferAttribute(new Float32Array(), 3);
         pointsGeometry.setAttribute("position", pointsAttr);
-        const pointsMaterial = new THREE$1.PointsMaterial({ size, color });
+        const pointsMaterial = new THREE$1.PointsMaterial({
+            size,
+            color,
+            sizeAttenuation: false,
+            depthTest: false,
+        });
         const points = new THREE$1.Points(pointsGeometry, pointsMaterial);
         points.frustumCulled = false;
         this.scene.add(points);
@@ -120617,7 +120622,7 @@ CurveHighlighter.settings = {
     colors: {
         LINE: [213 / 255, 0 / 255, 255 / 255],
         CIRCULARARC: [0 / 255, 46, 255 / 255],
-        CLOTHOID: [0 / 255, 255 / 255, 234 / 255],
+        CLOTHOID: [0 / 255, 255 / 255, 0 / 255],
         PARABOLIC: [0 / 255, 255 / 255, 72 / 255],
     },
 };
