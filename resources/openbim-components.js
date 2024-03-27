@@ -12847,6 +12847,11 @@ class Drawer extends SimpleUIComponent {
         this.domElement.style.height = height;
         this.domElement.style.width = width;
     }
+    get containerSize() {
+        const height = this.domElement.clientHeight;
+        const width = this.domElement.clientWidth;
+        return { height, width };
+    }
     set alignment(value) {
         const classes = this.domElement.classList;
         this._type = value;
@@ -120432,7 +120437,14 @@ class RoadNavigator extends Component {
                 }
             }
         }
-        await this.scene.controls.fitToBox(totalBBox, false);
+        const scaledBbox = new THREE$1.Box3();
+        const size = new THREE$1.Vector3();
+        const center = new THREE$1.Vector3();
+        totalBBox.getCenter(center);
+        totalBBox.getSize(size);
+        size.multiplyScalar(1.2);
+        scaledBbox.setFromCenterAndSize(center, size);
+        await this.scene.controls.fitToBox(scaledBbox, false);
     }
     setupEvents() {
         const mousePositionSphere = new THREE$1.Mesh(new THREE$1.SphereGeometry(0.5), new THREE$1.MeshBasicMaterial({ color: 0xff0000 }));
@@ -120625,7 +120637,8 @@ CurveHighlighter.settings = {
         LINE: [213 / 255, 0 / 255, 255 / 255],
         CIRCULARARC: [0 / 255, 46, 255 / 255],
         CLOTHOID: [0 / 255, 255 / 255, 0 / 255],
-        PARABOLIC: [0 / 255, 255 / 255, 72 / 255],
+        PARABOLICARC: [0 / 255, 255 / 255, 72 / 255],
+        CONSTANTGRADIENT: [213 / 255, 0 / 255, 255 / 255],
     },
 };
 
@@ -120844,6 +120857,10 @@ class RoadElevationNavigator extends RoadNavigator {
         drawer.onResized.add(() => {
             const width = window.innerWidth;
             const height = this.scene.size.y;
+            this.scene.setSize(height, width);
+        });
+        drawer.onResized.add(() => {
+            const { width, height } = drawer.containerSize;
             this.scene.setSize(height, width);
         });
         if (this.components.renderer.isUpdateable()) {
