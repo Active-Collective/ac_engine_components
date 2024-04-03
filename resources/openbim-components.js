@@ -27070,6 +27070,7 @@ var require_web_ifc_mt = __commonJS({
           abort("no native wasm support detected");
         }
         var wasmMemory;
+        var wasmExports;
         var wasmModule;
         var ABORT = false;
         var EXITSTATUS;
@@ -27083,9 +27084,9 @@ var require_web_ifc_mt = __commonJS({
           var b = wasmMemory.buffer;
           Module["HEAP8"] = HEAP8 = new Int8Array(b);
           Module["HEAP16"] = HEAP16 = new Int16Array(b);
+          Module["HEAP32"] = HEAP32 = new Int32Array(b);
           Module["HEAPU8"] = HEAPU8 = new Uint8Array(b);
           Module["HEAPU16"] = HEAPU16 = new Uint16Array(b);
-          Module["HEAP32"] = HEAP32 = new Int32Array(b);
           Module["HEAPU32"] = HEAPU32 = new Uint32Array(b);
           Module["HEAPF32"] = HEAPF32 = new Float32Array(b);
           Module["HEAPF64"] = HEAPF64 = new Float64Array(b);
@@ -27227,7 +27228,7 @@ var require_web_ifc_mt = __commonJS({
         }
         function instantiateArrayBuffer(binaryFile, imports, receiver) {
           return getBinaryPromise(binaryFile).then((binary) => WebAssembly.instantiate(binary, imports)).then((instance) => instance).then(receiver, (reason) => {
-            err(`failed to asynchronously prepare wasm: ${reason}`);
+            err("failed to asynchronously prepare wasm: " + reason);
             abort(reason);
           });
         }
@@ -27236,7 +27237,7 @@ var require_web_ifc_mt = __commonJS({
             return fetch(binaryFile, { credentials: "same-origin" }).then((response) => {
               var result = WebAssembly.instantiateStreaming(response, imports);
               return result.then(callback, function(reason) {
-                err(`wasm streaming compile failed: ${reason}`);
+                err("wasm streaming compile failed: " + reason);
                 err("falling back to ArrayBuffer instantiation");
                 return instantiateArrayBuffer(binaryFile, imports, callback);
               });
@@ -27250,9 +27251,9 @@ var require_web_ifc_mt = __commonJS({
             var exports2 = instance.exports;
             exports2 = applySignatureConversions(exports2);
             wasmExports = exports2;
-            registerTLSInit(wasmExports["la"]);
-            wasmTable = wasmExports["ia"];
-            addOnInit(wasmExports["ha"]);
+            registerTLSInit(wasmExports["ma"]);
+            wasmTable = wasmExports["ka"];
+            addOnInit(wasmExports["ia"]);
             wasmModule = module2;
             removeRunDependency();
             return exports2;
@@ -27265,7 +27266,7 @@ var require_web_ifc_mt = __commonJS({
             try {
               return Module["instantiateWasm"](info, receiveInstance);
             } catch (e) {
-              err(`Module.instantiateWasm callback failed with error: ${e}`);
+              err("Module.instantiateWasm callback failed with error: " + e);
               readyPromiseReject(e);
             }
           }
@@ -27279,29 +27280,29 @@ var require_web_ifc_mt = __commonJS({
           this.message = `Program terminated with exit(${status})`;
           this.status = status;
         }
-        var terminateWorker = (worker) => {
+        var terminateWorker = function(worker) {
           worker.terminate();
           worker.onmessage = (e) => {
           };
         };
-        var killThread = (pthread_ptr) => {
+        function killThread(pthread_ptr) {
           var worker = PThread.pthreads[pthread_ptr];
           delete PThread.pthreads[pthread_ptr];
           terminateWorker(worker);
           __emscripten_thread_free_data(pthread_ptr);
           PThread.runningWorkers.splice(PThread.runningWorkers.indexOf(worker), 1);
           worker.pthread_ptr = 0;
-        };
-        var cancelThread = (pthread_ptr) => {
+        }
+        function cancelThread(pthread_ptr) {
           var worker = PThread.pthreads[pthread_ptr];
           worker.postMessage({ "cmd": "cancel" });
-        };
-        var cleanupThread = (pthread_ptr) => {
+        }
+        function cleanupThread(pthread_ptr) {
           var worker = PThread.pthreads[pthread_ptr];
           assert(worker);
           PThread.returnWorkerToPool(worker);
-        };
-        var spawnThread = (threadParams) => {
+        }
+        function spawnThread(threadParams) {
           var worker = PThread.getNewWorker();
           if (!worker) {
             return 6;
@@ -27312,7 +27313,7 @@ var require_web_ifc_mt = __commonJS({
           var msg = { "cmd": "run", "start_routine": threadParams.startRoutine, "arg": threadParams.arg, "pthread_ptr": threadParams.pthread_ptr };
           worker.postMessage(msg, threadParams.transferList);
           return 0;
-        };
+        }
         var PATH = { isAbs: (path) => path.charAt(0) === "/", splitPath: (filename) => {
           var splitPathRe = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
           return splitPathRe.exec(filename).slice(1);
@@ -27547,23 +27548,23 @@ var require_web_ifc_mt = __commonJS({
           }
           return FS_stdin_getChar_buffer.shift();
         };
-        var TTY = { ttys: [], init() {
-        }, shutdown() {
-        }, register(dev, ops) {
+        var TTY = { ttys: [], init: function() {
+        }, shutdown: function() {
+        }, register: function(dev, ops) {
           TTY.ttys[dev] = { input: [], output: [], ops };
           FS.registerDevice(dev, TTY.stream_ops);
-        }, stream_ops: { open(stream) {
+        }, stream_ops: { open: function(stream) {
           var tty = TTY.ttys[stream.node.rdev];
           if (!tty) {
             throw new FS.ErrnoError(43);
           }
           stream.tty = tty;
           stream.seekable = false;
-        }, close(stream) {
+        }, close: function(stream) {
           stream.tty.ops.fsync(stream.tty);
-        }, fsync(stream) {
+        }, fsync: function(stream) {
           stream.tty.ops.fsync(stream.tty);
-        }, read(stream, buffer, offset, length, pos) {
+        }, read: function(stream, buffer, offset, length, pos) {
           if (!stream.tty || !stream.tty.ops.get_char) {
             throw new FS.ErrnoError(60);
           }
@@ -27587,7 +27588,7 @@ var require_web_ifc_mt = __commonJS({
             stream.node.timestamp = Date.now();
           }
           return bytesRead;
-        }, write(stream, buffer, offset, length, pos) {
+        }, write: function(stream, buffer, offset, length, pos) {
           if (!stream.tty || !stream.tty.ops.put_char) {
             throw new FS.ErrnoError(60);
           }
@@ -27602,9 +27603,9 @@ var require_web_ifc_mt = __commonJS({
             stream.node.timestamp = Date.now();
           }
           return i;
-        } }, default_tty_ops: { get_char(tty) {
+        } }, default_tty_ops: { get_char: function(tty) {
           return FS_stdin_getChar();
-        }, put_char(tty, val) {
+        }, put_char: function(tty, val) {
           if (val === null || val === 10) {
             out(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
@@ -27612,18 +27613,18 @@ var require_web_ifc_mt = __commonJS({
             if (val != 0)
               tty.output.push(val);
           }
-        }, fsync(tty) {
+        }, fsync: function(tty) {
           if (tty.output && tty.output.length > 0) {
             out(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
           }
-        }, ioctl_tcgets(tty) {
+        }, ioctl_tcgets: function(tty) {
           return { c_iflag: 25856, c_oflag: 5, c_cflag: 191, c_lflag: 35387, c_cc: [3, 28, 127, 21, 4, 0, 1, 0, 17, 19, 26, 0, 18, 15, 23, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-        }, ioctl_tcsets(tty, optional_actions, data) {
+        }, ioctl_tcsets: function(tty, optional_actions, data) {
           return 0;
-        }, ioctl_tiocgwinsz(tty) {
+        }, ioctl_tiocgwinsz: function(tty) {
           return [24, 80];
-        } }, default_tty1_ops: { put_char(tty, val) {
+        } }, default_tty1_ops: { put_char: function(tty, val) {
           if (val === null || val === 10) {
             err(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
@@ -27631,7 +27632,7 @@ var require_web_ifc_mt = __commonJS({
             if (val != 0)
               tty.output.push(val);
           }
-        }, fsync(tty) {
+        }, fsync: function(tty) {
           if (tty.output && tty.output.length > 0) {
             err(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
@@ -27897,11 +27898,11 @@ var require_web_ifc_mt = __commonJS({
             addRunDependency();
         };
         var preloadPlugins = Module["preloadPlugins"] || [];
-        var FS_handledByPreloadPlugin = (byteArray, fullname, finish, onerror) => {
+        function FS_handledByPreloadPlugin(byteArray, fullname, finish, onerror) {
           if (typeof Browser != "undefined")
             Browser.init();
           var handled = false;
-          preloadPlugins.forEach((plugin) => {
+          preloadPlugins.forEach(function(plugin) {
             if (handled)
               return;
             if (plugin["canHandle"](fullname)) {
@@ -27910,8 +27911,8 @@ var require_web_ifc_mt = __commonJS({
             }
           });
           return handled;
-        };
-        var FS_createPreloadedFile = (parent, name, url, canRead, canWrite, onload, onerror, dontCreateFile, canOwn, preFinish) => {
+        }
+        function FS_createPreloadedFile(parent, name, url, canRead, canWrite, onload, onerror, dontCreateFile, canOwn, preFinish) {
           var fullname = name ? PATH_FS.resolve(PATH.join2(parent, name)) : parent;
           function processData(byteArray) {
             function finish(byteArray2) {
@@ -27939,24 +27940,24 @@ var require_web_ifc_mt = __commonJS({
           } else {
             processData(url);
           }
-        };
-        var FS_modeStringToFlags = (str) => {
+        }
+        function FS_modeStringToFlags(str) {
           var flagModes = { "r": 0, "r+": 2, "w": 512 | 64 | 1, "w+": 512 | 64 | 2, "a": 1024 | 64 | 1, "a+": 1024 | 64 | 2 };
           var flags = flagModes[str];
           if (typeof flags == "undefined") {
             throw new Error(`Unknown file open mode: ${str}`);
           }
           return flags;
-        };
-        var FS_getMode = (canRead, canWrite) => {
+        }
+        function FS_getMode(canRead, canWrite) {
           var mode = 0;
           if (canRead)
             mode |= 292 | 73;
           if (canWrite)
             mode |= 146;
           return mode;
-        };
-        var FS = { root: null, mounts: [], devices: {}, streams: [], nextInode: 1, nameTable: null, currentPath: "/", initialized: false, ignorePermissions: true, ErrnoError: null, genericErrors: {}, filesystems: null, syncFSRequests: 0, lookupPath(path, opts = {}) {
+        }
+        var FS = { root: null, mounts: [], devices: {}, streams: [], nextInode: 1, nameTable: null, currentPath: "/", initialized: false, ignorePermissions: true, ErrnoError: null, genericErrors: {}, filesystems: null, syncFSRequests: 0, lookupPath: (path, opts = {}) => {
           path = PATH_FS.resolve(path);
           if (!path)
             return { path: "", node: null };
@@ -27994,7 +27995,7 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return { path: current_path, node: current };
-        }, getPath(node) {
+        }, getPath: (node) => {
           var path;
           while (true) {
             if (FS.isRoot(node)) {
@@ -28006,17 +28007,17 @@ var require_web_ifc_mt = __commonJS({
             path = path ? `${node.name}/${path}` : node.name;
             node = node.parent;
           }
-        }, hashName(parentid, name) {
+        }, hashName: (parentid, name) => {
           var hash = 0;
           for (var i = 0; i < name.length; i++) {
             hash = (hash << 5) - hash + name.charCodeAt(i) | 0;
           }
           return (parentid + hash >>> 0) % FS.nameTable.length;
-        }, hashAddNode(node) {
+        }, hashAddNode: (node) => {
           var hash = FS.hashName(node.parent.id, node.name);
           node.name_next = FS.nameTable[hash];
           FS.nameTable[hash] = node;
-        }, hashRemoveNode(node) {
+        }, hashRemoveNode: (node) => {
           var hash = FS.hashName(node.parent.id, node.name);
           if (FS.nameTable[hash] === node) {
             FS.nameTable[hash] = node.name_next;
@@ -28030,7 +28031,7 @@ var require_web_ifc_mt = __commonJS({
               current = current.name_next;
             }
           }
-        }, lookupNode(parent, name) {
+        }, lookupNode: (parent, name) => {
           var errCode = FS.mayLookup(parent);
           if (errCode) {
             throw new FS.ErrnoError(errCode, parent);
@@ -28043,37 +28044,19 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return FS.lookup(parent, name);
-        }, createNode(parent, name, mode, rdev) {
+        }, createNode: (parent, name, mode, rdev) => {
           var node = new FS.FSNode(parent, name, mode, rdev);
           FS.hashAddNode(node);
           return node;
-        }, destroyNode(node) {
+        }, destroyNode: (node) => {
           FS.hashRemoveNode(node);
-        }, isRoot(node) {
-          return node === node.parent;
-        }, isMountpoint(node) {
-          return !!node.mounted;
-        }, isFile(mode) {
-          return (mode & 61440) === 32768;
-        }, isDir(mode) {
-          return (mode & 61440) === 16384;
-        }, isLink(mode) {
-          return (mode & 61440) === 40960;
-        }, isChrdev(mode) {
-          return (mode & 61440) === 8192;
-        }, isBlkdev(mode) {
-          return (mode & 61440) === 24576;
-        }, isFIFO(mode) {
-          return (mode & 61440) === 4096;
-        }, isSocket(mode) {
-          return (mode & 49152) === 49152;
-        }, flagsToPermissionString(flag) {
+        }, isRoot: (node) => node === node.parent, isMountpoint: (node) => !!node.mounted, isFile: (mode) => (mode & 61440) === 32768, isDir: (mode) => (mode & 61440) === 16384, isLink: (mode) => (mode & 61440) === 40960, isChrdev: (mode) => (mode & 61440) === 8192, isBlkdev: (mode) => (mode & 61440) === 24576, isFIFO: (mode) => (mode & 61440) === 4096, isSocket: (mode) => (mode & 49152) === 49152, flagsToPermissionString: (flag) => {
           var perms = ["r", "w", "rw"][flag & 3];
           if (flag & 512) {
             perms += "w";
           }
           return perms;
-        }, nodePermissions(node, perms) {
+        }, nodePermissions: (node, perms) => {
           if (FS.ignorePermissions) {
             return 0;
           }
@@ -28085,21 +28068,21 @@ var require_web_ifc_mt = __commonJS({
             return 2;
           }
           return 0;
-        }, mayLookup(dir) {
+        }, mayLookup: (dir) => {
           var errCode = FS.nodePermissions(dir, "x");
           if (errCode)
             return errCode;
           if (!dir.node_ops.lookup)
             return 2;
           return 0;
-        }, mayCreate(dir, name) {
+        }, mayCreate: (dir, name) => {
           try {
             var node = FS.lookupNode(dir, name);
             return 20;
           } catch (e) {
           }
           return FS.nodePermissions(dir, "wx");
-        }, mayDelete(dir, name, isdir) {
+        }, mayDelete: (dir, name, isdir) => {
           var node;
           try {
             node = FS.lookupNode(dir, name);
@@ -28123,7 +28106,7 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return 0;
-        }, mayOpen(node, flags) {
+        }, mayOpen: (node, flags) => {
           if (!node) {
             return 44;
           }
@@ -28135,20 +28118,20 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return FS.nodePermissions(node, FS.flagsToPermissionString(flags));
-        }, MAX_OPEN_FDS: 4096, nextfd() {
+        }, MAX_OPEN_FDS: 4096, nextfd: () => {
           for (var fd = 0; fd <= FS.MAX_OPEN_FDS; fd++) {
             if (!FS.streams[fd]) {
               return fd;
             }
           }
           throw new FS.ErrnoError(33);
-        }, getStreamChecked(fd) {
+        }, getStreamChecked: (fd) => {
           var stream = FS.getStream(fd);
           if (!stream) {
             throw new FS.ErrnoError(8);
           }
           return stream;
-        }, getStream: (fd) => FS.streams[fd], createStream(stream, fd = -1) {
+        }, getStream: (fd) => FS.streams[fd], createStream: (stream, fd = -1) => {
           if (!FS.FSStream) {
             FS.FSStream = function() {
               this.shared = {};
@@ -28181,19 +28164,19 @@ var require_web_ifc_mt = __commonJS({
           stream.fd = fd;
           FS.streams[fd] = stream;
           return stream;
-        }, closeStream(fd) {
+        }, closeStream: (fd) => {
           FS.streams[fd] = null;
-        }, chrdev_stream_ops: { open(stream) {
+        }, chrdev_stream_ops: { open: (stream) => {
           var device = FS.getDevice(stream.node.rdev);
           stream.stream_ops = device.stream_ops;
           if (stream.stream_ops.open) {
             stream.stream_ops.open(stream);
           }
-        }, llseek() {
+        }, llseek: () => {
           throw new FS.ErrnoError(70);
-        } }, major: (dev) => dev >> 8, minor: (dev) => dev & 255, makedev: (ma, mi) => ma << 8 | mi, registerDevice(dev, ops) {
+        } }, major: (dev) => dev >> 8, minor: (dev) => dev & 255, makedev: (ma, mi) => ma << 8 | mi, registerDevice: (dev, ops) => {
           FS.devices[dev] = { stream_ops: ops };
-        }, getDevice: (dev) => FS.devices[dev], getMounts(mount) {
+        }, getDevice: (dev) => FS.devices[dev], getMounts: (mount) => {
           var mounts = [];
           var check = [mount];
           while (check.length) {
@@ -28202,7 +28185,7 @@ var require_web_ifc_mt = __commonJS({
             check.push.apply(check, m.mounts);
           }
           return mounts;
-        }, syncfs(populate, callback) {
+        }, syncfs: (populate, callback) => {
           if (typeof populate == "function") {
             callback = populate;
             populate = false;
@@ -28235,7 +28218,7 @@ var require_web_ifc_mt = __commonJS({
             }
             mount.type.syncfs(mount, populate, done);
           });
-        }, mount(type, opts, mountpoint) {
+        }, mount: (type, opts, mountpoint) => {
           var root = mountpoint === "/";
           var pseudo = !mountpoint;
           var node;
@@ -28265,7 +28248,7 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return mountRoot;
-        }, unmount(mountpoint) {
+        }, unmount: (mountpoint) => {
           var lookup = FS.lookupPath(mountpoint, { follow_mount: false });
           if (!FS.isMountpoint(lookup.node)) {
             throw new FS.ErrnoError(28);
@@ -28286,9 +28269,7 @@ var require_web_ifc_mt = __commonJS({
           node.mounted = null;
           var idx = node.mount.mounts.indexOf(mount);
           node.mount.mounts.splice(idx, 1);
-        }, lookup(parent, name) {
-          return parent.node_ops.lookup(parent, name);
-        }, mknod(path, mode, dev) {
+        }, lookup: (parent, name) => parent.node_ops.lookup(parent, name), mknod: (path, mode, dev) => {
           var lookup = FS.lookupPath(path, { parent: true });
           var parent = lookup.node;
           var name = PATH.basename(path);
@@ -28303,17 +28284,17 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(63);
           }
           return parent.node_ops.mknod(parent, name, mode, dev);
-        }, create(path, mode) {
+        }, create: (path, mode) => {
           mode = mode !== void 0 ? mode : 438;
           mode &= 4095;
           mode |= 32768;
           return FS.mknod(path, mode, 0);
-        }, mkdir(path, mode) {
+        }, mkdir: (path, mode) => {
           mode = mode !== void 0 ? mode : 511;
           mode &= 511 | 512;
           mode |= 16384;
           return FS.mknod(path, mode, 0);
-        }, mkdirTree(path, mode) {
+        }, mkdirTree: (path, mode) => {
           var dirs = path.split("/");
           var d = "";
           for (var i = 0; i < dirs.length; ++i) {
@@ -28327,14 +28308,14 @@ var require_web_ifc_mt = __commonJS({
                 throw e;
             }
           }
-        }, mkdev(path, mode, dev) {
+        }, mkdev: (path, mode, dev) => {
           if (typeof dev == "undefined") {
             dev = mode;
             mode = 438;
           }
           mode |= 8192;
           return FS.mknod(path, mode, dev);
-        }, symlink(oldpath, newpath) {
+        }, symlink: (oldpath, newpath) => {
           if (!PATH_FS.resolve(oldpath)) {
             throw new FS.ErrnoError(44);
           }
@@ -28352,7 +28333,7 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(63);
           }
           return parent.node_ops.symlink(parent, newname, oldpath);
-        }, rename(old_path, new_path) {
+        }, rename: (old_path, new_path) => {
           var old_dirname = PATH.dirname(old_path);
           var new_dirname = PATH.dirname(new_path);
           var old_name = PATH.basename(old_path);
@@ -28413,7 +28394,7 @@ var require_web_ifc_mt = __commonJS({
           } finally {
             FS.hashAddNode(old_node);
           }
-        }, rmdir(path) {
+        }, rmdir: (path) => {
           var lookup = FS.lookupPath(path, { parent: true });
           var parent = lookup.node;
           var name = PATH.basename(path);
@@ -28430,14 +28411,14 @@ var require_web_ifc_mt = __commonJS({
           }
           parent.node_ops.rmdir(parent, name);
           FS.destroyNode(node);
-        }, readdir(path) {
+        }, readdir: (path) => {
           var lookup = FS.lookupPath(path, { follow: true });
           var node = lookup.node;
           if (!node.node_ops.readdir) {
             throw new FS.ErrnoError(54);
           }
           return node.node_ops.readdir(node);
-        }, unlink(path) {
+        }, unlink: (path) => {
           var lookup = FS.lookupPath(path, { parent: true });
           var parent = lookup.node;
           if (!parent) {
@@ -28457,7 +28438,7 @@ var require_web_ifc_mt = __commonJS({
           }
           parent.node_ops.unlink(parent, name);
           FS.destroyNode(node);
-        }, readlink(path) {
+        }, readlink: (path) => {
           var lookup = FS.lookupPath(path);
           var link = lookup.node;
           if (!link) {
@@ -28467,7 +28448,7 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(28);
           }
           return PATH_FS.resolve(FS.getPath(link.parent), link.node_ops.readlink(link));
-        }, stat(path, dontFollow) {
+        }, stat: (path, dontFollow) => {
           var lookup = FS.lookupPath(path, { follow: !dontFollow });
           var node = lookup.node;
           if (!node) {
@@ -28477,9 +28458,7 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(63);
           }
           return node.node_ops.getattr(node);
-        }, lstat(path) {
-          return FS.stat(path, true);
-        }, chmod(path, mode, dontFollow) {
+        }, lstat: (path) => FS.stat(path, true), chmod: (path, mode, dontFollow) => {
           var node;
           if (typeof path == "string") {
             var lookup = FS.lookupPath(path, { follow: !dontFollow });
@@ -28491,12 +28470,12 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(63);
           }
           node.node_ops.setattr(node, { mode: mode & 4095 | node.mode & ~4095, timestamp: Date.now() });
-        }, lchmod(path, mode) {
+        }, lchmod: (path, mode) => {
           FS.chmod(path, mode, true);
-        }, fchmod(fd, mode) {
+        }, fchmod: (fd, mode) => {
           var stream = FS.getStreamChecked(fd);
           FS.chmod(stream.node, mode);
-        }, chown(path, uid, gid, dontFollow) {
+        }, chown: (path, uid, gid, dontFollow) => {
           var node;
           if (typeof path == "string") {
             var lookup = FS.lookupPath(path, { follow: !dontFollow });
@@ -28508,12 +28487,12 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(63);
           }
           node.node_ops.setattr(node, { timestamp: Date.now() });
-        }, lchown(path, uid, gid) {
+        }, lchown: (path, uid, gid) => {
           FS.chown(path, uid, gid, true);
-        }, fchown(fd, uid, gid) {
+        }, fchown: (fd, uid, gid) => {
           var stream = FS.getStreamChecked(fd);
           FS.chown(stream.node, uid, gid);
-        }, truncate(path, len) {
+        }, truncate: (path, len) => {
           if (len < 0) {
             throw new FS.ErrnoError(28);
           }
@@ -28538,17 +28517,17 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(errCode);
           }
           node.node_ops.setattr(node, { size: len, timestamp: Date.now() });
-        }, ftruncate(fd, len) {
+        }, ftruncate: (fd, len) => {
           var stream = FS.getStreamChecked(fd);
           if ((stream.flags & 2097155) === 0) {
             throw new FS.ErrnoError(28);
           }
           FS.truncate(stream.node, len);
-        }, utime(path, atime, mtime) {
+        }, utime: (path, atime, mtime) => {
           var lookup = FS.lookupPath(path, { follow: true });
           var node = lookup.node;
           node.node_ops.setattr(node, { timestamp: Math.max(atime, mtime) });
-        }, open(path, flags, mode) {
+        }, open: (path, flags, mode) => {
           if (path === "") {
             throw new FS.ErrnoError(44);
           }
@@ -28612,7 +28591,7 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return stream;
-        }, close(stream) {
+        }, close: (stream) => {
           if (FS.isClosed(stream)) {
             throw new FS.ErrnoError(8);
           }
@@ -28628,9 +28607,7 @@ var require_web_ifc_mt = __commonJS({
             FS.closeStream(stream.fd);
           }
           stream.fd = null;
-        }, isClosed(stream) {
-          return stream.fd === null;
-        }, llseek(stream, offset, whence) {
+        }, isClosed: (stream) => stream.fd === null, llseek: (stream, offset, whence) => {
           if (FS.isClosed(stream)) {
             throw new FS.ErrnoError(8);
           }
@@ -28643,7 +28620,7 @@ var require_web_ifc_mt = __commonJS({
           stream.position = stream.stream_ops.llseek(stream, offset, whence);
           stream.ungotten = [];
           return stream.position;
-        }, read(stream, buffer, offset, length, position) {
+        }, read: (stream, buffer, offset, length, position) => {
           if (length < 0 || position < 0) {
             throw new FS.ErrnoError(28);
           }
@@ -28669,7 +28646,7 @@ var require_web_ifc_mt = __commonJS({
           if (!seeking)
             stream.position += bytesRead;
           return bytesRead;
-        }, write(stream, buffer, offset, length, position, canOwn) {
+        }, write: (stream, buffer, offset, length, position, canOwn) => {
           if (length < 0 || position < 0) {
             throw new FS.ErrnoError(28);
           }
@@ -28698,7 +28675,7 @@ var require_web_ifc_mt = __commonJS({
           if (!seeking)
             stream.position += bytesWritten;
           return bytesWritten;
-        }, allocate(stream, offset, length) {
+        }, allocate: (stream, offset, length) => {
           if (FS.isClosed(stream)) {
             throw new FS.ErrnoError(8);
           }
@@ -28715,7 +28692,7 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(138);
           }
           stream.stream_ops.allocate(stream, offset, length);
-        }, mmap(stream, length, position, prot, flags) {
+        }, mmap: (stream, length, position, prot, flags) => {
           if ((prot & 2) !== 0 && (flags & 2) === 0 && (stream.flags & 2097155) !== 2) {
             throw new FS.ErrnoError(2);
           }
@@ -28726,17 +28703,17 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(43);
           }
           return stream.stream_ops.mmap(stream, length, position, prot, flags);
-        }, msync(stream, buffer, offset, length, mmapFlags) {
+        }, msync: (stream, buffer, offset, length, mmapFlags) => {
           if (!stream.stream_ops.msync) {
             return 0;
           }
           return stream.stream_ops.msync(stream, buffer, offset, length, mmapFlags);
-        }, munmap: (stream) => 0, ioctl(stream, cmd, arg) {
+        }, munmap: (stream) => 0, ioctl: (stream, cmd, arg) => {
           if (!stream.stream_ops.ioctl) {
             throw new FS.ErrnoError(59);
           }
           return stream.stream_ops.ioctl(stream, cmd, arg);
-        }, readFile(path, opts = {}) {
+        }, readFile: (path, opts = {}) => {
           opts.flags = opts.flags || 0;
           opts.encoding = opts.encoding || "binary";
           if (opts.encoding !== "utf8" && opts.encoding !== "binary") {
@@ -28755,7 +28732,7 @@ var require_web_ifc_mt = __commonJS({
           }
           FS.close(stream);
           return ret;
-        }, writeFile(path, data, opts = {}) {
+        }, writeFile: (path, data, opts = {}) => {
           opts.flags = opts.flags || 577;
           var stream = FS.open(path, opts.flags, opts.mode);
           if (typeof data == "string") {
@@ -28768,7 +28745,7 @@ var require_web_ifc_mt = __commonJS({
             throw new Error("Unsupported data type");
           }
           FS.close(stream);
-        }, cwd: () => FS.currentPath, chdir(path) {
+        }, cwd: () => FS.currentPath, chdir: (path) => {
           var lookup = FS.lookupPath(path, { follow: true });
           if (lookup.node === null) {
             throw new FS.ErrnoError(44);
@@ -28781,11 +28758,11 @@ var require_web_ifc_mt = __commonJS({
             throw new FS.ErrnoError(errCode);
           }
           FS.currentPath = lookup.path;
-        }, createDefaultDirectories() {
+        }, createDefaultDirectories: () => {
           FS.mkdir("/tmp");
           FS.mkdir("/home");
           FS.mkdir("/home/web_user");
-        }, createDefaultDevices() {
+        }, createDefaultDevices: () => {
           FS.mkdir("/dev");
           FS.registerDevice(FS.makedev(1, 3), { read: () => 0, write: (stream, buffer, offset, length, pos) => length });
           FS.mkdev("/dev/null", FS.makedev(1, 3));
@@ -28804,13 +28781,13 @@ var require_web_ifc_mt = __commonJS({
           FS.createDevice("/dev", "urandom", randomByte);
           FS.mkdir("/dev/shm");
           FS.mkdir("/dev/shm/tmp");
-        }, createSpecialDirectories() {
+        }, createSpecialDirectories: () => {
           FS.mkdir("/proc");
           var proc_self = FS.mkdir("/proc/self");
           FS.mkdir("/proc/self/fd");
-          FS.mount({ mount() {
+          FS.mount({ mount: () => {
             var node = FS.createNode(proc_self, "fd", 16384 | 511, 73);
-            node.node_ops = { lookup(parent, name) {
+            node.node_ops = { lookup: (parent, name) => {
               var fd = +name;
               var stream = FS.getStreamChecked(fd);
               var ret = { parent: null, mount: { mountpoint: "fake" }, node_ops: { readlink: () => stream.path } };
@@ -28819,7 +28796,7 @@ var require_web_ifc_mt = __commonJS({
             } };
             return node;
           } }, {}, "/proc/self/fd");
-        }, createStandardStreams() {
+        }, createStandardStreams: () => {
           if (Module["stdin"]) {
             FS.createDevice("/dev", "stdin", Module["stdin"]);
           } else {
@@ -28838,7 +28815,7 @@ var require_web_ifc_mt = __commonJS({
           FS.open("/dev/stdin", 0);
           FS.open("/dev/stdout", 1);
           FS.open("/dev/stderr", 1);
-        }, ensureErrnoError() {
+        }, ensureErrnoError: () => {
           if (FS.ErrnoError)
             return;
           FS.ErrnoError = function ErrnoError(errno, node) {
@@ -28856,7 +28833,7 @@ var require_web_ifc_mt = __commonJS({
             FS.genericErrors[code] = new FS.ErrnoError(code);
             FS.genericErrors[code].stack = "<generic error, no stack>";
           });
-        }, staticInit() {
+        }, staticInit: () => {
           FS.ensureErrnoError();
           FS.nameTable = new Array(4096);
           FS.mount(MEMFS, {}, "/");
@@ -28864,14 +28841,14 @@ var require_web_ifc_mt = __commonJS({
           FS.createDefaultDevices();
           FS.createSpecialDirectories();
           FS.filesystems = { "MEMFS": MEMFS };
-        }, init(input, output, error) {
+        }, init: (input, output, error) => {
           FS.init.initialized = true;
           FS.ensureErrnoError();
           Module["stdin"] = input || Module["stdin"];
           Module["stdout"] = output || Module["stdout"];
           Module["stderr"] = error || Module["stderr"];
           FS.createStandardStreams();
-        }, quit() {
+        }, quit: () => {
           FS.init.initialized = false;
           for (var i = 0; i < FS.streams.length; i++) {
             var stream = FS.streams[i];
@@ -28880,13 +28857,13 @@ var require_web_ifc_mt = __commonJS({
             }
             FS.close(stream);
           }
-        }, findObject(path, dontResolveLastLink) {
+        }, findObject: (path, dontResolveLastLink) => {
           var ret = FS.analyzePath(path, dontResolveLastLink);
           if (!ret.exists) {
             return null;
           }
           return ret.object;
-        }, analyzePath(path, dontResolveLastLink) {
+        }, analyzePath: (path, dontResolveLastLink) => {
           try {
             var lookup = FS.lookupPath(path, { follow: !dontResolveLastLink });
             path = lookup.path;
@@ -28909,7 +28886,7 @@ var require_web_ifc_mt = __commonJS({
             ret.error = e.errno;
           }
           return ret;
-        }, createPath(parent, path, canRead, canWrite) {
+        }, createPath: (parent, path, canRead, canWrite) => {
           parent = typeof parent == "string" ? parent : FS.getPath(parent);
           var parts = path.split("/").reverse();
           while (parts.length) {
@@ -28924,11 +28901,11 @@ var require_web_ifc_mt = __commonJS({
             parent = current;
           }
           return current;
-        }, createFile(parent, name, properties, canRead, canWrite) {
+        }, createFile: (parent, name, properties, canRead, canWrite) => {
           var path = PATH.join2(typeof parent == "string" ? parent : FS.getPath(parent), name);
           var mode = FS_getMode(canRead, canWrite);
           return FS.create(path, mode);
-        }, createDataFile(parent, name, data, canRead, canWrite, canOwn) {
+        }, createDataFile: (parent, name, data, canRead, canWrite, canOwn) => {
           var path = name;
           if (parent) {
             parent = typeof parent == "string" ? parent : FS.getPath(parent);
@@ -28950,19 +28927,19 @@ var require_web_ifc_mt = __commonJS({
             FS.chmod(node, mode);
           }
           return node;
-        }, createDevice(parent, name, input, output) {
+        }, createDevice: (parent, name, input, output) => {
           var path = PATH.join2(typeof parent == "string" ? parent : FS.getPath(parent), name);
           var mode = FS_getMode(!!input, !!output);
           if (!FS.createDevice.major)
             FS.createDevice.major = 64;
           var dev = FS.makedev(FS.createDevice.major++, 0);
-          FS.registerDevice(dev, { open(stream) {
+          FS.registerDevice(dev, { open: (stream) => {
             stream.seekable = false;
-          }, close(stream) {
+          }, close: (stream) => {
             if (output && output.buffer && output.buffer.length) {
               output(10);
             }
-          }, read(stream, buffer, offset, length, pos) {
+          }, read: (stream, buffer, offset, length, pos) => {
             var bytesRead = 0;
             for (var i = 0; i < length; i++) {
               var result;
@@ -28983,7 +28960,7 @@ var require_web_ifc_mt = __commonJS({
               stream.node.timestamp = Date.now();
             }
             return bytesRead;
-          }, write(stream, buffer, offset, length, pos) {
+          }, write: (stream, buffer, offset, length, pos) => {
             for (var i = 0; i < length; i++) {
               try {
                 output(buffer[offset + i]);
@@ -28997,7 +28974,7 @@ var require_web_ifc_mt = __commonJS({
             return i;
           } });
           return FS.mkdev(path, mode, dev);
-        }, forceLoadFile(obj) {
+        }, forceLoadFile: (obj) => {
           if (obj.isDevice || obj.isFolder || obj.link || obj.contents)
             return true;
           if (typeof XMLHttpRequest != "undefined") {
@@ -29012,7 +28989,7 @@ var require_web_ifc_mt = __commonJS({
           } else {
             throw new Error("Cannot load without read() or XMLHttpRequest.");
           }
-        }, createLazyFile(parent, name, url, canRead, canWrite) {
+        }, createLazyFile: (parent, name, url, canRead, canWrite) => {
           function LazyUint8Array() {
             this.lengthKnown = false;
             this.chunks = [];
@@ -29158,7 +29135,7 @@ var require_web_ifc_mt = __commonJS({
           ptr >>>= 0;
           return ptr ? UTF8ArrayToString(GROWABLE_HEAP_U8(), ptr, maxBytesToRead) : "";
         };
-        var SYSCALLS = { DEFAULT_POLLMASK: 5, calculateAt(dirfd, path, allowEmpty) {
+        var SYSCALLS = { DEFAULT_POLLMASK: 5, calculateAt: function(dirfd, path, allowEmpty) {
           if (PATH.isAbs(path)) {
             return path;
           }
@@ -29176,7 +29153,7 @@ var require_web_ifc_mt = __commonJS({
             return dir;
           }
           return PATH.join2(dir, path);
-        }, doStat(func, path, buf) {
+        }, doStat: function(func, path, buf) {
           try {
             var stat = func(path);
           } catch (e) {
@@ -29185,27 +29162,27 @@ var require_web_ifc_mt = __commonJS({
             }
             throw e;
           }
-          GROWABLE_HEAP_I32()[buf >>> 2 >>> 0] = stat.dev;
-          GROWABLE_HEAP_I32()[buf + 4 >>> 2 >>> 0] = stat.mode;
-          GROWABLE_HEAP_U32()[buf + 8 >>> 2 >>> 0] = stat.nlink;
-          GROWABLE_HEAP_I32()[buf + 12 >>> 2 >>> 0] = stat.uid;
-          GROWABLE_HEAP_I32()[buf + 16 >>> 2 >>> 0] = stat.gid;
-          GROWABLE_HEAP_I32()[buf + 20 >>> 2 >>> 0] = stat.rdev;
-          tempI64 = [stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 24 >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[buf + 28 >>> 2 >>> 0] = tempI64[1];
-          GROWABLE_HEAP_I32()[buf + 32 >>> 2 >>> 0] = 4096;
-          GROWABLE_HEAP_I32()[buf + 36 >>> 2 >>> 0] = stat.blocks;
+          GROWABLE_HEAP_I32()[buf >>> 2] = stat.dev;
+          GROWABLE_HEAP_I32()[buf + 4 >>> 2] = stat.mode;
+          GROWABLE_HEAP_U32()[buf + 8 >>> 2] = stat.nlink;
+          GROWABLE_HEAP_I32()[buf + 12 >>> 2] = stat.uid;
+          GROWABLE_HEAP_I32()[buf + 16 >>> 2] = stat.gid;
+          GROWABLE_HEAP_I32()[buf + 20 >>> 2] = stat.rdev;
+          tempI64 = [stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 24 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 28 >>> 2] = tempI64[1];
+          GROWABLE_HEAP_I32()[buf + 32 >>> 2] = 4096;
+          GROWABLE_HEAP_I32()[buf + 36 >>> 2] = stat.blocks;
           var atime = stat.atime.getTime();
           var mtime = stat.mtime.getTime();
           var ctime = stat.ctime.getTime();
-          tempI64 = [Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 40 >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[buf + 44 >>> 2 >>> 0] = tempI64[1];
-          GROWABLE_HEAP_U32()[buf + 48 >>> 2 >>> 0] = atime % 1e3 * 1e3;
-          tempI64 = [Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 56 >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[buf + 60 >>> 2 >>> 0] = tempI64[1];
-          GROWABLE_HEAP_U32()[buf + 64 >>> 2 >>> 0] = mtime % 1e3 * 1e3;
-          tempI64 = [Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 72 >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[buf + 76 >>> 2 >>> 0] = tempI64[1];
-          GROWABLE_HEAP_U32()[buf + 80 >>> 2 >>> 0] = ctime % 1e3 * 1e3;
-          tempI64 = [stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 88 >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[buf + 92 >>> 2 >>> 0] = tempI64[1];
+          tempI64 = [Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 40 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 44 >>> 2] = tempI64[1];
+          GROWABLE_HEAP_U32()[buf + 48 >>> 2] = atime % 1e3 * 1e3;
+          tempI64 = [Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 56 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 60 >>> 2] = tempI64[1];
+          GROWABLE_HEAP_U32()[buf + 64 >>> 2] = mtime % 1e3 * 1e3;
+          tempI64 = [Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 72 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 76 >>> 2] = tempI64[1];
+          GROWABLE_HEAP_U32()[buf + 80 >>> 2] = ctime % 1e3 * 1e3;
+          tempI64 = [stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[buf + 88 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 92 >>> 2] = tempI64[1];
           return 0;
-        }, doMsync(addr, stream, len, flags, offset) {
+        }, doMsync: function(addr, stream, len, flags, offset) {
           if (!FS.isFile(stream.node.mode)) {
             throw new FS.ErrnoError(43);
           }
@@ -29215,21 +29192,19 @@ var require_web_ifc_mt = __commonJS({
           var buffer = GROWABLE_HEAP_U8().slice(addr, addr + len);
           FS.msync(stream, buffer, offset, len, flags);
         }, varargs: void 0, get() {
-          var ret = GROWABLE_HEAP_I32()[SYSCALLS.varargs >>> 2 >>> 0];
           SYSCALLS.varargs += 4;
+          var ret = GROWABLE_HEAP_I32()[SYSCALLS.varargs - 4 >>> 2];
           return ret;
-        }, getp() {
-          return SYSCALLS.get();
         }, getStr(ptr) {
           var ret = UTF8ToString(ptr);
           return ret;
-        }, getStreamFromFD(fd) {
+        }, getStreamFromFD: function(fd) {
           var stream = FS.getStreamChecked(fd);
           return stream;
         } };
         function _proc_exit(code) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(0, 1, code);
+            return proxyToMainThread(1, 1, code);
           EXITSTATUS = code;
           if (!keepRuntimeAlive()) {
             PThread.terminateAllThreads();
@@ -29254,13 +29229,13 @@ var require_web_ifc_mt = __commonJS({
           }
           quit_(1, e);
         };
-        var PThread = { unusedWorkers: [], runningWorkers: [], tlsInitFunctions: [], pthreads: {}, init() {
+        var PThread = { unusedWorkers: [], runningWorkers: [], tlsInitFunctions: [], pthreads: {}, init: function() {
           if (ENVIRONMENT_IS_PTHREAD) {
             PThread.initWorker();
           } else {
             PThread.initMainThread();
           }
-        }, initMainThread() {
+        }, initMainThread: function() {
           var pthreadPoolSize = navigator.hardwareConcurrency;
           while (pthreadPoolSize--) {
             PThread.allocateUnusedWorker();
@@ -29269,11 +29244,11 @@ var require_web_ifc_mt = __commonJS({
             addRunDependency();
             PThread.loadWasmModuleToAllWorkers(() => removeRunDependency());
           });
-        }, initWorker() {
+        }, initWorker: function() {
           noExitRuntime = false;
-        }, setExitStatus: (status) => {
+        }, setExitStatus: function(status) {
           EXITSTATUS = status;
-        }, terminateAllThreads__deps: ["$terminateWorker"], terminateAllThreads: () => {
+        }, terminateAllThreads__deps: ["$terminateWorker"], terminateAllThreads: function() {
           for (var worker of PThread.runningWorkers) {
             terminateWorker(worker);
           }
@@ -29283,26 +29258,26 @@ var require_web_ifc_mt = __commonJS({
           PThread.unusedWorkers = [];
           PThread.runningWorkers = [];
           PThread.pthreads = [];
-        }, returnWorkerToPool: (worker) => {
+        }, returnWorkerToPool: function(worker) {
           var pthread_ptr = worker.pthread_ptr;
           delete PThread.pthreads[pthread_ptr];
           PThread.unusedWorkers.push(worker);
           PThread.runningWorkers.splice(PThread.runningWorkers.indexOf(worker), 1);
           worker.pthread_ptr = 0;
           __emscripten_thread_free_data(pthread_ptr);
-        }, receiveObjectTransfer(data) {
-        }, threadInitTLS() {
+        }, receiveObjectTransfer: function(data) {
+        }, threadInitTLS: function() {
           PThread.tlsInitFunctions.forEach((f) => f());
         }, loadWasmModuleToWorker: (worker) => new Promise((onFinishedLoading) => {
           worker.onmessage = (e) => {
             var d = e["data"];
             var cmd = d["cmd"];
             if (d["targetThread"] && d["targetThread"] != _pthread_self()) {
-              var targetWorker = PThread.pthreads[d["targetThread"]];
+              var targetWorker = PThread.pthreads[d.targetThread];
               if (targetWorker) {
                 targetWorker.postMessage(d, d["transferList"]);
               } else {
-                err(`Internal error! Worker sent a message "${cmd}" to target pthread ${d["targetThread"]}, but that thread no longer exists!`);
+                err('Internal error! Worker sent a message "' + cmd + '" to target pthread ' + d["targetThread"] + ", but that thread no longer exists!");
               }
               return;
             }
@@ -29320,18 +29295,18 @@ var require_web_ifc_mt = __commonJS({
               worker.loaded = true;
               onFinishedLoading(worker);
             } else if (cmd === "alert") {
-              alert(`Thread ${d["threadId"]}: ${d["text"]}`);
+              alert("Thread " + d["threadId"] + ": " + d["text"]);
             } else if (d.target === "setimmediate") {
               worker.postMessage(d);
             } else if (cmd === "callHandler") {
               Module[d["handler"]](...d["args"]);
             } else if (cmd) {
-              err(`worker sent an unknown command ${cmd}`);
+              err("worker sent an unknown command " + cmd);
             }
           };
           worker.onerror = (e) => {
             var message = "worker sent an error!";
-            err(`${message} ${e.filename}:${e.lineno}: ${e.message}`);
+            err(message + " " + e.filename + ":" + e.lineno + ": " + e.message);
             throw e;
           };
           var handlers = [];
@@ -29342,18 +29317,18 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           worker.postMessage({ "cmd": "load", "handlers": handlers, "urlOrBlob": Module["mainScriptUrlOrBlob"] || _scriptDir, "wasmMemory": wasmMemory, "wasmModule": wasmModule });
-        }), loadWasmModuleToAllWorkers(onMaybeReady) {
+        }), loadWasmModuleToAllWorkers: function(onMaybeReady) {
           if (ENVIRONMENT_IS_PTHREAD) {
             return onMaybeReady();
           }
           let pthreadPoolReady = Promise.all(PThread.unusedWorkers.map(PThread.loadWasmModuleToWorker));
           pthreadPoolReady.then(onMaybeReady);
-        }, allocateUnusedWorker() {
+        }, allocateUnusedWorker: function() {
           var worker;
           var pthreadMainJs = locateFile("web-ifc-mt.worker.js");
           worker = new Worker(pthreadMainJs);
           PThread.unusedWorkers.push(worker);
-        }, getNewWorker() {
+        }, getNewWorker: function() {
           if (PThread.unusedWorkers.length == 0) {
             PThread.allocateUnusedWorker();
             PThread.loadWasmModuleToWorker(PThread.unusedWorkers[0]);
@@ -29366,18 +29341,18 @@ var require_web_ifc_mt = __commonJS({
             callbacks.shift()(Module);
           }
         };
-        var establishStackSpace = () => {
+        function establishStackSpace() {
           var pthread_ptr = _pthread_self();
-          var stackHigh = GROWABLE_HEAP_I32()[pthread_ptr + 52 >>> 2 >>> 0];
-          var stackSize = GROWABLE_HEAP_I32()[pthread_ptr + 56 >>> 2 >>> 0];
+          var stackHigh = GROWABLE_HEAP_I32()[pthread_ptr + 52 >>> 2];
+          var stackSize = GROWABLE_HEAP_I32()[pthread_ptr + 56 >>> 2];
           var stackLow = stackHigh - stackSize;
           _emscripten_stack_set_limits(stackHigh, stackLow);
           stackRestore(stackHigh);
-        };
+        }
         Module["establishStackSpace"] = establishStackSpace;
         function exitOnMainThread(returnCode) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(1, 0, returnCode);
+            return proxyToMainThread(2, 0, returnCode);
           _exit(returnCode);
         }
         var wasmTableMirror = [];
@@ -29390,7 +29365,7 @@ var require_web_ifc_mt = __commonJS({
           }
           return func;
         };
-        var invokeEntryPoint = (ptr, arg) => {
+        function invokeEntryPoint(ptr, arg) {
           var result = getWasmTableEntry(ptr)(arg);
           function finish(result2) {
             if (keepRuntimeAlive()) {
@@ -29400,39 +29375,39 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           finish(result);
-        };
+        }
         Module["invokeEntryPoint"] = invokeEntryPoint;
-        var registerTLSInit = (tlsInitFunc) => {
+        function registerTLSInit(tlsInitFunc) {
           PThread.tlsInitFunctions.push(tlsInitFunc);
-        };
+        }
         function ExceptionInfo(excPtr) {
           this.excPtr = excPtr;
           this.ptr = excPtr - 24;
           this.set_type = function(type) {
-            GROWABLE_HEAP_U32()[this.ptr + 4 >>> 2 >>> 0] = type;
+            GROWABLE_HEAP_U32()[this.ptr + 4 >>> 2] = type;
           };
           this.get_type = function() {
-            return GROWABLE_HEAP_U32()[this.ptr + 4 >>> 2 >>> 0];
+            return GROWABLE_HEAP_U32()[this.ptr + 4 >>> 2];
           };
           this.set_destructor = function(destructor) {
-            GROWABLE_HEAP_U32()[this.ptr + 8 >>> 2 >>> 0] = destructor;
+            GROWABLE_HEAP_U32()[this.ptr + 8 >>> 2] = destructor;
           };
           this.get_destructor = function() {
-            return GROWABLE_HEAP_U32()[this.ptr + 8 >>> 2 >>> 0];
+            return GROWABLE_HEAP_U32()[this.ptr + 8 >>> 2];
           };
           this.set_caught = function(caught) {
             caught = caught ? 1 : 0;
-            GROWABLE_HEAP_I8()[this.ptr + 12 >>> 0 >>> 0] = caught;
+            GROWABLE_HEAP_I8()[this.ptr + 12 >>> 0] = caught;
           };
           this.get_caught = function() {
-            return GROWABLE_HEAP_I8()[this.ptr + 12 >>> 0 >>> 0] != 0;
+            return GROWABLE_HEAP_I8()[this.ptr + 12 >>> 0] != 0;
           };
           this.set_rethrown = function(rethrown) {
             rethrown = rethrown ? 1 : 0;
-            GROWABLE_HEAP_I8()[this.ptr + 13 >>> 0 >>> 0] = rethrown;
+            GROWABLE_HEAP_I8()[this.ptr + 13 >>> 0] = rethrown;
           };
           this.get_rethrown = function() {
-            return GROWABLE_HEAP_I8()[this.ptr + 13 >>> 0 >>> 0] != 0;
+            return GROWABLE_HEAP_I8()[this.ptr + 13 >>> 0] != 0;
           };
           this.init = function(type, destructor) {
             this.set_adjusted_ptr(0);
@@ -29440,15 +29415,15 @@ var require_web_ifc_mt = __commonJS({
             this.set_destructor(destructor);
           };
           this.set_adjusted_ptr = function(adjustedPtr) {
-            GROWABLE_HEAP_U32()[this.ptr + 16 >>> 2 >>> 0] = adjustedPtr;
+            GROWABLE_HEAP_U32()[this.ptr + 16 >>> 2] = adjustedPtr;
           };
           this.get_adjusted_ptr = function() {
-            return GROWABLE_HEAP_U32()[this.ptr + 16 >>> 2 >>> 0];
+            return GROWABLE_HEAP_U32()[this.ptr + 16 >>> 2];
           };
           this.get_exception_ptr = function() {
             var isPointer = ___cxa_is_pointer_type(this.get_type());
             if (isPointer) {
-              return GROWABLE_HEAP_U32()[this.excPtr >>> 2 >>> 0];
+              return GROWABLE_HEAP_U32()[this.excPtr >>> 2];
             }
             var adjusted = this.get_adjusted_ptr();
             if (adjusted !== 0)
@@ -29457,7 +29432,9 @@ var require_web_ifc_mt = __commonJS({
           };
         }
         var exceptionLast = 0;
-        var convertI32PairToI53Checked = (lo, hi) => hi + 2097152 >>> 0 < 4194305 - !!lo ? (lo >>> 0) + hi * 4294967296 : NaN;
+        function convertI32PairToI53Checked(lo, hi) {
+          return hi + 2097152 >>> 0 < 4194305 - !!lo ? (lo >>> 0) + hi * 4294967296 : NaN;
+        }
         function ___cxa_throw(ptr, type, destructor) {
           ptr >>>= 0;
           type >>>= 0;
@@ -29480,24 +29457,24 @@ var require_web_ifc_mt = __commonJS({
             postMessage({ "cmd": "cleanupThread", "thread": thread });
         }
         var tupleRegistrations = {};
-        var runDestructors = (destructors) => {
+        function runDestructors(destructors) {
           while (destructors.length) {
             var ptr = destructors.pop();
             var del = destructors.pop();
             del(ptr);
           }
-        };
+        }
         function simpleReadValueFromPointer(pointer) {
-          return this["fromWireType"](GROWABLE_HEAP_I32()[pointer >>> 2 >>> 0]);
+          return this["fromWireType"](GROWABLE_HEAP_I32()[pointer >>> 2]);
         }
         var awaitingDependencies = {};
         var registeredTypes = {};
         var typeDependencies = {};
         var InternalError = void 0;
-        var throwInternalError = (message) => {
+        function throwInternalError(message) {
           throw new InternalError(message);
-        };
-        var whenDependentTypesAreResolved = (myTypes, dependentTypes, getTypeConverters) => {
+        }
+        function whenDependentTypesAreResolved(myTypes, dependentTypes, getTypeConverters) {
           myTypes.forEach(function(type) {
             typeDependencies[type] = dependentTypes;
           });
@@ -29533,14 +29510,18 @@ var require_web_ifc_mt = __commonJS({
           if (0 === unregisteredTypes.length) {
             onComplete(typeConverters);
           }
-        };
-        var __embind_finalize_value_array = function(rawTupleType) {
+        }
+        function __embind_finalize_value_array(rawTupleType) {
           rawTupleType >>>= 0;
           var reg = tupleRegistrations[rawTupleType];
           delete tupleRegistrations[rawTupleType];
           var elements = reg.elements;
           var elementsLength = elements.length;
-          var elementTypes = elements.map((elt) => elt.getterReturnType).concat(elements.map((elt) => elt.setterArgumentType));
+          var elementTypes = elements.map(function(elt) {
+            return elt.getterReturnType;
+          }).concat(elements.map(function(elt) {
+            return elt.setterArgumentType;
+          }));
           var rawConstructor = reg.rawConstructor;
           var rawDestructor = reg.rawDestructor;
           whenDependentTypesAreResolved([rawTupleType], elementTypes, function(elementTypes2) {
@@ -29558,14 +29539,14 @@ var require_web_ifc_mt = __commonJS({
                 runDestructors(destructors);
               };
             });
-            return [{ name: reg.name, "fromWireType": (ptr) => {
+            return [{ name: reg.name, "fromWireType": function(ptr) {
               var rv = new Array(elementsLength);
               for (var i = 0; i < elementsLength; ++i) {
                 rv[i] = elements[i].read(ptr);
               }
               rawDestructor(ptr);
               return rv;
-            }, "toWireType": (destructors, o) => {
+            }, "toWireType": function(destructors, o) {
               if (elementsLength !== o.length) {
                 throw new TypeError(`Incorrect number of tuple elements for ${reg.name}: expected=${elementsLength}, actual=${o.length}`);
               }
@@ -29577,9 +29558,9 @@ var require_web_ifc_mt = __commonJS({
                 destructors.push(rawDestructor, ptr);
               }
               return ptr;
-            }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
+            }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
           });
-        };
+        }
         var structRegistrations = {};
         var __embind_finalize_value_object = function(structType) {
           structType >>>= 0;
@@ -29605,14 +29586,14 @@ var require_web_ifc_mt = __commonJS({
                 runDestructors(destructors);
               } };
             });
-            return [{ name: reg.name, "fromWireType": (ptr) => {
+            return [{ name: reg.name, "fromWireType": function(ptr) {
               var rv = {};
               for (var i in fields) {
                 rv[i] = fields[i].read(ptr);
               }
               rawDestructor(ptr);
               return rv;
-            }, "toWireType": (destructors, o) => {
+            }, "toWireType": function(destructors, o) {
               for (var fieldName in fields) {
                 if (!(fieldName in o)) {
                   throw new TypeError(`Missing field: "${fieldName}"`);
@@ -29626,31 +29607,45 @@ var require_web_ifc_mt = __commonJS({
                 destructors.push(rawDestructor, ptr);
               }
               return ptr;
-            }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
+            }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
           });
         };
         function __embind_register_bigint(primitiveType, name, size, minRange, maxRange) {
         }
-        var embind_init_charCodes = () => {
+        function getShiftFromSize(size) {
+          switch (size) {
+            case 1:
+              return 0;
+            case 2:
+              return 1;
+            case 4:
+              return 2;
+            case 8:
+              return 3;
+            default:
+              throw new TypeError(`Unknown type size: ${size}`);
+          }
+        }
+        function embind_init_charCodes() {
           var codes = new Array(256);
           for (var i = 0; i < 256; ++i) {
             codes[i] = String.fromCharCode(i);
           }
           embind_charCodes = codes;
-        };
+        }
         var embind_charCodes = void 0;
-        var readLatin1String = (ptr) => {
+        function readLatin1String(ptr) {
           var ret = "";
           var c = ptr;
           while (GROWABLE_HEAP_U8()[c >>> 0]) {
             ret += embind_charCodes[GROWABLE_HEAP_U8()[c++ >>> 0]];
           }
           return ret;
-        };
+        }
         var BindingError = void 0;
-        var throwBindingError = (message) => {
+        function throwBindingError(message) {
           throw new BindingError(message);
-        };
+        }
         function sharedRegisterType(rawType, registeredInstance, options = {}) {
           var name = registeredInstance.name;
           if (!rawType) {
@@ -29677,17 +29672,28 @@ var require_web_ifc_mt = __commonJS({
           }
           return sharedRegisterType(rawType, registeredInstance, options);
         }
-        var GenericWireTypeSize = 8;
-        function __embind_register_bool(rawType, name, trueValue, falseValue) {
+        function __embind_register_bool(rawType, name, size, trueValue, falseValue) {
           rawType >>>= 0;
           name >>>= 0;
+          size >>>= 0;
+          var shift = getShiftFromSize(size);
           name = readLatin1String(name);
           registerType(rawType, { name, "fromWireType": function(wt) {
             return !!wt;
           }, "toWireType": function(destructors, o) {
             return o ? trueValue : falseValue;
-          }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": function(pointer) {
-            return this["fromWireType"](GROWABLE_HEAP_U8()[pointer >>> 0]);
+          }, "argPackAdvance": 8, "readValueFromPointer": function(pointer) {
+            var heap;
+            if (size === 1) {
+              heap = GROWABLE_HEAP_I8();
+            } else if (size === 2) {
+              heap = GROWABLE_HEAP_I16();
+            } else if (size === 4) {
+              heap = GROWABLE_HEAP_I32();
+            } else {
+              throw new TypeError("Unknown boolean type size: " + name);
+            }
+            return this["fromWireType"](heap[pointer >>> shift]);
           }, destructorFunction: null });
         }
         function ClassHandle_isAliasOf(other) {
@@ -29711,31 +29717,33 @@ var require_web_ifc_mt = __commonJS({
           }
           return leftClass === rightClass && left === right;
         }
-        var shallowCopyInternalPointer = (o) => ({ count: o.count, deleteScheduled: o.deleteScheduled, preservePointerOnDelete: o.preservePointerOnDelete, ptr: o.ptr, ptrType: o.ptrType, smartPtr: o.smartPtr, smartPtrType: o.smartPtrType });
-        var throwInstanceAlreadyDeleted = (obj) => {
+        function shallowCopyInternalPointer(o) {
+          return { count: o.count, deleteScheduled: o.deleteScheduled, preservePointerOnDelete: o.preservePointerOnDelete, ptr: o.ptr, ptrType: o.ptrType, smartPtr: o.smartPtr, smartPtrType: o.smartPtrType };
+        }
+        function throwInstanceAlreadyDeleted(obj) {
           function getInstanceTypeName(handle) {
             return handle.$$.ptrType.registeredClass.name;
           }
           throwBindingError(getInstanceTypeName(obj) + " instance already deleted");
-        };
+        }
         var finalizationRegistry = false;
-        var detachFinalizer = (handle) => {
-        };
-        var runDestructor = ($$) => {
+        function detachFinalizer(handle) {
+        }
+        function runDestructor($$) {
           if ($$.smartPtr) {
             $$.smartPtrType.rawDestructor($$.smartPtr);
           } else {
             $$.ptrType.registeredClass.rawDestructor($$.ptr);
           }
-        };
-        var releaseClassHandle = ($$) => {
+        }
+        function releaseClassHandle($$) {
           $$.count.value -= 1;
           var toDelete = 0 === $$.count.value;
           if (toDelete) {
             runDestructor($$);
           }
-        };
-        var downcastPointer = (ptr, ptrClass, desiredClass) => {
+        }
+        function downcastPointer(ptr, ptrClass, desiredClass) {
           if (ptrClass === desiredClass) {
             return ptr;
           }
@@ -29747,10 +29755,12 @@ var require_web_ifc_mt = __commonJS({
             return null;
           }
           return desiredClass.downcast(rv);
-        };
+        }
         var registeredPointers = {};
-        var getInheritedInstanceCount = () => Object.keys(registeredInstances).length;
-        var getLiveInheritedInstances = () => {
+        function getInheritedInstanceCount() {
+          return Object.keys(registeredInstances).length;
+        }
+        function getLiveInheritedInstances() {
           var rv = [];
           for (var k in registeredInstances) {
             if (registeredInstances.hasOwnProperty(k)) {
@@ -29758,30 +29768,30 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return rv;
-        };
+        }
         var deletionQueue = [];
-        var flushPendingDeletes = () => {
+        function flushPendingDeletes() {
           while (deletionQueue.length) {
             var obj = deletionQueue.pop();
             obj.$$.deleteScheduled = false;
             obj["delete"]();
           }
-        };
+        }
         var delayFunction = void 0;
-        var setDelayFunction = (fn) => {
+        function setDelayFunction(fn) {
           delayFunction = fn;
           if (deletionQueue.length && delayFunction) {
             delayFunction(flushPendingDeletes);
           }
-        };
-        var init_embind = () => {
+        }
+        function init_embind() {
           Module["getInheritedInstanceCount"] = getInheritedInstanceCount;
           Module["getLiveInheritedInstances"] = getLiveInheritedInstances;
           Module["flushPendingDeletes"] = flushPendingDeletes;
           Module["setDelayFunction"] = setDelayFunction;
-        };
+        }
         var registeredInstances = {};
-        var getBasestPointer = (class_, ptr) => {
+        function getBasestPointer(class_, ptr) {
           if (ptr === void 0) {
             throwBindingError("ptr should not be undefined");
           }
@@ -29790,12 +29800,12 @@ var require_web_ifc_mt = __commonJS({
             class_ = class_.baseClass;
           }
           return ptr;
-        };
-        var getInheritedInstance = (class_, ptr) => {
+        }
+        function getInheritedInstance(class_, ptr) {
           ptr = getBasestPointer(class_, ptr);
           return registeredInstances[ptr];
-        };
-        var makeClassHandle = (prototype, record) => {
+        }
+        function makeClassHandle(prototype, record) {
           if (!record.ptrType || !record.ptr) {
             throwInternalError("makeClassHandle requires ptr and ptrType");
           }
@@ -29806,7 +29816,7 @@ var require_web_ifc_mt = __commonJS({
           }
           record.count = { value: 1 };
           return attachFinalizer(Object.create(prototype, { $$: { value: record } }));
-        };
+        }
         function RegisteredPointer_fromWireType(ptr) {
           var rawPointer = this.getPointee(ptr);
           if (!rawPointer) {
@@ -29853,7 +29863,7 @@ var require_web_ifc_mt = __commonJS({
             return makeClassHandle(toType.registeredClass.instancePrototype, { ptrType: toType, ptr: dp });
           }
         }
-        var attachFinalizer = (handle) => {
+        var attachFinalizer = function(handle) {
           if ("undefined" === typeof FinalizationRegistry) {
             attachFinalizer = (handle2) => handle2;
             return handle;
@@ -29918,18 +29928,18 @@ var require_web_ifc_mt = __commonJS({
           this.$$.deleteScheduled = true;
           return this;
         }
-        var init_ClassHandle = () => {
+        function init_ClassHandle() {
           ClassHandle.prototype["isAliasOf"] = ClassHandle_isAliasOf;
           ClassHandle.prototype["clone"] = ClassHandle_clone;
           ClassHandle.prototype["delete"] = ClassHandle_delete;
           ClassHandle.prototype["isDeleted"] = ClassHandle_isDeleted;
           ClassHandle.prototype["deleteLater"] = ClassHandle_deleteLater;
-        };
+        }
         function ClassHandle() {
         }
         var char_0 = 48;
         var char_9 = 57;
-        var makeLegalFunctionName = (name) => {
+        function makeLegalFunctionName(name) {
           if (void 0 === name) {
             return "_unknown";
           }
@@ -29939,14 +29949,14 @@ var require_web_ifc_mt = __commonJS({
             return `_${name}`;
           }
           return name;
-        };
+        }
         function createNamedFunction(name, body) {
           name = makeLegalFunctionName(name);
           return { [name]: function() {
             return body.apply(this, arguments);
           } }[name];
         }
-        var ensureOverloadTable = (proto, methodName, humanName) => {
+        function ensureOverloadTable(proto, methodName, humanName) {
           if (void 0 === proto[methodName].overloadTable) {
             var prevFunc = proto[methodName];
             proto[methodName] = function() {
@@ -29958,8 +29968,8 @@ var require_web_ifc_mt = __commonJS({
             proto[methodName].overloadTable = [];
             proto[methodName].overloadTable[prevFunc.argCount] = prevFunc;
           }
-        };
-        var exposePublicSymbol = (name, value, numArguments) => {
+        }
+        function exposePublicSymbol(name, value, numArguments) {
           if (Module.hasOwnProperty(name)) {
             if (void 0 === numArguments || void 0 !== Module[name].overloadTable && void 0 !== Module[name].overloadTable[numArguments]) {
               throwBindingError(`Cannot register public name '${name}' twice`);
@@ -29975,7 +29985,7 @@ var require_web_ifc_mt = __commonJS({
               Module[name].numArguments = numArguments;
             }
           }
-        };
+        }
         function RegisteredClass(name, constructor, instancePrototype, rawDestructor, baseClass, getActualType, upcast, downcast) {
           this.name = name;
           this.constructor = constructor;
@@ -29987,7 +29997,7 @@ var require_web_ifc_mt = __commonJS({
           this.downcast = downcast;
           this.pureVirtualFunctions = [];
         }
-        var upcastPointer = (ptr, ptrClass, desiredClass) => {
+        function upcastPointer(ptr, ptrClass, desiredClass) {
           while (ptrClass !== desiredClass) {
             if (!ptrClass.upcast) {
               throwBindingError(`Expected null or instance of ${desiredClass.name}, got an instance of ${ptrClass.name}`);
@@ -29996,7 +30006,7 @@ var require_web_ifc_mt = __commonJS({
             ptrClass = ptrClass.baseClass;
           }
           return ptr;
-        };
+        }
         function constNoSmartPtrRawPointerToWireType(destructors, handle) {
           if (handle === null) {
             if (this.isReference) {
@@ -30061,7 +30071,9 @@ var require_web_ifc_mt = __commonJS({
                   ptr = handle.$$.smartPtr;
                 } else {
                   var clonedHandle = handle["clone"]();
-                  ptr = this.rawShare(ptr, Emval.toHandle(() => clonedHandle["delete"]()));
+                  ptr = this.rawShare(ptr, Emval.toHandle(function() {
+                    clonedHandle["delete"]();
+                  }));
                   if (destructors !== null) {
                     destructors.push(this.rawDestructor, ptr);
                   }
@@ -30093,9 +30105,6 @@ var require_web_ifc_mt = __commonJS({
           var ptr = upcastPointer(handle.$$.ptr, handleClass, this.registeredClass);
           return ptr;
         }
-        function readPointer(pointer) {
-          return this["fromWireType"](GROWABLE_HEAP_U32()[pointer >>> 2 >>> 0]);
-        }
         function RegisteredPointer_getPointee(ptr) {
           if (this.rawGetPointee) {
             ptr = this.rawGetPointee(ptr);
@@ -30107,19 +30116,19 @@ var require_web_ifc_mt = __commonJS({
             this.rawDestructor(ptr);
           }
         }
-        var RegisteredPointer_deleteObject = (handle) => {
+        function RegisteredPointer_deleteObject(handle) {
           if (handle !== null) {
             handle["delete"]();
           }
-        };
-        var init_RegisteredPointer = () => {
+        }
+        function init_RegisteredPointer() {
           RegisteredPointer.prototype.getPointee = RegisteredPointer_getPointee;
           RegisteredPointer.prototype.destructor = RegisteredPointer_destructor;
-          RegisteredPointer.prototype["argPackAdvance"] = GenericWireTypeSize;
-          RegisteredPointer.prototype["readValueFromPointer"] = readPointer;
+          RegisteredPointer.prototype["argPackAdvance"] = 8;
+          RegisteredPointer.prototype["readValueFromPointer"] = simpleReadValueFromPointer;
           RegisteredPointer.prototype["deleteObject"] = RegisteredPointer_deleteObject;
           RegisteredPointer.prototype["fromWireType"] = RegisteredPointer_fromWireType;
-        };
+        }
         function RegisteredPointer(name, registeredClass, isReference, isConst, isSmartPointer, pointeeType, sharingPolicy, rawGetPointee, rawConstructor, rawShare, rawDestructor) {
           this.name = name;
           this.registeredClass = registeredClass;
@@ -30144,7 +30153,7 @@ var require_web_ifc_mt = __commonJS({
             this["toWireType"] = genericPointerToWireType;
           }
         }
-        var replacePublicSymbol = (name, value, numArguments) => {
+        function replacePublicSymbol(name, value, numArguments) {
           if (!Module.hasOwnProperty(name)) {
             throwInternalError("Replacing nonexistant public symbol");
           }
@@ -30154,7 +30163,7 @@ var require_web_ifc_mt = __commonJS({
             Module[name] = value;
             Module[name].argCount = numArguments;
           }
-        };
+        }
         var dynCallLegacy = (sig, ptr, args) => {
           var f = Module["dynCall_" + sig];
           return args && args.length ? f.apply(null, [ptr].concat(args)) : f.call(null, ptr);
@@ -30174,7 +30183,7 @@ var require_web_ifc_mt = __commonJS({
             return dynCall(sig, ptr, argCache);
           };
         };
-        var embind__requireFunction = (signature, rawFunction) => {
+        function embind__requireFunction(signature, rawFunction) {
           signature = readLatin1String(signature);
           function makeDynCaller() {
             if (signature.includes("j")) {
@@ -30187,8 +30196,8 @@ var require_web_ifc_mt = __commonJS({
             throwBindingError(`unknown function pointer with signature ${signature}: ${rawFunction}`);
           }
           return fp;
-        };
-        var extendError = (baseErrorType, errorName) => {
+        }
+        function extendError(baseErrorType, errorName) {
           var errorClass = createNamedFunction(errorName, function(message) {
             this.name = errorName;
             this.message = message;
@@ -30207,15 +30216,15 @@ var require_web_ifc_mt = __commonJS({
             }
           };
           return errorClass;
-        };
+        }
         var UnboundTypeError = void 0;
-        var getTypeName = (type) => {
+        function getTypeName(type) {
           var ptr = ___getTypeName(type);
           var rv = readLatin1String(ptr);
           _free(ptr);
           return rv;
-        };
-        var throwUnboundTypeError = (message, types) => {
+        }
+        function throwUnboundTypeError(message, types) {
           var unboundTypes = [];
           var seen = {};
           function visit(type) {
@@ -30234,7 +30243,7 @@ var require_web_ifc_mt = __commonJS({
           }
           types.forEach(visit);
           throw new UnboundTypeError(`${message}: ` + unboundTypes.map(getTypeName).join([", "]));
-        };
+        }
         function __embind_register_class(rawType, rawPointerType, rawConstPointerType, baseClassRawType, getActualTypeSignature, getActualType, upcastSignature, upcast, downcastSignature, downcast, name, destructorSignature, rawDestructor) {
           rawType >>>= 0;
           rawPointerType >>>= 0;
@@ -30302,13 +30311,13 @@ var require_web_ifc_mt = __commonJS({
             return [referenceConverter, pointerConverter, constPointerConverter];
           });
         }
-        var heap32VectorToArray = (count, firstElement) => {
+        function heap32VectorToArray(count, firstElement) {
           var array = [];
           for (var i = 0; i < count; i++) {
-            array.push(GROWABLE_HEAP_U32()[firstElement + i * 4 >>> 2 >>> 0]);
+            array.push(GROWABLE_HEAP_U32()[firstElement + i * 4 >>> 2]);
           }
           return array;
-        };
+        }
         function newFunc(constructor, argumentList) {
           if (!(constructor instanceof Function)) {
             throw new TypeError(`new_ called with constructor type ${typeof constructor} which is not a function`);
@@ -30343,7 +30352,7 @@ var require_web_ifc_mt = __commonJS({
           var invokerFnBody = `
         return function ${makeLegalFunctionName(humanName)}(${argsList}) {
         if (arguments.length !== ${argCount - 2}) {
-          throwBindingError('function ${humanName} called with ' + arguments.length + ' arguments, expected ${argCount - 2}');
+          throwBindingError('function ${humanName} called with ${arguments.length} arguments, expected ${argCount - 2} args!');
         }`;
           if (needsDestructorStack) {
             invokerFnBody += "var destructors = [];\n";
@@ -30402,7 +30411,7 @@ var require_web_ifc_mt = __commonJS({
             classType.registeredClass.constructor_body[argCount - 1] = () => {
               throwUnboundTypeError(`Cannot construct ${classType.name} due to unbound types`, rawArgTypes);
             };
-            whenDependentTypesAreResolved([], rawArgTypes, (argTypes) => {
+            whenDependentTypesAreResolved([], rawArgTypes, function(argTypes) {
               argTypes.splice(1, 0, null);
               classType.registeredClass.constructor_body[argCount - 1] = craftInvokerFunction(humanName, argTypes, null, invoker, rawConstructor);
               return [];
@@ -30480,7 +30489,7 @@ var require_web_ifc_mt = __commonJS({
             emval_handles.free(handle);
           }
         }
-        var count_emval_handles = () => {
+        function count_emval_handles() {
           var count = 0;
           for (var i = emval_handles.reserved; i < emval_handles.allocated.length; ++i) {
             if (emval_handles.allocated[i] !== void 0) {
@@ -30488,12 +30497,12 @@ var require_web_ifc_mt = __commonJS({
             }
           }
           return count;
-        };
-        var init_emval = () => {
+        }
+        function init_emval() {
           emval_handles.allocated.push({ value: void 0 }, { value: null }, { value: true }, { value: false });
           emval_handles.reserved = emval_handles.allocated.length;
           Module["count_emval_handles"] = count_emval_handles;
-        };
+        }
         var Emval = { toValue: (handle) => {
           if (!handle) {
             throwBindingError("Cannot use deleted val. handle = " + handle);
@@ -30514,17 +30523,19 @@ var require_web_ifc_mt = __commonJS({
             }
           }
         } };
-        var __embind_register_emval = function(rawType, name) {
+        function __embind_register_emval(rawType, name) {
           rawType >>>= 0;
           name >>>= 0;
           name = readLatin1String(name);
-          registerType(rawType, { name, "fromWireType": (handle) => {
+          registerType(rawType, { name, "fromWireType": function(handle) {
             var rv = Emval.toValue(handle);
             __emval_decref(handle);
             return rv;
-          }, "toWireType": (destructors, value) => Emval.toHandle(value), "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: null });
-        };
-        var embindRepr = (v) => {
+          }, "toWireType": function(destructors, value) {
+            return Emval.toHandle(value);
+          }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: null });
+        }
+        function embindRepr(v) {
           if (v === null) {
             return "null";
           }
@@ -30534,28 +30545,33 @@ var require_web_ifc_mt = __commonJS({
           } else {
             return "" + v;
           }
-        };
-        var floatReadValueFromPointer = (name, width) => {
-          switch (width) {
-            case 4:
+        }
+        function floatReadValueFromPointer(name, shift) {
+          switch (shift) {
+            case 2:
               return function(pointer) {
-                return this["fromWireType"](GROWABLE_HEAP_F32()[pointer >>> 2 >>> 0]);
+                return this["fromWireType"](GROWABLE_HEAP_F32()[pointer >>> 2]);
               };
-            case 8:
+            case 3:
               return function(pointer) {
-                return this["fromWireType"](GROWABLE_HEAP_F64()[pointer >>> 3 >>> 0]);
+                return this["fromWireType"](GROWABLE_HEAP_F64()[pointer >>> 3]);
               };
             default:
-              throw new TypeError(`invalid float width (${width}): ${name}`);
+              throw new TypeError("Unknown float type: " + name);
           }
-        };
-        var __embind_register_float = function(rawType, name, size) {
+        }
+        function __embind_register_float(rawType, name, size) {
           rawType >>>= 0;
           name >>>= 0;
           size >>>= 0;
+          var shift = getShiftFromSize(size);
           name = readLatin1String(name);
-          registerType(rawType, { name, "fromWireType": (value) => value, "toWireType": (destructors, value) => value, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": floatReadValueFromPointer(name, size), destructorFunction: null });
-        };
+          registerType(rawType, { name, "fromWireType": function(value) {
+            return value;
+          }, "toWireType": function(destructors, value) {
+            return value;
+          }, "argPackAdvance": 8, "readValueFromPointer": floatReadValueFromPointer(name, shift), destructorFunction: null });
+        }
         function __embind_register_function(name, argCount, rawArgTypesAddr, signature, rawInvoker, fn, isAsync) {
           name >>>= 0;
           rawArgTypesAddr >>>= 0;
@@ -30574,23 +30590,36 @@ var require_web_ifc_mt = __commonJS({
             return [];
           });
         }
-        var integerReadValueFromPointer = (name, width, signed) => {
-          switch (width) {
+        function integerReadValueFromPointer(name, shift, signed) {
+          switch (shift) {
+            case 0:
+              return signed ? function readS8FromPointer(pointer) {
+                return GROWABLE_HEAP_I8()[pointer >>> 0];
+              } : function readU8FromPointer(pointer) {
+                return GROWABLE_HEAP_U8()[pointer >>> 0];
+              };
             case 1:
-              return signed ? (pointer) => GROWABLE_HEAP_I8()[pointer >>> 0 >>> 0] : (pointer) => GROWABLE_HEAP_U8()[pointer >>> 0 >>> 0];
+              return signed ? function readS16FromPointer(pointer) {
+                return GROWABLE_HEAP_I16()[pointer >>> 1];
+              } : function readU16FromPointer(pointer) {
+                return GROWABLE_HEAP_U16()[pointer >>> 1];
+              };
             case 2:
-              return signed ? (pointer) => GROWABLE_HEAP_I16()[pointer >>> 1 >>> 0] : (pointer) => GROWABLE_HEAP_U16()[pointer >>> 1 >>> 0];
-            case 4:
-              return signed ? (pointer) => GROWABLE_HEAP_I32()[pointer >>> 2 >>> 0] : (pointer) => GROWABLE_HEAP_U32()[pointer >>> 2 >>> 0];
+              return signed ? function readS32FromPointer(pointer) {
+                return GROWABLE_HEAP_I32()[pointer >>> 2];
+              } : function readU32FromPointer(pointer) {
+                return GROWABLE_HEAP_U32()[pointer >>> 2];
+              };
             default:
-              throw new TypeError(`invalid integer width (${width}): ${name}`);
+              throw new TypeError("Unknown integer type: " + name);
           }
-        };
+        }
         function __embind_register_integer(primitiveType, name, size, minRange, maxRange) {
           primitiveType >>>= 0;
           name >>>= 0;
           size >>>= 0;
           name = readLatin1String(name);
+          var shift = getShiftFromSize(size);
           var fromWireType = (value) => value;
           if (minRange === 0) {
             var bitshift = 32 - 8 * size;
@@ -30611,7 +30640,7 @@ var require_web_ifc_mt = __commonJS({
               return value;
             };
           }
-          registerType(primitiveType, { name, "fromWireType": fromWireType, "toWireType": toWireType, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": integerReadValueFromPointer(name, size, minRange !== 0), destructorFunction: null });
+          registerType(primitiveType, { name, "fromWireType": fromWireType, "toWireType": toWireType, "argPackAdvance": 8, "readValueFromPointer": integerReadValueFromPointer(name, shift, minRange !== 0), destructorFunction: null });
         }
         function __embind_register_memory_view(rawType, dataTypeIndex, name) {
           rawType >>>= 0;
@@ -30619,21 +30648,23 @@ var require_web_ifc_mt = __commonJS({
           var typeMapping = [Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array];
           var TA = typeMapping[dataTypeIndex];
           function decodeMemoryView(handle) {
-            var size = GROWABLE_HEAP_U32()[handle >>> 2 >>> 0];
-            var data = GROWABLE_HEAP_U32()[handle + 4 >>> 2 >>> 0];
-            return new TA(GROWABLE_HEAP_I8().buffer, data, size);
+            handle = handle >> 2;
+            var heap = GROWABLE_HEAP_U32();
+            var size = heap[handle >>> 0];
+            var data = heap[handle + 1 >>> 0];
+            return new TA(heap.buffer, data, size);
           }
           name = readLatin1String(name);
-          registerType(rawType, { name, "fromWireType": decodeMemoryView, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": decodeMemoryView }, { ignoreDuplicateRegistrations: true });
+          registerType(rawType, { name, "fromWireType": decodeMemoryView, "argPackAdvance": 8, "readValueFromPointer": decodeMemoryView }, { ignoreDuplicateRegistrations: true });
         }
         var stringToUTF8 = (str, outPtr, maxBytesToWrite) => stringToUTF8Array(str, GROWABLE_HEAP_U8(), outPtr, maxBytesToWrite);
-        var __embind_register_std_string = function(rawType, name) {
+        function __embind_register_std_string(rawType, name) {
           rawType >>>= 0;
           name >>>= 0;
           name = readLatin1String(name);
           var stdStringIsUTF8 = name === "std::string";
-          registerType(rawType, { name, "fromWireType": (value) => {
-            var length = GROWABLE_HEAP_U32()[value >>> 2 >>> 0];
+          registerType(rawType, { name, "fromWireType": function(value) {
+            var length = GROWABLE_HEAP_U32()[value >>> 2];
             var payload = value + 4;
             var str;
             if (stdStringIsUTF8) {
@@ -30661,7 +30692,7 @@ var require_web_ifc_mt = __commonJS({
             }
             _free(value);
             return str;
-          }, "toWireType": (destructors, value) => {
+          }, "toWireType": function(destructors, value) {
             if (value instanceof ArrayBuffer) {
               value = new Uint8Array(value);
             }
@@ -30677,7 +30708,7 @@ var require_web_ifc_mt = __commonJS({
             }
             var base = _malloc(4 + length + 1);
             var ptr = base + 4;
-            GROWABLE_HEAP_U32()[base >>> 2 >>> 0] = length;
+            GROWABLE_HEAP_U32()[base >>> 2] = length;
             if (stdStringIsUTF8 && valueIsOfTypeString) {
               stringToUTF8(value, ptr, length + 1);
             } else {
@@ -30700,8 +30731,10 @@ var require_web_ifc_mt = __commonJS({
               destructors.push(_free, base);
             }
             return base;
-          }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": readPointer, destructorFunction: (ptr) => _free(ptr) });
-        };
+          }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: function(ptr) {
+            _free(ptr);
+          } });
+        }
         var UTF16Decoder = typeof TextDecoder != "undefined" ? new TextDecoder("utf-16le") : void 0;
         var UTF16ToString = (ptr, maxBytesToRead) => {
           var endPtr = ptr;
@@ -30714,7 +30747,7 @@ var require_web_ifc_mt = __commonJS({
             return UTF16Decoder.decode(GROWABLE_HEAP_U8().slice(ptr, endPtr));
           var str = "";
           for (var i = 0; !(i >= maxBytesToRead / 2); ++i) {
-            var codeUnit = GROWABLE_HEAP_I16()[ptr + i * 2 >>> 1 >>> 0];
+            var codeUnit = GROWABLE_HEAP_I16()[ptr + i * 2 >>> 1];
             if (codeUnit == 0)
               break;
             str += String.fromCharCode(codeUnit);
@@ -30732,10 +30765,10 @@ var require_web_ifc_mt = __commonJS({
           var numCharsToWrite = maxBytesToWrite < str.length * 2 ? maxBytesToWrite / 2 : str.length;
           for (var i = 0; i < numCharsToWrite; ++i) {
             var codeUnit = str.charCodeAt(i);
-            GROWABLE_HEAP_I16()[outPtr >>> 1 >>> 0] = codeUnit;
+            GROWABLE_HEAP_I16()[outPtr >>> 1] = codeUnit;
             outPtr += 2;
           }
-          GROWABLE_HEAP_I16()[outPtr >>> 1 >>> 0] = 0;
+          GROWABLE_HEAP_I16()[outPtr >>> 1] = 0;
           return outPtr - startPtr;
         };
         var lengthBytesUTF16 = (str) => str.length * 2;
@@ -30743,7 +30776,7 @@ var require_web_ifc_mt = __commonJS({
           var i = 0;
           var str = "";
           while (!(i >= maxBytesToRead / 4)) {
-            var utf32 = GROWABLE_HEAP_I32()[ptr + i * 4 >>> 2 >>> 0];
+            var utf32 = GROWABLE_HEAP_I32()[ptr + i * 4 >>> 2];
             if (utf32 == 0)
               break;
             ++i;
@@ -30771,12 +30804,12 @@ var require_web_ifc_mt = __commonJS({
               var trailSurrogate = str.charCodeAt(++i);
               codeUnit = 65536 + ((codeUnit & 1023) << 10) | trailSurrogate & 1023;
             }
-            GROWABLE_HEAP_I32()[outPtr >>> 2 >>> 0] = codeUnit;
+            GROWABLE_HEAP_I32()[outPtr >>> 2] = codeUnit;
             outPtr += 4;
             if (outPtr + 4 > endPtr)
               break;
           }
-          GROWABLE_HEAP_I32()[outPtr >>> 2 >>> 0] = 0;
+          GROWABLE_HEAP_I32()[outPtr >>> 2] = 0;
           return outPtr - startPtr;
         };
         var lengthBytesUTF32 = (str) => {
@@ -30808,8 +30841,8 @@ var require_web_ifc_mt = __commonJS({
             getHeap = () => GROWABLE_HEAP_U32();
             shift = 2;
           }
-          registerType(rawType, { name, "fromWireType": (value) => {
-            var length = GROWABLE_HEAP_U32()[value >>> 2 >>> 0];
+          registerType(rawType, { name, "fromWireType": function(value) {
+            var length = GROWABLE_HEAP_U32()[value >>> 2];
             var HEAP = getHeap();
             var str;
             var decodeStartPtr = value + 4;
@@ -30829,7 +30862,7 @@ var require_web_ifc_mt = __commonJS({
             }
             _free(value);
             return str;
-          }, "toWireType": (destructors, value) => {
+          }, "toWireType": function(destructors, value) {
             if (!(typeof value == "string")) {
               throwBindingError(`Cannot pass non-string to C++ string type ${name}`);
             }
@@ -30841,7 +30874,9 @@ var require_web_ifc_mt = __commonJS({
               destructors.push(_free, ptr);
             }
             return ptr;
-          }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: (ptr) => _free(ptr) });
+          }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: function(ptr) {
+            _free(ptr);
+          } });
         };
         function __embind_register_value_array(rawType, name, constructorSignature, rawConstructor, destructorSignature, rawDestructor) {
           rawType >>>= 0;
@@ -30886,12 +30921,16 @@ var require_web_ifc_mt = __commonJS({
           setterContext >>>= 0;
           structRegistrations[structType].fields.push({ fieldName: readLatin1String(fieldName), getterReturnType, getter: embind__requireFunction(getterSignature, getter), getterContext, setterArgumentType, setter: embind__requireFunction(setterSignature, setter), setterContext });
         }
-        var __embind_register_void = function(rawType, name) {
+        function __embind_register_void(rawType, name) {
           rawType >>>= 0;
           name >>>= 0;
           name = readLatin1String(name);
-          registerType(rawType, { isVoid: true, name, "argPackAdvance": 0, "fromWireType": () => void 0, "toWireType": (destructors, o) => void 0 });
-        };
+          registerType(rawType, { isVoid: true, name, "argPackAdvance": 0, "fromWireType": function() {
+            return void 0;
+          }, "toWireType": function(destructors, o) {
+            return void 0;
+          } });
+        }
         var nowIsMonotonic = true;
         var __emscripten_get_now_is_monotonic = () => nowIsMonotonic;
         var maybeExit = () => {
@@ -30927,7 +30966,7 @@ var require_web_ifc_mt = __commonJS({
           }
         }
         Module["__emscripten_thread_mailbox_await"] = __emscripten_thread_mailbox_await;
-        var checkMailbox = () => {
+        var checkMailbox = function() {
           var pthread_ptr = _pthread_self();
           if (pthread_ptr) {
             __emscripten_thread_mailbox_await(pthread_ptr);
@@ -30950,50 +30989,18 @@ var require_web_ifc_mt = __commonJS({
             worker.postMessage({ "cmd": "checkMailbox" });
           }
         };
-        var withStackSave = (f) => {
-          var stack = stackSave();
-          var ret = f();
-          stackRestore(stack);
-          return ret;
-        };
-        var proxyToMainThread = function(index, sync) {
-          var numCallArgs = arguments.length - 2;
-          var outerArgs = arguments;
-          return withStackSave(() => {
-            var serializedNumCallArgs = numCallArgs;
-            var args = stackAlloc(serializedNumCallArgs * 8);
-            var b = args >> 3;
-            for (var i = 0; i < numCallArgs; i++) {
-              var arg = outerArgs[2 + i];
-              GROWABLE_HEAP_F64()[b + i >>> 0] = arg;
-            }
-            return __emscripten_run_on_main_thread_js(index, serializedNumCallArgs, args, sync);
-          });
-        };
-        var proxiedJSCallArgs = [];
-        function __emscripten_receive_on_main_thread_js(index, callingThread, numCallArgs, args) {
-          callingThread >>>= 0;
-          args >>>= 0;
-          proxiedJSCallArgs.length = numCallArgs;
-          var b = args >> 3;
-          for (var i = 0; i < numCallArgs; i++) {
-            proxiedJSCallArgs[i] = GROWABLE_HEAP_F64()[b + i >>> 0];
-          }
-          var func = proxiedFunctionTable[index];
-          PThread.currentProxiedOperationCallerThread = callingThread;
-          var rtn = func.apply(null, proxiedJSCallArgs);
-          PThread.currentProxiedOperationCallerThread = 0;
-          return rtn;
+        function __emscripten_set_offscreencanvas_size(target, width, height) {
+          return -1;
         }
         function __emscripten_thread_set_strongref(thread) {
         }
-        var requireRegisteredType = (rawType, humanName) => {
+        function requireRegisteredType(rawType, humanName) {
           var impl = registeredTypes[rawType];
           if (void 0 === impl) {
             throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
           }
           return impl;
-        };
+        }
         function __emval_as(handle, returnType, destructorsRef) {
           handle >>>= 0;
           returnType >>>= 0;
@@ -31002,16 +31009,16 @@ var require_web_ifc_mt = __commonJS({
           returnType = requireRegisteredType(returnType, "emval::as");
           var destructors = [];
           var rd = Emval.toHandle(destructors);
-          GROWABLE_HEAP_U32()[destructorsRef >>> 2 >>> 0] = rd;
+          GROWABLE_HEAP_U32()[destructorsRef >>> 2] = rd;
           return returnType["toWireType"](destructors, handle);
         }
-        var emval_lookupTypes = (argCount, argTypes) => {
+        function emval_lookupTypes(argCount, argTypes) {
           var a = new Array(argCount);
           for (var i = 0; i < argCount; ++i) {
-            a[i] = requireRegisteredType(GROWABLE_HEAP_U32()[argTypes + i * 4 >>> 2 >>> 0], "parameter " + i);
+            a[i] = requireRegisteredType(GROWABLE_HEAP_U32()[argTypes + i * 4 >>> 2], "parameter " + i);
           }
           return a;
-        };
+        }
         function __emval_call(handle, argCount, argTypes, argv) {
           handle >>>= 0;
           argTypes >>>= 0;
@@ -31028,21 +31035,21 @@ var require_web_ifc_mt = __commonJS({
           return Emval.toHandle(rv);
         }
         var emval_symbols = {};
-        var getStringOrSymbol = (address) => {
+        function getStringOrSymbol(address) {
           var symbol = emval_symbols[address];
           if (symbol === void 0) {
             return readLatin1String(address);
           }
           return symbol;
-        };
-        var emval_get_global = () => {
+        }
+        function emval_get_global() {
           if (typeof globalThis == "object") {
             return globalThis;
           }
           return (/* @__PURE__ */ function() {
             return Function;
           }())("return this")();
-        };
+        }
         function __emval_get_global(name) {
           name >>>= 0;
           if (name === 0) {
@@ -31118,16 +31125,16 @@ var require_web_ifc_mt = __commonJS({
           var time = convertI32PairToI53Checked(time_low, time_high);
           tmPtr >>>= 0;
           var date = new Date(time * 1e3);
-          GROWABLE_HEAP_I32()[tmPtr >>> 2 >>> 0] = date.getUTCSeconds();
-          GROWABLE_HEAP_I32()[tmPtr + 4 >>> 2 >>> 0] = date.getUTCMinutes();
-          GROWABLE_HEAP_I32()[tmPtr + 8 >>> 2 >>> 0] = date.getUTCHours();
-          GROWABLE_HEAP_I32()[tmPtr + 12 >>> 2 >>> 0] = date.getUTCDate();
-          GROWABLE_HEAP_I32()[tmPtr + 16 >>> 2 >>> 0] = date.getUTCMonth();
-          GROWABLE_HEAP_I32()[tmPtr + 20 >>> 2 >>> 0] = date.getUTCFullYear() - 1900;
-          GROWABLE_HEAP_I32()[tmPtr + 24 >>> 2 >>> 0] = date.getUTCDay();
+          GROWABLE_HEAP_I32()[tmPtr >>> 2] = date.getUTCSeconds();
+          GROWABLE_HEAP_I32()[tmPtr + 4 >>> 2] = date.getUTCMinutes();
+          GROWABLE_HEAP_I32()[tmPtr + 8 >>> 2] = date.getUTCHours();
+          GROWABLE_HEAP_I32()[tmPtr + 12 >>> 2] = date.getUTCDate();
+          GROWABLE_HEAP_I32()[tmPtr + 16 >>> 2] = date.getUTCMonth();
+          GROWABLE_HEAP_I32()[tmPtr + 20 >>> 2] = date.getUTCFullYear() - 1900;
+          GROWABLE_HEAP_I32()[tmPtr + 24 >>> 2] = date.getUTCDay();
           var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
           var yday = (date.getTime() - start) / (1e3 * 60 * 60 * 24) | 0;
-          GROWABLE_HEAP_I32()[tmPtr + 28 >>> 2 >>> 0] = yday;
+          GROWABLE_HEAP_I32()[tmPtr + 28 >>> 2] = yday;
         }
         var isLeapYear = (year) => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
         var MONTH_DAYS_LEAP_CUMULATIVE = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
@@ -31142,21 +31149,21 @@ var require_web_ifc_mt = __commonJS({
           var time = convertI32PairToI53Checked(time_low, time_high);
           tmPtr >>>= 0;
           var date = new Date(time * 1e3);
-          GROWABLE_HEAP_I32()[tmPtr >>> 2 >>> 0] = date.getSeconds();
-          GROWABLE_HEAP_I32()[tmPtr + 4 >>> 2 >>> 0] = date.getMinutes();
-          GROWABLE_HEAP_I32()[tmPtr + 8 >>> 2 >>> 0] = date.getHours();
-          GROWABLE_HEAP_I32()[tmPtr + 12 >>> 2 >>> 0] = date.getDate();
-          GROWABLE_HEAP_I32()[tmPtr + 16 >>> 2 >>> 0] = date.getMonth();
-          GROWABLE_HEAP_I32()[tmPtr + 20 >>> 2 >>> 0] = date.getFullYear() - 1900;
-          GROWABLE_HEAP_I32()[tmPtr + 24 >>> 2 >>> 0] = date.getDay();
+          GROWABLE_HEAP_I32()[tmPtr >>> 2] = date.getSeconds();
+          GROWABLE_HEAP_I32()[tmPtr + 4 >>> 2] = date.getMinutes();
+          GROWABLE_HEAP_I32()[tmPtr + 8 >>> 2] = date.getHours();
+          GROWABLE_HEAP_I32()[tmPtr + 12 >>> 2] = date.getDate();
+          GROWABLE_HEAP_I32()[tmPtr + 16 >>> 2] = date.getMonth();
+          GROWABLE_HEAP_I32()[tmPtr + 20 >>> 2] = date.getFullYear() - 1900;
+          GROWABLE_HEAP_I32()[tmPtr + 24 >>> 2] = date.getDay();
           var yday = ydayFromDate(date) | 0;
-          GROWABLE_HEAP_I32()[tmPtr + 28 >>> 2 >>> 0] = yday;
-          GROWABLE_HEAP_I32()[tmPtr + 36 >>> 2 >>> 0] = -(date.getTimezoneOffset() * 60);
+          GROWABLE_HEAP_I32()[tmPtr + 28 >>> 2] = yday;
+          GROWABLE_HEAP_I32()[tmPtr + 36 >>> 2] = -(date.getTimezoneOffset() * 60);
           var start = new Date(date.getFullYear(), 0, 1);
           var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
           var winterOffset = start.getTimezoneOffset();
           var dst = (summerOffset != winterOffset && date.getTimezoneOffset() == Math.min(winterOffset, summerOffset)) | 0;
-          GROWABLE_HEAP_I32()[tmPtr + 32 >>> 2 >>> 0] = dst;
+          GROWABLE_HEAP_I32()[tmPtr + 32 >>> 2] = dst;
         }
         var stringToNewUTF8 = (str) => {
           var size = lengthBytesUTF8(str) + 1;
@@ -31175,8 +31182,8 @@ var require_web_ifc_mt = __commonJS({
           var winterOffset = winter.getTimezoneOffset();
           var summerOffset = summer.getTimezoneOffset();
           var stdTimezoneOffset = Math.max(winterOffset, summerOffset);
-          GROWABLE_HEAP_U32()[timezone >>> 2 >>> 0] = stdTimezoneOffset * 60;
-          GROWABLE_HEAP_I32()[daylight >>> 2 >>> 0] = Number(winterOffset != summerOffset);
+          GROWABLE_HEAP_U32()[timezone >>> 2] = stdTimezoneOffset * 60;
+          GROWABLE_HEAP_I32()[daylight >>> 2] = Number(winterOffset != summerOffset);
           function extractZone(date) {
             var match = date.toTimeString().match(/\(([A-Za-z ]+)\)$/);
             return match ? match[1] : "GMT";
@@ -31186,19 +31193,21 @@ var require_web_ifc_mt = __commonJS({
           var winterNamePtr = stringToNewUTF8(winterName);
           var summerNamePtr = stringToNewUTF8(summerName);
           if (summerOffset < winterOffset) {
-            GROWABLE_HEAP_U32()[tzname >>> 2 >>> 0] = winterNamePtr;
-            GROWABLE_HEAP_U32()[tzname + 4 >>> 2 >>> 0] = summerNamePtr;
+            GROWABLE_HEAP_U32()[tzname >>> 2] = winterNamePtr;
+            GROWABLE_HEAP_U32()[tzname + 4 >>> 2] = summerNamePtr;
           } else {
-            GROWABLE_HEAP_U32()[tzname >>> 2 >>> 0] = summerNamePtr;
-            GROWABLE_HEAP_U32()[tzname + 4 >>> 2 >>> 0] = winterNamePtr;
+            GROWABLE_HEAP_U32()[tzname >>> 2] = summerNamePtr;
+            GROWABLE_HEAP_U32()[tzname + 4 >>> 2] = winterNamePtr;
           }
         }
         var _abort = () => {
           abort("");
         };
-        var _emscripten_check_blocking_allowed = () => {
-        };
-        var _emscripten_date_now = () => Date.now();
+        function _emscripten_check_blocking_allowed() {
+        }
+        function _emscripten_date_now() {
+          return Date.now();
+        }
         var runtimeKeepalivePush = () => {
           runtimeKeepaliveCounter += 1;
         };
@@ -31208,10 +31217,43 @@ var require_web_ifc_mt = __commonJS({
         };
         var _emscripten_get_now;
         _emscripten_get_now = () => performance.timeOrigin + performance.now();
+        var withStackSave = (f) => {
+          var stack = stackSave();
+          var ret = f();
+          stackRestore(stack);
+          return ret;
+        };
+        var proxyToMainThread = function(index, sync) {
+          var numCallArgs = arguments.length - 2;
+          var outerArgs = arguments;
+          return withStackSave(() => {
+            var serializedNumCallArgs = numCallArgs;
+            var args = stackAlloc(serializedNumCallArgs * 8);
+            var b = args >> 3;
+            for (var i = 0; i < numCallArgs; i++) {
+              var arg = outerArgs[2 + i];
+              GROWABLE_HEAP_F64()[b + i >>> 0] = arg;
+            }
+            return __emscripten_run_in_main_runtime_thread_js(index, serializedNumCallArgs, args, sync);
+          });
+        };
+        var emscripten_receive_on_main_thread_js_callArgs = [];
+        function _emscripten_receive_on_main_thread_js(index, callingThread, numCallArgs, args) {
+          callingThread >>>= 0;
+          args >>>= 0;
+          PThread.currentProxiedOperationCallerThread = callingThread;
+          emscripten_receive_on_main_thread_js_callArgs.length = numCallArgs;
+          var b = args >> 3;
+          for (var i = 0; i < numCallArgs; i++) {
+            emscripten_receive_on_main_thread_js_callArgs[i] = GROWABLE_HEAP_F64()[b + i >>> 0];
+          }
+          var func = proxiedFunctionTable[index];
+          return func.apply(null, emscripten_receive_on_main_thread_js_callArgs);
+        }
         var getHeapMax = () => 4294901760;
         var growMemory = (size) => {
           var b = wasmMemory.buffer;
-          var pages = (size - b.byteLength + 65535) / 65536;
+          var pages = size - b.byteLength + 65535 >>> 16;
           try {
             wasmMemory.grow(pages);
             updateMemoryViews();
@@ -31263,39 +31305,41 @@ var require_web_ifc_mt = __commonJS({
         };
         var stringToAscii = (str, buffer) => {
           for (var i = 0; i < str.length; ++i) {
-            GROWABLE_HEAP_I8()[buffer++ >>> 0 >>> 0] = str.charCodeAt(i);
+            GROWABLE_HEAP_I8()[buffer++ >>> 0] = str.charCodeAt(i);
           }
-          GROWABLE_HEAP_I8()[buffer >>> 0 >>> 0] = 0;
+          GROWABLE_HEAP_I8()[buffer >>> 0] = 0;
         };
-        var _environ_get = function(__environ, environ_buf) {
+        function _environ_get(__environ, environ_buf) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(2, 1, __environ, environ_buf);
+            return proxyToMainThread(3, 1, __environ, environ_buf);
           __environ >>>= 0;
           environ_buf >>>= 0;
           var bufSize = 0;
-          getEnvStrings().forEach((string, i) => {
+          getEnvStrings().forEach(function(string, i) {
             var ptr = environ_buf + bufSize;
-            GROWABLE_HEAP_U32()[__environ + i * 4 >>> 2 >>> 0] = ptr;
+            GROWABLE_HEAP_U32()[__environ + i * 4 >>> 2] = ptr;
             stringToAscii(string, ptr);
             bufSize += string.length + 1;
           });
           return 0;
-        };
-        var _environ_sizes_get = function(penviron_count, penviron_buf_size) {
+        }
+        function _environ_sizes_get(penviron_count, penviron_buf_size) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(3, 1, penviron_count, penviron_buf_size);
+            return proxyToMainThread(4, 1, penviron_count, penviron_buf_size);
           penviron_count >>>= 0;
           penviron_buf_size >>>= 0;
           var strings = getEnvStrings();
-          GROWABLE_HEAP_U32()[penviron_count >>> 2 >>> 0] = strings.length;
+          GROWABLE_HEAP_U32()[penviron_count >>> 2] = strings.length;
           var bufSize = 0;
-          strings.forEach((string) => bufSize += string.length + 1);
-          GROWABLE_HEAP_U32()[penviron_buf_size >>> 2 >>> 0] = bufSize;
+          strings.forEach(function(string) {
+            bufSize += string.length + 1;
+          });
+          GROWABLE_HEAP_U32()[penviron_buf_size >>> 2] = bufSize;
           return 0;
-        };
+        }
         function _fd_close(fd) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(4, 1, fd);
+            return proxyToMainThread(5, 1, fd);
           try {
             var stream = SYSCALLS.getStreamFromFD(fd);
             FS.close(stream);
@@ -31308,7 +31352,7 @@ var require_web_ifc_mt = __commonJS({
         }
         function _fd_fdstat_get(fd, pbuf) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(5, 1, fd, pbuf);
+            return proxyToMainThread(6, 1, fd, pbuf);
           pbuf >>>= 0;
           try {
             var rightsBase = 0;
@@ -31318,10 +31362,10 @@ var require_web_ifc_mt = __commonJS({
               var stream = SYSCALLS.getStreamFromFD(fd);
               var type = stream.tty ? 2 : FS.isDir(stream.mode) ? 3 : FS.isLink(stream.mode) ? 7 : 4;
             }
-            GROWABLE_HEAP_I8()[pbuf >>> 0 >>> 0] = type;
-            GROWABLE_HEAP_I16()[pbuf + 2 >>> 1 >>> 0] = flags;
-            tempI64 = [rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[pbuf + 8 >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[pbuf + 12 >>> 2 >>> 0] = tempI64[1];
-            tempI64 = [rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[pbuf + 16 >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[pbuf + 20 >>> 2 >>> 0] = tempI64[1];
+            GROWABLE_HEAP_I8()[pbuf >>> 0] = type;
+            GROWABLE_HEAP_I16()[pbuf + 2 >>> 1] = flags;
+            tempI64 = [rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[pbuf + 8 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[pbuf + 12 >>> 2] = tempI64[1];
+            tempI64 = [rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[pbuf + 16 >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[pbuf + 20 >>> 2] = tempI64[1];
             return 0;
           } catch (e) {
             if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
@@ -31332,8 +31376,8 @@ var require_web_ifc_mt = __commonJS({
         var doReadv = (stream, iov, iovcnt, offset) => {
           var ret = 0;
           for (var i = 0; i < iovcnt; i++) {
-            var ptr = GROWABLE_HEAP_U32()[iov >>> 2 >>> 0];
-            var len = GROWABLE_HEAP_U32()[iov + 4 >>> 2 >>> 0];
+            var ptr = GROWABLE_HEAP_U32()[iov >>> 2];
+            var len = GROWABLE_HEAP_U32()[iov + 4 >>> 2];
             iov += 8;
             var curr = FS.read(stream, GROWABLE_HEAP_I8(), ptr, len, offset);
             if (curr < 0)
@@ -31349,14 +31393,14 @@ var require_web_ifc_mt = __commonJS({
         };
         function _fd_read(fd, iov, iovcnt, pnum) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(6, 1, fd, iov, iovcnt, pnum);
+            return proxyToMainThread(7, 1, fd, iov, iovcnt, pnum);
           iov >>>= 0;
           iovcnt >>>= 0;
           pnum >>>= 0;
           try {
             var stream = SYSCALLS.getStreamFromFD(fd);
             var num = doReadv(stream, iov, iovcnt);
-            GROWABLE_HEAP_U32()[pnum >>> 2 >>> 0] = num;
+            GROWABLE_HEAP_U32()[pnum >>> 2] = num;
             return 0;
           } catch (e) {
             if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
@@ -31366,7 +31410,7 @@ var require_web_ifc_mt = __commonJS({
         }
         function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(7, 1, fd, offset_low, offset_high, whence, newOffset);
+            return proxyToMainThread(8, 1, fd, offset_low, offset_high, whence, newOffset);
           var offset = convertI32PairToI53Checked(offset_low, offset_high);
           newOffset >>>= 0;
           try {
@@ -31374,7 +31418,7 @@ var require_web_ifc_mt = __commonJS({
               return 61;
             var stream = SYSCALLS.getStreamFromFD(fd);
             FS.llseek(stream, offset, whence);
-            tempI64 = [stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[newOffset >>> 2 >>> 0] = tempI64[0], GROWABLE_HEAP_I32()[newOffset + 4 >>> 2 >>> 0] = tempI64[1];
+            tempI64 = [stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], GROWABLE_HEAP_I32()[newOffset >>> 2] = tempI64[0], GROWABLE_HEAP_I32()[newOffset + 4 >>> 2] = tempI64[1];
             if (stream.getdents && offset === 0 && whence === 0)
               stream.getdents = null;
             return 0;
@@ -31387,8 +31431,8 @@ var require_web_ifc_mt = __commonJS({
         var doWritev = (stream, iov, iovcnt, offset) => {
           var ret = 0;
           for (var i = 0; i < iovcnt; i++) {
-            var ptr = GROWABLE_HEAP_U32()[iov >>> 2 >>> 0];
-            var len = GROWABLE_HEAP_U32()[iov + 4 >>> 2 >>> 0];
+            var ptr = GROWABLE_HEAP_U32()[iov >>> 2];
+            var len = GROWABLE_HEAP_U32()[iov + 4 >>> 2];
             iov += 8;
             var curr = FS.write(stream, GROWABLE_HEAP_I8(), ptr, len, offset);
             if (curr < 0)
@@ -31402,14 +31446,14 @@ var require_web_ifc_mt = __commonJS({
         };
         function _fd_write(fd, iov, iovcnt, pnum) {
           if (ENVIRONMENT_IS_PTHREAD)
-            return proxyToMainThread(8, 1, fd, iov, iovcnt, pnum);
+            return proxyToMainThread(9, 1, fd, iov, iovcnt, pnum);
           iov >>>= 0;
           iovcnt >>>= 0;
           pnum >>>= 0;
           try {
             var stream = SYSCALLS.getStreamFromFD(fd);
             var num = doWritev(stream, iov, iovcnt);
-            GROWABLE_HEAP_U32()[pnum >>> 2 >>> 0] = num;
+            GROWABLE_HEAP_U32()[pnum >>> 2] = num;
             return 0;
           } catch (e) {
             if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
@@ -31455,8 +31499,8 @@ var require_web_ifc_mt = __commonJS({
           maxsize >>>= 0;
           format >>>= 0;
           tm >>>= 0;
-          var tm_zone = GROWABLE_HEAP_U32()[tm + 40 >>> 2 >>> 0];
-          var date = { tm_sec: GROWABLE_HEAP_I32()[tm >>> 2 >>> 0], tm_min: GROWABLE_HEAP_I32()[tm + 4 >>> 2 >>> 0], tm_hour: GROWABLE_HEAP_I32()[tm + 8 >>> 2 >>> 0], tm_mday: GROWABLE_HEAP_I32()[tm + 12 >>> 2 >>> 0], tm_mon: GROWABLE_HEAP_I32()[tm + 16 >>> 2 >>> 0], tm_year: GROWABLE_HEAP_I32()[tm + 20 >>> 2 >>> 0], tm_wday: GROWABLE_HEAP_I32()[tm + 24 >>> 2 >>> 0], tm_yday: GROWABLE_HEAP_I32()[tm + 28 >>> 2 >>> 0], tm_isdst: GROWABLE_HEAP_I32()[tm + 32 >>> 2 >>> 0], tm_gmtoff: GROWABLE_HEAP_I32()[tm + 36 >>> 2 >>> 0], tm_zone: tm_zone ? UTF8ToString(tm_zone) : "" };
+          var tm_zone = GROWABLE_HEAP_I32()[tm + 40 >>> 2];
+          var date = { tm_sec: GROWABLE_HEAP_I32()[tm >>> 2], tm_min: GROWABLE_HEAP_I32()[tm + 4 >>> 2], tm_hour: GROWABLE_HEAP_I32()[tm + 8 >>> 2], tm_mday: GROWABLE_HEAP_I32()[tm + 12 >>> 2], tm_mon: GROWABLE_HEAP_I32()[tm + 16 >>> 2], tm_year: GROWABLE_HEAP_I32()[tm + 20 >>> 2], tm_wday: GROWABLE_HEAP_I32()[tm + 24 >>> 2], tm_yday: GROWABLE_HEAP_I32()[tm + 28 >>> 2], tm_isdst: GROWABLE_HEAP_I32()[tm + 32 >>> 2], tm_gmtoff: GROWABLE_HEAP_I32()[tm + 36 >>> 2], tm_zone: tm_zone ? UTF8ToString(tm_zone) : "" };
           var pattern = UTF8ToString(format);
           var EXPANSION_RULES_1 = { "%c": "%a %b %d %H:%M:%S %Y", "%D": "%m/%d/%y", "%F": "%Y-%m-%d", "%h": "%b", "%r": "%I:%M:%S %p", "%R": "%H:%M", "%T": "%H:%M:%S", "%x": "%m/%d/%y", "%X": "%H:%M:%S", "%Ec": "%c", "%EC": "%C", "%Ex": "%m/%d/%y", "%EX": "%H:%M:%S", "%Ey": "%y", "%EY": "%Y", "%Od": "%d", "%Oe": "%e", "%OH": "%H", "%OI": "%I", "%Om": "%m", "%OM": "%M", "%OS": "%S", "%Ou": "%u", "%OU": "%U", "%OV": "%V", "%Ow": "%w", "%OW": "%W", "%Oy": "%y" };
           for (var rule in EXPANSION_RULES_1) {
@@ -31636,42 +31680,42 @@ var require_web_ifc_mt = __commonJS({
         UnboundTypeError = Module["UnboundTypeError"] = extendError(Error, "UnboundTypeError");
         handleAllocatorInit();
         init_emval();
-        var proxiedFunctionTable = [_proc_exit, exitOnMainThread, _environ_get, _environ_sizes_get, _fd_close, _fd_fdstat_get, _fd_read, _fd_seek, _fd_write];
-        var wasmImports = { g: ___cxa_throw, X: ___emscripten_init_main_thread_js, B: ___emscripten_thread_cleanup, ea: __embind_finalize_value_array, r: __embind_finalize_value_object, K: __embind_register_bigint, ca: __embind_register_bool, q: __embind_register_class, p: __embind_register_class_constructor, c: __embind_register_class_function, ba: __embind_register_emval, D: __embind_register_float, d: __embind_register_function, t: __embind_register_integer, l: __embind_register_memory_view, E: __embind_register_std_string, y: __embind_register_std_wstring, fa: __embind_register_value_array, m: __embind_register_value_array_element, s: __embind_register_value_object, f: __embind_register_value_object_field, da: __embind_register_void, U: __emscripten_get_now_is_monotonic, R: __emscripten_notify_mailbox_postmessage, T: __emscripten_receive_on_main_thread_js, W: __emscripten_thread_mailbox_await, aa: __emscripten_thread_set_strongref, k: __emval_as, x: __emval_call, b: __emval_decref, A: __emval_get_global, i: __emval_get_property, o: __emval_incref, G: __emval_instanceof, z: __emval_is_number, F: __emval_is_string, ga: __emval_new_array, h: __emval_new_cstring, u: __emval_new_object, j: __emval_run_destructors, n: __emval_set_property, e: __emval_take_value, I: __gmtime_js, J: __localtime_js, Q: __tzset_js, w: _abort, C: _emscripten_check_blocking_allowed, V: _emscripten_date_now, $: _emscripten_exit_with_live_runtime, v: _emscripten_get_now, P: _emscripten_resize_heap, Z: _environ_get, _: _environ_sizes_get, L: _exit, N: _fd_close, Y: _fd_fdstat_get, O: _fd_read, H: _fd_seek, S: _fd_write, a: wasmMemory || Module["wasmMemory"], M: _strftime_l };
-        var wasmExports = createWasm();
+        var proxiedFunctionTable = [null, _proc_exit, exitOnMainThread, _environ_get, _environ_sizes_get, _fd_close, _fd_fdstat_get, _fd_read, _fd_seek, _fd_write];
+        var wasmImports = { g: ___cxa_throw, Y: ___emscripten_init_main_thread_js, B: ___emscripten_thread_cleanup, fa: __embind_finalize_value_array, r: __embind_finalize_value_object, K: __embind_register_bigint, da: __embind_register_bool, p: __embind_register_class, o: __embind_register_class_constructor, c: __embind_register_class_function, ca: __embind_register_emval, D: __embind_register_float, d: __embind_register_function, t: __embind_register_integer, j: __embind_register_memory_view, E: __embind_register_std_string, y: __embind_register_std_wstring, ga: __embind_register_value_array, m: __embind_register_value_array_element, s: __embind_register_value_object, f: __embind_register_value_object_field, ea: __embind_register_void, T: __emscripten_get_now_is_monotonic, R: __emscripten_notify_mailbox_postmessage, W: __emscripten_set_offscreencanvas_size, X: __emscripten_thread_mailbox_await, ba: __emscripten_thread_set_strongref, l: __emval_as, x: __emval_call, b: __emval_decref, A: __emval_get_global, i: __emval_get_property, q: __emval_incref, G: __emval_instanceof, z: __emval_is_number, F: __emval_is_string, ha: __emval_new_array, h: __emval_new_cstring, v: __emval_new_object, k: __emval_run_destructors, n: __emval_set_property, e: __emval_take_value, I: __gmtime_js, J: __localtime_js, Q: __tzset_js, w: _abort, C: _emscripten_check_blocking_allowed, U: _emscripten_date_now, aa: _emscripten_exit_with_live_runtime, u: _emscripten_get_now, V: _emscripten_receive_on_main_thread_js, P: _emscripten_resize_heap, _: _environ_get, $: _environ_sizes_get, L: _exit, N: _fd_close, Z: _fd_fdstat_get, O: _fd_read, H: _fd_seek, S: _fd_write, a: wasmMemory || Module["wasmMemory"], M: _strftime_l };
+        createWasm();
         var _pthread_self = Module["_pthread_self"] = () => (_pthread_self = Module["_pthread_self"] = wasmExports["ja"])();
-        var _malloc = (a0) => (_malloc = wasmExports["ka"])(a0);
-        Module["__emscripten_tls_init"] = () => (Module["__emscripten_tls_init"] = wasmExports["la"])();
-        var ___getTypeName = (a0) => (___getTypeName = wasmExports["ma"])(a0);
-        Module["__embind_initialize_bindings"] = () => (Module["__embind_initialize_bindings"] = wasmExports["na"])();
-        var __emscripten_thread_init = Module["__emscripten_thread_init"] = (a0, a1, a2, a3, a4, a5) => (__emscripten_thread_init = Module["__emscripten_thread_init"] = wasmExports["oa"])(a0, a1, a2, a3, a4, a5);
-        Module["__emscripten_thread_crashed"] = () => (Module["__emscripten_thread_crashed"] = wasmExports["pa"])();
-        var _free = (a0) => (_free = wasmExports["qa"])(a0);
-        var __emscripten_run_on_main_thread_js = (a0, a1, a2, a3) => (__emscripten_run_on_main_thread_js = wasmExports["ra"])(a0, a1, a2, a3);
-        var __emscripten_thread_free_data = (a0) => (__emscripten_thread_free_data = wasmExports["sa"])(a0);
-        var __emscripten_thread_exit = Module["__emscripten_thread_exit"] = (a0) => (__emscripten_thread_exit = Module["__emscripten_thread_exit"] = wasmExports["ta"])(a0);
-        var __emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = () => (__emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = wasmExports["ua"])();
-        var _emscripten_stack_set_limits = (a0, a1) => (_emscripten_stack_set_limits = wasmExports["va"])(a0, a1);
-        var stackSave = () => (stackSave = wasmExports["wa"])();
-        var stackRestore = (a0) => (stackRestore = wasmExports["xa"])(a0);
-        var stackAlloc = (a0) => (stackAlloc = wasmExports["ya"])(a0);
-        var ___cxa_is_pointer_type = (a0) => (___cxa_is_pointer_type = wasmExports["za"])(a0);
-        Module["dynCall_jiji"] = (a0, a1, a2, a3, a4) => (Module["dynCall_jiji"] = wasmExports["Aa"])(a0, a1, a2, a3, a4);
-        Module["dynCall_viijii"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_viijii"] = wasmExports["Ba"])(a0, a1, a2, a3, a4, a5, a6);
-        Module["dynCall_iiiiij"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_iiiiij"] = wasmExports["Ca"])(a0, a1, a2, a3, a4, a5, a6);
-        Module["dynCall_iiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (Module["dynCall_iiiiijj"] = wasmExports["Da"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-        Module["dynCall_iiiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (Module["dynCall_iiiiiijj"] = wasmExports["Ea"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
-        function applySignatureConversions(wasmExports2) {
-          wasmExports2 = Object.assign({}, wasmExports2);
+        var _malloc = (a0) => (_malloc = wasmExports["la"])(a0);
+        Module["__emscripten_tls_init"] = () => (Module["__emscripten_tls_init"] = wasmExports["ma"])();
+        var ___getTypeName = (a0) => (___getTypeName = wasmExports["na"])(a0);
+        Module["__embind_initialize_bindings"] = () => (Module["__embind_initialize_bindings"] = wasmExports["oa"])();
+        var __emscripten_thread_init = Module["__emscripten_thread_init"] = (a0, a1, a2, a3, a4, a5) => (__emscripten_thread_init = Module["__emscripten_thread_init"] = wasmExports["pa"])(a0, a1, a2, a3, a4, a5);
+        Module["__emscripten_thread_crashed"] = () => (Module["__emscripten_thread_crashed"] = wasmExports["qa"])();
+        var __emscripten_run_in_main_runtime_thread_js = (a0, a1, a2, a3) => (__emscripten_run_in_main_runtime_thread_js = wasmExports["ra"])(a0, a1, a2, a3);
+        var _free = (a0) => (_free = wasmExports["sa"])(a0);
+        var __emscripten_thread_free_data = (a0) => (__emscripten_thread_free_data = wasmExports["ta"])(a0);
+        var __emscripten_thread_exit = Module["__emscripten_thread_exit"] = (a0) => (__emscripten_thread_exit = Module["__emscripten_thread_exit"] = wasmExports["ua"])(a0);
+        var __emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = () => (__emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = wasmExports["va"])();
+        var _emscripten_stack_set_limits = (a0, a1) => (_emscripten_stack_set_limits = wasmExports["wa"])(a0, a1);
+        var stackSave = () => (stackSave = wasmExports["xa"])();
+        var stackRestore = (a0) => (stackRestore = wasmExports["ya"])(a0);
+        var stackAlloc = (a0) => (stackAlloc = wasmExports["za"])(a0);
+        var ___cxa_is_pointer_type = (a0) => (___cxa_is_pointer_type = wasmExports["Aa"])(a0);
+        Module["dynCall_jiji"] = (a0, a1, a2, a3, a4) => (Module["dynCall_jiji"] = wasmExports["Ba"])(a0, a1, a2, a3, a4);
+        Module["dynCall_viijii"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_viijii"] = wasmExports["Ca"])(a0, a1, a2, a3, a4, a5, a6);
+        Module["dynCall_iiiiij"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_iiiiij"] = wasmExports["Da"])(a0, a1, a2, a3, a4, a5, a6);
+        Module["dynCall_iiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (Module["dynCall_iiiiijj"] = wasmExports["Ea"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+        Module["dynCall_iiiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (Module["dynCall_iiiiiijj"] = wasmExports["Fa"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+        function applySignatureConversions(exports2) {
+          exports2 = Object.assign({}, exports2);
           var makeWrapper_p = (f) => () => f() >>> 0;
           var makeWrapper_pp = (f) => (a0) => f(a0) >>> 0;
-          wasmExports2["ja"] = makeWrapper_p(wasmExports2["ja"]);
-          wasmExports2["ka"] = makeWrapper_pp(wasmExports2["ka"]);
-          wasmExports2["ma"] = makeWrapper_pp(wasmExports2["ma"]);
-          wasmExports2["__errno_location"] = makeWrapper_p(wasmExports2["__errno_location"]);
-          wasmExports2["wa"] = makeWrapper_p(wasmExports2["wa"]);
-          wasmExports2["ya"] = makeWrapper_pp(wasmExports2["ya"]);
-          return wasmExports2;
+          exports2["pthread_self"] = makeWrapper_p(exports2["pthread_self"]);
+          exports2["malloc"] = makeWrapper_pp(exports2["malloc"]);
+          exports2["__getTypeName"] = makeWrapper_pp(exports2["__getTypeName"]);
+          exports2["__errno_location"] = makeWrapper_p(exports2["__errno_location"]);
+          exports2["stackSave"] = makeWrapper_p(exports2["stackSave"]);
+          exports2["stackAlloc"] = makeWrapper_pp(exports2["stackAlloc"]);
+          return exports2;
         }
         Module["keepRuntimeAlive"] = keepRuntimeAlive;
         Module["wasmMemory"] = wasmMemory;
@@ -31817,6 +31861,7 @@ var require_web_ifc = __commonJS({
           abort("no native wasm support detected");
         }
         var wasmMemory;
+        var wasmExports;
         var ABORT = false;
         function assert(condition, text) {
           if (!condition) {
@@ -31828,9 +31873,9 @@ var require_web_ifc = __commonJS({
           var b = wasmMemory.buffer;
           Module["HEAP8"] = HEAP8 = new Int8Array(b);
           Module["HEAP16"] = HEAP16 = new Int16Array(b);
+          Module["HEAP32"] = HEAP32 = new Int32Array(b);
           Module["HEAPU8"] = HEAPU8 = new Uint8Array(b);
           Module["HEAPU16"] = HEAPU16 = new Uint16Array(b);
-          Module["HEAP32"] = HEAP32 = new Int32Array(b);
           Module["HEAPU32"] = HEAPU32 = new Uint32Array(b);
           Module["HEAPF32"] = HEAPF32 = new Float32Array(b);
           Module["HEAPF64"] = HEAPF64 = new Float64Array(b);
@@ -31940,7 +31985,7 @@ var require_web_ifc = __commonJS({
         }
         function instantiateArrayBuffer(binaryFile, imports, receiver) {
           return getBinaryPromise(binaryFile).then((binary) => WebAssembly.instantiate(binary, imports)).then((instance) => instance).then(receiver, (reason) => {
-            err(`failed to asynchronously prepare wasm: ${reason}`);
+            err("failed to asynchronously prepare wasm: " + reason);
             abort(reason);
           });
         }
@@ -31949,7 +31994,7 @@ var require_web_ifc = __commonJS({
             return fetch(binaryFile, { credentials: "same-origin" }).then((response) => {
               var result = WebAssembly.instantiateStreaming(response, imports);
               return result.then(callback, function(reason) {
-                err(`wasm streaming compile failed: ${reason}`);
+                err("wasm streaming compile failed: " + reason);
                 err("falling back to ArrayBuffer instantiation");
                 return instantiateArrayBuffer(binaryFile, imports, callback);
               });
@@ -31978,7 +32023,7 @@ var require_web_ifc = __commonJS({
             try {
               return Module["instantiateWasm"](info, receiveInstance);
             } catch (e) {
-              err(`Module.instantiateWasm callback failed with error: ${e}`);
+              err("Module.instantiateWasm callback failed with error: " + e);
               readyPromiseReject(e);
             }
           }
@@ -31996,30 +32041,30 @@ var require_web_ifc = __commonJS({
           this.excPtr = excPtr;
           this.ptr = excPtr - 24;
           this.set_type = function(type) {
-            HEAPU32[this.ptr + 4 >>> 2 >>> 0] = type;
+            HEAPU32[this.ptr + 4 >>> 2] = type;
           };
           this.get_type = function() {
-            return HEAPU32[this.ptr + 4 >>> 2 >>> 0];
+            return HEAPU32[this.ptr + 4 >>> 2];
           };
           this.set_destructor = function(destructor) {
-            HEAPU32[this.ptr + 8 >>> 2 >>> 0] = destructor;
+            HEAPU32[this.ptr + 8 >>> 2] = destructor;
           };
           this.get_destructor = function() {
-            return HEAPU32[this.ptr + 8 >>> 2 >>> 0];
+            return HEAPU32[this.ptr + 8 >>> 2];
           };
           this.set_caught = function(caught) {
             caught = caught ? 1 : 0;
-            HEAP8[this.ptr + 12 >>> 0 >>> 0] = caught;
+            HEAP8[this.ptr + 12 >>> 0] = caught;
           };
           this.get_caught = function() {
-            return HEAP8[this.ptr + 12 >>> 0 >>> 0] != 0;
+            return HEAP8[this.ptr + 12 >>> 0] != 0;
           };
           this.set_rethrown = function(rethrown) {
             rethrown = rethrown ? 1 : 0;
-            HEAP8[this.ptr + 13 >>> 0 >>> 0] = rethrown;
+            HEAP8[this.ptr + 13 >>> 0] = rethrown;
           };
           this.get_rethrown = function() {
-            return HEAP8[this.ptr + 13 >>> 0 >>> 0] != 0;
+            return HEAP8[this.ptr + 13 >>> 0] != 0;
           };
           this.init = function(type, destructor) {
             this.set_adjusted_ptr(0);
@@ -32027,15 +32072,15 @@ var require_web_ifc = __commonJS({
             this.set_destructor(destructor);
           };
           this.set_adjusted_ptr = function(adjustedPtr) {
-            HEAPU32[this.ptr + 16 >>> 2 >>> 0] = adjustedPtr;
+            HEAPU32[this.ptr + 16 >>> 2] = adjustedPtr;
           };
           this.get_adjusted_ptr = function() {
-            return HEAPU32[this.ptr + 16 >>> 2 >>> 0];
+            return HEAPU32[this.ptr + 16 >>> 2];
           };
           this.get_exception_ptr = function() {
             var isPointer = ___cxa_is_pointer_type(this.get_type());
             if (isPointer) {
-              return HEAPU32[this.excPtr >>> 2 >>> 0];
+              return HEAPU32[this.excPtr >>> 2];
             }
             var adjusted = this.get_adjusted_ptr();
             if (adjusted !== 0)
@@ -32044,7 +32089,9 @@ var require_web_ifc = __commonJS({
           };
         }
         var exceptionLast = 0;
-        var convertI32PairToI53Checked = (lo, hi) => hi + 2097152 >>> 0 < 4194305 - !!lo ? (lo >>> 0) + hi * 4294967296 : NaN;
+        function convertI32PairToI53Checked(lo, hi) {
+          return hi + 2097152 >>> 0 < 4194305 - !!lo ? (lo >>> 0) + hi * 4294967296 : NaN;
+        }
         function ___cxa_throw(ptr, type, destructor) {
           ptr >>>= 0;
           type >>>= 0;
@@ -32055,24 +32102,24 @@ var require_web_ifc = __commonJS({
           throw exceptionLast;
         }
         var tupleRegistrations = {};
-        var runDestructors = (destructors) => {
+        function runDestructors(destructors) {
           while (destructors.length) {
             var ptr = destructors.pop();
             var del = destructors.pop();
             del(ptr);
           }
-        };
+        }
         function simpleReadValueFromPointer(pointer) {
-          return this["fromWireType"](HEAP32[pointer >>> 2 >>> 0]);
+          return this["fromWireType"](HEAP32[pointer >>> 2]);
         }
         var awaitingDependencies = {};
         var registeredTypes = {};
         var typeDependencies = {};
         var InternalError = void 0;
-        var throwInternalError = (message) => {
+        function throwInternalError(message) {
           throw new InternalError(message);
-        };
-        var whenDependentTypesAreResolved = (myTypes, dependentTypes, getTypeConverters) => {
+        }
+        function whenDependentTypesAreResolved(myTypes, dependentTypes, getTypeConverters) {
           myTypes.forEach(function(type) {
             typeDependencies[type] = dependentTypes;
           });
@@ -32108,14 +32155,18 @@ var require_web_ifc = __commonJS({
           if (0 === unregisteredTypes.length) {
             onComplete(typeConverters);
           }
-        };
-        var __embind_finalize_value_array = function(rawTupleType) {
+        }
+        function __embind_finalize_value_array(rawTupleType) {
           rawTupleType >>>= 0;
           var reg = tupleRegistrations[rawTupleType];
           delete tupleRegistrations[rawTupleType];
           var elements = reg.elements;
           var elementsLength = elements.length;
-          var elementTypes = elements.map((elt) => elt.getterReturnType).concat(elements.map((elt) => elt.setterArgumentType));
+          var elementTypes = elements.map(function(elt) {
+            return elt.getterReturnType;
+          }).concat(elements.map(function(elt) {
+            return elt.setterArgumentType;
+          }));
           var rawConstructor = reg.rawConstructor;
           var rawDestructor = reg.rawDestructor;
           whenDependentTypesAreResolved([rawTupleType], elementTypes, function(elementTypes2) {
@@ -32133,14 +32184,14 @@ var require_web_ifc = __commonJS({
                 runDestructors(destructors);
               };
             });
-            return [{ name: reg.name, "fromWireType": (ptr) => {
+            return [{ name: reg.name, "fromWireType": function(ptr) {
               var rv = new Array(elementsLength);
               for (var i = 0; i < elementsLength; ++i) {
                 rv[i] = elements[i].read(ptr);
               }
               rawDestructor(ptr);
               return rv;
-            }, "toWireType": (destructors, o) => {
+            }, "toWireType": function(destructors, o) {
               if (elementsLength !== o.length) {
                 throw new TypeError(`Incorrect number of tuple elements for ${reg.name}: expected=${elementsLength}, actual=${o.length}`);
               }
@@ -32152,9 +32203,9 @@ var require_web_ifc = __commonJS({
                 destructors.push(rawDestructor, ptr);
               }
               return ptr;
-            }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
+            }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
           });
-        };
+        }
         var structRegistrations = {};
         var __embind_finalize_value_object = function(structType) {
           structType >>>= 0;
@@ -32180,14 +32231,14 @@ var require_web_ifc = __commonJS({
                 runDestructors(destructors);
               } };
             });
-            return [{ name: reg.name, "fromWireType": (ptr) => {
+            return [{ name: reg.name, "fromWireType": function(ptr) {
               var rv = {};
               for (var i in fields) {
                 rv[i] = fields[i].read(ptr);
               }
               rawDestructor(ptr);
               return rv;
-            }, "toWireType": (destructors, o) => {
+            }, "toWireType": function(destructors, o) {
               for (var fieldName in fields) {
                 if (!(fieldName in o)) {
                   throw new TypeError(`Missing field: "${fieldName}"`);
@@ -32201,31 +32252,45 @@ var require_web_ifc = __commonJS({
                 destructors.push(rawDestructor, ptr);
               }
               return ptr;
-            }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
+            }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: rawDestructor }];
           });
         };
         function __embind_register_bigint(primitiveType, name, size, minRange, maxRange) {
         }
-        var embind_init_charCodes = () => {
+        function getShiftFromSize(size) {
+          switch (size) {
+            case 1:
+              return 0;
+            case 2:
+              return 1;
+            case 4:
+              return 2;
+            case 8:
+              return 3;
+            default:
+              throw new TypeError(`Unknown type size: ${size}`);
+          }
+        }
+        function embind_init_charCodes() {
           var codes = new Array(256);
           for (var i = 0; i < 256; ++i) {
             codes[i] = String.fromCharCode(i);
           }
           embind_charCodes = codes;
-        };
+        }
         var embind_charCodes = void 0;
-        var readLatin1String = (ptr) => {
+        function readLatin1String(ptr) {
           var ret = "";
           var c = ptr;
           while (HEAPU8[c >>> 0]) {
             ret += embind_charCodes[HEAPU8[c++ >>> 0]];
           }
           return ret;
-        };
+        }
         var BindingError = void 0;
-        var throwBindingError = (message) => {
+        function throwBindingError(message) {
           throw new BindingError(message);
-        };
+        }
         function sharedRegisterType(rawType, registeredInstance, options = {}) {
           var name = registeredInstance.name;
           if (!rawType) {
@@ -32252,17 +32317,28 @@ var require_web_ifc = __commonJS({
           }
           return sharedRegisterType(rawType, registeredInstance, options);
         }
-        var GenericWireTypeSize = 8;
-        function __embind_register_bool(rawType, name, trueValue, falseValue) {
+        function __embind_register_bool(rawType, name, size, trueValue, falseValue) {
           rawType >>>= 0;
           name >>>= 0;
+          size >>>= 0;
+          var shift = getShiftFromSize(size);
           name = readLatin1String(name);
           registerType(rawType, { name, "fromWireType": function(wt) {
             return !!wt;
           }, "toWireType": function(destructors, o) {
             return o ? trueValue : falseValue;
-          }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": function(pointer) {
-            return this["fromWireType"](HEAPU8[pointer >>> 0]);
+          }, "argPackAdvance": 8, "readValueFromPointer": function(pointer) {
+            var heap;
+            if (size === 1) {
+              heap = HEAP8;
+            } else if (size === 2) {
+              heap = HEAP16;
+            } else if (size === 4) {
+              heap = HEAP32;
+            } else {
+              throw new TypeError("Unknown boolean type size: " + name);
+            }
+            return this["fromWireType"](heap[pointer >>> shift]);
           }, destructorFunction: null });
         }
         function ClassHandle_isAliasOf(other) {
@@ -32286,31 +32362,33 @@ var require_web_ifc = __commonJS({
           }
           return leftClass === rightClass && left === right;
         }
-        var shallowCopyInternalPointer = (o) => ({ count: o.count, deleteScheduled: o.deleteScheduled, preservePointerOnDelete: o.preservePointerOnDelete, ptr: o.ptr, ptrType: o.ptrType, smartPtr: o.smartPtr, smartPtrType: o.smartPtrType });
-        var throwInstanceAlreadyDeleted = (obj) => {
+        function shallowCopyInternalPointer(o) {
+          return { count: o.count, deleteScheduled: o.deleteScheduled, preservePointerOnDelete: o.preservePointerOnDelete, ptr: o.ptr, ptrType: o.ptrType, smartPtr: o.smartPtr, smartPtrType: o.smartPtrType };
+        }
+        function throwInstanceAlreadyDeleted(obj) {
           function getInstanceTypeName(handle) {
             return handle.$$.ptrType.registeredClass.name;
           }
           throwBindingError(getInstanceTypeName(obj) + " instance already deleted");
-        };
+        }
         var finalizationRegistry = false;
-        var detachFinalizer = (handle) => {
-        };
-        var runDestructor = ($$) => {
+        function detachFinalizer(handle) {
+        }
+        function runDestructor($$) {
           if ($$.smartPtr) {
             $$.smartPtrType.rawDestructor($$.smartPtr);
           } else {
             $$.ptrType.registeredClass.rawDestructor($$.ptr);
           }
-        };
-        var releaseClassHandle = ($$) => {
+        }
+        function releaseClassHandle($$) {
           $$.count.value -= 1;
           var toDelete = 0 === $$.count.value;
           if (toDelete) {
             runDestructor($$);
           }
-        };
-        var downcastPointer = (ptr, ptrClass, desiredClass) => {
+        }
+        function downcastPointer(ptr, ptrClass, desiredClass) {
           if (ptrClass === desiredClass) {
             return ptr;
           }
@@ -32322,10 +32400,12 @@ var require_web_ifc = __commonJS({
             return null;
           }
           return desiredClass.downcast(rv);
-        };
+        }
         var registeredPointers = {};
-        var getInheritedInstanceCount = () => Object.keys(registeredInstances).length;
-        var getLiveInheritedInstances = () => {
+        function getInheritedInstanceCount() {
+          return Object.keys(registeredInstances).length;
+        }
+        function getLiveInheritedInstances() {
           var rv = [];
           for (var k in registeredInstances) {
             if (registeredInstances.hasOwnProperty(k)) {
@@ -32333,30 +32413,30 @@ var require_web_ifc = __commonJS({
             }
           }
           return rv;
-        };
+        }
         var deletionQueue = [];
-        var flushPendingDeletes = () => {
+        function flushPendingDeletes() {
           while (deletionQueue.length) {
             var obj = deletionQueue.pop();
             obj.$$.deleteScheduled = false;
             obj["delete"]();
           }
-        };
+        }
         var delayFunction = void 0;
-        var setDelayFunction = (fn) => {
+        function setDelayFunction(fn) {
           delayFunction = fn;
           if (deletionQueue.length && delayFunction) {
             delayFunction(flushPendingDeletes);
           }
-        };
-        var init_embind = () => {
+        }
+        function init_embind() {
           Module["getInheritedInstanceCount"] = getInheritedInstanceCount;
           Module["getLiveInheritedInstances"] = getLiveInheritedInstances;
           Module["flushPendingDeletes"] = flushPendingDeletes;
           Module["setDelayFunction"] = setDelayFunction;
-        };
+        }
         var registeredInstances = {};
-        var getBasestPointer = (class_, ptr) => {
+        function getBasestPointer(class_, ptr) {
           if (ptr === void 0) {
             throwBindingError("ptr should not be undefined");
           }
@@ -32365,12 +32445,12 @@ var require_web_ifc = __commonJS({
             class_ = class_.baseClass;
           }
           return ptr;
-        };
-        var getInheritedInstance = (class_, ptr) => {
+        }
+        function getInheritedInstance(class_, ptr) {
           ptr = getBasestPointer(class_, ptr);
           return registeredInstances[ptr];
-        };
-        var makeClassHandle = (prototype, record) => {
+        }
+        function makeClassHandle(prototype, record) {
           if (!record.ptrType || !record.ptr) {
             throwInternalError("makeClassHandle requires ptr and ptrType");
           }
@@ -32381,7 +32461,7 @@ var require_web_ifc = __commonJS({
           }
           record.count = { value: 1 };
           return attachFinalizer(Object.create(prototype, { $$: { value: record } }));
-        };
+        }
         function RegisteredPointer_fromWireType(ptr) {
           var rawPointer = this.getPointee(ptr);
           if (!rawPointer) {
@@ -32428,7 +32508,7 @@ var require_web_ifc = __commonJS({
             return makeClassHandle(toType.registeredClass.instancePrototype, { ptrType: toType, ptr: dp });
           }
         }
-        var attachFinalizer = (handle) => {
+        var attachFinalizer = function(handle) {
           if ("undefined" === typeof FinalizationRegistry) {
             attachFinalizer = (handle2) => handle2;
             return handle;
@@ -32493,18 +32573,18 @@ var require_web_ifc = __commonJS({
           this.$$.deleteScheduled = true;
           return this;
         }
-        var init_ClassHandle = () => {
+        function init_ClassHandle() {
           ClassHandle.prototype["isAliasOf"] = ClassHandle_isAliasOf;
           ClassHandle.prototype["clone"] = ClassHandle_clone;
           ClassHandle.prototype["delete"] = ClassHandle_delete;
           ClassHandle.prototype["isDeleted"] = ClassHandle_isDeleted;
           ClassHandle.prototype["deleteLater"] = ClassHandle_deleteLater;
-        };
+        }
         function ClassHandle() {
         }
         var char_0 = 48;
         var char_9 = 57;
-        var makeLegalFunctionName = (name) => {
+        function makeLegalFunctionName(name) {
           if (void 0 === name) {
             return "_unknown";
           }
@@ -32514,14 +32594,14 @@ var require_web_ifc = __commonJS({
             return `_${name}`;
           }
           return name;
-        };
+        }
         function createNamedFunction(name, body) {
           name = makeLegalFunctionName(name);
           return { [name]: function() {
             return body.apply(this, arguments);
           } }[name];
         }
-        var ensureOverloadTable = (proto, methodName, humanName) => {
+        function ensureOverloadTable(proto, methodName, humanName) {
           if (void 0 === proto[methodName].overloadTable) {
             var prevFunc = proto[methodName];
             proto[methodName] = function() {
@@ -32533,8 +32613,8 @@ var require_web_ifc = __commonJS({
             proto[methodName].overloadTable = [];
             proto[methodName].overloadTable[prevFunc.argCount] = prevFunc;
           }
-        };
-        var exposePublicSymbol = (name, value, numArguments) => {
+        }
+        function exposePublicSymbol(name, value, numArguments) {
           if (Module.hasOwnProperty(name)) {
             if (void 0 === numArguments || void 0 !== Module[name].overloadTable && void 0 !== Module[name].overloadTable[numArguments]) {
               throwBindingError(`Cannot register public name '${name}' twice`);
@@ -32550,7 +32630,7 @@ var require_web_ifc = __commonJS({
               Module[name].numArguments = numArguments;
             }
           }
-        };
+        }
         function RegisteredClass(name, constructor, instancePrototype, rawDestructor, baseClass, getActualType, upcast, downcast) {
           this.name = name;
           this.constructor = constructor;
@@ -32562,7 +32642,7 @@ var require_web_ifc = __commonJS({
           this.downcast = downcast;
           this.pureVirtualFunctions = [];
         }
-        var upcastPointer = (ptr, ptrClass, desiredClass) => {
+        function upcastPointer(ptr, ptrClass, desiredClass) {
           while (ptrClass !== desiredClass) {
             if (!ptrClass.upcast) {
               throwBindingError(`Expected null or instance of ${desiredClass.name}, got an instance of ${ptrClass.name}`);
@@ -32571,7 +32651,7 @@ var require_web_ifc = __commonJS({
             ptrClass = ptrClass.baseClass;
           }
           return ptr;
-        };
+        }
         function constNoSmartPtrRawPointerToWireType(destructors, handle) {
           if (handle === null) {
             if (this.isReference) {
@@ -32636,7 +32716,9 @@ var require_web_ifc = __commonJS({
                   ptr = handle.$$.smartPtr;
                 } else {
                   var clonedHandle = handle["clone"]();
-                  ptr = this.rawShare(ptr, Emval.toHandle(() => clonedHandle["delete"]()));
+                  ptr = this.rawShare(ptr, Emval.toHandle(function() {
+                    clonedHandle["delete"]();
+                  }));
                   if (destructors !== null) {
                     destructors.push(this.rawDestructor, ptr);
                   }
@@ -32668,9 +32750,6 @@ var require_web_ifc = __commonJS({
           var ptr = upcastPointer(handle.$$.ptr, handleClass, this.registeredClass);
           return ptr;
         }
-        function readPointer(pointer) {
-          return this["fromWireType"](HEAPU32[pointer >>> 2 >>> 0]);
-        }
         function RegisteredPointer_getPointee(ptr) {
           if (this.rawGetPointee) {
             ptr = this.rawGetPointee(ptr);
@@ -32682,19 +32761,19 @@ var require_web_ifc = __commonJS({
             this.rawDestructor(ptr);
           }
         }
-        var RegisteredPointer_deleteObject = (handle) => {
+        function RegisteredPointer_deleteObject(handle) {
           if (handle !== null) {
             handle["delete"]();
           }
-        };
-        var init_RegisteredPointer = () => {
+        }
+        function init_RegisteredPointer() {
           RegisteredPointer.prototype.getPointee = RegisteredPointer_getPointee;
           RegisteredPointer.prototype.destructor = RegisteredPointer_destructor;
-          RegisteredPointer.prototype["argPackAdvance"] = GenericWireTypeSize;
-          RegisteredPointer.prototype["readValueFromPointer"] = readPointer;
+          RegisteredPointer.prototype["argPackAdvance"] = 8;
+          RegisteredPointer.prototype["readValueFromPointer"] = simpleReadValueFromPointer;
           RegisteredPointer.prototype["deleteObject"] = RegisteredPointer_deleteObject;
           RegisteredPointer.prototype["fromWireType"] = RegisteredPointer_fromWireType;
-        };
+        }
         function RegisteredPointer(name, registeredClass, isReference, isConst, isSmartPointer, pointeeType, sharingPolicy, rawGetPointee, rawConstructor, rawShare, rawDestructor) {
           this.name = name;
           this.registeredClass = registeredClass;
@@ -32719,7 +32798,7 @@ var require_web_ifc = __commonJS({
             this["toWireType"] = genericPointerToWireType;
           }
         }
-        var replacePublicSymbol = (name, value, numArguments) => {
+        function replacePublicSymbol(name, value, numArguments) {
           if (!Module.hasOwnProperty(name)) {
             throwInternalError("Replacing nonexistant public symbol");
           }
@@ -32729,7 +32808,7 @@ var require_web_ifc = __commonJS({
             Module[name] = value;
             Module[name].argCount = numArguments;
           }
-        };
+        }
         var dynCallLegacy = (sig, ptr, args) => {
           var f = Module["dynCall_" + sig];
           return args && args.length ? f.apply(null, [ptr].concat(args)) : f.call(null, ptr);
@@ -32759,7 +32838,7 @@ var require_web_ifc = __commonJS({
             return dynCall(sig, ptr, argCache);
           };
         };
-        var embind__requireFunction = (signature, rawFunction) => {
+        function embind__requireFunction(signature, rawFunction) {
           signature = readLatin1String(signature);
           function makeDynCaller() {
             if (signature.includes("j")) {
@@ -32772,8 +32851,8 @@ var require_web_ifc = __commonJS({
             throwBindingError(`unknown function pointer with signature ${signature}: ${rawFunction}`);
           }
           return fp;
-        };
-        var extendError = (baseErrorType, errorName) => {
+        }
+        function extendError(baseErrorType, errorName) {
           var errorClass = createNamedFunction(errorName, function(message) {
             this.name = errorName;
             this.message = message;
@@ -32792,15 +32871,15 @@ var require_web_ifc = __commonJS({
             }
           };
           return errorClass;
-        };
+        }
         var UnboundTypeError = void 0;
-        var getTypeName = (type) => {
+        function getTypeName(type) {
           var ptr = ___getTypeName(type);
           var rv = readLatin1String(ptr);
           _free(ptr);
           return rv;
-        };
-        var throwUnboundTypeError = (message, types) => {
+        }
+        function throwUnboundTypeError(message, types) {
           var unboundTypes = [];
           var seen = {};
           function visit(type) {
@@ -32819,7 +32898,7 @@ var require_web_ifc = __commonJS({
           }
           types.forEach(visit);
           throw new UnboundTypeError(`${message}: ` + unboundTypes.map(getTypeName).join([", "]));
-        };
+        }
         function __embind_register_class(rawType, rawPointerType, rawConstPointerType, baseClassRawType, getActualTypeSignature, getActualType, upcastSignature, upcast, downcastSignature, downcast, name, destructorSignature, rawDestructor) {
           rawType >>>= 0;
           rawPointerType >>>= 0;
@@ -32887,13 +32966,13 @@ var require_web_ifc = __commonJS({
             return [referenceConverter, pointerConverter, constPointerConverter];
           });
         }
-        var heap32VectorToArray = (count, firstElement) => {
+        function heap32VectorToArray(count, firstElement) {
           var array = [];
           for (var i = 0; i < count; i++) {
-            array.push(HEAPU32[firstElement + i * 4 >>> 2 >>> 0]);
+            array.push(HEAPU32[firstElement + i * 4 >>> 2]);
           }
           return array;
-        };
+        }
         function newFunc(constructor, argumentList) {
           if (!(constructor instanceof Function)) {
             throw new TypeError(`new_ called with constructor type ${typeof constructor} which is not a function`);
@@ -32928,7 +33007,7 @@ var require_web_ifc = __commonJS({
           var invokerFnBody = `
         return function ${makeLegalFunctionName(humanName)}(${argsList}) {
         if (arguments.length !== ${argCount - 2}) {
-          throwBindingError('function ${humanName} called with ' + arguments.length + ' arguments, expected ${argCount - 2}');
+          throwBindingError('function ${humanName} called with ${arguments.length} arguments, expected ${argCount - 2} args!');
         }`;
           if (needsDestructorStack) {
             invokerFnBody += "var destructors = [];\n";
@@ -32987,7 +33066,7 @@ var require_web_ifc = __commonJS({
             classType.registeredClass.constructor_body[argCount - 1] = () => {
               throwUnboundTypeError(`Cannot construct ${classType.name} due to unbound types`, rawArgTypes);
             };
-            whenDependentTypesAreResolved([], rawArgTypes, (argTypes) => {
+            whenDependentTypesAreResolved([], rawArgTypes, function(argTypes) {
               argTypes.splice(1, 0, null);
               classType.registeredClass.constructor_body[argCount - 1] = craftInvokerFunction(humanName, argTypes, null, invoker, rawConstructor);
               return [];
@@ -33065,7 +33144,7 @@ var require_web_ifc = __commonJS({
             emval_handles.free(handle);
           }
         }
-        var count_emval_handles = () => {
+        function count_emval_handles() {
           var count = 0;
           for (var i = emval_handles.reserved; i < emval_handles.allocated.length; ++i) {
             if (emval_handles.allocated[i] !== void 0) {
@@ -33073,12 +33152,12 @@ var require_web_ifc = __commonJS({
             }
           }
           return count;
-        };
-        var init_emval = () => {
+        }
+        function init_emval() {
           emval_handles.allocated.push({ value: void 0 }, { value: null }, { value: true }, { value: false });
           emval_handles.reserved = emval_handles.allocated.length;
           Module["count_emval_handles"] = count_emval_handles;
-        };
+        }
         var Emval = { toValue: (handle) => {
           if (!handle) {
             throwBindingError("Cannot use deleted val. handle = " + handle);
@@ -33099,17 +33178,19 @@ var require_web_ifc = __commonJS({
             }
           }
         } };
-        var __embind_register_emval = function(rawType, name) {
+        function __embind_register_emval(rawType, name) {
           rawType >>>= 0;
           name >>>= 0;
           name = readLatin1String(name);
-          registerType(rawType, { name, "fromWireType": (handle) => {
+          registerType(rawType, { name, "fromWireType": function(handle) {
             var rv = Emval.toValue(handle);
             __emval_decref(handle);
             return rv;
-          }, "toWireType": (destructors, value) => Emval.toHandle(value), "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: null });
-        };
-        var embindRepr = (v) => {
+          }, "toWireType": function(destructors, value) {
+            return Emval.toHandle(value);
+          }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: null });
+        }
+        function embindRepr(v) {
           if (v === null) {
             return "null";
           }
@@ -33119,28 +33200,33 @@ var require_web_ifc = __commonJS({
           } else {
             return "" + v;
           }
-        };
-        var floatReadValueFromPointer = (name, width) => {
-          switch (width) {
-            case 4:
+        }
+        function floatReadValueFromPointer(name, shift) {
+          switch (shift) {
+            case 2:
               return function(pointer) {
-                return this["fromWireType"](HEAPF32[pointer >>> 2 >>> 0]);
+                return this["fromWireType"](HEAPF32[pointer >>> 2]);
               };
-            case 8:
+            case 3:
               return function(pointer) {
-                return this["fromWireType"](HEAPF64[pointer >>> 3 >>> 0]);
+                return this["fromWireType"](HEAPF64[pointer >>> 3]);
               };
             default:
-              throw new TypeError(`invalid float width (${width}): ${name}`);
+              throw new TypeError("Unknown float type: " + name);
           }
-        };
-        var __embind_register_float = function(rawType, name, size) {
+        }
+        function __embind_register_float(rawType, name, size) {
           rawType >>>= 0;
           name >>>= 0;
           size >>>= 0;
+          var shift = getShiftFromSize(size);
           name = readLatin1String(name);
-          registerType(rawType, { name, "fromWireType": (value) => value, "toWireType": (destructors, value) => value, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": floatReadValueFromPointer(name, size), destructorFunction: null });
-        };
+          registerType(rawType, { name, "fromWireType": function(value) {
+            return value;
+          }, "toWireType": function(destructors, value) {
+            return value;
+          }, "argPackAdvance": 8, "readValueFromPointer": floatReadValueFromPointer(name, shift), destructorFunction: null });
+        }
         function __embind_register_function(name, argCount, rawArgTypesAddr, signature, rawInvoker, fn, isAsync) {
           name >>>= 0;
           rawArgTypesAddr >>>= 0;
@@ -33159,23 +33245,36 @@ var require_web_ifc = __commonJS({
             return [];
           });
         }
-        var integerReadValueFromPointer = (name, width, signed) => {
-          switch (width) {
+        function integerReadValueFromPointer(name, shift, signed) {
+          switch (shift) {
+            case 0:
+              return signed ? function readS8FromPointer(pointer) {
+                return HEAP8[pointer >>> 0];
+              } : function readU8FromPointer(pointer) {
+                return HEAPU8[pointer >>> 0];
+              };
             case 1:
-              return signed ? (pointer) => HEAP8[pointer >>> 0 >>> 0] : (pointer) => HEAPU8[pointer >>> 0 >>> 0];
+              return signed ? function readS16FromPointer(pointer) {
+                return HEAP16[pointer >>> 1];
+              } : function readU16FromPointer(pointer) {
+                return HEAPU16[pointer >>> 1];
+              };
             case 2:
-              return signed ? (pointer) => HEAP16[pointer >>> 1 >>> 0] : (pointer) => HEAPU16[pointer >>> 1 >>> 0];
-            case 4:
-              return signed ? (pointer) => HEAP32[pointer >>> 2 >>> 0] : (pointer) => HEAPU32[pointer >>> 2 >>> 0];
+              return signed ? function readS32FromPointer(pointer) {
+                return HEAP32[pointer >>> 2];
+              } : function readU32FromPointer(pointer) {
+                return HEAPU32[pointer >>> 2];
+              };
             default:
-              throw new TypeError(`invalid integer width (${width}): ${name}`);
+              throw new TypeError("Unknown integer type: " + name);
           }
-        };
+        }
         function __embind_register_integer(primitiveType, name, size, minRange, maxRange) {
           primitiveType >>>= 0;
           name >>>= 0;
           size >>>= 0;
           name = readLatin1String(name);
+          var shift = getShiftFromSize(size);
           var fromWireType = (value) => value;
           if (minRange === 0) {
             var bitshift = 32 - 8 * size;
@@ -33196,7 +33295,7 @@ var require_web_ifc = __commonJS({
               return value;
             };
           }
-          registerType(primitiveType, { name, "fromWireType": fromWireType, "toWireType": toWireType, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": integerReadValueFromPointer(name, size, minRange !== 0), destructorFunction: null });
+          registerType(primitiveType, { name, "fromWireType": fromWireType, "toWireType": toWireType, "argPackAdvance": 8, "readValueFromPointer": integerReadValueFromPointer(name, shift, minRange !== 0), destructorFunction: null });
         }
         function __embind_register_memory_view(rawType, dataTypeIndex, name) {
           rawType >>>= 0;
@@ -33204,12 +33303,14 @@ var require_web_ifc = __commonJS({
           var typeMapping = [Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array];
           var TA = typeMapping[dataTypeIndex];
           function decodeMemoryView(handle) {
-            var size = HEAPU32[handle >>> 2 >>> 0];
-            var data = HEAPU32[handle + 4 >>> 2 >>> 0];
-            return new TA(HEAP8.buffer, data, size);
+            handle = handle >> 2;
+            var heap = HEAPU32;
+            var size = heap[handle >>> 0];
+            var data = heap[handle + 1 >>> 0];
+            return new TA(heap.buffer, data, size);
           }
           name = readLatin1String(name);
-          registerType(rawType, { name, "fromWireType": decodeMemoryView, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": decodeMemoryView }, { ignoreDuplicateRegistrations: true });
+          registerType(rawType, { name, "fromWireType": decodeMemoryView, "argPackAdvance": 8, "readValueFromPointer": decodeMemoryView }, { ignoreDuplicateRegistrations: true });
         }
         var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
           outIdx >>>= 0;
@@ -33309,13 +33410,13 @@ var require_web_ifc = __commonJS({
           ptr >>>= 0;
           return ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead) : "";
         };
-        var __embind_register_std_string = function(rawType, name) {
+        function __embind_register_std_string(rawType, name) {
           rawType >>>= 0;
           name >>>= 0;
           name = readLatin1String(name);
           var stdStringIsUTF8 = name === "std::string";
-          registerType(rawType, { name, "fromWireType": (value) => {
-            var length = HEAPU32[value >>> 2 >>> 0];
+          registerType(rawType, { name, "fromWireType": function(value) {
+            var length = HEAPU32[value >>> 2];
             var payload = value + 4;
             var str;
             if (stdStringIsUTF8) {
@@ -33343,7 +33444,7 @@ var require_web_ifc = __commonJS({
             }
             _free(value);
             return str;
-          }, "toWireType": (destructors, value) => {
+          }, "toWireType": function(destructors, value) {
             if (value instanceof ArrayBuffer) {
               value = new Uint8Array(value);
             }
@@ -33359,7 +33460,7 @@ var require_web_ifc = __commonJS({
             }
             var base = _malloc(4 + length + 1);
             var ptr = base + 4;
-            HEAPU32[base >>> 2 >>> 0] = length;
+            HEAPU32[base >>> 2] = length;
             if (stdStringIsUTF8 && valueIsOfTypeString) {
               stringToUTF8(value, ptr, length + 1);
             } else {
@@ -33382,8 +33483,10 @@ var require_web_ifc = __commonJS({
               destructors.push(_free, base);
             }
             return base;
-          }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": readPointer, destructorFunction: (ptr) => _free(ptr) });
-        };
+          }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: function(ptr) {
+            _free(ptr);
+          } });
+        }
         var UTF16Decoder = typeof TextDecoder != "undefined" ? new TextDecoder("utf-16le") : void 0;
         var UTF16ToString = (ptr, maxBytesToRead) => {
           var endPtr = ptr;
@@ -33396,7 +33499,7 @@ var require_web_ifc = __commonJS({
             return UTF16Decoder.decode(HEAPU8.subarray(ptr >>> 0, endPtr >>> 0));
           var str = "";
           for (var i = 0; !(i >= maxBytesToRead / 2); ++i) {
-            var codeUnit = HEAP16[ptr + i * 2 >>> 1 >>> 0];
+            var codeUnit = HEAP16[ptr + i * 2 >>> 1];
             if (codeUnit == 0)
               break;
             str += String.fromCharCode(codeUnit);
@@ -33414,10 +33517,10 @@ var require_web_ifc = __commonJS({
           var numCharsToWrite = maxBytesToWrite < str.length * 2 ? maxBytesToWrite / 2 : str.length;
           for (var i = 0; i < numCharsToWrite; ++i) {
             var codeUnit = str.charCodeAt(i);
-            HEAP16[outPtr >>> 1 >>> 0] = codeUnit;
+            HEAP16[outPtr >>> 1] = codeUnit;
             outPtr += 2;
           }
-          HEAP16[outPtr >>> 1 >>> 0] = 0;
+          HEAP16[outPtr >>> 1] = 0;
           return outPtr - startPtr;
         };
         var lengthBytesUTF16 = (str) => str.length * 2;
@@ -33425,7 +33528,7 @@ var require_web_ifc = __commonJS({
           var i = 0;
           var str = "";
           while (!(i >= maxBytesToRead / 4)) {
-            var utf32 = HEAP32[ptr + i * 4 >>> 2 >>> 0];
+            var utf32 = HEAP32[ptr + i * 4 >>> 2];
             if (utf32 == 0)
               break;
             ++i;
@@ -33453,12 +33556,12 @@ var require_web_ifc = __commonJS({
               var trailSurrogate = str.charCodeAt(++i);
               codeUnit = 65536 + ((codeUnit & 1023) << 10) | trailSurrogate & 1023;
             }
-            HEAP32[outPtr >>> 2 >>> 0] = codeUnit;
+            HEAP32[outPtr >>> 2] = codeUnit;
             outPtr += 4;
             if (outPtr + 4 > endPtr)
               break;
           }
-          HEAP32[outPtr >>> 2 >>> 0] = 0;
+          HEAP32[outPtr >>> 2] = 0;
           return outPtr - startPtr;
         };
         var lengthBytesUTF32 = (str) => {
@@ -33490,8 +33593,8 @@ var require_web_ifc = __commonJS({
             getHeap = () => HEAPU32;
             shift = 2;
           }
-          registerType(rawType, { name, "fromWireType": (value) => {
-            var length = HEAPU32[value >>> 2 >>> 0];
+          registerType(rawType, { name, "fromWireType": function(value) {
+            var length = HEAPU32[value >>> 2];
             var HEAP = getHeap();
             var str;
             var decodeStartPtr = value + 4;
@@ -33511,7 +33614,7 @@ var require_web_ifc = __commonJS({
             }
             _free(value);
             return str;
-          }, "toWireType": (destructors, value) => {
+          }, "toWireType": function(destructors, value) {
             if (!(typeof value == "string")) {
               throwBindingError(`Cannot pass non-string to C++ string type ${name}`);
             }
@@ -33523,7 +33626,9 @@ var require_web_ifc = __commonJS({
               destructors.push(_free, ptr);
             }
             return ptr;
-          }, "argPackAdvance": GenericWireTypeSize, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: (ptr) => _free(ptr) });
+          }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: function(ptr) {
+            _free(ptr);
+          } });
         };
         function __embind_register_value_array(rawType, name, constructorSignature, rawConstructor, destructorSignature, rawDestructor) {
           rawType >>>= 0;
@@ -33568,21 +33673,25 @@ var require_web_ifc = __commonJS({
           setterContext >>>= 0;
           structRegistrations[structType].fields.push({ fieldName: readLatin1String(fieldName), getterReturnType, getter: embind__requireFunction(getterSignature, getter), getterContext, setterArgumentType, setter: embind__requireFunction(setterSignature, setter), setterContext });
         }
-        var __embind_register_void = function(rawType, name) {
+        function __embind_register_void(rawType, name) {
           rawType >>>= 0;
           name >>>= 0;
           name = readLatin1String(name);
-          registerType(rawType, { isVoid: true, name, "argPackAdvance": 0, "fromWireType": () => void 0, "toWireType": (destructors, o) => void 0 });
-        };
+          registerType(rawType, { isVoid: true, name, "argPackAdvance": 0, "fromWireType": function() {
+            return void 0;
+          }, "toWireType": function(destructors, o) {
+            return void 0;
+          } });
+        }
         var nowIsMonotonic = true;
         var __emscripten_get_now_is_monotonic = () => nowIsMonotonic;
-        var requireRegisteredType = (rawType, humanName) => {
+        function requireRegisteredType(rawType, humanName) {
           var impl = registeredTypes[rawType];
           if (void 0 === impl) {
             throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
           }
           return impl;
-        };
+        }
         function __emval_as(handle, returnType, destructorsRef) {
           handle >>>= 0;
           returnType >>>= 0;
@@ -33591,16 +33700,16 @@ var require_web_ifc = __commonJS({
           returnType = requireRegisteredType(returnType, "emval::as");
           var destructors = [];
           var rd = Emval.toHandle(destructors);
-          HEAPU32[destructorsRef >>> 2 >>> 0] = rd;
+          HEAPU32[destructorsRef >>> 2] = rd;
           return returnType["toWireType"](destructors, handle);
         }
-        var emval_lookupTypes = (argCount, argTypes) => {
+        function emval_lookupTypes(argCount, argTypes) {
           var a = new Array(argCount);
           for (var i = 0; i < argCount; ++i) {
-            a[i] = requireRegisteredType(HEAPU32[argTypes + i * 4 >>> 2 >>> 0], "parameter " + i);
+            a[i] = requireRegisteredType(HEAPU32[argTypes + i * 4 >>> 2], "parameter " + i);
           }
           return a;
-        };
+        }
         function __emval_call(handle, argCount, argTypes, argv) {
           handle >>>= 0;
           argTypes >>>= 0;
@@ -33617,21 +33726,21 @@ var require_web_ifc = __commonJS({
           return Emval.toHandle(rv);
         }
         var emval_symbols = {};
-        var getStringOrSymbol = (address) => {
+        function getStringOrSymbol(address) {
           var symbol = emval_symbols[address];
           if (symbol === void 0) {
             return readLatin1String(address);
           }
           return symbol;
-        };
-        var emval_get_global = () => {
+        }
+        function emval_get_global() {
           if (typeof globalThis == "object") {
             return globalThis;
           }
           return (/* @__PURE__ */ function() {
             return Function;
           }())("return this")();
-        };
+        }
         function __emval_get_global(name) {
           name >>>= 0;
           if (name === 0) {
@@ -33707,16 +33816,16 @@ var require_web_ifc = __commonJS({
           var time = convertI32PairToI53Checked(time_low, time_high);
           tmPtr >>>= 0;
           var date = new Date(time * 1e3);
-          HEAP32[tmPtr >>> 2 >>> 0] = date.getUTCSeconds();
-          HEAP32[tmPtr + 4 >>> 2 >>> 0] = date.getUTCMinutes();
-          HEAP32[tmPtr + 8 >>> 2 >>> 0] = date.getUTCHours();
-          HEAP32[tmPtr + 12 >>> 2 >>> 0] = date.getUTCDate();
-          HEAP32[tmPtr + 16 >>> 2 >>> 0] = date.getUTCMonth();
-          HEAP32[tmPtr + 20 >>> 2 >>> 0] = date.getUTCFullYear() - 1900;
-          HEAP32[tmPtr + 24 >>> 2 >>> 0] = date.getUTCDay();
+          HEAP32[tmPtr >>> 2] = date.getUTCSeconds();
+          HEAP32[tmPtr + 4 >>> 2] = date.getUTCMinutes();
+          HEAP32[tmPtr + 8 >>> 2] = date.getUTCHours();
+          HEAP32[tmPtr + 12 >>> 2] = date.getUTCDate();
+          HEAP32[tmPtr + 16 >>> 2] = date.getUTCMonth();
+          HEAP32[tmPtr + 20 >>> 2] = date.getUTCFullYear() - 1900;
+          HEAP32[tmPtr + 24 >>> 2] = date.getUTCDay();
           var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
           var yday = (date.getTime() - start) / (1e3 * 60 * 60 * 24) | 0;
-          HEAP32[tmPtr + 28 >>> 2 >>> 0] = yday;
+          HEAP32[tmPtr + 28 >>> 2] = yday;
         }
         var isLeapYear = (year) => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
         var MONTH_DAYS_LEAP_CUMULATIVE = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
@@ -33731,21 +33840,21 @@ var require_web_ifc = __commonJS({
           var time = convertI32PairToI53Checked(time_low, time_high);
           tmPtr >>>= 0;
           var date = new Date(time * 1e3);
-          HEAP32[tmPtr >>> 2 >>> 0] = date.getSeconds();
-          HEAP32[tmPtr + 4 >>> 2 >>> 0] = date.getMinutes();
-          HEAP32[tmPtr + 8 >>> 2 >>> 0] = date.getHours();
-          HEAP32[tmPtr + 12 >>> 2 >>> 0] = date.getDate();
-          HEAP32[tmPtr + 16 >>> 2 >>> 0] = date.getMonth();
-          HEAP32[tmPtr + 20 >>> 2 >>> 0] = date.getFullYear() - 1900;
-          HEAP32[tmPtr + 24 >>> 2 >>> 0] = date.getDay();
+          HEAP32[tmPtr >>> 2] = date.getSeconds();
+          HEAP32[tmPtr + 4 >>> 2] = date.getMinutes();
+          HEAP32[tmPtr + 8 >>> 2] = date.getHours();
+          HEAP32[tmPtr + 12 >>> 2] = date.getDate();
+          HEAP32[tmPtr + 16 >>> 2] = date.getMonth();
+          HEAP32[tmPtr + 20 >>> 2] = date.getFullYear() - 1900;
+          HEAP32[tmPtr + 24 >>> 2] = date.getDay();
           var yday = ydayFromDate(date) | 0;
-          HEAP32[tmPtr + 28 >>> 2 >>> 0] = yday;
-          HEAP32[tmPtr + 36 >>> 2 >>> 0] = -(date.getTimezoneOffset() * 60);
+          HEAP32[tmPtr + 28 >>> 2] = yday;
+          HEAP32[tmPtr + 36 >>> 2] = -(date.getTimezoneOffset() * 60);
           var start = new Date(date.getFullYear(), 0, 1);
           var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
           var winterOffset = start.getTimezoneOffset();
           var dst = (summerOffset != winterOffset && date.getTimezoneOffset() == Math.min(winterOffset, summerOffset)) | 0;
-          HEAP32[tmPtr + 32 >>> 2 >>> 0] = dst;
+          HEAP32[tmPtr + 32 >>> 2] = dst;
         }
         var stringToNewUTF8 = (str) => {
           var size = lengthBytesUTF8(str) + 1;
@@ -33764,8 +33873,8 @@ var require_web_ifc = __commonJS({
           var winterOffset = winter.getTimezoneOffset();
           var summerOffset = summer.getTimezoneOffset();
           var stdTimezoneOffset = Math.max(winterOffset, summerOffset);
-          HEAPU32[timezone >>> 2 >>> 0] = stdTimezoneOffset * 60;
-          HEAP32[daylight >>> 2 >>> 0] = Number(winterOffset != summerOffset);
+          HEAPU32[timezone >>> 2] = stdTimezoneOffset * 60;
+          HEAP32[daylight >>> 2] = Number(winterOffset != summerOffset);
           function extractZone(date) {
             var match = date.toTimeString().match(/\(([A-Za-z ]+)\)$/);
             return match ? match[1] : "GMT";
@@ -33775,17 +33884,19 @@ var require_web_ifc = __commonJS({
           var winterNamePtr = stringToNewUTF8(winterName);
           var summerNamePtr = stringToNewUTF8(summerName);
           if (summerOffset < winterOffset) {
-            HEAPU32[tzname >>> 2 >>> 0] = winterNamePtr;
-            HEAPU32[tzname + 4 >>> 2 >>> 0] = summerNamePtr;
+            HEAPU32[tzname >>> 2] = winterNamePtr;
+            HEAPU32[tzname + 4 >>> 2] = summerNamePtr;
           } else {
-            HEAPU32[tzname >>> 2 >>> 0] = summerNamePtr;
-            HEAPU32[tzname + 4 >>> 2 >>> 0] = winterNamePtr;
+            HEAPU32[tzname >>> 2] = summerNamePtr;
+            HEAPU32[tzname + 4 >>> 2] = winterNamePtr;
           }
         }
         var _abort = () => {
           abort("");
         };
-        var _emscripten_date_now = () => Date.now();
+        function _emscripten_date_now() {
+          return Date.now();
+        }
         function _emscripten_memcpy_big(dest, src, num) {
           dest >>>= 0;
           src >>>= 0;
@@ -33795,7 +33906,7 @@ var require_web_ifc = __commonJS({
         var getHeapMax = () => 4294901760;
         var growMemory = (size) => {
           var b = wasmMemory.buffer;
-          var pages = (size - b.byteLength + 65535) / 65536;
+          var pages = size - b.byteLength + 65535 >>> 16;
           try {
             wasmMemory.grow(pages);
             updateMemoryViews();
@@ -33844,9 +33955,9 @@ var require_web_ifc = __commonJS({
         };
         var stringToAscii = (str, buffer) => {
           for (var i = 0; i < str.length; ++i) {
-            HEAP8[buffer++ >>> 0 >>> 0] = str.charCodeAt(i);
+            HEAP8[buffer++ >>> 0] = str.charCodeAt(i);
           }
-          HEAP8[buffer >>> 0 >>> 0] = 0;
+          HEAP8[buffer >>> 0] = 0;
         };
         var PATH = { isAbs: (path) => path.charAt(0) === "/", splitPath: (filename) => {
           var splitPathRe = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
@@ -33989,23 +34100,23 @@ var require_web_ifc = __commonJS({
           }
           return FS_stdin_getChar_buffer.shift();
         };
-        var TTY = { ttys: [], init() {
-        }, shutdown() {
-        }, register(dev, ops) {
+        var TTY = { ttys: [], init: function() {
+        }, shutdown: function() {
+        }, register: function(dev, ops) {
           TTY.ttys[dev] = { input: [], output: [], ops };
           FS.registerDevice(dev, TTY.stream_ops);
-        }, stream_ops: { open(stream) {
+        }, stream_ops: { open: function(stream) {
           var tty = TTY.ttys[stream.node.rdev];
           if (!tty) {
             throw new FS.ErrnoError(43);
           }
           stream.tty = tty;
           stream.seekable = false;
-        }, close(stream) {
+        }, close: function(stream) {
           stream.tty.ops.fsync(stream.tty);
-        }, fsync(stream) {
+        }, fsync: function(stream) {
           stream.tty.ops.fsync(stream.tty);
-        }, read(stream, buffer, offset, length, pos) {
+        }, read: function(stream, buffer, offset, length, pos) {
           if (!stream.tty || !stream.tty.ops.get_char) {
             throw new FS.ErrnoError(60);
           }
@@ -34029,7 +34140,7 @@ var require_web_ifc = __commonJS({
             stream.node.timestamp = Date.now();
           }
           return bytesRead;
-        }, write(stream, buffer, offset, length, pos) {
+        }, write: function(stream, buffer, offset, length, pos) {
           if (!stream.tty || !stream.tty.ops.put_char) {
             throw new FS.ErrnoError(60);
           }
@@ -34044,9 +34155,9 @@ var require_web_ifc = __commonJS({
             stream.node.timestamp = Date.now();
           }
           return i;
-        } }, default_tty_ops: { get_char(tty) {
+        } }, default_tty_ops: { get_char: function(tty) {
           return FS_stdin_getChar();
-        }, put_char(tty, val) {
+        }, put_char: function(tty, val) {
           if (val === null || val === 10) {
             out(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
@@ -34054,18 +34165,18 @@ var require_web_ifc = __commonJS({
             if (val != 0)
               tty.output.push(val);
           }
-        }, fsync(tty) {
+        }, fsync: function(tty) {
           if (tty.output && tty.output.length > 0) {
             out(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
           }
-        }, ioctl_tcgets(tty) {
+        }, ioctl_tcgets: function(tty) {
           return { c_iflag: 25856, c_oflag: 5, c_cflag: 191, c_lflag: 35387, c_cc: [3, 28, 127, 21, 4, 0, 1, 0, 17, 19, 26, 0, 18, 15, 23, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-        }, ioctl_tcsets(tty, optional_actions, data) {
+        }, ioctl_tcsets: function(tty, optional_actions, data) {
           return 0;
-        }, ioctl_tiocgwinsz(tty) {
+        }, ioctl_tiocgwinsz: function(tty) {
           return [24, 80];
-        } }, default_tty1_ops: { put_char(tty, val) {
+        } }, default_tty1_ops: { put_char: function(tty, val) {
           if (val === null || val === 10) {
             err(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
@@ -34073,7 +34184,7 @@ var require_web_ifc = __commonJS({
             if (val != 0)
               tty.output.push(val);
           }
-        }, fsync(tty) {
+        }, fsync: function(tty) {
           if (tty.output && tty.output.length > 0) {
             err(UTF8ArrayToString(tty.output, 0));
             tty.output = [];
@@ -34339,11 +34450,11 @@ var require_web_ifc = __commonJS({
             addRunDependency();
         };
         var preloadPlugins = Module["preloadPlugins"] || [];
-        var FS_handledByPreloadPlugin = (byteArray, fullname, finish, onerror) => {
+        function FS_handledByPreloadPlugin(byteArray, fullname, finish, onerror) {
           if (typeof Browser != "undefined")
             Browser.init();
           var handled = false;
-          preloadPlugins.forEach((plugin) => {
+          preloadPlugins.forEach(function(plugin) {
             if (handled)
               return;
             if (plugin["canHandle"](fullname)) {
@@ -34352,8 +34463,8 @@ var require_web_ifc = __commonJS({
             }
           });
           return handled;
-        };
-        var FS_createPreloadedFile = (parent, name, url, canRead, canWrite, onload, onerror, dontCreateFile, canOwn, preFinish) => {
+        }
+        function FS_createPreloadedFile(parent, name, url, canRead, canWrite, onload, onerror, dontCreateFile, canOwn, preFinish) {
           var fullname = name ? PATH_FS.resolve(PATH.join2(parent, name)) : parent;
           function processData(byteArray) {
             function finish(byteArray2) {
@@ -34381,24 +34492,24 @@ var require_web_ifc = __commonJS({
           } else {
             processData(url);
           }
-        };
-        var FS_modeStringToFlags = (str) => {
+        }
+        function FS_modeStringToFlags(str) {
           var flagModes = { "r": 0, "r+": 2, "w": 512 | 64 | 1, "w+": 512 | 64 | 2, "a": 1024 | 64 | 1, "a+": 1024 | 64 | 2 };
           var flags = flagModes[str];
           if (typeof flags == "undefined") {
             throw new Error(`Unknown file open mode: ${str}`);
           }
           return flags;
-        };
-        var FS_getMode = (canRead, canWrite) => {
+        }
+        function FS_getMode(canRead, canWrite) {
           var mode = 0;
           if (canRead)
             mode |= 292 | 73;
           if (canWrite)
             mode |= 146;
           return mode;
-        };
-        var FS = { root: null, mounts: [], devices: {}, streams: [], nextInode: 1, nameTable: null, currentPath: "/", initialized: false, ignorePermissions: true, ErrnoError: null, genericErrors: {}, filesystems: null, syncFSRequests: 0, lookupPath(path, opts = {}) {
+        }
+        var FS = { root: null, mounts: [], devices: {}, streams: [], nextInode: 1, nameTable: null, currentPath: "/", initialized: false, ignorePermissions: true, ErrnoError: null, genericErrors: {}, filesystems: null, syncFSRequests: 0, lookupPath: (path, opts = {}) => {
           path = PATH_FS.resolve(path);
           if (!path)
             return { path: "", node: null };
@@ -34436,7 +34547,7 @@ var require_web_ifc = __commonJS({
             }
           }
           return { path: current_path, node: current };
-        }, getPath(node) {
+        }, getPath: (node) => {
           var path;
           while (true) {
             if (FS.isRoot(node)) {
@@ -34448,17 +34559,17 @@ var require_web_ifc = __commonJS({
             path = path ? `${node.name}/${path}` : node.name;
             node = node.parent;
           }
-        }, hashName(parentid, name) {
+        }, hashName: (parentid, name) => {
           var hash = 0;
           for (var i = 0; i < name.length; i++) {
             hash = (hash << 5) - hash + name.charCodeAt(i) | 0;
           }
           return (parentid + hash >>> 0) % FS.nameTable.length;
-        }, hashAddNode(node) {
+        }, hashAddNode: (node) => {
           var hash = FS.hashName(node.parent.id, node.name);
           node.name_next = FS.nameTable[hash];
           FS.nameTable[hash] = node;
-        }, hashRemoveNode(node) {
+        }, hashRemoveNode: (node) => {
           var hash = FS.hashName(node.parent.id, node.name);
           if (FS.nameTable[hash] === node) {
             FS.nameTable[hash] = node.name_next;
@@ -34472,7 +34583,7 @@ var require_web_ifc = __commonJS({
               current = current.name_next;
             }
           }
-        }, lookupNode(parent, name) {
+        }, lookupNode: (parent, name) => {
           var errCode = FS.mayLookup(parent);
           if (errCode) {
             throw new FS.ErrnoError(errCode, parent);
@@ -34485,37 +34596,19 @@ var require_web_ifc = __commonJS({
             }
           }
           return FS.lookup(parent, name);
-        }, createNode(parent, name, mode, rdev) {
+        }, createNode: (parent, name, mode, rdev) => {
           var node = new FS.FSNode(parent, name, mode, rdev);
           FS.hashAddNode(node);
           return node;
-        }, destroyNode(node) {
+        }, destroyNode: (node) => {
           FS.hashRemoveNode(node);
-        }, isRoot(node) {
-          return node === node.parent;
-        }, isMountpoint(node) {
-          return !!node.mounted;
-        }, isFile(mode) {
-          return (mode & 61440) === 32768;
-        }, isDir(mode) {
-          return (mode & 61440) === 16384;
-        }, isLink(mode) {
-          return (mode & 61440) === 40960;
-        }, isChrdev(mode) {
-          return (mode & 61440) === 8192;
-        }, isBlkdev(mode) {
-          return (mode & 61440) === 24576;
-        }, isFIFO(mode) {
-          return (mode & 61440) === 4096;
-        }, isSocket(mode) {
-          return (mode & 49152) === 49152;
-        }, flagsToPermissionString(flag) {
+        }, isRoot: (node) => node === node.parent, isMountpoint: (node) => !!node.mounted, isFile: (mode) => (mode & 61440) === 32768, isDir: (mode) => (mode & 61440) === 16384, isLink: (mode) => (mode & 61440) === 40960, isChrdev: (mode) => (mode & 61440) === 8192, isBlkdev: (mode) => (mode & 61440) === 24576, isFIFO: (mode) => (mode & 61440) === 4096, isSocket: (mode) => (mode & 49152) === 49152, flagsToPermissionString: (flag) => {
           var perms = ["r", "w", "rw"][flag & 3];
           if (flag & 512) {
             perms += "w";
           }
           return perms;
-        }, nodePermissions(node, perms) {
+        }, nodePermissions: (node, perms) => {
           if (FS.ignorePermissions) {
             return 0;
           }
@@ -34527,21 +34620,21 @@ var require_web_ifc = __commonJS({
             return 2;
           }
           return 0;
-        }, mayLookup(dir) {
+        }, mayLookup: (dir) => {
           var errCode = FS.nodePermissions(dir, "x");
           if (errCode)
             return errCode;
           if (!dir.node_ops.lookup)
             return 2;
           return 0;
-        }, mayCreate(dir, name) {
+        }, mayCreate: (dir, name) => {
           try {
             var node = FS.lookupNode(dir, name);
             return 20;
           } catch (e) {
           }
           return FS.nodePermissions(dir, "wx");
-        }, mayDelete(dir, name, isdir) {
+        }, mayDelete: (dir, name, isdir) => {
           var node;
           try {
             node = FS.lookupNode(dir, name);
@@ -34565,7 +34658,7 @@ var require_web_ifc = __commonJS({
             }
           }
           return 0;
-        }, mayOpen(node, flags) {
+        }, mayOpen: (node, flags) => {
           if (!node) {
             return 44;
           }
@@ -34577,20 +34670,20 @@ var require_web_ifc = __commonJS({
             }
           }
           return FS.nodePermissions(node, FS.flagsToPermissionString(flags));
-        }, MAX_OPEN_FDS: 4096, nextfd() {
+        }, MAX_OPEN_FDS: 4096, nextfd: () => {
           for (var fd = 0; fd <= FS.MAX_OPEN_FDS; fd++) {
             if (!FS.streams[fd]) {
               return fd;
             }
           }
           throw new FS.ErrnoError(33);
-        }, getStreamChecked(fd) {
+        }, getStreamChecked: (fd) => {
           var stream = FS.getStream(fd);
           if (!stream) {
             throw new FS.ErrnoError(8);
           }
           return stream;
-        }, getStream: (fd) => FS.streams[fd], createStream(stream, fd = -1) {
+        }, getStream: (fd) => FS.streams[fd], createStream: (stream, fd = -1) => {
           if (!FS.FSStream) {
             FS.FSStream = function() {
               this.shared = {};
@@ -34623,19 +34716,19 @@ var require_web_ifc = __commonJS({
           stream.fd = fd;
           FS.streams[fd] = stream;
           return stream;
-        }, closeStream(fd) {
+        }, closeStream: (fd) => {
           FS.streams[fd] = null;
-        }, chrdev_stream_ops: { open(stream) {
+        }, chrdev_stream_ops: { open: (stream) => {
           var device = FS.getDevice(stream.node.rdev);
           stream.stream_ops = device.stream_ops;
           if (stream.stream_ops.open) {
             stream.stream_ops.open(stream);
           }
-        }, llseek() {
+        }, llseek: () => {
           throw new FS.ErrnoError(70);
-        } }, major: (dev) => dev >> 8, minor: (dev) => dev & 255, makedev: (ma, mi) => ma << 8 | mi, registerDevice(dev, ops) {
+        } }, major: (dev) => dev >> 8, minor: (dev) => dev & 255, makedev: (ma, mi) => ma << 8 | mi, registerDevice: (dev, ops) => {
           FS.devices[dev] = { stream_ops: ops };
-        }, getDevice: (dev) => FS.devices[dev], getMounts(mount) {
+        }, getDevice: (dev) => FS.devices[dev], getMounts: (mount) => {
           var mounts = [];
           var check = [mount];
           while (check.length) {
@@ -34644,7 +34737,7 @@ var require_web_ifc = __commonJS({
             check.push.apply(check, m.mounts);
           }
           return mounts;
-        }, syncfs(populate, callback) {
+        }, syncfs: (populate, callback) => {
           if (typeof populate == "function") {
             callback = populate;
             populate = false;
@@ -34677,7 +34770,7 @@ var require_web_ifc = __commonJS({
             }
             mount.type.syncfs(mount, populate, done);
           });
-        }, mount(type, opts, mountpoint) {
+        }, mount: (type, opts, mountpoint) => {
           var root = mountpoint === "/";
           var pseudo = !mountpoint;
           var node;
@@ -34707,7 +34800,7 @@ var require_web_ifc = __commonJS({
             }
           }
           return mountRoot;
-        }, unmount(mountpoint) {
+        }, unmount: (mountpoint) => {
           var lookup = FS.lookupPath(mountpoint, { follow_mount: false });
           if (!FS.isMountpoint(lookup.node)) {
             throw new FS.ErrnoError(28);
@@ -34728,9 +34821,7 @@ var require_web_ifc = __commonJS({
           node.mounted = null;
           var idx = node.mount.mounts.indexOf(mount);
           node.mount.mounts.splice(idx, 1);
-        }, lookup(parent, name) {
-          return parent.node_ops.lookup(parent, name);
-        }, mknod(path, mode, dev) {
+        }, lookup: (parent, name) => parent.node_ops.lookup(parent, name), mknod: (path, mode, dev) => {
           var lookup = FS.lookupPath(path, { parent: true });
           var parent = lookup.node;
           var name = PATH.basename(path);
@@ -34745,17 +34836,17 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(63);
           }
           return parent.node_ops.mknod(parent, name, mode, dev);
-        }, create(path, mode) {
+        }, create: (path, mode) => {
           mode = mode !== void 0 ? mode : 438;
           mode &= 4095;
           mode |= 32768;
           return FS.mknod(path, mode, 0);
-        }, mkdir(path, mode) {
+        }, mkdir: (path, mode) => {
           mode = mode !== void 0 ? mode : 511;
           mode &= 511 | 512;
           mode |= 16384;
           return FS.mknod(path, mode, 0);
-        }, mkdirTree(path, mode) {
+        }, mkdirTree: (path, mode) => {
           var dirs = path.split("/");
           var d = "";
           for (var i = 0; i < dirs.length; ++i) {
@@ -34769,14 +34860,14 @@ var require_web_ifc = __commonJS({
                 throw e;
             }
           }
-        }, mkdev(path, mode, dev) {
+        }, mkdev: (path, mode, dev) => {
           if (typeof dev == "undefined") {
             dev = mode;
             mode = 438;
           }
           mode |= 8192;
           return FS.mknod(path, mode, dev);
-        }, symlink(oldpath, newpath) {
+        }, symlink: (oldpath, newpath) => {
           if (!PATH_FS.resolve(oldpath)) {
             throw new FS.ErrnoError(44);
           }
@@ -34794,7 +34885,7 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(63);
           }
           return parent.node_ops.symlink(parent, newname, oldpath);
-        }, rename(old_path, new_path) {
+        }, rename: (old_path, new_path) => {
           var old_dirname = PATH.dirname(old_path);
           var new_dirname = PATH.dirname(new_path);
           var old_name = PATH.basename(old_path);
@@ -34855,7 +34946,7 @@ var require_web_ifc = __commonJS({
           } finally {
             FS.hashAddNode(old_node);
           }
-        }, rmdir(path) {
+        }, rmdir: (path) => {
           var lookup = FS.lookupPath(path, { parent: true });
           var parent = lookup.node;
           var name = PATH.basename(path);
@@ -34872,14 +34963,14 @@ var require_web_ifc = __commonJS({
           }
           parent.node_ops.rmdir(parent, name);
           FS.destroyNode(node);
-        }, readdir(path) {
+        }, readdir: (path) => {
           var lookup = FS.lookupPath(path, { follow: true });
           var node = lookup.node;
           if (!node.node_ops.readdir) {
             throw new FS.ErrnoError(54);
           }
           return node.node_ops.readdir(node);
-        }, unlink(path) {
+        }, unlink: (path) => {
           var lookup = FS.lookupPath(path, { parent: true });
           var parent = lookup.node;
           if (!parent) {
@@ -34899,7 +34990,7 @@ var require_web_ifc = __commonJS({
           }
           parent.node_ops.unlink(parent, name);
           FS.destroyNode(node);
-        }, readlink(path) {
+        }, readlink: (path) => {
           var lookup = FS.lookupPath(path);
           var link = lookup.node;
           if (!link) {
@@ -34909,7 +35000,7 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(28);
           }
           return PATH_FS.resolve(FS.getPath(link.parent), link.node_ops.readlink(link));
-        }, stat(path, dontFollow) {
+        }, stat: (path, dontFollow) => {
           var lookup = FS.lookupPath(path, { follow: !dontFollow });
           var node = lookup.node;
           if (!node) {
@@ -34919,9 +35010,7 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(63);
           }
           return node.node_ops.getattr(node);
-        }, lstat(path) {
-          return FS.stat(path, true);
-        }, chmod(path, mode, dontFollow) {
+        }, lstat: (path) => FS.stat(path, true), chmod: (path, mode, dontFollow) => {
           var node;
           if (typeof path == "string") {
             var lookup = FS.lookupPath(path, { follow: !dontFollow });
@@ -34933,12 +35022,12 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(63);
           }
           node.node_ops.setattr(node, { mode: mode & 4095 | node.mode & ~4095, timestamp: Date.now() });
-        }, lchmod(path, mode) {
+        }, lchmod: (path, mode) => {
           FS.chmod(path, mode, true);
-        }, fchmod(fd, mode) {
+        }, fchmod: (fd, mode) => {
           var stream = FS.getStreamChecked(fd);
           FS.chmod(stream.node, mode);
-        }, chown(path, uid, gid, dontFollow) {
+        }, chown: (path, uid, gid, dontFollow) => {
           var node;
           if (typeof path == "string") {
             var lookup = FS.lookupPath(path, { follow: !dontFollow });
@@ -34950,12 +35039,12 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(63);
           }
           node.node_ops.setattr(node, { timestamp: Date.now() });
-        }, lchown(path, uid, gid) {
+        }, lchown: (path, uid, gid) => {
           FS.chown(path, uid, gid, true);
-        }, fchown(fd, uid, gid) {
+        }, fchown: (fd, uid, gid) => {
           var stream = FS.getStreamChecked(fd);
           FS.chown(stream.node, uid, gid);
-        }, truncate(path, len) {
+        }, truncate: (path, len) => {
           if (len < 0) {
             throw new FS.ErrnoError(28);
           }
@@ -34980,17 +35069,17 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(errCode);
           }
           node.node_ops.setattr(node, { size: len, timestamp: Date.now() });
-        }, ftruncate(fd, len) {
+        }, ftruncate: (fd, len) => {
           var stream = FS.getStreamChecked(fd);
           if ((stream.flags & 2097155) === 0) {
             throw new FS.ErrnoError(28);
           }
           FS.truncate(stream.node, len);
-        }, utime(path, atime, mtime) {
+        }, utime: (path, atime, mtime) => {
           var lookup = FS.lookupPath(path, { follow: true });
           var node = lookup.node;
           node.node_ops.setattr(node, { timestamp: Math.max(atime, mtime) });
-        }, open(path, flags, mode) {
+        }, open: (path, flags, mode) => {
           if (path === "") {
             throw new FS.ErrnoError(44);
           }
@@ -35054,7 +35143,7 @@ var require_web_ifc = __commonJS({
             }
           }
           return stream;
-        }, close(stream) {
+        }, close: (stream) => {
           if (FS.isClosed(stream)) {
             throw new FS.ErrnoError(8);
           }
@@ -35070,9 +35159,7 @@ var require_web_ifc = __commonJS({
             FS.closeStream(stream.fd);
           }
           stream.fd = null;
-        }, isClosed(stream) {
-          return stream.fd === null;
-        }, llseek(stream, offset, whence) {
+        }, isClosed: (stream) => stream.fd === null, llseek: (stream, offset, whence) => {
           if (FS.isClosed(stream)) {
             throw new FS.ErrnoError(8);
           }
@@ -35085,7 +35172,7 @@ var require_web_ifc = __commonJS({
           stream.position = stream.stream_ops.llseek(stream, offset, whence);
           stream.ungotten = [];
           return stream.position;
-        }, read(stream, buffer, offset, length, position) {
+        }, read: (stream, buffer, offset, length, position) => {
           if (length < 0 || position < 0) {
             throw new FS.ErrnoError(28);
           }
@@ -35111,7 +35198,7 @@ var require_web_ifc = __commonJS({
           if (!seeking)
             stream.position += bytesRead;
           return bytesRead;
-        }, write(stream, buffer, offset, length, position, canOwn) {
+        }, write: (stream, buffer, offset, length, position, canOwn) => {
           if (length < 0 || position < 0) {
             throw new FS.ErrnoError(28);
           }
@@ -35140,7 +35227,7 @@ var require_web_ifc = __commonJS({
           if (!seeking)
             stream.position += bytesWritten;
           return bytesWritten;
-        }, allocate(stream, offset, length) {
+        }, allocate: (stream, offset, length) => {
           if (FS.isClosed(stream)) {
             throw new FS.ErrnoError(8);
           }
@@ -35157,7 +35244,7 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(138);
           }
           stream.stream_ops.allocate(stream, offset, length);
-        }, mmap(stream, length, position, prot, flags) {
+        }, mmap: (stream, length, position, prot, flags) => {
           if ((prot & 2) !== 0 && (flags & 2) === 0 && (stream.flags & 2097155) !== 2) {
             throw new FS.ErrnoError(2);
           }
@@ -35168,17 +35255,17 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(43);
           }
           return stream.stream_ops.mmap(stream, length, position, prot, flags);
-        }, msync(stream, buffer, offset, length, mmapFlags) {
+        }, msync: (stream, buffer, offset, length, mmapFlags) => {
           if (!stream.stream_ops.msync) {
             return 0;
           }
           return stream.stream_ops.msync(stream, buffer, offset, length, mmapFlags);
-        }, munmap: (stream) => 0, ioctl(stream, cmd, arg) {
+        }, munmap: (stream) => 0, ioctl: (stream, cmd, arg) => {
           if (!stream.stream_ops.ioctl) {
             throw new FS.ErrnoError(59);
           }
           return stream.stream_ops.ioctl(stream, cmd, arg);
-        }, readFile(path, opts = {}) {
+        }, readFile: (path, opts = {}) => {
           opts.flags = opts.flags || 0;
           opts.encoding = opts.encoding || "binary";
           if (opts.encoding !== "utf8" && opts.encoding !== "binary") {
@@ -35197,7 +35284,7 @@ var require_web_ifc = __commonJS({
           }
           FS.close(stream);
           return ret;
-        }, writeFile(path, data, opts = {}) {
+        }, writeFile: (path, data, opts = {}) => {
           opts.flags = opts.flags || 577;
           var stream = FS.open(path, opts.flags, opts.mode);
           if (typeof data == "string") {
@@ -35210,7 +35297,7 @@ var require_web_ifc = __commonJS({
             throw new Error("Unsupported data type");
           }
           FS.close(stream);
-        }, cwd: () => FS.currentPath, chdir(path) {
+        }, cwd: () => FS.currentPath, chdir: (path) => {
           var lookup = FS.lookupPath(path, { follow: true });
           if (lookup.node === null) {
             throw new FS.ErrnoError(44);
@@ -35223,11 +35310,11 @@ var require_web_ifc = __commonJS({
             throw new FS.ErrnoError(errCode);
           }
           FS.currentPath = lookup.path;
-        }, createDefaultDirectories() {
+        }, createDefaultDirectories: () => {
           FS.mkdir("/tmp");
           FS.mkdir("/home");
           FS.mkdir("/home/web_user");
-        }, createDefaultDevices() {
+        }, createDefaultDevices: () => {
           FS.mkdir("/dev");
           FS.registerDevice(FS.makedev(1, 3), { read: () => 0, write: (stream, buffer, offset, length, pos) => length });
           FS.mkdev("/dev/null", FS.makedev(1, 3));
@@ -35246,13 +35333,13 @@ var require_web_ifc = __commonJS({
           FS.createDevice("/dev", "urandom", randomByte);
           FS.mkdir("/dev/shm");
           FS.mkdir("/dev/shm/tmp");
-        }, createSpecialDirectories() {
+        }, createSpecialDirectories: () => {
           FS.mkdir("/proc");
           var proc_self = FS.mkdir("/proc/self");
           FS.mkdir("/proc/self/fd");
-          FS.mount({ mount() {
+          FS.mount({ mount: () => {
             var node = FS.createNode(proc_self, "fd", 16384 | 511, 73);
-            node.node_ops = { lookup(parent, name) {
+            node.node_ops = { lookup: (parent, name) => {
               var fd = +name;
               var stream = FS.getStreamChecked(fd);
               var ret = { parent: null, mount: { mountpoint: "fake" }, node_ops: { readlink: () => stream.path } };
@@ -35261,7 +35348,7 @@ var require_web_ifc = __commonJS({
             } };
             return node;
           } }, {}, "/proc/self/fd");
-        }, createStandardStreams() {
+        }, createStandardStreams: () => {
           if (Module["stdin"]) {
             FS.createDevice("/dev", "stdin", Module["stdin"]);
           } else {
@@ -35280,7 +35367,7 @@ var require_web_ifc = __commonJS({
           FS.open("/dev/stdin", 0);
           FS.open("/dev/stdout", 1);
           FS.open("/dev/stderr", 1);
-        }, ensureErrnoError() {
+        }, ensureErrnoError: () => {
           if (FS.ErrnoError)
             return;
           FS.ErrnoError = function ErrnoError(errno, node) {
@@ -35298,7 +35385,7 @@ var require_web_ifc = __commonJS({
             FS.genericErrors[code] = new FS.ErrnoError(code);
             FS.genericErrors[code].stack = "<generic error, no stack>";
           });
-        }, staticInit() {
+        }, staticInit: () => {
           FS.ensureErrnoError();
           FS.nameTable = new Array(4096);
           FS.mount(MEMFS, {}, "/");
@@ -35306,14 +35393,14 @@ var require_web_ifc = __commonJS({
           FS.createDefaultDevices();
           FS.createSpecialDirectories();
           FS.filesystems = { "MEMFS": MEMFS };
-        }, init(input, output, error) {
+        }, init: (input, output, error) => {
           FS.init.initialized = true;
           FS.ensureErrnoError();
           Module["stdin"] = input || Module["stdin"];
           Module["stdout"] = output || Module["stdout"];
           Module["stderr"] = error || Module["stderr"];
           FS.createStandardStreams();
-        }, quit() {
+        }, quit: () => {
           FS.init.initialized = false;
           for (var i = 0; i < FS.streams.length; i++) {
             var stream = FS.streams[i];
@@ -35322,13 +35409,13 @@ var require_web_ifc = __commonJS({
             }
             FS.close(stream);
           }
-        }, findObject(path, dontResolveLastLink) {
+        }, findObject: (path, dontResolveLastLink) => {
           var ret = FS.analyzePath(path, dontResolveLastLink);
           if (!ret.exists) {
             return null;
           }
           return ret.object;
-        }, analyzePath(path, dontResolveLastLink) {
+        }, analyzePath: (path, dontResolveLastLink) => {
           try {
             var lookup = FS.lookupPath(path, { follow: !dontResolveLastLink });
             path = lookup.path;
@@ -35351,7 +35438,7 @@ var require_web_ifc = __commonJS({
             ret.error = e.errno;
           }
           return ret;
-        }, createPath(parent, path, canRead, canWrite) {
+        }, createPath: (parent, path, canRead, canWrite) => {
           parent = typeof parent == "string" ? parent : FS.getPath(parent);
           var parts = path.split("/").reverse();
           while (parts.length) {
@@ -35366,11 +35453,11 @@ var require_web_ifc = __commonJS({
             parent = current;
           }
           return current;
-        }, createFile(parent, name, properties, canRead, canWrite) {
+        }, createFile: (parent, name, properties, canRead, canWrite) => {
           var path = PATH.join2(typeof parent == "string" ? parent : FS.getPath(parent), name);
           var mode = FS_getMode(canRead, canWrite);
           return FS.create(path, mode);
-        }, createDataFile(parent, name, data, canRead, canWrite, canOwn) {
+        }, createDataFile: (parent, name, data, canRead, canWrite, canOwn) => {
           var path = name;
           if (parent) {
             parent = typeof parent == "string" ? parent : FS.getPath(parent);
@@ -35392,19 +35479,19 @@ var require_web_ifc = __commonJS({
             FS.chmod(node, mode);
           }
           return node;
-        }, createDevice(parent, name, input, output) {
+        }, createDevice: (parent, name, input, output) => {
           var path = PATH.join2(typeof parent == "string" ? parent : FS.getPath(parent), name);
           var mode = FS_getMode(!!input, !!output);
           if (!FS.createDevice.major)
             FS.createDevice.major = 64;
           var dev = FS.makedev(FS.createDevice.major++, 0);
-          FS.registerDevice(dev, { open(stream) {
+          FS.registerDevice(dev, { open: (stream) => {
             stream.seekable = false;
-          }, close(stream) {
+          }, close: (stream) => {
             if (output && output.buffer && output.buffer.length) {
               output(10);
             }
-          }, read(stream, buffer, offset, length, pos) {
+          }, read: (stream, buffer, offset, length, pos) => {
             var bytesRead = 0;
             for (var i = 0; i < length; i++) {
               var result;
@@ -35425,7 +35512,7 @@ var require_web_ifc = __commonJS({
               stream.node.timestamp = Date.now();
             }
             return bytesRead;
-          }, write(stream, buffer, offset, length, pos) {
+          }, write: (stream, buffer, offset, length, pos) => {
             for (var i = 0; i < length; i++) {
               try {
                 output(buffer[offset + i]);
@@ -35439,7 +35526,7 @@ var require_web_ifc = __commonJS({
             return i;
           } });
           return FS.mkdev(path, mode, dev);
-        }, forceLoadFile(obj) {
+        }, forceLoadFile: (obj) => {
           if (obj.isDevice || obj.isFolder || obj.link || obj.contents)
             return true;
           if (typeof XMLHttpRequest != "undefined") {
@@ -35454,7 +35541,7 @@ var require_web_ifc = __commonJS({
           } else {
             throw new Error("Cannot load without read() or XMLHttpRequest.");
           }
-        }, createLazyFile(parent, name, url, canRead, canWrite) {
+        }, createLazyFile: (parent, name, url, canRead, canWrite) => {
           function LazyUint8Array() {
             this.lengthKnown = false;
             this.chunks = [];
@@ -35584,7 +35671,7 @@ var require_web_ifc = __commonJS({
           node.stream_ops = stream_ops;
           return node;
         } };
-        var SYSCALLS = { DEFAULT_POLLMASK: 5, calculateAt(dirfd, path, allowEmpty) {
+        var SYSCALLS = { DEFAULT_POLLMASK: 5, calculateAt: function(dirfd, path, allowEmpty) {
           if (PATH.isAbs(path)) {
             return path;
           }
@@ -35602,7 +35689,7 @@ var require_web_ifc = __commonJS({
             return dir;
           }
           return PATH.join2(dir, path);
-        }, doStat(func, path, buf) {
+        }, doStat: function(func, path, buf) {
           try {
             var stat = func(path);
           } catch (e) {
@@ -35611,27 +35698,27 @@ var require_web_ifc = __commonJS({
             }
             throw e;
           }
-          HEAP32[buf >>> 2 >>> 0] = stat.dev;
-          HEAP32[buf + 4 >>> 2 >>> 0] = stat.mode;
-          HEAPU32[buf + 8 >>> 2 >>> 0] = stat.nlink;
-          HEAP32[buf + 12 >>> 2 >>> 0] = stat.uid;
-          HEAP32[buf + 16 >>> 2 >>> 0] = stat.gid;
-          HEAP32[buf + 20 >>> 2 >>> 0] = stat.rdev;
-          tempI64 = [stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 24 >>> 2 >>> 0] = tempI64[0], HEAP32[buf + 28 >>> 2 >>> 0] = tempI64[1];
-          HEAP32[buf + 32 >>> 2 >>> 0] = 4096;
-          HEAP32[buf + 36 >>> 2 >>> 0] = stat.blocks;
+          HEAP32[buf >>> 2] = stat.dev;
+          HEAP32[buf + 4 >>> 2] = stat.mode;
+          HEAPU32[buf + 8 >>> 2] = stat.nlink;
+          HEAP32[buf + 12 >>> 2] = stat.uid;
+          HEAP32[buf + 16 >>> 2] = stat.gid;
+          HEAP32[buf + 20 >>> 2] = stat.rdev;
+          tempI64 = [stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 24 >>> 2] = tempI64[0], HEAP32[buf + 28 >>> 2] = tempI64[1];
+          HEAP32[buf + 32 >>> 2] = 4096;
+          HEAP32[buf + 36 >>> 2] = stat.blocks;
           var atime = stat.atime.getTime();
           var mtime = stat.mtime.getTime();
           var ctime = stat.ctime.getTime();
-          tempI64 = [Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 40 >>> 2 >>> 0] = tempI64[0], HEAP32[buf + 44 >>> 2 >>> 0] = tempI64[1];
-          HEAPU32[buf + 48 >>> 2 >>> 0] = atime % 1e3 * 1e3;
-          tempI64 = [Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 56 >>> 2 >>> 0] = tempI64[0], HEAP32[buf + 60 >>> 2 >>> 0] = tempI64[1];
-          HEAPU32[buf + 64 >>> 2 >>> 0] = mtime % 1e3 * 1e3;
-          tempI64 = [Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 72 >>> 2 >>> 0] = tempI64[0], HEAP32[buf + 76 >>> 2 >>> 0] = tempI64[1];
-          HEAPU32[buf + 80 >>> 2 >>> 0] = ctime % 1e3 * 1e3;
-          tempI64 = [stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 88 >>> 2 >>> 0] = tempI64[0], HEAP32[buf + 92 >>> 2 >>> 0] = tempI64[1];
+          tempI64 = [Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 40 >>> 2] = tempI64[0], HEAP32[buf + 44 >>> 2] = tempI64[1];
+          HEAPU32[buf + 48 >>> 2] = atime % 1e3 * 1e3;
+          tempI64 = [Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 56 >>> 2] = tempI64[0], HEAP32[buf + 60 >>> 2] = tempI64[1];
+          HEAPU32[buf + 64 >>> 2] = mtime % 1e3 * 1e3;
+          tempI64 = [Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 72 >>> 2] = tempI64[0], HEAP32[buf + 76 >>> 2] = tempI64[1];
+          HEAPU32[buf + 80 >>> 2] = ctime % 1e3 * 1e3;
+          tempI64 = [stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 88 >>> 2] = tempI64[0], HEAP32[buf + 92 >>> 2] = tempI64[1];
           return 0;
-        }, doMsync(addr, stream, len, flags, offset) {
+        }, doMsync: function(addr, stream, len, flags, offset) {
           if (!FS.isFile(stream.node.mode)) {
             throw new FS.ErrnoError(43);
           }
@@ -35641,40 +35728,40 @@ var require_web_ifc = __commonJS({
           var buffer = HEAPU8.slice(addr, addr + len);
           FS.msync(stream, buffer, offset, len, flags);
         }, varargs: void 0, get() {
-          var ret = HEAP32[SYSCALLS.varargs >>> 2 >>> 0];
           SYSCALLS.varargs += 4;
+          var ret = HEAP32[SYSCALLS.varargs - 4 >>> 2];
           return ret;
-        }, getp() {
-          return SYSCALLS.get();
         }, getStr(ptr) {
           var ret = UTF8ToString(ptr);
           return ret;
-        }, getStreamFromFD(fd) {
+        }, getStreamFromFD: function(fd) {
           var stream = FS.getStreamChecked(fd);
           return stream;
         } };
-        var _environ_get = function(__environ, environ_buf) {
+        function _environ_get(__environ, environ_buf) {
           __environ >>>= 0;
           environ_buf >>>= 0;
           var bufSize = 0;
-          getEnvStrings().forEach((string, i) => {
+          getEnvStrings().forEach(function(string, i) {
             var ptr = environ_buf + bufSize;
-            HEAPU32[__environ + i * 4 >>> 2 >>> 0] = ptr;
+            HEAPU32[__environ + i * 4 >>> 2] = ptr;
             stringToAscii(string, ptr);
             bufSize += string.length + 1;
           });
           return 0;
-        };
-        var _environ_sizes_get = function(penviron_count, penviron_buf_size) {
+        }
+        function _environ_sizes_get(penviron_count, penviron_buf_size) {
           penviron_count >>>= 0;
           penviron_buf_size >>>= 0;
           var strings = getEnvStrings();
-          HEAPU32[penviron_count >>> 2 >>> 0] = strings.length;
+          HEAPU32[penviron_count >>> 2] = strings.length;
           var bufSize = 0;
-          strings.forEach((string) => bufSize += string.length + 1);
-          HEAPU32[penviron_buf_size >>> 2 >>> 0] = bufSize;
+          strings.forEach(function(string) {
+            bufSize += string.length + 1;
+          });
+          HEAPU32[penviron_buf_size >>> 2] = bufSize;
           return 0;
-        };
+        }
         function _fd_close(fd) {
           try {
             var stream = SYSCALLS.getStreamFromFD(fd);
@@ -35696,10 +35783,10 @@ var require_web_ifc = __commonJS({
               var stream = SYSCALLS.getStreamFromFD(fd);
               var type = stream.tty ? 2 : FS.isDir(stream.mode) ? 3 : FS.isLink(stream.mode) ? 7 : 4;
             }
-            HEAP8[pbuf >>> 0 >>> 0] = type;
-            HEAP16[pbuf + 2 >>> 1 >>> 0] = flags;
-            tempI64 = [rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[pbuf + 8 >>> 2 >>> 0] = tempI64[0], HEAP32[pbuf + 12 >>> 2 >>> 0] = tempI64[1];
-            tempI64 = [rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[pbuf + 16 >>> 2 >>> 0] = tempI64[0], HEAP32[pbuf + 20 >>> 2 >>> 0] = tempI64[1];
+            HEAP8[pbuf >>> 0] = type;
+            HEAP16[pbuf + 2 >>> 1] = flags;
+            tempI64 = [rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[pbuf + 8 >>> 2] = tempI64[0], HEAP32[pbuf + 12 >>> 2] = tempI64[1];
+            tempI64 = [rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[pbuf + 16 >>> 2] = tempI64[0], HEAP32[pbuf + 20 >>> 2] = tempI64[1];
             return 0;
           } catch (e) {
             if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
@@ -35710,8 +35797,8 @@ var require_web_ifc = __commonJS({
         var doReadv = (stream, iov, iovcnt, offset) => {
           var ret = 0;
           for (var i = 0; i < iovcnt; i++) {
-            var ptr = HEAPU32[iov >>> 2 >>> 0];
-            var len = HEAPU32[iov + 4 >>> 2 >>> 0];
+            var ptr = HEAPU32[iov >>> 2];
+            var len = HEAPU32[iov + 4 >>> 2];
             iov += 8;
             var curr = FS.read(stream, HEAP8, ptr, len, offset);
             if (curr < 0)
@@ -35732,7 +35819,7 @@ var require_web_ifc = __commonJS({
           try {
             var stream = SYSCALLS.getStreamFromFD(fd);
             var num = doReadv(stream, iov, iovcnt);
-            HEAPU32[pnum >>> 2 >>> 0] = num;
+            HEAPU32[pnum >>> 2] = num;
             return 0;
           } catch (e) {
             if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
@@ -35748,7 +35835,7 @@ var require_web_ifc = __commonJS({
               return 61;
             var stream = SYSCALLS.getStreamFromFD(fd);
             FS.llseek(stream, offset, whence);
-            tempI64 = [stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[newOffset >>> 2 >>> 0] = tempI64[0], HEAP32[newOffset + 4 >>> 2 >>> 0] = tempI64[1];
+            tempI64 = [stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[newOffset >>> 2] = tempI64[0], HEAP32[newOffset + 4 >>> 2] = tempI64[1];
             if (stream.getdents && offset === 0 && whence === 0)
               stream.getdents = null;
             return 0;
@@ -35761,8 +35848,8 @@ var require_web_ifc = __commonJS({
         var doWritev = (stream, iov, iovcnt, offset) => {
           var ret = 0;
           for (var i = 0; i < iovcnt; i++) {
-            var ptr = HEAPU32[iov >>> 2 >>> 0];
-            var len = HEAPU32[iov + 4 >>> 2 >>> 0];
+            var ptr = HEAPU32[iov >>> 2];
+            var len = HEAPU32[iov + 4 >>> 2];
             iov += 8;
             var curr = FS.write(stream, HEAP8, ptr, len, offset);
             if (curr < 0)
@@ -35781,7 +35868,7 @@ var require_web_ifc = __commonJS({
           try {
             var stream = SYSCALLS.getStreamFromFD(fd);
             var num = doWritev(stream, iov, iovcnt);
-            HEAPU32[pnum >>> 2 >>> 0] = num;
+            HEAPU32[pnum >>> 2] = num;
             return 0;
           } catch (e) {
             if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
@@ -35827,8 +35914,8 @@ var require_web_ifc = __commonJS({
           maxsize >>>= 0;
           format >>>= 0;
           tm >>>= 0;
-          var tm_zone = HEAPU32[tm + 40 >>> 2 >>> 0];
-          var date = { tm_sec: HEAP32[tm >>> 2 >>> 0], tm_min: HEAP32[tm + 4 >>> 2 >>> 0], tm_hour: HEAP32[tm + 8 >>> 2 >>> 0], tm_mday: HEAP32[tm + 12 >>> 2 >>> 0], tm_mon: HEAP32[tm + 16 >>> 2 >>> 0], tm_year: HEAP32[tm + 20 >>> 2 >>> 0], tm_wday: HEAP32[tm + 24 >>> 2 >>> 0], tm_yday: HEAP32[tm + 28 >>> 2 >>> 0], tm_isdst: HEAP32[tm + 32 >>> 2 >>> 0], tm_gmtoff: HEAP32[tm + 36 >>> 2 >>> 0], tm_zone: tm_zone ? UTF8ToString(tm_zone) : "" };
+          var tm_zone = HEAP32[tm + 40 >>> 2];
+          var date = { tm_sec: HEAP32[tm >>> 2], tm_min: HEAP32[tm + 4 >>> 2], tm_hour: HEAP32[tm + 8 >>> 2], tm_mday: HEAP32[tm + 12 >>> 2], tm_mon: HEAP32[tm + 16 >>> 2], tm_year: HEAP32[tm + 20 >>> 2], tm_wday: HEAP32[tm + 24 >>> 2], tm_yday: HEAP32[tm + 28 >>> 2], tm_isdst: HEAP32[tm + 32 >>> 2], tm_gmtoff: HEAP32[tm + 36 >>> 2], tm_zone: tm_zone ? UTF8ToString(tm_zone) : "" };
           var pattern = UTF8ToString(format);
           var EXPANSION_RULES_1 = { "%c": "%a %b %d %H:%M:%S %Y", "%D": "%m/%d/%y", "%F": "%Y-%m-%d", "%h": "%b", "%r": "%I:%M:%S %p", "%R": "%H:%M", "%T": "%H:%M:%S", "%x": "%m/%d/%y", "%X": "%H:%M:%S", "%Ec": "%c", "%EC": "%C", "%Ex": "%m/%d/%y", "%EX": "%H:%M:%S", "%Ey": "%y", "%EY": "%Y", "%Od": "%d", "%Oe": "%e", "%OH": "%H", "%OI": "%I", "%Om": "%m", "%OM": "%M", "%OS": "%S", "%Ou": "%u", "%OU": "%U", "%OV": "%V", "%Ow": "%w", "%OW": "%W", "%Oy": "%y" };
           for (var rule in EXPANSION_RULES_1) {
@@ -36007,8 +36094,8 @@ var require_web_ifc = __commonJS({
         FS.FSNode = FSNode;
         FS.createPreloadedFile = FS_createPreloadedFile;
         FS.staticInit();
-        var wasmImports = { f: ___cxa_throw, W: __embind_finalize_value_array, q: __embind_finalize_value_object, G: __embind_register_bigint, U: __embind_register_bool, p: __embind_register_class, o: __embind_register_class_constructor, b: __embind_register_class_function, T: __embind_register_emval, z: __embind_register_float, c: __embind_register_function, s: __embind_register_integer, k: __embind_register_memory_view, A: __embind_register_std_string, w: __embind_register_std_wstring, X: __embind_register_value_array, l: __embind_register_value_array_element, r: __embind_register_value_object, e: __embind_register_value_object_field, V: __embind_register_void, N: __emscripten_get_now_is_monotonic, j: __emval_as, v: __emval_call, a: __emval_decref, y: __emval_get_global, h: __emval_get_property, n: __emval_incref, C: __emval_instanceof, x: __emval_is_number, B: __emval_is_string, Y: __emval_new_array, g: __emval_new_cstring, t: __emval_new_object, i: __emval_run_destructors, m: __emval_set_property, d: __emval_take_value, E: __gmtime_js, F: __localtime_js, L: __tzset_js, u: _abort, O: _emscripten_date_now, S: _emscripten_memcpy_big, K: _emscripten_resize_heap, Q: _environ_get, R: _environ_sizes_get, I: _fd_close, P: _fd_fdstat_get, J: _fd_read, D: _fd_seek, M: _fd_write, H: _strftime_l };
-        var wasmExports = createWasm();
+        var wasmImports = { f: ___cxa_throw, W: __embind_finalize_value_array, q: __embind_finalize_value_object, G: __embind_register_bigint, U: __embind_register_bool, o: __embind_register_class, n: __embind_register_class_constructor, b: __embind_register_class_function, T: __embind_register_emval, z: __embind_register_float, c: __embind_register_function, s: __embind_register_integer, i: __embind_register_memory_view, A: __embind_register_std_string, w: __embind_register_std_wstring, X: __embind_register_value_array, l: __embind_register_value_array_element, r: __embind_register_value_object, e: __embind_register_value_object_field, V: __embind_register_void, N: __emscripten_get_now_is_monotonic, k: __emval_as, v: __emval_call, a: __emval_decref, y: __emval_get_global, h: __emval_get_property, p: __emval_incref, C: __emval_instanceof, x: __emval_is_number, B: __emval_is_string, Y: __emval_new_array, g: __emval_new_cstring, t: __emval_new_object, j: __emval_run_destructors, m: __emval_set_property, d: __emval_take_value, E: __gmtime_js, F: __localtime_js, L: __tzset_js, u: _abort, O: _emscripten_date_now, S: _emscripten_memcpy_big, K: _emscripten_resize_heap, Q: _environ_get, R: _environ_sizes_get, I: _fd_close, P: _fd_fdstat_get, J: _fd_read, D: _fd_seek, M: _fd_write, H: _strftime_l };
+        createWasm();
         var _malloc = (a0) => (_malloc = wasmExports["aa"])(a0);
         var ___getTypeName = (a0) => (___getTypeName = wasmExports["ba"])(a0);
         Module["__embind_initialize_bindings"] = () => (Module["__embind_initialize_bindings"] = wasmExports["ca"])();
@@ -36019,16 +36106,16 @@ var require_web_ifc = __commonJS({
         Module["dynCall_iiiiij"] = (a0, a1, a2, a3, a4, a5, a6) => (Module["dynCall_iiiiij"] = wasmExports["ha"])(a0, a1, a2, a3, a4, a5, a6);
         Module["dynCall_iiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8) => (Module["dynCall_iiiiijj"] = wasmExports["ia"])(a0, a1, a2, a3, a4, a5, a6, a7, a8);
         Module["dynCall_iiiiiijj"] = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => (Module["dynCall_iiiiiijj"] = wasmExports["ja"])(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
-        function applySignatureConversions(wasmExports2) {
-          wasmExports2 = Object.assign({}, wasmExports2);
+        function applySignatureConversions(exports2) {
+          exports2 = Object.assign({}, exports2);
           var makeWrapper_pp = (f) => (a0) => f(a0) >>> 0;
           var makeWrapper_p = (f) => () => f() >>> 0;
-          wasmExports2["aa"] = makeWrapper_pp(wasmExports2["aa"]);
-          wasmExports2["ba"] = makeWrapper_pp(wasmExports2["ba"]);
-          wasmExports2["__errno_location"] = makeWrapper_p(wasmExports2["__errno_location"]);
-          wasmExports2["stackSave"] = makeWrapper_p(wasmExports2["stackSave"]);
-          wasmExports2["stackAlloc"] = makeWrapper_pp(wasmExports2["stackAlloc"]);
-          return wasmExports2;
+          exports2["malloc"] = makeWrapper_pp(exports2["malloc"]);
+          exports2["__getTypeName"] = makeWrapper_pp(exports2["__getTypeName"]);
+          exports2["__errno_location"] = makeWrapper_p(exports2["__errno_location"]);
+          exports2["stackSave"] = makeWrapper_p(exports2["stackSave"]);
+          exports2["stackAlloc"] = makeWrapper_pp(exports2["stackAlloc"]);
+          return exports2;
         }
         var calledRun;
         dependenciesFulfilled = function runCaller() {
@@ -39218,7 +39305,7 @@ ToRawLineData[1] = {
   3367102660: (i) => [i.Name, i.LinearStiffnessByAreaX, i.LinearStiffnessByAreaY, i.LinearStiffnessByAreaZ],
   1387855156: (i) => [i.Name, i.LinearStiffnessX, i.LinearStiffnessY, i.LinearStiffnessZ, i.RotationalStiffnessX, i.RotationalStiffnessY, i.RotationalStiffnessZ],
   2069777674: (i) => [i.Name, i.LinearStiffnessX, i.LinearStiffnessY, i.LinearStiffnessZ, i.RotationalStiffnessX, i.RotationalStiffnessY, i.RotationalStiffnessZ, i.WarpingStiffness],
-  622194075: (i) => [{ type: 10, value: i.DayComponent }, { type: 10, value: i.MonthComponent }, { type: 10, value: i.YearComponent }],
+  622194075: (i) => [i.DayComponent, i.MonthComponent, i.YearComponent],
   747523909: (i) => [i.Source, i.Edition, i.EditionDate, i.Name],
   1767535486: (i) => [i.Notation, i.ItemOf, i.Title],
   1098599126: (i) => [i.RelatingItem, i.RelatedItems],
@@ -39233,7 +39320,7 @@ ToRawLineData[1] = {
   1658513725: (i) => [i.Name, i.Description, i.RelatingConstraint, i.RelatedConstraints, i.LogicalAggregator],
   613356794: (i) => [i.ClassifiedConstraint, i.RelatedClassifications],
   347226245: (i) => [i.Name, i.Description, i.RelatingConstraint, i.RelatedConstraints],
-  1065062679: (i) => [{ type: 10, value: i.HourOffset }, i.MinuteOffset == null ? null : { type: 10, value: i.MinuteOffset }, i.Sense],
+  1065062679: (i) => [i.HourOffset, i.MinuteOffset, i.Sense],
   602808272: (i) => [i.Name, i.Description, i.AppliedValue, i.UnitBasis, i.ApplicableDate, i.FixedUntilDate, i.CostType, i.Condition],
   539742890: (i) => [i.RelatingMonetaryUnit, i.RelatedMonetaryUnit, i.ExchangeRate, i.RateDateTime, i.RateSource],
   1105321065: (i) => [i.Name, i.PatternList],
@@ -39241,8 +39328,8 @@ ToRawLineData[1] = {
   3510044353: (i) => [i.VisibleSegmentLength, i.InvisibleSegmentLength],
   1072939445: (i) => [i.DateComponent, i.TimeComponent],
   1765591967: (i) => [i.Elements, i.UnitType, i.UserDefinedType],
-  1045800335: (i) => [i.Unit, { type: 10, value: i.Exponent }],
-  2949456006: (i) => [{ type: 10, value: i.LengthExponent }, { type: 10, value: i.MassExponent }, { type: 10, value: i.TimeExponent }, { type: 10, value: i.ElectricCurrentExponent }, { type: 10, value: i.ThermodynamicTemperatureExponent }, { type: 10, value: i.AmountOfSubstanceExponent }, { type: 10, value: i.LuminousIntensityExponent }],
+  1045800335: (i) => [i.Unit, i.Exponent],
+  2949456006: (i) => [i.LengthExponent, i.MassExponent, i.TimeExponent, i.ElectricCurrentExponent, i.ThermodynamicTemperatureExponent, i.AmountOfSubstanceExponent, i.LuminousIntensityExponent],
   1376555844: (i) => [i.FileExtension, i.MimeContentType, i.MimeSubtype],
   1154170062: (i) => [i.DocumentId, i.Name, i.Description, i.DocumentReferences, i.Purpose, i.IntendedUse, i.Scope, i.Revision, i.DocumentOwner, i.Editors, i.CreationTime, i.LastRevisionTime, i.ElectronicFormat, i.ValidFrom, i.ValidUntil, i.Confidentiality, i.Status],
   770865208: (i) => [i.RelatingDocument, i.RelatedDocuments, i.RelationshipType],
@@ -39259,7 +39346,7 @@ ToRawLineData[1] = {
   3452421091: (i) => [i.Location, i.ItemReference, i.Name],
   4162380809: (i) => [i.MainPlaneAngle, i.SecondaryPlaneAngle, i.LuminousIntensity],
   1566485204: (i) => [i.LightDistributionCurve, i.DistributionData],
-  30780891: (i) => [{ type: 10, value: i.HourComponent }, i.MinuteComponent == null ? null : { type: 10, value: i.MinuteComponent }, i.SecondComponent, i.Zone, i.DaylightSavingOffset == null ? null : { type: 10, value: i.DaylightSavingOffset }],
+  30780891: (i) => [i.HourComponent, i.MinuteComponent, i.SecondComponent, i.Zone, i.DaylightSavingOffset],
   1838606355: (i) => [i.Name],
   1847130766: (i) => [i.MaterialClassifications, i.ClassifiedMaterial],
   248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }],
@@ -39278,7 +39365,7 @@ ToRawLineData[1] = {
   1227763645: (i) => [i.Material, i.VisibleTransmittance, i.SolarTransmittance, i.ThermalIrTransmittance, i.ThermalIrEmissivityBack, i.ThermalIrEmissivityFront, i.VisibleReflectanceBack, i.VisibleReflectanceFront, i.SolarReflectanceFront, i.SolarReflectanceBack],
   4251960020: (i) => [i.Id, i.Name, i.Description, i.Roles, i.Addresses],
   1411181986: (i) => [i.Name, i.Description, i.RelatingOrganization, i.RelatedOrganizations],
-  1207048766: (i) => [i.OwningUser, i.OwningApplication, i.State, i.ChangeAction, i.LastModifiedDate == null ? null : { type: 10, value: i.LastModifiedDate }, i.LastModifyingUser, i.LastModifyingApplication, { type: 10, value: i.CreationDate }],
+  1207048766: (i) => [i.OwningUser, i.OwningApplication, i.State, i.ChangeAction, i.LastModifiedDate, i.LastModifyingUser, i.LastModifyingApplication, i.CreationDate],
   2077209135: (i) => [i.Id, i.FamilyName, i.GivenName, i.MiddleNames, i.PrefixTitles, i.SuffixTitles, i.Roles, i.Addresses],
   101040310: (i) => [i.ThePerson, i.TheOrganization, i.Roles],
   2483315170: (i) => [i.Name, i.Description],
@@ -39396,9 +39483,9 @@ ToRawLineData[1] = {
   3857492461: (i) => [i.Material, i.CombustionTemperature, i.CarbonContent, i.LowerHeatingValue, i.HigherHeatingValue],
   803998398: (i) => [i.Material, i.MolecularWeight, i.Porosity, i.MassDensity],
   1446786286: (i) => [i.ProfileName, i.ProfileDefinition, i.PhysicalWeight, i.Perimeter, i.MinimumPlateThickness, i.MaximumPlateThickness, i.CrossSectionArea],
-  3448662350: (i) => [i.ContextIdentifier, i.ContextType, { type: 10, value: i.CoordinateSpaceDimension }, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
+  3448662350: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
   2453401579: (_) => [],
-  4142052618: (i) => [i.ContextIdentifier, i.ContextType, { type: 10, value: i.CoordinateSpaceDimension }, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
+  4142052618: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
   3590301190: (i) => [i.Elements],
   178086475: (i) => [i.PlacementLocation, i.PlacementRefDirection],
   812098782: (i) => [i.BaseSurface, i.AgreementFlag],
@@ -39423,7 +39510,7 @@ ToRawLineData[1] = {
   2529465313: (i) => [i.ProfileType, i.ProfileName, i.Position],
   2519244187: (i) => [i.EdgeList],
   3021840470: (i) => [i.Name, i.Description, i.HasQuantities, i.Discrimination, i.Quality, i.Usage],
-  597895409: (i) => [i.RepeatS, i.RepeatT, i.TextureType, i.TextureTransform, { type: 10, value: i.Width }, { type: 10, value: i.Height }, { type: 10, value: i.ColourComponents }, i.Pixel],
+  597895409: (i) => [i.RepeatS, i.RepeatT, i.TextureType, i.TextureTransform, i.Width, i.Height, i.ColourComponents, i.Pixel],
   2004835150: (i) => [i.Location],
   1663979128: (i) => [i.SizeInX, i.SizeInY],
   2067069095: (_) => [],
@@ -39576,7 +39663,7 @@ ToRawLineData[1] = {
   2851387026: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatingProfileProperties, i.ProfileSectionLocation, i.ProfileOrientation],
   826625072: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   1204542856: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement],
-  3945020480: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement, i.RelatingPriorities == null ? null : { type: 10, value: i.RelatingPriorities }, i.RelatedPriorities == null ? null : { type: 10, value: i.RelatedPriorities }, i.RelatedConnectionType, i.RelatingConnectionType],
+  3945020480: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement, i.RelatingPriorities, i.RelatedPriorities, i.RelatedConnectionType, i.RelatingConnectionType],
   4201705270: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingPort, i.RelatedElement],
   3190031847: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingPort, i.RelatedPort, i.RealizingElement],
   2127690289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingElement, i.RelatedStructuralActivity],
@@ -39622,7 +39709,7 @@ ToRawLineData[1] = {
   2809605785: (i) => [i.SweptCurve, i.Position, i.ExtrudedDirection, i.Depth],
   4124788165: (i) => [i.SweptCurve, i.Position, i.AxisPosition],
   1580310250: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
-  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TaskId, i.Status, i.WorkMethod, i.IsMilestone, i.Priority == null ? null : { type: 10, value: i.Priority }],
+  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TaskId, i.Status, i.WorkMethod, i.IsMilestone, i.Priority],
   2097647324: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2296667514: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TheActor],
   1674181508: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
@@ -39647,7 +39734,7 @@ ToRawLineData[1] = {
   681481545: (i) => [i.Contents],
   3256556792: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   3849074793: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
-  360485395: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.EnergySequence, i.UserDefinedEnergySequence, i.ElectricCurrentType, i.InputVoltage, i.InputFrequency, i.FullLoadCurrent, i.MinimumCircuitCurrent, i.MaximumPowerInput, i.RatedPowerInput, { type: 10, value: i.InputPhase }],
+  360485395: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.EnergySequence, i.UserDefinedEnergySequence, i.ElectricCurrentType, i.InputVoltage, i.InputFrequency, i.FullLoadCurrent, i.MinimumCircuitCurrent, i.MaximumPowerInput, i.RatedPowerInput, i.InputPhase],
   1758889154: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
   4123344466: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.AssemblyPlace, i.PredefinedType],
   1623761950: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
@@ -39690,10 +39777,10 @@ ToRawLineData[1] = {
   2108223431: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   3181161470: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   977012517: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1916936684: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TaskId, i.Status, i.WorkMethod, i.IsMilestone, i.Priority == null ? null : { type: 10, value: i.Priority }, i.MoveFrom, i.MoveTo, i.PunchList],
+  1916936684: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TaskId, i.Status, i.WorkMethod, i.IsMilestone, i.Priority, i.MoveFrom, i.MoveTo, i.PunchList],
   4143007308: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TheActor, i.PredefinedType],
   3588315303: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
-  3425660407: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TaskId, i.Status, i.WorkMethod, i.IsMilestone, i.Priority == null ? null : { type: 10, value: i.Priority }, i.ActionID],
+  3425660407: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.TaskId, i.Status, i.WorkMethod, i.IsMilestone, i.Priority, i.ActionID],
   2837617999: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2382730787: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.LifeCyclePhase],
   3327091369: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PermitID],
@@ -39716,7 +39803,7 @@ ToRawLineData[1] = {
   1768891740: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3517283431: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ActualStart, i.EarlyStart, i.LateStart, i.ScheduleStart, i.ActualFinish, i.EarlyFinish, i.LateFinish, i.ScheduleFinish, i.ScheduleDuration, i.ActualDuration, i.RemainingTime, i.FreeFloat, i.TotalFloat, i.IsCritical, i.StatusTime, i.StartFloat, i.FinishFloat, i.Completion],
   4105383287: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ServiceLifeType, i.ServiceLifeDuration],
-  4097777520: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.RefLatitude == null ? null : { type: 10, value: i.RefLatitude }, i.RefLongitude == null ? null : { type: 10, value: i.RefLongitude }, i.RefElevation, i.LandTitleNumber, i.SiteAddress],
+  4097777520: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.RefLatitude, i.RefLongitude, i.RefElevation, i.LandTitleNumber, i.SiteAddress],
   2533589738: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3856911033: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.InteriorOrExteriorSpace, i.ElevationWithFlooring],
   1305183839: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
@@ -39764,9 +39851,9 @@ ToRawLineData[1] = {
   1871374353: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2470393545: (i) => [i.Contents],
   3460190687: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.AssetID, i.OriginalValue, i.CurrentValue, i.TotalReplacementCost, i.Owner, i.User, i.ResponsiblePerson, i.IncorporationDate, i.DepreciatedValue],
-  1967976161: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, i.ClosedCurve, i.SelfIntersect],
+  1967976161: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, i.ClosedCurve, i.SelfIntersect],
   819618141: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1916977116: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, i.ClosedCurve, i.SelfIntersect],
+  1916977116: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, i.ClosedCurve, i.SelfIntersect],
   231477066: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3299480353: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
   52481810: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
@@ -39832,7 +39919,7 @@ ToRawLineData[1] = {
   2262370178: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3024970846: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.ShapeType],
   3283111854: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag],
-  3055160366: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, i.ClosedCurve, i.SelfIntersect, i.WeightsData],
+  3055160366: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, i.ClosedCurve, i.SelfIntersect, i.WeightsData],
   3027567501: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade],
   2320036040: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.MeshLength, i.MeshWidth, i.LongitudinalBarNominalDiameter, i.TransverseBarNominalDiameter, i.LongitudinalBarCrossSectionArea, i.TransverseBarCrossSectionArea, i.LongitudinalBarSpacing, i.TransverseBarSpacing],
   2016517767: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.ShapeType],
@@ -39840,7 +39927,7 @@ ToRawLineData[1] = {
   1783015770: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1529196076: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   331165859: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.ShapeType],
-  4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRiser == null ? null : { type: 10, value: i.NumberOfRiser }, i.NumberOfTreads == null ? null : { type: 10, value: i.NumberOfTreads }, i.RiserHeight, i.TreadLength],
+  4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRiser, i.NumberOfTreads, i.RiserHeight, i.TreadLength],
   2515109513: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.OrientationOf2DPlane, i.LoadedBy, i.HasResults],
   3824725483: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.PredefinedType, i.NominalDiameter, i.CrossSectionArea, i.TensionForce, i.PreStress, i.FrictionCoefficient, i.AnchorageSlip, i.MinCurvatureRadius],
   2347447852: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade],
@@ -56323,8 +56410,8 @@ ToRawLineData[2] = {
   1466758467: (i) => [i.Name, i.Description, i.GeodeticDatum, i.VerticalDatum],
   602808272: (i) => [i.Name, i.Description, i.AppliedValue, i.UnitBasis, i.ApplicableDate, i.FixedUntilDate, i.Category, i.Condition, i.ArithmeticOperator, i.Components],
   1765591967: (i) => [i.Elements, i.UnitType, i.UserDefinedType],
-  1045800335: (i) => [i.Unit, { type: 10, value: i.Exponent }],
-  2949456006: (i) => [{ type: 10, value: i.LengthExponent }, { type: 10, value: i.MassExponent }, { type: 10, value: i.TimeExponent }, { type: 10, value: i.ElectricCurrentExponent }, { type: 10, value: i.ThermodynamicTemperatureExponent }, { type: 10, value: i.AmountOfSubstanceExponent }, { type: 10, value: i.LuminousIntensityExponent }],
+  1045800335: (i) => [i.Unit, i.Exponent],
+  2949456006: (i) => [i.LengthExponent, i.MassExponent, i.TimeExponent, i.ElectricCurrentExponent, i.ThermodynamicTemperatureExponent, i.AmountOfSubstanceExponent, i.LuminousIntensityExponent],
   4294318154: (_) => [],
   3200245327: (i) => [i.Location, i.Identification, i.Name],
   2242383968: (i) => [i.Location, i.Identification, i.Name],
@@ -56339,13 +56426,13 @@ ToRawLineData[2] = {
   3057273783: (i) => [i.SourceCRS, i.TargetCRS, i.Eastings, i.Northings, i.OrthogonalHeight, i.XAxisAbscissa, i.XAxisOrdinate, i.Scale],
   1847130766: (i) => [i.MaterialClassifications, i.ClassifiedMaterial],
   760658860: (_) => [],
-  248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority == null ? null : { type: 10, value: i.Priority }],
+  248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority],
   3303938423: (i) => [i.MaterialLayers, i.LayerSetName, i.Description],
-  1847252529: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority == null ? null : { type: 10, value: i.Priority }, i.OffsetDirection, i.OffsetValues],
+  1847252529: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority, i.OffsetDirection, i.OffsetValues],
   2199411900: (i) => [i.Materials],
-  2235152071: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority == null ? null : { type: 10, value: i.Priority }, i.Category],
+  2235152071: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority, i.Category],
   164193824: (i) => [i.Name, i.Description, i.MaterialProfiles, i.CompositeProfile],
-  552965576: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority == null ? null : { type: 10, value: i.Priority }, i.Category, i.OffsetValues],
+  552965576: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority, i.Category, i.OffsetValues],
   1507914824: (_) => [],
   2597039031: (i) => [Labelise(i.ValueComponent), i.UnitComponent],
   3368373690: (i) => [i.Name, i.Description, i.ConstraintGrade, i.ConstraintSource, i.CreatingActor, i.CreationTime, i.UserDefinedGrade, i.Benchmark, i.ValueSource, i.DataValue, i.ReferencePath],
@@ -56354,7 +56441,7 @@ ToRawLineData[2] = {
   3701648758: (_) => [],
   2251480897: (i) => [i.Name, i.Description, i.ConstraintGrade, i.ConstraintSource, i.CreatingActor, i.CreationTime, i.UserDefinedGrade, i.BenchmarkValues, i.LogicalAggregator, i.ObjectiveQualifier, i.UserDefinedQualifier],
   4251960020: (i) => [i.Identification, i.Name, i.Description, i.Roles, i.Addresses],
-  1207048766: (i) => [i.OwningUser, i.OwningApplication, i.State, i.ChangeAction, i.LastModifiedDate == null ? null : { type: 10, value: i.LastModifiedDate }, i.LastModifyingUser, i.LastModifyingApplication, { type: 10, value: i.CreationDate }],
+  1207048766: (i) => [i.OwningUser, i.OwningApplication, i.State, i.ChangeAction, i.LastModifiedDate, i.LastModifyingUser, i.LastModifyingApplication, i.CreationDate],
   2077209135: (i) => [i.Identification, i.FamilyName, i.GivenName, i.MiddleNames, i.PrefixTitles, i.SuffixTitles, i.Roles, i.Addresses],
   101040310: (i) => [i.ThePerson, i.TheOrganization, i.Roles],
   2483315170: (i) => [i.Name, i.Description],
@@ -56376,8 +56463,8 @@ ToRawLineData[2] = {
   3252649465: (i) => [i.Name, i.Description, i.Unit, i.TimeValue, i.Formula],
   2405470396: (i) => [i.Name, i.Description, i.Unit, i.VolumeValue, i.Formula],
   825690147: (i) => [i.Name, i.Description, i.Unit, i.WeightValue, i.Formula],
-  3915482550: (i) => [i.RecurrenceType, i.DayComponent == null ? null : { type: 10, value: i.DayComponent }, i.WeekdayComponent == null ? null : { type: 10, value: i.WeekdayComponent }, i.MonthComponent == null ? null : { type: 10, value: i.MonthComponent }, i.Position == null ? null : { type: 10, value: i.Position }, i.Interval == null ? null : { type: 10, value: i.Interval }, i.Occurrences == null ? null : { type: 10, value: i.Occurrences }, i.TimePeriods],
-  2433181523: (i) => [i.TypeIdentifier, i.AttributeIdentifier, i.InstanceName, i.ListPositions == null ? null : { type: 10, value: i.ListPositions }, i.InnerReference],
+  3915482550: (i) => [i.RecurrenceType, i.DayComponent, i.WeekdayComponent, i.MonthComponent, i.Position, i.Interval, i.Occurrences, i.TimePeriods],
+  2433181523: (i) => [i.TypeIdentifier, i.AttributeIdentifier, i.InstanceName, i.ListPositions, i.InnerReference],
   1076942058: (i) => [i.ContextOfItems, i.RepresentationIdentifier, i.RepresentationType, i.Items],
   3377609919: (i) => [i.ContextIdentifier, i.ContextType],
   3008791417: (_) => [],
@@ -56466,9 +56553,9 @@ ToRawLineData[2] = {
   3008276851: (i) => [i.Bounds, i.FaceSurface, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   4219587988: (i) => [i.Name, i.TensionFailureX, i.TensionFailureY, i.TensionFailureZ, i.CompressionFailureX, i.CompressionFailureY, i.CompressionFailureZ],
   738692330: (i) => [i.Name, i.FillStyles, i.ModelorDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelorDraughting.value) }],
-  3448662350: (i) => [i.ContextIdentifier, i.ContextType, { type: 10, value: i.CoordinateSpaceDimension }, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
+  3448662350: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
   2453401579: (_) => [],
-  4142052618: (i) => [i.ContextIdentifier, i.ContextType, { type: 10, value: i.CoordinateSpaceDimension }, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
+  4142052618: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
   3590301190: (i) => [i.Elements],
   178086475: (i) => [i.PlacementLocation, i.PlacementRefDirection],
   812098782: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }],
@@ -56492,8 +56579,8 @@ ToRawLineData[2] = {
   2852063980: (i) => [i.Name, i.Description, i.MaterialConstituents],
   2022407955: (i) => [i.Name, i.Description, i.Representations, i.RepresentedMaterial],
   1303795690: (i) => [i.ForLayerSet, i.LayerSetDirection, i.DirectionSense, i.OffsetFromReferenceLine, i.ReferenceExtent],
-  3079605661: (i) => [i.ForProfileSet, i.CardinalPoint == null ? null : { type: 10, value: i.CardinalPoint }, i.ReferenceExtent],
-  3404854881: (i) => [i.ForProfileSet, i.CardinalPoint == null ? null : { type: 10, value: i.CardinalPoint }, i.ReferenceExtent, i.ForProfileEndSet, i.CardinalEndPoint == null ? null : { type: 10, value: i.CardinalEndPoint }],
+  3079605661: (i) => [i.ForProfileSet, i.CardinalPoint, i.ReferenceExtent],
+  3404854881: (i) => [i.ForProfileSet, i.CardinalPoint, i.ReferenceExtent, i.ForProfileEndSet, i.CardinalEndPoint],
   3265635763: (i) => [i.Name, i.Description, i.Properties, i.Material],
   853536259: (i) => [i.Name, i.Description, i.RelatingMaterial, i.RelatedMaterials, i.Expression],
   2998442950: (i) => [i.ProfileType, i.ProfileName, i.ParentProfile, i.Operator, i.Label],
@@ -56504,7 +56591,7 @@ ToRawLineData[2] = {
   2529465313: (i) => [i.ProfileType, i.ProfileName, i.Position],
   2519244187: (i) => [i.EdgeList],
   3021840470: (i) => [i.Name, i.Description, i.HasQuantities, i.Discrimination, i.Quality, i.Usage],
-  597895409: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, { type: 10, value: i.Width }, { type: 10, value: i.Height }, { type: 10, value: i.ColourComponents }, i.Pixel],
+  597895409: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.Width, i.Height, i.ColourComponents, i.Pixel],
   2004835150: (i) => [i.Location],
   1663979128: (i) => [i.SizeInX, i.SizeInY],
   2067069095: (_) => [],
@@ -56669,7 +56756,7 @@ ToRawLineData[2] = {
   2655215786: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatingMaterial],
   826625072: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   1204542856: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement],
-  3945020480: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement, i.RelatingPriorities == null ? null : { type: 10, value: i.RelatingPriorities }, i.RelatedPriorities == null ? null : { type: 10, value: i.RelatedPriorities }, i.RelatedConnectionType, i.RelatingConnectionType],
+  3945020480: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement, i.RelatingPriorities, i.RelatedPriorities, i.RelatedConnectionType, i.RelatingConnectionType],
   4201705270: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingPort, i.RelatedElement],
   3190031847: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingPort, i.RelatedPort, i.RealizingElement],
   2127690289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingElement, i.RelatedStructuralActivity],
@@ -56726,7 +56813,7 @@ ToRawLineData[2] = {
   2809605785: (i) => [i.SweptCurve, i.Position, i.ExtrudedDirection, i.Depth],
   4124788165: (i) => [i.SweptCurve, i.Position, i.AxisPosition],
   1580310250: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, { type: 3, value: BooleanConvert(i.IsMilestone.value) }, i.Priority == null ? null : { type: 10, value: i.Priority }, i.TaskTime, i.PredefinedType],
+  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, { type: 3, value: BooleanConvert(i.IsMilestone.value) }, i.Priority, i.TaskTime, i.PredefinedType],
   3206491090: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ProcessType, i.PredefinedType, i.WorkMethod],
   2387106220: (i) => [i.Coordinates],
   1935646853: (i) => [i.Position, i.MajorRadius, i.MinorRadius],
@@ -56738,8 +56825,8 @@ ToRawLineData[2] = {
   1635779807: (i) => [i.Outer],
   2603310189: (i) => [i.Outer, i.Voids],
   1674181508: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
-  2887950389: (i) => [{ type: 10, value: i.UDegree }, { type: 10, value: i.VDegree }, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
-  167062518: (i) => [{ type: 10, value: i.UDegree }, { type: 10, value: i.VDegree }, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.UMultiplicities }, { type: 10, value: i.VMultiplicities }, i.UKnots, i.VKnots, i.KnotSpec],
+  2887950389: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  167062518: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec],
   1334484129: (i) => [i.Position, i.XLength, i.YLength, i.ZLength],
   3649129432: (i) => [i.Operator, i.FirstOperand, i.SecondOperand],
   1260505505: (_) => [],
@@ -56842,7 +56929,7 @@ ToRawLineData[2] = {
   2893384427: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2324767716: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1469900589: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  683857671: (i) => [{ type: 10, value: i.UDegree }, { type: 10, value: i.VDegree }, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.UMultiplicities }, { type: 10, value: i.VMultiplicities }, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData],
+  683857671: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData],
   3027567501: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade],
   964333572: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   2320036040: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.MeshLength, i.MeshWidth, i.LongitudinalBarNominalDiameter, i.TransverseBarNominalDiameter, i.LongitudinalBarCrossSectionArea, i.TransverseBarCrossSectionArea, i.LongitudinalBarSpacing, i.TransverseBarSpacing, i.PredefinedType],
@@ -56852,7 +56939,7 @@ ToRawLineData[2] = {
   1768891740: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   2157484638: (i) => [i.Curve3D, i.AssociatedGeometry, i.MasterRepresentation],
   4074543187: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  4097777520: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.RefLatitude == null ? null : { type: 10, value: i.RefLatitude }, i.RefLongitude == null ? null : { type: 10, value: i.RefLongitude }, i.RefElevation, i.LandTitleNumber, i.SiteAddress],
+  4097777520: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.RefLatitude, i.RefLongitude, i.RefElevation, i.LandTitleNumber, i.SiteAddress],
   2533589738: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1072016465: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3856911033: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.PredefinedType, i.ElevationWithFlooring],
@@ -56910,8 +56997,8 @@ ToRawLineData[2] = {
   1871374353: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3460190687: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.OriginalValue, i.CurrentValue, i.TotalReplacementCost, i.Owner, i.User, i.ResponsiblePerson, i.IncorporationDate, i.DepreciatedValue],
   1532957894: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1967976161: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
-  2461110595: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.KnotMultiplicities }, i.Knots, i.KnotSpec],
+  1967976161: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  2461110595: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec],
   819618141: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   231477066: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1136057603: (i) => [i.Segments, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
@@ -57004,7 +57091,7 @@ ToRawLineData[2] = {
   2262370178: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3024970846: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3283111854: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  1232101972: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.KnotMultiplicities }, i.Knots, i.KnotSpec, i.WeightsData],
+  1232101972: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec, i.WeightsData],
   979691226: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.PredefinedType, i.BarSurface],
   2572171363: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.BarSurface, i.BendingShapeCode, !i.BendingParameters ? null : i.BendingParameters.map((p) => Labelise(p))],
   2016517767: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
@@ -57018,7 +57105,7 @@ ToRawLineData[2] = {
   1999602285: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1404847402: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   331165859: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRisers == null ? null : { type: 10, value: i.NumberOfRisers }, i.NumberOfTreads == null ? null : { type: 10, value: i.NumberOfTreads }, i.RiserHeight, i.TreadLength, i.PredefinedType],
+  4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRisers, i.NumberOfTreads, i.RiserHeight, i.TreadLength, i.PredefinedType],
   2515109513: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.OrientationOf2DPlane, i.LoadedBy, i.HasResults, i.SharedPlacement],
   385403989: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.ActionType, i.ActionSource, i.Coefficient, i.Purpose, i.SelfWeightCoefficients],
   1621171031: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
@@ -74456,7 +74543,7 @@ var IFC4;
   }
   IFC42.IfcController = IfcController;
 })(IFC4 || (IFC4 = {}));
-SchemaNames[3] = ["IFC4X3", "IFC4X3_RC3", "IFC4X3_RC$", "IFC4X3_RC1", "IFC4X3_RC2"];
+SchemaNames[3] = ["IFC4X3", "IFC4X3_RC3", "IFC4X3_RC4", "IFC4X3_RC1", "IFC4X3_RC2", "IFC4X3_ADD2"];
 FromRawLineData[3] = {
   3630933823: (v) => new IFC4X3.IfcActorRole(v[0], !v[1] && v[1] != "" ? null : new IFC4X3.IfcLabel(!v[1] && v[1] != "" ? null : v[1].value), !v[2] && v[2] != "" ? null : new IFC4X3.IfcText(!v[2] && v[2] != "" ? null : v[2].value)),
   618182010: (v) => new IFC4X3.IfcAddress(v[0], !v[1] && v[1] != "" ? null : new IFC4X3.IfcText(!v[1] && v[1] != "" ? null : v[1].value), !v[2] && v[2] != "" ? null : new IFC4X3.IfcLabel(!v[2] && v[2] != "" ? null : v[2].value)),
@@ -77162,8 +77249,8 @@ ToRawLineData[3] = {
   1466758467: (i) => [i.Name, i.Description, i.GeodeticDatum, i.VerticalDatum],
   602808272: (i) => [i.Name, i.Description, i.AppliedValue, i.UnitBasis, i.ApplicableDate, i.FixedUntilDate, i.Category, i.Condition, i.ArithmeticOperator, i.Components],
   1765591967: (i) => [i.Elements, i.UnitType, i.UserDefinedType, i.Name],
-  1045800335: (i) => [i.Unit, { type: 10, value: i.Exponent }],
-  2949456006: (i) => [{ type: 10, value: i.LengthExponent }, { type: 10, value: i.MassExponent }, { type: 10, value: i.TimeExponent }, { type: 10, value: i.ElectricCurrentExponent }, { type: 10, value: i.ThermodynamicTemperatureExponent }, { type: 10, value: i.AmountOfSubstanceExponent }, { type: 10, value: i.LuminousIntensityExponent }],
+  1045800335: (i) => [i.Unit, i.Exponent],
+  2949456006: (i) => [i.LengthExponent, i.MassExponent, i.TimeExponent, i.ElectricCurrentExponent, i.ThermodynamicTemperatureExponent, i.AmountOfSubstanceExponent, i.LuminousIntensityExponent],
   4294318154: (_) => [],
   3200245327: (i) => [i.Location, i.Identification, i.Name],
   2242383968: (i) => [i.Location, i.Identification, i.Name],
@@ -77178,13 +77265,13 @@ ToRawLineData[3] = {
   3057273783: (i) => [i.SourceCRS, i.TargetCRS, i.Eastings, i.Northings, i.OrthogonalHeight, i.XAxisAbscissa, i.XAxisOrdinate, i.Scale, i.ScaleY, i.ScaleZ],
   1847130766: (i) => [i.MaterialClassifications, i.ClassifiedMaterial],
   760658860: (_) => [],
-  248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority == null ? null : { type: 10, value: i.Priority }],
+  248100487: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority],
   3303938423: (i) => [i.MaterialLayers, i.LayerSetName, i.Description],
-  1847252529: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority == null ? null : { type: 10, value: i.Priority }, i.OffsetDirection, i.OffsetValues],
+  1847252529: (i) => [i.Material, i.LayerThickness, i.IsVentilated == null ? null : { type: 3, value: BooleanConvert(i.IsVentilated.value) }, i.Name, i.Description, i.Category, i.Priority, i.OffsetDirection, i.OffsetValues],
   2199411900: (i) => [i.Materials],
-  2235152071: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority == null ? null : { type: 10, value: i.Priority }, i.Category],
+  2235152071: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority, i.Category],
   164193824: (i) => [i.Name, i.Description, i.MaterialProfiles, i.CompositeProfile],
-  552965576: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority == null ? null : { type: 10, value: i.Priority }, i.Category, i.OffsetValues],
+  552965576: (i) => [i.Name, i.Description, i.Material, i.Profile, i.Priority, i.Category, i.OffsetValues],
   1507914824: (_) => [],
   2597039031: (i) => [Labelise(i.ValueComponent), i.UnitComponent],
   3368373690: (i) => [i.Name, i.Description, i.ConstraintGrade, i.ConstraintSource, i.CreatingActor, i.CreationTime, i.UserDefinedGrade, i.Benchmark, i.ValueSource, i.DataValue, i.ReferencePath],
@@ -77193,7 +77280,7 @@ ToRawLineData[3] = {
   3701648758: (i) => [i.PlacementRelTo],
   2251480897: (i) => [i.Name, i.Description, i.ConstraintGrade, i.ConstraintSource, i.CreatingActor, i.CreationTime, i.UserDefinedGrade, i.BenchmarkValues, i.LogicalAggregator, i.ObjectiveQualifier, i.UserDefinedQualifier],
   4251960020: (i) => [i.Identification, i.Name, i.Description, i.Roles, i.Addresses],
-  1207048766: (i) => [i.OwningUser, i.OwningApplication, i.State, i.ChangeAction, i.LastModifiedDate == null ? null : { type: 10, value: i.LastModifiedDate }, i.LastModifyingUser, i.LastModifyingApplication, { type: 10, value: i.CreationDate }],
+  1207048766: (i) => [i.OwningUser, i.OwningApplication, i.State, i.ChangeAction, i.LastModifiedDate, i.LastModifyingUser, i.LastModifyingApplication, i.CreationDate],
   2077209135: (i) => [i.Identification, i.FamilyName, i.GivenName, i.MiddleNames, i.PrefixTitles, i.SuffixTitles, i.Roles, i.Addresses],
   101040310: (i) => [i.ThePerson, i.TheOrganization, i.Roles],
   2483315170: (i) => [i.Name, i.Description],
@@ -77209,14 +77296,14 @@ ToRawLineData[3] = {
   986844984: (_) => [],
   3710013099: (i) => [i.Name, i.EnumerationValues.map((p) => Labelise(p)), i.Unit],
   2044713172: (i) => [i.Name, i.Description, i.Unit, i.AreaValue, i.Formula],
-  2093928680: (i) => [i.Name, i.Description, i.Unit, { type: 10, value: i.CountValue }, i.Formula],
+  2093928680: (i) => [i.Name, i.Description, i.Unit, i.CountValue, i.Formula],
   931644368: (i) => [i.Name, i.Description, i.Unit, i.LengthValue, i.Formula],
   2691318326: (i) => [i.Name, i.Description, i.Unit, i.NumberValue, i.Formula],
   3252649465: (i) => [i.Name, i.Description, i.Unit, i.TimeValue, i.Formula],
   2405470396: (i) => [i.Name, i.Description, i.Unit, i.VolumeValue, i.Formula],
   825690147: (i) => [i.Name, i.Description, i.Unit, i.WeightValue, i.Formula],
-  3915482550: (i) => [i.RecurrenceType, i.DayComponent == null ? null : { type: 10, value: i.DayComponent }, i.WeekdayComponent == null ? null : { type: 10, value: i.WeekdayComponent }, i.MonthComponent == null ? null : { type: 10, value: i.MonthComponent }, i.Position == null ? null : { type: 10, value: i.Position }, i.Interval == null ? null : { type: 10, value: i.Interval }, i.Occurrences == null ? null : { type: 10, value: i.Occurrences }, i.TimePeriods],
-  2433181523: (i) => [i.TypeIdentifier, i.AttributeIdentifier, i.InstanceName, i.ListPositions == null ? null : { type: 10, value: i.ListPositions }, i.InnerReference],
+  3915482550: (i) => [i.RecurrenceType, i.DayComponent, i.WeekdayComponent, i.MonthComponent, i.Position, i.Interval, i.Occurrences, i.TimePeriods],
+  2433181523: (i) => [i.TypeIdentifier, i.AttributeIdentifier, i.InstanceName, i.ListPositions, i.InnerReference],
   1076942058: (i) => [i.ContextOfItems, i.RepresentationIdentifier, i.RepresentationType, i.Items],
   3377609919: (i) => [i.ContextIdentifier, i.ContextType],
   3008791417: (_) => [],
@@ -77309,9 +77396,9 @@ ToRawLineData[3] = {
   3008276851: (i) => [i.Bounds, i.FaceSurface, { type: 3, value: BooleanConvert(i.SameSense.value) }],
   4219587988: (i) => [i.Name, i.TensionFailureX, i.TensionFailureY, i.TensionFailureZ, i.CompressionFailureX, i.CompressionFailureY, i.CompressionFailureZ],
   738692330: (i) => [i.Name, i.FillStyles, i.ModelOrDraughting == null ? null : { type: 3, value: BooleanConvert(i.ModelOrDraughting.value) }],
-  3448662350: (i) => [i.ContextIdentifier, i.ContextType, { type: 10, value: i.CoordinateSpaceDimension }, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
+  3448662350: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth],
   2453401579: (_) => [],
-  4142052618: (i) => [i.ContextIdentifier, i.ContextType, { type: 10, value: i.CoordinateSpaceDimension }, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
+  4142052618: (i) => [i.ContextIdentifier, i.ContextType, i.CoordinateSpaceDimension, i.Precision, i.WorldCoordinateSystem, i.TrueNorth, i.ParentContext, i.TargetScale, i.TargetView, i.UserDefinedTargetView],
   3590301190: (i) => [i.Elements],
   178086475: (i) => [i.PlacementRelTo, i.PlacementLocation, i.PlacementRefDirection],
   812098782: (i) => [i.BaseSurface, { type: 3, value: BooleanConvert(i.AgreementFlag.value) }],
@@ -77336,8 +77423,8 @@ ToRawLineData[3] = {
   2852063980: (i) => [i.Name, i.Description, i.MaterialConstituents],
   2022407955: (i) => [i.Name, i.Description, i.Representations, i.RepresentedMaterial],
   1303795690: (i) => [i.ForLayerSet, i.LayerSetDirection, i.DirectionSense, i.OffsetFromReferenceLine, i.ReferenceExtent],
-  3079605661: (i) => [i.ForProfileSet, i.CardinalPoint == null ? null : { type: 10, value: i.CardinalPoint }, i.ReferenceExtent],
-  3404854881: (i) => [i.ForProfileSet, i.CardinalPoint == null ? null : { type: 10, value: i.CardinalPoint }, i.ReferenceExtent, i.ForProfileEndSet, i.CardinalEndPoint == null ? null : { type: 10, value: i.CardinalEndPoint }],
+  3079605661: (i) => [i.ForProfileSet, i.CardinalPoint, i.ReferenceExtent],
+  3404854881: (i) => [i.ForProfileSet, i.CardinalPoint, i.ReferenceExtent, i.ForProfileEndSet, i.CardinalEndPoint],
   3265635763: (i) => [i.Name, i.Description, i.Properties, i.Material],
   853536259: (i) => [i.Name, i.Description, i.RelatingMaterial, i.RelatedMaterials, i.MaterialExpression],
   2998442950: (i) => [i.ProfileType, i.ProfileName, i.ParentProfile, i.Operator, i.Label],
@@ -77349,7 +77436,7 @@ ToRawLineData[3] = {
   2529465313: (i) => [i.ProfileType, i.ProfileName, i.Position],
   2519244187: (i) => [i.EdgeList],
   3021840470: (i) => [i.Name, i.Description, i.HasQuantities, i.Discrimination, i.Quality, i.Usage],
-  597895409: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, { type: 10, value: i.Width }, { type: 10, value: i.Height }, { type: 10, value: i.ColourComponents }, i.Pixel],
+  597895409: (i) => [{ type: 3, value: BooleanConvert(i.RepeatS.value) }, { type: 3, value: BooleanConvert(i.RepeatT.value) }, i.Mode, i.TextureTransform, i.Parameter, i.Width, i.Height, i.ColourComponents, i.Pixel],
   2004835150: (i) => [i.Location],
   1663979128: (i) => [i.SizeInX, i.SizeInY],
   2067069095: (_) => [],
@@ -77371,7 +77458,7 @@ ToRawLineData[3] = {
   2090586900: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   3615266464: (i) => [i.ProfileType, i.ProfileName, i.Position, i.XDim, i.YDim],
   3413951693: (i) => [i.Name, i.Description, i.StartTime, i.EndTime, i.TimeSeriesDataType, i.DataOrigin, i.UserDefinedDataOrigin, i.Unit, i.TimeStep, i.Values],
-  1580146022: (i) => [i.TotalCrossSectionArea, i.SteelGrade, i.BarSurface, i.EffectiveDepth, i.NominalBarDiameter, i.BarCount == null ? null : { type: 10, value: i.BarCount }],
+  1580146022: (i) => [i.TotalCrossSectionArea, i.SteelGrade, i.BarSurface, i.EffectiveDepth, i.NominalBarDiameter, i.BarCount],
   478536968: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   2943643501: (i) => [i.Name, i.Description, i.RelatedResourceObjects, i.RelatingApproval],
   1608871552: (i) => [i.Name, i.Description, i.RelatingConstraint, i.RelatedResourceObjects],
@@ -77521,7 +77608,7 @@ ToRawLineData[3] = {
   1033248425: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatedObjects, i.RelatingProfileDef],
   826625072: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description],
   1204542856: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement],
-  3945020480: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement, i.RelatingPriorities == null ? null : { type: 10, value: i.RelatingPriorities }, i.RelatedPriorities == null ? null : { type: 10, value: i.RelatedPriorities }, i.RelatedConnectionType, i.RelatingConnectionType],
+  3945020480: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ConnectionGeometry, i.RelatingElement, i.RelatedElement, i.RelatingPriorities, i.RelatedPriorities, i.RelatedConnectionType, i.RelatingConnectionType],
   4201705270: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingPort, i.RelatedElement],
   3190031847: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingPort, i.RelatedPort, i.RealizingElement],
   2127690289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.RelatingElement, i.RelatedStructuralActivity],
@@ -77583,14 +77670,14 @@ ToRawLineData[3] = {
   2809605785: (i) => [i.SweptCurve, i.Position, i.ExtrudedDirection, i.Depth],
   4124788165: (i) => [i.SweptCurve, i.Position, i.AxisPosition],
   1580310250: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, { type: 3, value: BooleanConvert(i.IsMilestone.value) }, i.Priority == null ? null : { type: 10, value: i.Priority }, i.TaskTime, i.PredefinedType],
+  3473067441: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.LongDescription, i.Status, i.WorkMethod, { type: 3, value: BooleanConvert(i.IsMilestone.value) }, i.Priority, i.TaskTime, i.PredefinedType],
   3206491090: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.Identification, i.LongDescription, i.ProcessType, i.PredefinedType, i.WorkMethod],
   2387106220: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }],
   782932809: (i) => [i.Position, i.CubicTerm, i.QuadraticTerm, i.LinearTerm, i.ConstantTerm],
   1935646853: (i) => [i.Position, i.MajorRadius, i.MinorRadius],
   3665877780: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
   2916149573: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.Normals, i.CoordIndex, i.PnIndex],
-  1229763772: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.Normals, i.CoordIndex, i.PnIndex, { type: 10, value: i.Flags }],
+  1229763772: (i) => [i.Coordinates, i.Closed == null ? null : { type: 3, value: BooleanConvert(i.Closed.value) }, i.Normals, i.CoordIndex, i.PnIndex, i.Flags],
   3651464721: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   336235671: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.LiningDepth, i.LiningThickness, i.TransomThickness, i.MullionThickness, i.FirstTransomOffset, i.SecondTransomOffset, i.FirstMullionOffset, i.SecondMullionOffset, i.ShapeAspectStyle, i.LiningOffset, i.LiningToPanelOffsetX, i.LiningToPanelOffsetY],
   512836454: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.OperationType, i.PanelPosition, i.FrameDepth, i.FrameThickness, i.ShapeAspectStyle],
@@ -77598,8 +77685,8 @@ ToRawLineData[3] = {
   1635779807: (i) => [i.Outer],
   2603310189: (i) => [i.Outer, i.Voids],
   1674181508: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType],
-  2887950389: (i) => [{ type: 10, value: i.UDegree }, { type: 10, value: i.VDegree }, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
-  167062518: (i) => [{ type: 10, value: i.UDegree }, { type: 10, value: i.VDegree }, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.UMultiplicities }, { type: 10, value: i.VMultiplicities }, i.UKnots, i.VKnots, i.KnotSpec],
+  2887950389: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  167062518: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec],
   1334484129: (i) => [i.Position, i.XLength, i.YLength, i.ZLength],
   3649129432: (i) => [i.Operator, i.FirstOperand, i.SecondOperand],
   1260505505: (_) => [],
@@ -77725,7 +77812,7 @@ ToRawLineData[3] = {
   1891881377: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.UsageType, i.PredefinedType],
   2324767716: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1469900589: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  683857671: (i) => [{ type: 10, value: i.UDegree }, { type: 10, value: i.VDegree }, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.UMultiplicities }, { type: 10, value: i.VMultiplicities }, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData],
+  683857671: (i) => [i.UDegree, i.VDegree, i.ControlPointsList, i.SurfaceForm, { type: 3, value: BooleanConvert(i.UClosed.value) }, { type: 3, value: BooleanConvert(i.VClosed.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.UMultiplicities, i.VMultiplicities, i.UKnots, i.VKnots, i.KnotSpec, i.WeightsData],
   4021432810: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.PredefinedType],
   3027567501: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade],
   964333572: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType],
@@ -77746,7 +77833,7 @@ ToRawLineData[3] = {
   3599934289: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1894708472: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   42703149: (i) => [i.Position, i.SineTerm, i.LinearTerm, i.ConstantTerm],
-  4097777520: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.RefLatitude == null ? null : { type: 10, value: i.RefLatitude }, i.RefLongitude == null ? null : { type: 10, value: i.RefLongitude }, i.RefElevation, i.LandTitleNumber, i.SiteAddress],
+  4097777520: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.RefLatitude, i.RefLongitude, i.RefElevation, i.LandTitleNumber, i.SiteAddress],
   2533589738: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   1072016465: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3856911033: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.LongName, i.CompositionType, i.PredefinedType, i.ElevationWithFlooring],
@@ -77815,8 +77902,8 @@ ToRawLineData[3] = {
   1662888072: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation],
   3460190687: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.Identification, i.OriginalValue, i.CurrentValue, i.TotalReplacementCost, i.Owner, i.User, i.ResponsiblePerson, i.IncorporationDate, i.DepreciatedValue],
   1532957894: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
-  1967976161: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
-  2461110595: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.KnotMultiplicities }, i.Knots, i.KnotSpec],
+  1967976161: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }],
+  2461110595: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec],
   819618141: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   3649138523: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
   231477066: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType],
@@ -77928,7 +78015,7 @@ ToRawLineData[3] = {
   2262370178: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3024970846: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   3283111854: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  1232101972: (i) => [{ type: 10, value: i.Degree }, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, { type: 10, value: i.KnotMultiplicities }, i.Knots, i.KnotSpec, i.WeightsData],
+  1232101972: (i) => [i.Degree, i.ControlPointsList, i.CurveForm, { type: 3, value: BooleanConvert(i.ClosedCurve.value) }, { type: 3, value: BooleanConvert(i.SelfIntersect.value) }, i.KnotMultiplicities, i.Knots, i.KnotSpec, i.WeightsData],
   3798194928: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   979691226: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.SteelGrade, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.PredefinedType, i.BarSurface],
   2572171363: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ApplicableOccurrence, i.HasPropertySets, i.RepresentationMaps, i.Tag, i.ElementType, i.PredefinedType, i.NominalDiameter, i.CrossSectionArea, i.BarLength, i.BarSurface, i.BendingShapeCode, !i.BendingParameters ? null : i.BendingParameters.map((p) => Labelise(p))],
@@ -77942,7 +78029,7 @@ ToRawLineData[3] = {
   1999602285: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   1404847402: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
   331165859: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.PredefinedType],
-  4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRisers == null ? null : { type: 10, value: i.NumberOfRisers }, i.NumberOfTreads == null ? null : { type: 10, value: i.NumberOfTreads }, i.RiserHeight, i.TreadLength, i.PredefinedType],
+  4252922144: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.Tag, i.NumberOfRisers, i.NumberOfTreads, i.RiserHeight, i.TreadLength, i.PredefinedType],
   2515109513: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.OrientationOf2DPlane, i.LoadedBy, i.HasResults, i.SharedPlacement],
   385403989: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.PredefinedType, i.ActionType, i.ActionSource, i.Coefficient, i.Purpose, i.SelfWeightCoefficients],
   1621171031: (i) => [i.GlobalId, i.OwnerHistory, i.Name, i.Description, i.ObjectType, i.ObjectPlacement, i.Representation, i.AppliedLoad, i.GlobalOrLocal, i.DestabilizingLoad == null ? null : { type: 3, value: BooleanConvert(i.DestabilizingLoad.value) }, i.ProjectedOrTrue, i.PredefinedType],
@@ -99333,7 +99420,7 @@ var IfcAPI2 = class {
    * @returns Lists with the cross sections curves as sets of points
    */
   GetAllCrossSections2D(modelID) {
-    const crossSections = this.wasmModule.GetAllCrossSections2D(modelID);
+    const crossSections = this.wasmModule.GetAllCrossSections(modelID, 2);
     const crossSectionList = [];
     for (let i = 0; i < crossSections.size(); i++) {
       const alignment = crossSections.get(i);
@@ -99362,7 +99449,7 @@ var IfcAPI2 = class {
    * @returns Lists with the cross sections curves as sets of points
    */
   GetAllCrossSections3D(modelID) {
-    const crossSections = this.wasmModule.GetAllCrossSections3D(modelID);
+    const crossSections = this.wasmModule.GetAllCrossSections(modelID, 3);
     const crossSectionList = [];
     for (let i = 0; i < crossSections.size(); i++) {
       const alignment = crossSections.get(i);
@@ -105236,8 +105323,10 @@ class FragmentHider extends Component {
         for (const fragID in items) {
             const ids = items[fragID];
             const fragment = fragments.list[fragID];
-            fragment.setVisibility(visible, ids);
-            this.updateCulledVisibility(fragment);
+            if (fragment) {
+                fragment.setVisibility(visible, ids);
+                this.updateCulledVisibility(fragment);
+            }
         }
     }
     isolate(items) {
