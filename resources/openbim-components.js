@@ -21663,7 +21663,7 @@ class Simple2DScene extends Component {
         this.controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
         this.controls.dollyToCursor = true;
         this.controls.restThreshold = 2;
-        this.controls.smoothTime = 0;
+        this.controls.smoothTime = 0.2;
     }
     /**
      * {@link Component.get}
