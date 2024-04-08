@@ -121282,12 +121282,13 @@ class RoadNavigator extends Component {
         this.enabled = true;
         this.onHighlight = new Event();
         this.onMarkerChange = new Event();
+        this.onMarkerHidden = new Event();
         this._curveMeshes = [];
         this.scene = new Simple2DScene(this.components, false);
         this.markerManager = new MarkerManager(this.components, this.scene);
         this.mouseMarkers = {
-            select: this.newMouseMarker(components, "#ffffff"),
-            hover: this.newMouseMarker(components, "#575757"),
+            select: this.newMouseMarker("#ffffff"),
+            hover: this.newMouseMarker("#575757"),
         };
         this.setupEvents();
         this.adjustRaycasterOnZoom();
@@ -121351,6 +121352,7 @@ class RoadNavigator extends Component {
             }
             this.mouseMarkers.hover.visible = false;
             this.highlighter.unHover();
+            await this.onMarkerHidden.trigger({ type: "hover" });
         });
         this.scene.uiElement
             .get("container")
@@ -121393,6 +121395,9 @@ class RoadNavigator extends Component {
         const { index } = found.curve.getSegmentAt(found.percentage);
         this.setMouseMarker(point, found.curve.mesh, index, type);
     }
+    hideMarker(type) {
+        this.mouseMarkers[type].visible = false;
+    }
     adjustRaycasterOnZoom() {
         this.scene.controls.addEventListener("update", () => {
             const { zoom, left, right, top, bottom } = this.scene.camera;
@@ -121405,15 +121410,15 @@ class RoadNavigator extends Component {
             caster.params.Line.threshold = realScreenSize / range;
         });
     }
-    newMouseMarker(components, color) {
+    newMouseMarker(color) {
         const scene = this.scene.get();
-        const hoverHtml = document.createElement("div");
-        const hoverHtmlBar = document.createElement("div");
-        hoverHtml.appendChild(hoverHtmlBar);
-        hoverHtmlBar.style.backgroundColor = color;
-        hoverHtmlBar.style.width = "3rem";
-        hoverHtmlBar.style.height = "3px";
-        const mouseMarker = new Simple2DMarker(components, hoverHtml, scene);
+        const root = document.createElement("div");
+        const bar = document.createElement("div");
+        root.appendChild(bar);
+        bar.style.backgroundColor = color;
+        bar.style.width = "3rem";
+        bar.style.height = "3px";
+        const mouseMarker = new Simple2DMarker(this.components, root, scene);
         mouseMarker.visible = false;
         return mouseMarker;
     }
@@ -121916,10 +121921,16 @@ class Road3DNavigator extends Component {
         super(components);
         this.onHighlight = new Event();
         this.enabled = true;
+        this.onMarkerChange = new Event();
+        this.onMarkerHidden = new Event();
         this._curves = [];
         this.components.tools.add(Road3DNavigator.uuid, this);
         const scene = this.components.scene.get();
         this.highlighter = new CurveHighlighter(scene, "absolute");
+        this.mouseMarkers = {
+            select: this.newMouseMarker("#ffffff"),
+            hover: this.newMouseMarker("#575757"),
+        };
     }
     get() {
         return null;
@@ -121947,6 +121958,7 @@ class Road3DNavigator extends Component {
             if (found) {
                 const curve = found.object;
                 this.highlighter.select(curve);
+                await this.updateMarker(found, "select");
                 const { point, index } = found;
                 if (index !== undefined) {
                     await this.onHighlight.trigger({ curve, point, index });
@@ -121954,8 +121966,10 @@ class Road3DNavigator extends Component {
                 return;
             }
             this.highlighter.unSelect();
+            this.mouseMarkers.hover.visible = false;
+            await this.onMarkerHidden.trigger({ type: "hover" });
         });
-        dom.addEventListener("mousemove", (event) => {
+        dom.addEventListener("mousemove", async (event) => {
             if (!this.enabled) {
                 return;
             }
@@ -121963,10 +121977,45 @@ class Road3DNavigator extends Component {
             const found = this.highlighter.castRay(event, camera, dom, this._curves);
             if (found) {
                 this.highlighter.hover(found.object);
+                await this.updateMarker(found, "hover");
                 return;
             }
             this.highlighter.unHover();
         });
+    }
+    newMouseMarker(color) {
+        const scene = this.components.scene.get();
+        const root = document.createElement("div");
+        root.style.backgroundColor = color;
+        root.style.width = "1rem";
+        root.style.height = "1rem";
+        root.style.borderRadius = "1rem";
+        const mouseMarker = new Simple2DMarker(this.components, root, scene);
+        mouseMarker.visible = false;
+        return mouseMarker;
+    }
+    setMarker(alignment, percentage, type) {
+        const point = alignment.getPointAt(percentage, "absolute");
+        this.mouseMarkers[type].visible = true;
+        const marker = this.mouseMarkers[type].get();
+        marker.position.copy(point);
+    }
+    hideMarker(type) {
+        const marker = this.mouseMarkers[type].get();
+        marker.visible = false;
+    }
+    async updateMarker(intersects, type) {
+        const { point, object } = intersects;
+        const mesh = object;
+        const curve = mesh.curve;
+        const alignment = mesh.curve.alignment;
+        const percentage = alignment.getPercentageAt(point, "absolute");
+        this.mouseMarkers[type].visible = true;
+        const marker = this.mouseMarkers[type].get();
+        marker.position.copy(point);
+        if (percentage !== null) {
+            await this.onMarkerChange.trigger({ alignment, percentage, type, curve });
+        }
     }
 }
 Road3DNavigator.uuid = "0a59c09e-2b49-474a-9320-99f51f40f182";
@@ -121982,6 +122031,7 @@ class RoadCrossSectionNavigator extends Component {
         this.components.tools.add(RoadCrossSectionNavigator.uuid, this);
         const clipper = components.tools.get(EdgesClipper);
         this.plane = clipper.createFromNormalAndCoplanarPoint(new THREE$1.Vector3(1, 0, 0), new THREE$1.Vector3());
+        this.plane.enabled = false;
     }
     get() {
         return null;
