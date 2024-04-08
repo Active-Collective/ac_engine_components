@@ -121434,12 +121434,13 @@ class RoadNavigator extends Component {
     async updateMarker(intersects, type) {
         const { point, index, object } = intersects;
         const mesh = object;
+        const curve = mesh.curve;
         const alignment = mesh.curve.alignment;
         const percentage = alignment.getPercentageAt(point, this.view);
         const markerPoint = point.clone();
         this.setMouseMarker(markerPoint, mesh, index, type);
         if (percentage !== null) {
-            await this.onMarkerChange.trigger({ alignment, percentage, type });
+            await this.onMarkerChange.trigger({ alignment, percentage, type, curve });
         }
     }
 }
@@ -121949,33 +121950,22 @@ class RoadCrossSectionNavigator extends Component {
     get() {
         return null;
     }
-    updateStyles() {
-        const scene = this.scene.get();
-        const edges = this.plane.edges.get();
-        for (const styleName in edges) {
-            const { mesh } = edges[styleName];
-            scene.add(mesh);
-        }
-    }
-    async set(curve, point, curveIndex) {
-        if (curve.geometry.index === null) {
+    async set(curveMesh, point) {
+        this.plane.enabled = true;
+        const percentage = curveMesh.curve.getPercentageAt(point);
+        if (percentage === null)
+            return;
+        const { startPoint, endPoint } = curveMesh.curve.getSegmentAt(percentage);
+        if (curveMesh.geometry.index === null) {
             throw new Error("Geometry must be indexed!");
         }
-        const pos = curve.geometry.attributes.position.array;
-        const index = curve.geometry.index.array;
-        const start = index[curveIndex] * 3;
-        const end = index[curveIndex + 1] * 3;
-        const startX = pos[start];
-        const startY = pos[start + 1];
-        const startZ = pos[start + 2];
-        const endX = pos[end];
-        const endY = pos[end + 1];
-        const endZ = pos[end + 2];
-        const direction = new THREE$1.Vector3(endX - startX, endY - startY, endZ - startZ);
+        const direction = new THREE$1.Vector3();
+        direction.subVectors(endPoint, startPoint);
         direction.normalize();
         await this.plane.setFromNormalAndCoplanarPoint(direction, point);
         const transform = this.plane.helper.matrix.clone();
         transform.invert();
+        const scene = this.scene.get();
         const edges = this.plane.edges.get();
         for (const styleName in edges) {
             const { mesh } = edges[styleName];
@@ -121983,7 +121973,11 @@ class RoadCrossSectionNavigator extends Component {
             mesh.rotation.set(0, 0, 0);
             mesh.updateMatrix();
             mesh.applyMatrix4(transform);
+            if (mesh.parent !== scene) {
+                scene.add(mesh);
+            }
         }
+        this.plane.enabled = false;
     }
     setUI() {
         const name = "Cross section";
