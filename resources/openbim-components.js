@@ -121039,6 +121039,7 @@ class RoadNavigator extends Component {
             const dom = this.scene.uiElement.get("container").domElement;
             const intersects = this.highlighter.castRay(event, this.scene.camera, dom, this._curveMeshes);
             if (intersects) {
+                this.clearKPStations();
                 const result = intersects;
                 const mesh = result.object;
                 this.highlighter.select(mesh);
