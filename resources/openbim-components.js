@@ -25019,7 +25019,7 @@ class Alignment {
         let accumulatedLength = 0;
         for (const curve of alignment) {
             const curveLength = curve.getLength();
-            if (accumulatedLength + curveLength >= targetLength) {
+            if (accumulatedLength + curveLength > targetLength) {
                 const targetCurveLength = targetLength - accumulatedLength;
                 const percentage = targetCurveLength / curveLength;
                 return { curve, percentage };
@@ -25075,7 +25075,7 @@ class CivilCurve {
         for (let index = 0; index < this._index.array.length - 1; index += 2) {
             const { startPoint, endPoint } = this.getSegment(index);
             const segmentLength = startPoint.distanceTo(endPoint);
-            if (accumulatedLength + segmentLength >= targetLength) {
+            if (accumulatedLength + segmentLength > targetLength) {
                 // Position is the distance from the startPoint to the target point
                 const distanceToStart = targetLength - accumulatedLength;
                 return { distanceToStart, index, startPoint, endPoint };
@@ -120982,6 +120982,9 @@ class RoadNavigator extends Component {
         this.setupEvents();
         this.adjustRaycasterOnZoom();
     }
+    initialize() {
+        console.log("View for RoadNavigator: ", this.view);
+    }
     get() {
         return null;
     }
@@ -121052,8 +121055,10 @@ class RoadNavigator extends Component {
                 await this.updateMarker(result, "select");
                 await this.onHighlight.trigger({ mesh, point: result.point });
                 if (this._previousAlignment !== mesh.curve.alignment) {
-                    this.clearKPStations();
-                    this.showKPStations(mesh);
+                    this.kpManager.clearKPStations();
+                    // this.showKPStations(mesh);
+                    this.kpManager.showKPStations(mesh);
+                    // this.kpManager.createKP();
                     this._previousAlignment = mesh.curve.alignment;
                 }
             }
@@ -121276,8 +121281,9 @@ CurveHighlighter.settings = {
 };
 
 class PlanHighlighter extends CurveHighlighter {
-    constructor(scene) {
+    constructor(scene, kpManager) {
         super(scene, "horizontal");
+        this.kpManager = kpManager;
         this.offset = 10;
         this.markupLines = [];
         this.markupMaterial = new THREE$1.LineBasicMaterial({
@@ -121387,6 +121393,7 @@ class PlanHighlighter extends CurveHighlighter {
         return newPoints;
     }
     showLineInfo(curveMesh, offset) {
+        this.kpManager.clearMarkersByType("Length");
         const positions = curveMesh.geometry.attributes.position.array;
         const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, offset);
         const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
@@ -121404,6 +121411,8 @@ class PlanHighlighter extends CurveHighlighter {
         const lineEndDimensionlLine = new THREE$1.Line(endDimensionGeometry, this.markupMaterial);
         this.scene.add(lineEndDimensionlLine);
         this.markupLines.push(lineEndDimensionlLine);
+        // TODO: Felipe, replace with your implementation
+        this.kpManager.showCurveLength(lineParallelLine, curveMesh.curve.getLength());
     }
     showClothoidInfo(curveMesh, offset) {
         const positions = curveMesh.geometry.attributes.position.array;
@@ -121541,9 +121550,9 @@ class MarkerManager {
     }
     set color(value) {
         this._color = value;
-        this.markers.forEach((marker) => {
+        for (const marker of this.markers) {
             marker.label.get().element.style.color = value;
-        });
+        }
     }
     set clusterThreeshold(value) {
         this._clusterThreeshold = value;
@@ -121565,25 +121574,25 @@ class MarkerManager {
         }
     }
     resetMarkers() {
-        this.markers.forEach((marker) => {
+        for (const marker of this.markers) {
             marker.merged = false;
-        });
-        this.clusterLabels.forEach((cluster) => {
+        }
+        for (const cluster of this.clusterLabels) {
             this.scene.remove(cluster.label.get());
-        });
+        }
         this.clusterLabels.clear();
         this._clusterKey = 0;
     }
     removeMergeMarkers() {
-        this.markers.forEach((marker) => {
+        for (const marker of this.markers) {
             if (marker.merged) {
                 this.scene.remove(marker.label.get());
             }
             else {
                 this.scene.add(marker.label.get());
             }
-        });
-        this.clusterLabels.forEach((cluster) => {
+        }
+        for (const cluster of this.clusterLabels) {
             if (cluster.markerKeys.length === 1) {
                 const marker = Array.from(this.markers).find((marker) => marker.key === cluster.markerKeys[0]);
                 if (marker) {
@@ -121593,14 +121602,14 @@ class MarkerManager {
                 this.scene.remove(cluster.label.get());
                 this.clusterLabels.delete(cluster);
             }
-        });
+        }
     }
     manageCluster() {
         this.resetMarkers();
-        this.markers.forEach((marker) => {
+        for (const marker of this.markers) {
             if (!marker.merged) {
                 this.currentKeys.clear();
-                this.markers.forEach((marker2) => {
+                for (const marker2 of this.markers) {
                     if (marker.key !== marker2.key && !marker2.merged) {
                         const distance = this.distance(marker.label, marker2.label);
                         if (distance < this._clusterThreeshold) {
@@ -121608,7 +121617,7 @@ class MarkerManager {
                             marker2.merged = true;
                         }
                     }
-                });
+                }
                 if (this.currentKeys.size > 0) {
                     if (!this.scene) {
                         return;
@@ -121629,7 +121638,7 @@ class MarkerManager {
                     this._clusterKey++;
                 }
             }
-        });
+        }
         this.removeMergeMarkers();
     }
     getAveragePositionFromLabels(clusterGroup) {
@@ -121695,6 +121704,7 @@ class MarkerManager {
                 mesh: new THREE$1.Mesh(),
                 key: this._markerKey.toString(),
                 merged: false,
+                type,
             });
             this._markerKey++;
         }
@@ -121831,12 +121841,12 @@ class MarkerManager {
         const boundingRegion = [];
         const cluster = Array.from(this.clusterLabels).find((cluster) => cluster.key === key);
         if (cluster) {
-            cluster.markerKeys.forEach((markerKey) => {
+            for (const markerKey of cluster.markerKeys) {
                 const marker = Array.from(this.markers).find((marker) => marker.key === markerKey);
                 if (marker) {
                     boundingRegion.push(marker.label.get().position);
                 }
-            });
+            }
             this.scene.remove(cluster?.label.get());
             this.clusterLabels.delete(cluster);
         }
@@ -121862,17 +121872,25 @@ class MarkerManager {
     }
     createBox3FromPoints(points) {
         const bbox = new THREE$1.Box3();
-        points.forEach((point) => {
+        for (const point of points) {
             bbox.expandByPoint(point);
-        });
+        }
         return bbox;
     }
     clearMarkers() {
-        this.markers.forEach((marker) => {
+        for (const marker of this.markers) {
             this.scene.remove(marker.label.get());
-        });
+        }
         this.markers.clear();
         this._markerKey = 0;
+    }
+    clearMarkersByType(type) {
+        for (const marker of this.markers) {
+            if (marker.type === type) {
+                this.scene.remove(marker.label.get());
+                this.markers.delete(marker);
+            }
+        }
     }
     dispose() {
         this.markers.forEach((marker) => {
@@ -121889,24 +121907,37 @@ class MarkerManager {
     }
 }
 
-class KPStation {
+class KPManager extends MarkerManager {
     constructor(components, renderer, scene, controls, type) {
+        super(components, renderer, scene, controls);
         this.divisionLength = 100;
-        // this.scene = scene;
-        this.type = type;
-        this.markerManager = new MarkerManager(components, renderer, scene, controls);
+        this.view = type;
     }
     showKPStations(mesh) {
-        if (this.type === "horizontal") {
+        if (this.view === "horizontal") {
             const endKPStations = this.generateStartAndEndKP(mesh);
             for (const [, data] of endKPStations) {
-                this.markerManager.addKPStation(data.value, data.normal);
+                this.addKPStation(data.value, data.normal);
             }
             const constantKPStations = this.generateConstantKP(mesh);
             for (const [, data] of constantKPStations) {
-                this.markerManager.addKPStation(data.value, data.normal);
+                this.addKPStation(data.value, data.normal);
             }
         }
+    }
+    showCurveLength(line, length) {
+        const startPoint = new THREE$1.Vector3();
+        startPoint.x = line.geometry.getAttribute("position").getX(0);
+        startPoint.y = line.geometry.getAttribute("position").getY(0);
+        startPoint.z = line.geometry.getAttribute("position").getZ(0);
+        const endPoint = new THREE$1.Vector3();
+        endPoint.x = line.geometry.getAttribute("position").getX(1);
+        endPoint.y = line.geometry.getAttribute("position").getY(1);
+        endPoint.z = line.geometry.getAttribute("position").getZ(1);
+        const formattedLength = length.toFixed(2);
+        const middlePoint = new THREE$1.Vector3();
+        middlePoint.addVectors(startPoint, endPoint).multiplyScalar(0.5);
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Length");
     }
     generateStartAndEndKP(mesh) {
         const { alignment } = mesh.curve;
@@ -122054,10 +122085,10 @@ class KPStation {
         return `0+${integerPart.padStart(3, "0")}.${formattedFractionalPart}`;
     }
     clearKPStations() {
-        this.markerManager.clearMarkers();
+        this.clearMarkers();
     }
     dispose() {
-        this.markerManager.dispose();
+        this.dispose();
     }
 }
 
@@ -122067,8 +122098,8 @@ class RoadPlanNavigator extends RoadNavigator {
         this.view = "horizontal";
         this.uiElement = new UIElement();
         const scene = this.scene.get();
-        this.highlighter = new PlanHighlighter(scene);
-        this.kpStation = new KPStation(components, this.scene.renderer, this.scene.get(), this.scene.controls, this.view);
+        this.kpManager = new KPManager(components, this.scene.renderer, this.scene.get(), this.scene.controls, this.view);
+        this.highlighter = new PlanHighlighter(scene, this.kpManager);
         this.setUI();
         this.components.tools.add(RoadPlanNavigator.uuid, this);
         this.onHighlight.add(({ mesh }) => {
@@ -122092,17 +122123,17 @@ class RoadPlanNavigator extends RoadNavigator {
         bbox.reset();
         await this.scene.controls.fitToBox(box, true);
     }
-    showKPStations(curveMesh) {
-        this.kpStation.showKPStations(curveMesh);
-    }
-    clearKPStations() {
-        this.kpStation.clearKPStations();
-    }
+    // showKPStations(curveMesh: FRAGS.CurveMesh): void {
+    //   this.kpStation.showKPStations(curveMesh);
+    // }
+    // clearKPStations(): void {
+    //   this.kpStation.clearKPStations();
+    // }
     setUI() {
         const name = "Horizontal alignment";
         const floatingWindow = CivilFloatingWindow.get(this.components, this.scene, name);
         this.uiElement.set({ floatingWindow });
-        this.scene.controls.addEventListener("update", () => {
+        this.scene.controls.addEventListener("sleep", () => {
             const screenSize = floatingWindow.containerSize;
             const { zoom } = this.scene.camera;
             this.highlighter.updateOffset(screenSize, zoom, true);
@@ -122125,6 +122156,7 @@ class RoadElevationNavigator extends RoadNavigator {
         this.setUI();
         const scene = this.scene.get();
         this.highlighter = new CurveHighlighter(scene, "vertical");
+        this.kpManager = new KPManager(components, this.scene.renderer, this.scene.get(), this.scene.controls, this.view);
     }
     get() {
         return null;
