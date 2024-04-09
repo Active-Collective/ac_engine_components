@@ -122286,6 +122286,7 @@ class RoadCrossSectionNavigator extends Component {
         this.components.tools.add(RoadCrossSectionNavigator.uuid, this);
         const clipper = components.tools.get(EdgesClipper);
         this.plane = clipper.createFromNormalAndCoplanarPoint(new THREE$1.Vector3(1, 0, 0), new THREE$1.Vector3());
+        this.plane.visible = false;
         this.plane.enabled = false;
     }
     get() {
