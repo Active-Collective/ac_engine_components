@@ -121394,6 +121394,7 @@ class PlanHighlighter extends CurveHighlighter {
     }
     showLineInfo(curveMesh, offset) {
         this.kpManager.clearMarkersByType("Length");
+        this.kpManager.clearMarkersByType("Radius");
         const positions = curveMesh.geometry.attributes.position.array;
         const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, offset);
         const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
@@ -121415,6 +121416,7 @@ class PlanHighlighter extends CurveHighlighter {
     }
     showClothoidInfo(curveMesh, offset) {
         this.kpManager.clearMarkersByType("Length");
+        this.kpManager.clearMarkersByType("Radius");
         const positions = curveMesh.geometry.attributes.position.array;
         const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, offset);
         const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
@@ -121612,9 +121614,12 @@ class MarkerManager {
     manageCluster() {
         this.resetMarkers();
         for (const marker of this.markers) {
-            if (!marker.merged) {
+            if (!marker.merged && !marker.static) {
                 this.currentKeys.clear();
                 for (const marker2 of this.markers) {
+                    if (marker2.static) {
+                        continue;
+                    }
                     if (marker.key !== marker2.key && !marker2.merged) {
                         const distance = this.distance(marker.label, marker2.label);
                         if (distance < this._clusterThreeshold) {
@@ -121694,10 +121699,11 @@ class MarkerManager {
             mesh,
             key: this._markerKey.toString(),
             merged: false,
+            static: false,
         });
         this._markerKey++;
     }
-    addMarkerAtPoint(text, point, type) {
+    addMarkerAtPoint(text, point, type, isStatic = false) {
         if (type !== undefined) {
             const span = document.createElement("span");
             span.innerHTML = text;
@@ -121710,6 +121716,7 @@ class MarkerManager {
                 key: this._markerKey.toString(),
                 merged: false,
                 type,
+                static: isStatic,
             });
             this._markerKey++;
         }
@@ -121750,6 +121757,7 @@ class MarkerManager {
             mesh,
             key: this._markerKey.toString(),
             merged: false,
+            static: false,
         });
         this._markerKey++;
     }
@@ -121791,6 +121799,7 @@ class MarkerManager {
             key: this._markerKey.toString(),
             type,
             merged: false,
+            static: false,
         });
         this._markerKey++;
         return marker;
@@ -121935,7 +121944,7 @@ class KPManager extends MarkerManager {
         const formattedLength = `${length.toFixed(2)} m`;
         const midpointIndex = Math.round(count / 2);
         const middlePoint = points[midpointIndex];
-        this.addMarkerAtPoint(formattedLength, middlePoint, "Length");
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Length", true);
     }
     showLineLength(line, length) {
         const startPoint = new THREE$1.Vector3();
@@ -121949,7 +121958,7 @@ class KPManager extends MarkerManager {
         const formattedLength = `${length.toFixed(2)} m`;
         const middlePoint = new THREE$1.Vector3();
         middlePoint.addVectors(startPoint, endPoint).multiplyScalar(0.5);
-        this.addMarkerAtPoint(formattedLength, middlePoint, "Length");
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Length", true);
     }
     showCurveRadius(line, radius) {
         const startPoint = new THREE$1.Vector3();
@@ -121963,7 +121972,7 @@ class KPManager extends MarkerManager {
         const formattedLength = `R = ${radius.toFixed(2)} m`;
         const middlePoint = new THREE$1.Vector3();
         middlePoint.addVectors(startPoint, endPoint).multiplyScalar(0.5);
-        this.addMarkerAtPoint(formattedLength, middlePoint, "Radius");
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Radius", true);
     }
     generateStartAndEndKP(mesh) {
         const { alignment } = mesh.curve;
