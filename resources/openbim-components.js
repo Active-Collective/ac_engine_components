@@ -25019,7 +25019,7 @@ class Alignment {
         let accumulatedLength = 0;
         for (const curve of alignment) {
             const curveLength = curve.getLength();
-            if (accumulatedLength + curveLength > targetLength) {
+            if (accumulatedLength + curveLength >= targetLength) {
                 const targetCurveLength = targetLength - accumulatedLength;
                 const percentage = targetCurveLength / curveLength;
                 return { curve, percentage };
@@ -25075,7 +25075,7 @@ class CivilCurve {
         for (let index = 0; index < this._index.array.length - 1; index += 2) {
             const { startPoint, endPoint } = this.getSegment(index);
             const segmentLength = startPoint.distanceTo(endPoint);
-            if (accumulatedLength + segmentLength > targetLength) {
+            if (accumulatedLength + segmentLength >= targetLength) {
                 // Position is the distance from the startPoint to the target point
                 const distanceToStart = targetLength - accumulatedLength;
                 return { distanceToStart, index, startPoint, endPoint };
@@ -121398,6 +121398,7 @@ class PlanHighlighter extends CurveHighlighter {
         const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, offset);
         const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
         const lineParallelLine = new THREE$1.Line(lengthGeometry, this.markupMaterial);
+        this.kpManager.showLineLength(lineParallelLine, curveMesh.curve.getLength());
         this.scene.add(lineParallelLine);
         this.markupLines.push(lineParallelLine);
         const { startDimensionPoints, endDimensionPoints } = this.calculateDimensionLines(curveMesh, lineParallelLine);
@@ -121411,13 +121412,13 @@ class PlanHighlighter extends CurveHighlighter {
         const lineEndDimensionlLine = new THREE$1.Line(endDimensionGeometry, this.markupMaterial);
         this.scene.add(lineEndDimensionlLine);
         this.markupLines.push(lineEndDimensionlLine);
-        // TODO: Felipe, replace with your implementation
-        this.kpManager.showCurveLength(lineParallelLine, curveMesh.curve.getLength());
     }
     showClothoidInfo(curveMesh, offset) {
+        this.kpManager.clearMarkersByType("Length");
         const positions = curveMesh.geometry.attributes.position.array;
         const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, offset);
         const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        this.kpManager.showCurveLength(parallelCurvePoints, curveMesh.curve.getLength());
         const clothParallelLine = new THREE$1.Line(lengthGeometry, this.markupMaterial);
         this.scene.add(clothParallelLine);
         this.markupLines.push(clothParallelLine);
@@ -121434,6 +121435,8 @@ class PlanHighlighter extends CurveHighlighter {
         this.markupLines.push(clothEndDimensionlLine);
     }
     showCircularArcInfo(curveMesh, offset) {
+        this.kpManager.clearMarkersByType("Length");
+        this.kpManager.clearMarkersByType("Radius");
         const radius = curveMesh.curve.data.RADIUS;
         const positions = curveMesh.geometry.attributes.position.array;
         const count = curveMesh.geometry.attributes.position.count;
@@ -121451,6 +121454,7 @@ class PlanHighlighter extends CurveHighlighter {
         linePoints.push(arcCenterPoint);
         const radiusGeometry = new THREE$1.BufferGeometry().setFromPoints(linePoints);
         const radiusLine = new THREE$1.Line(radiusGeometry, this.markupMaterial);
+        this.kpManager.showCurveRadius(radiusLine, Math.abs(radius));
         this.scene.add(radiusLine);
         this.markupLines.push(radiusLine);
         const parallelCurvePoints = [];
@@ -121468,6 +121472,7 @@ class PlanHighlighter extends CurveHighlighter {
             parallelCurvePoints.push(parallelPoint);
         }
         const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        this.kpManager.showCurveLength(parallelCurvePoints, curveMesh.curve.getLength());
         const circArcParallelLine = new THREE$1.Line(lengthGeometry, this.markupMaterial);
         this.scene.add(circArcParallelLine);
         this.markupLines.push(circArcParallelLine);
@@ -121925,7 +121930,14 @@ class KPManager extends MarkerManager {
             }
         }
     }
-    showCurveLength(line, length) {
+    showCurveLength(points, length) {
+        const count = points.length;
+        const formattedLength = `${length.toFixed(2)} m`;
+        const midpointIndex = Math.round(count / 2);
+        const middlePoint = points[midpointIndex];
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Length");
+    }
+    showLineLength(line, length) {
         const startPoint = new THREE$1.Vector3();
         startPoint.x = line.geometry.getAttribute("position").getX(0);
         startPoint.y = line.geometry.getAttribute("position").getY(0);
@@ -121934,10 +121946,24 @@ class KPManager extends MarkerManager {
         endPoint.x = line.geometry.getAttribute("position").getX(1);
         endPoint.y = line.geometry.getAttribute("position").getY(1);
         endPoint.z = line.geometry.getAttribute("position").getZ(1);
-        const formattedLength = length.toFixed(2);
+        const formattedLength = `${length.toFixed(2)} m`;
         const middlePoint = new THREE$1.Vector3();
         middlePoint.addVectors(startPoint, endPoint).multiplyScalar(0.5);
         this.addMarkerAtPoint(formattedLength, middlePoint, "Length");
+    }
+    showCurveRadius(line, radius) {
+        const startPoint = new THREE$1.Vector3();
+        startPoint.x = line.geometry.getAttribute("position").getX(0);
+        startPoint.y = line.geometry.getAttribute("position").getY(0);
+        startPoint.z = line.geometry.getAttribute("position").getZ(0);
+        const endPoint = new THREE$1.Vector3();
+        endPoint.x = line.geometry.getAttribute("position").getX(1);
+        endPoint.y = line.geometry.getAttribute("position").getY(1);
+        endPoint.z = line.geometry.getAttribute("position").getZ(1);
+        const formattedLength = `R = ${radius.toFixed(2)} m`;
+        const middlePoint = new THREE$1.Vector3();
+        middlePoint.addVectors(startPoint, endPoint).multiplyScalar(0.5);
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Radius");
     }
     generateStartAndEndKP(mesh) {
         const { alignment } = mesh.curve;
@@ -122133,7 +122159,7 @@ class RoadPlanNavigator extends RoadNavigator {
         const name = "Horizontal alignment";
         const floatingWindow = CivilFloatingWindow.get(this.components, this.scene, name);
         this.uiElement.set({ floatingWindow });
-        this.scene.controls.addEventListener("sleep", () => {
+        this.scene.controls.addEventListener("update", () => {
             const screenSize = floatingWindow.containerSize;
             const { zoom } = this.scene.camera;
             this.highlighter.updateOffset(screenSize, zoom, true);
