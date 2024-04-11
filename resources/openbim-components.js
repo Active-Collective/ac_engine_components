@@ -1,5 +1,5 @@
 import * as THREE$1 from 'three';
-import { Vector3, Matrix4, Object3D, Vector2, BufferAttribute, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, MathUtils, EventDispatcher as EventDispatcher$1, MOUSE, TOUCH, Spherical, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, HalfFloatType, NoBlending, Clock, Color, REVISION, LinearFilter, NearestFilter, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, NoColorSpace, RepeatWrapping, WebGLMultipleRenderTargets, RedFormat, FloatType, RGBAFormat, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4 } from 'three';
+import { Vector3, Matrix4, Object3D, Vector2, BufferAttribute, Plane, Line3, Triangle, Sphere, Box3, BackSide, DoubleSide, FrontSide, Mesh, Ray, Raycaster, Quaternion, Euler, MeshBasicMaterial, LineBasicMaterial, CylinderGeometry, BoxGeometry, BufferGeometry, Float32BufferAttribute, OctahedronGeometry, Line as Line$2, SphereGeometry, TorusGeometry, PlaneGeometry, OrthographicCamera, ShaderMaterial, UniformsUtils, WebGLRenderTarget, HalfFloatType, NoBlending, Clock, Color, REVISION, LinearFilter, NearestFilter, DepthTexture, UnsignedIntType, DepthFormat, DataTexture, NoColorSpace, RepeatWrapping, WebGLMultipleRenderTargets, RedFormat, FloatType, RGBAFormat, UniformsLib, ShaderLib, InstancedBufferGeometry, InstancedInterleavedBuffer, InterleavedBufferAttribute, WireframeGeometry, Vector4, MathUtils } from 'three';
 
 /**
  * Components are the building blocks of this library. Everything is a
@@ -12847,6 +12847,11 @@ class Drawer extends SimpleUIComponent {
         this.domElement.style.height = height;
         this.domElement.style.width = width;
     }
+    get containerSize() {
+        const height = this.domElement.clientHeight;
+        const width = this.domElement.clientWidth;
+        return { height, width };
+    }
     set alignment(value) {
         const classes = this.domElement.classList;
         this._type = value;
@@ -13181,7 +13186,7 @@ const _unit = {
 	Z: new Vector3( 0, 0, 1 )
 };
 
-const _changeEvent$1 = { type: 'change' };
+const _changeEvent = { type: 'change' };
 const _mouseDownEvent = { type: 'mouseDown' };
 const _mouseUpEvent = { type: 'mouseUp', mode: null };
 const _objectChangeEvent = { type: 'objectChange' };
@@ -13237,7 +13242,7 @@ class TransformControls extends Object3D {
 						_gizmo[ propName ] = value;
 
 						scope.dispatchEvent( { type: propName + '-changed', value: value } );
-						scope.dispatchEvent( _changeEvent$1 );
+						scope.dispatchEvent( _changeEvent );
 
 					}
 
@@ -13682,7 +13687,7 @@ class TransformControls extends Object3D {
 
 		}
 
-		this.dispatchEvent( _changeEvent$1 );
+		this.dispatchEvent( _changeEvent );
 		this.dispatchEvent( _objectChangeEvent );
 
 	}
@@ -13750,7 +13755,7 @@ class TransformControls extends Object3D {
 			this.object.quaternion.copy( this._quaternionStart );
 			this.object.scale.copy( this._scaleStart );
 
-			this.dispatchEvent( _changeEvent$1 );
+			this.dispatchEvent( _changeEvent );
 			this.dispatchEvent( _objectChangeEvent );
 
 			this.pointStart.copy( this.pointEnd );
@@ -14764,6 +14769,9 @@ class SimplePlane extends Component {
     set size(size) {
         this._planeMesh.scale.set(size, size, size);
     }
+    get helper() {
+        return this._helper;
+    }
     constructor(components, origin, normal, material, size = 5, activateControls = true) {
         super(components);
         /** {@link Component.name} */
@@ -14785,7 +14793,7 @@ class SimplePlane extends Component {
             visible: false,
         });
         /** {@link Updateable.update} */
-        this.update = () => {
+        this.update = async () => {
             if (!this._enabled)
                 return;
             this._plane.setFromNormalAndCoplanarPoint(this.normal, this._helper.position);
@@ -14806,13 +14814,16 @@ class SimplePlane extends Component {
             this.toggleControls(true);
         }
     }
-    setFromNormalAndCoplanarPoint(normal, point) {
-        this.normal.copy(normal);
+    async setFromNormalAndCoplanarPoint(normal, point) {
+        this.reset();
+        if (!this.normal.equals(normal)) {
+            this.normal.copy(normal);
+            this._helper.lookAt(normal);
+        }
         this.origin.copy(point);
-        this._helper.lookAt(normal);
         this._helper.position.copy(point);
         this._helper.updateMatrix();
-        this.update();
+        await this.update();
     }
     /** {@link Component.get} */
     get() {
@@ -14832,6 +14843,17 @@ class SimplePlane extends Component {
         this._controls.dispose();
         await this.onDisposed.trigger();
         this.onDisposed.reset();
+    }
+    reset() {
+        const normal = new THREE$1.Vector3(1, 0, 0);
+        const point = new THREE$1.Vector3();
+        if (!this.normal.equals(normal)) {
+            this.normal.copy(normal);
+            this._helper.lookAt(normal);
+        }
+        this.origin.copy(point);
+        this._helper.position.copy(point);
+        this._helper.updateMatrix();
     }
     toggleControls(state) {
         if (state) {
@@ -15656,7 +15678,7 @@ class Simple2DMarker extends Component {
         return this._visible;
     }
     // Define marker as setup configuration?
-    constructor(components, marker) {
+    constructor(components, marker, parent) {
         super(components);
         /** {@link Component.enabled} */
         this.enabled = true;
@@ -15673,7 +15695,12 @@ class Simple2DMarker extends Component {
                 "w-[15px] h-[15px] border-3 border-solid border-red-600";
         }
         this._marker = new CSS2DObject(_marker);
-        this.components.scene.get().add(this._marker);
+        if (parent) {
+            parent.add(this._marker);
+        }
+        else {
+            this.components.scene.get().add(this._marker);
+        }
         this.visible = true;
     }
     /** {@link Component.get} */
@@ -15878,7 +15905,7 @@ const Deleted = 1;
 
 const _v1 = new Vector3();
 const _line3 = new Line3();
-const _plane$1 = new Plane();
+const _plane = new Plane();
 const _closestPoint$1 = new Vector3();
 const _triangle = new Triangle();
 
@@ -16403,7 +16430,7 @@ class ConvexHull {
 		// 3. The next vertex 'v3' is the one farthest to the plane 'v0', 'v1', 'v2'
 
 		maxDistance = - 1;
-		_plane$1.setFromCoplanarPoints( v0.point, v1.point, v2.point );
+		_plane.setFromCoplanarPoints( v0.point, v1.point, v2.point );
 
 		for ( let i = 0, l = this.vertices.length; i < l; i ++ ) {
 
@@ -16411,7 +16438,7 @@ class ConvexHull {
 
 			if ( vertex !== v0 && vertex !== v1 && vertex !== v2 ) {
 
-				const distance = Math.abs( _plane$1.distanceToPoint( vertex.point ) );
+				const distance = Math.abs( _plane.distanceToPoint( vertex.point ) );
 
 				if ( distance > maxDistance ) {
 
@@ -16426,7 +16453,7 @@ class ConvexHull {
 
 		const faces = [];
 
-		if ( _plane$1.distanceToPoint( v3.point ) < 0 ) {
+		if ( _plane.distanceToPoint( v3.point ) < 0 ) {
 
 			// the face is not able to see the point so 'plane.normal' is pointing outside the tetrahedron
 
@@ -17938,1471 +17965,6 @@ class MaterialManager extends Component {
 }
 MaterialManager.uuid = "24989d27-fa2f-4797-8b08-35918f74e502";
 ToolComponent.libraryUUIDs.add(MaterialManager.uuid);
-
-// OrbitControls performs orbiting, dollying (zooming), and panning.
-// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
-//
-//    Orbit - left mouse / touch: one-finger move
-//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
-//    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
-
-const _changeEvent = { type: 'change' };
-const _startEvent = { type: 'start' };
-const _endEvent = { type: 'end' };
-const _ray$1 = new Ray();
-const _plane = new Plane();
-const TILT_LIMIT = Math.cos( 70 * MathUtils.DEG2RAD );
-
-class OrbitControls extends EventDispatcher$1 {
-
-	constructor( object, domElement ) {
-
-		super();
-
-		this.object = object;
-		this.domElement = domElement;
-		this.domElement.style.touchAction = 'none'; // disable touch scroll
-
-		// Set to false to disable this control
-		this.enabled = true;
-
-		// "target" sets the location of focus, where the object orbits around
-		this.target = new Vector3();
-
-		// Sets the 3D cursor (similar to Blender), from which the maxTargetRadius takes effect
-		this.cursor = new Vector3();
-
-		// How far you can dolly in and out ( PerspectiveCamera only )
-		this.minDistance = 0;
-		this.maxDistance = Infinity;
-
-		// How far you can zoom in and out ( OrthographicCamera only )
-		this.minZoom = 0;
-		this.maxZoom = Infinity;
-
-		// Limit camera target within a spherical area around the cursor
-		this.minTargetRadius = 0;
-		this.maxTargetRadius = Infinity;
-
-		// How far you can orbit vertically, upper and lower limits.
-		// Range is 0 to Math.PI radians.
-		this.minPolarAngle = 0; // radians
-		this.maxPolarAngle = Math.PI; // radians
-
-		// How far you can orbit horizontally, upper and lower limits.
-		// If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
-		this.minAzimuthAngle = - Infinity; // radians
-		this.maxAzimuthAngle = Infinity; // radians
-
-		// Set to true to enable damping (inertia)
-		// If damping is enabled, you must call controls.update() in your animation loop
-		this.enableDamping = false;
-		this.dampingFactor = 0.05;
-
-		// This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
-		// Set to false to disable zooming
-		this.enableZoom = true;
-		this.zoomSpeed = 1.0;
-
-		// Set to false to disable rotating
-		this.enableRotate = true;
-		this.rotateSpeed = 1.0;
-
-		// Set to false to disable panning
-		this.enablePan = true;
-		this.panSpeed = 1.0;
-		this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
-		this.keyPanSpeed = 7.0;	// pixels moved per arrow key push
-		this.zoomToCursor = false;
-
-		// Set to true to automatically rotate around the target
-		// If auto-rotate is enabled, you must call controls.update() in your animation loop
-		this.autoRotate = false;
-		this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
-
-		// The four arrow keys
-		this.keys = { LEFT: 'ArrowLeft', UP: 'ArrowUp', RIGHT: 'ArrowRight', BOTTOM: 'ArrowDown' };
-
-		// Mouse buttons
-		this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
-
-		// Touch fingers
-		this.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
-
-		// for reset
-		this.target0 = this.target.clone();
-		this.position0 = this.object.position.clone();
-		this.zoom0 = this.object.zoom;
-
-		// the target DOM element for key events
-		this._domElementKeyEvents = null;
-
-		//
-		// public methods
-		//
-
-		this.getPolarAngle = function () {
-
-			return spherical.phi;
-
-		};
-
-		this.getAzimuthalAngle = function () {
-
-			return spherical.theta;
-
-		};
-
-		this.getDistance = function () {
-
-			return this.object.position.distanceTo( this.target );
-
-		};
-
-		this.listenToKeyEvents = function ( domElement ) {
-
-			domElement.addEventListener( 'keydown', onKeyDown );
-			this._domElementKeyEvents = domElement;
-
-		};
-
-		this.stopListenToKeyEvents = function () {
-
-			this._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
-			this._domElementKeyEvents = null;
-
-		};
-
-		this.saveState = function () {
-
-			scope.target0.copy( scope.target );
-			scope.position0.copy( scope.object.position );
-			scope.zoom0 = scope.object.zoom;
-
-		};
-
-		this.reset = function () {
-
-			scope.target.copy( scope.target0 );
-			scope.object.position.copy( scope.position0 );
-			scope.object.zoom = scope.zoom0;
-
-			scope.object.updateProjectionMatrix();
-			scope.dispatchEvent( _changeEvent );
-
-			scope.update();
-
-			state = STATE.NONE;
-
-		};
-
-		// this method is exposed, but perhaps it would be better if we can make it private...
-		this.update = function () {
-
-			const offset = new Vector3();
-
-			// so camera.up is the orbit axis
-			const quat = new Quaternion().setFromUnitVectors( object.up, new Vector3( 0, 1, 0 ) );
-			const quatInverse = quat.clone().invert();
-
-			const lastPosition = new Vector3();
-			const lastQuaternion = new Quaternion();
-			const lastTargetPosition = new Vector3();
-
-			const twoPI = 2 * Math.PI;
-
-			return function update( deltaTime = null ) {
-
-				const position = scope.object.position;
-
-				offset.copy( position ).sub( scope.target );
-
-				// rotate offset to "y-axis-is-up" space
-				offset.applyQuaternion( quat );
-
-				// angle from z-axis around y-axis
-				spherical.setFromVector3( offset );
-
-				if ( scope.autoRotate && state === STATE.NONE ) {
-
-					rotateLeft( getAutoRotationAngle( deltaTime ) );
-
-				}
-
-				if ( scope.enableDamping ) {
-
-					spherical.theta += sphericalDelta.theta * scope.dampingFactor;
-					spherical.phi += sphericalDelta.phi * scope.dampingFactor;
-
-				} else {
-
-					spherical.theta += sphericalDelta.theta;
-					spherical.phi += sphericalDelta.phi;
-
-				}
-
-				// restrict theta to be between desired limits
-
-				let min = scope.minAzimuthAngle;
-				let max = scope.maxAzimuthAngle;
-
-				if ( isFinite( min ) && isFinite( max ) ) {
-
-					if ( min < - Math.PI ) min += twoPI; else if ( min > Math.PI ) min -= twoPI;
-
-					if ( max < - Math.PI ) max += twoPI; else if ( max > Math.PI ) max -= twoPI;
-
-					if ( min <= max ) {
-
-						spherical.theta = Math.max( min, Math.min( max, spherical.theta ) );
-
-					} else {
-
-						spherical.theta = ( spherical.theta > ( min + max ) / 2 ) ?
-							Math.max( min, spherical.theta ) :
-							Math.min( max, spherical.theta );
-
-					}
-
-				}
-
-				// restrict phi to be between desired limits
-				spherical.phi = Math.max( scope.minPolarAngle, Math.min( scope.maxPolarAngle, spherical.phi ) );
-
-				spherical.makeSafe();
-
-
-				// move target to panned location
-
-				if ( scope.enableDamping === true ) {
-
-					scope.target.addScaledVector( panOffset, scope.dampingFactor );
-
-				} else {
-
-					scope.target.add( panOffset );
-
-				}
-
-				// Limit the target distance from the cursor to create a sphere around the center of interest
-				scope.target.sub( scope.cursor );
-				scope.target.clampLength( scope.minTargetRadius, scope.maxTargetRadius );
-				scope.target.add( scope.cursor );
-
-				// adjust the camera position based on zoom only if we're not zooming to the cursor or if it's an ortho camera
-				// we adjust zoom later in these cases
-				if ( scope.zoomToCursor && performCursorZoom || scope.object.isOrthographicCamera ) {
-
-					spherical.radius = clampDistance( spherical.radius );
-
-				} else {
-
-					spherical.radius = clampDistance( spherical.radius * scale );
-
-				}
-
-				offset.setFromSpherical( spherical );
-
-				// rotate offset back to "camera-up-vector-is-up" space
-				offset.applyQuaternion( quatInverse );
-
-				position.copy( scope.target ).add( offset );
-
-				scope.object.lookAt( scope.target );
-
-				if ( scope.enableDamping === true ) {
-
-					sphericalDelta.theta *= ( 1 - scope.dampingFactor );
-					sphericalDelta.phi *= ( 1 - scope.dampingFactor );
-
-					panOffset.multiplyScalar( 1 - scope.dampingFactor );
-
-				} else {
-
-					sphericalDelta.set( 0, 0, 0 );
-
-					panOffset.set( 0, 0, 0 );
-
-				}
-
-				// adjust camera position
-				let zoomChanged = false;
-				if ( scope.zoomToCursor && performCursorZoom ) {
-
-					let newRadius = null;
-					if ( scope.object.isPerspectiveCamera ) {
-
-						// move the camera down the pointer ray
-						// this method avoids floating point error
-						const prevRadius = offset.length();
-						newRadius = clampDistance( prevRadius * scale );
-
-						const radiusDelta = prevRadius - newRadius;
-						scope.object.position.addScaledVector( dollyDirection, radiusDelta );
-						scope.object.updateMatrixWorld();
-
-					} else if ( scope.object.isOrthographicCamera ) {
-
-						// adjust the ortho camera position based on zoom changes
-						const mouseBefore = new Vector3( mouse.x, mouse.y, 0 );
-						mouseBefore.unproject( scope.object );
-
-						scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / scale ) );
-						scope.object.updateProjectionMatrix();
-						zoomChanged = true;
-
-						const mouseAfter = new Vector3( mouse.x, mouse.y, 0 );
-						mouseAfter.unproject( scope.object );
-
-						scope.object.position.sub( mouseAfter ).add( mouseBefore );
-						scope.object.updateMatrixWorld();
-
-						newRadius = offset.length();
-
-					} else {
-
-						console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - zoom to cursor disabled.' );
-						scope.zoomToCursor = false;
-
-					}
-
-					// handle the placement of the target
-					if ( newRadius !== null ) {
-
-						if ( this.screenSpacePanning ) {
-
-							// position the orbit target in front of the new camera position
-							scope.target.set( 0, 0, - 1 )
-								.transformDirection( scope.object.matrix )
-								.multiplyScalar( newRadius )
-								.add( scope.object.position );
-
-						} else {
-
-							// get the ray and translation plane to compute target
-							_ray$1.origin.copy( scope.object.position );
-							_ray$1.direction.set( 0, 0, - 1 ).transformDirection( scope.object.matrix );
-
-							// if the camera is 20 degrees above the horizon then don't adjust the focus target to avoid
-							// extremely large values
-							if ( Math.abs( scope.object.up.dot( _ray$1.direction ) ) < TILT_LIMIT ) {
-
-								object.lookAt( scope.target );
-
-							} else {
-
-								_plane.setFromNormalAndCoplanarPoint( scope.object.up, scope.target );
-								_ray$1.intersectPlane( _plane, scope.target );
-
-							}
-
-						}
-
-					}
-
-				} else if ( scope.object.isOrthographicCamera ) {
-
-					scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / scale ) );
-					scope.object.updateProjectionMatrix();
-					zoomChanged = true;
-
-				}
-
-				scale = 1;
-				performCursorZoom = false;
-
-				// update condition is:
-				// min(camera displacement, camera rotation in radians)^2 > EPS
-				// using small-angle approximation cos(x/2) = 1 - x^2 / 8
-
-				if ( zoomChanged ||
-					lastPosition.distanceToSquared( scope.object.position ) > EPS ||
-					8 * ( 1 - lastQuaternion.dot( scope.object.quaternion ) ) > EPS ||
-					lastTargetPosition.distanceToSquared( scope.target ) > 0 ) {
-
-					scope.dispatchEvent( _changeEvent );
-
-					lastPosition.copy( scope.object.position );
-					lastQuaternion.copy( scope.object.quaternion );
-					lastTargetPosition.copy( scope.target );
-
-					return true;
-
-				}
-
-				return false;
-
-			};
-
-		}();
-
-		this.dispose = function () {
-
-			scope.domElement.removeEventListener( 'contextmenu', onContextMenu );
-
-			scope.domElement.removeEventListener( 'pointerdown', onPointerDown );
-			scope.domElement.removeEventListener( 'pointercancel', onPointerUp );
-			scope.domElement.removeEventListener( 'wheel', onMouseWheel );
-
-			scope.domElement.removeEventListener( 'pointermove', onPointerMove );
-			scope.domElement.removeEventListener( 'pointerup', onPointerUp );
-
-
-			if ( scope._domElementKeyEvents !== null ) {
-
-				scope._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
-				scope._domElementKeyEvents = null;
-
-			}
-
-			//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
-
-		};
-
-		//
-		// internals
-		//
-
-		const scope = this;
-
-		const STATE = {
-			NONE: - 1,
-			ROTATE: 0,
-			DOLLY: 1,
-			PAN: 2,
-			TOUCH_ROTATE: 3,
-			TOUCH_PAN: 4,
-			TOUCH_DOLLY_PAN: 5,
-			TOUCH_DOLLY_ROTATE: 6
-		};
-
-		let state = STATE.NONE;
-
-		const EPS = 0.000001;
-
-		// current position in spherical coordinates
-		const spherical = new Spherical();
-		const sphericalDelta = new Spherical();
-
-		let scale = 1;
-		const panOffset = new Vector3();
-
-		const rotateStart = new Vector2();
-		const rotateEnd = new Vector2();
-		const rotateDelta = new Vector2();
-
-		const panStart = new Vector2();
-		const panEnd = new Vector2();
-		const panDelta = new Vector2();
-
-		const dollyStart = new Vector2();
-		const dollyEnd = new Vector2();
-		const dollyDelta = new Vector2();
-
-		const dollyDirection = new Vector3();
-		const mouse = new Vector2();
-		let performCursorZoom = false;
-
-		const pointers = [];
-		const pointerPositions = {};
-
-		let controlActive = false;
-
-		function getAutoRotationAngle( deltaTime ) {
-
-			if ( deltaTime !== null ) {
-
-				return ( 2 * Math.PI / 60 * scope.autoRotateSpeed ) * deltaTime;
-
-			} else {
-
-				return 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
-
-			}
-
-		}
-
-		function getZoomScale( delta ) {
-
-			const normalizedDelta = Math.abs( delta * 0.01 );
-			return Math.pow( 0.95, scope.zoomSpeed * normalizedDelta );
-
-		}
-
-		function rotateLeft( angle ) {
-
-			sphericalDelta.theta -= angle;
-
-		}
-
-		function rotateUp( angle ) {
-
-			sphericalDelta.phi -= angle;
-
-		}
-
-		const panLeft = function () {
-
-			const v = new Vector3();
-
-			return function panLeft( distance, objectMatrix ) {
-
-				v.setFromMatrixColumn( objectMatrix, 0 ); // get X column of objectMatrix
-				v.multiplyScalar( - distance );
-
-				panOffset.add( v );
-
-			};
-
-		}();
-
-		const panUp = function () {
-
-			const v = new Vector3();
-
-			return function panUp( distance, objectMatrix ) {
-
-				if ( scope.screenSpacePanning === true ) {
-
-					v.setFromMatrixColumn( objectMatrix, 1 );
-
-				} else {
-
-					v.setFromMatrixColumn( objectMatrix, 0 );
-					v.crossVectors( scope.object.up, v );
-
-				}
-
-				v.multiplyScalar( distance );
-
-				panOffset.add( v );
-
-			};
-
-		}();
-
-		// deltaX and deltaY are in pixels; right and down are positive
-		const pan = function () {
-
-			const offset = new Vector3();
-
-			return function pan( deltaX, deltaY ) {
-
-				const element = scope.domElement;
-
-				if ( scope.object.isPerspectiveCamera ) {
-
-					// perspective
-					const position = scope.object.position;
-					offset.copy( position ).sub( scope.target );
-					let targetDistance = offset.length();
-
-					// half of the fov is center to top of screen
-					targetDistance *= Math.tan( ( scope.object.fov / 2 ) * Math.PI / 180.0 );
-
-					// we use only clientHeight here so aspect ratio does not distort speed
-					panLeft( 2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix );
-					panUp( 2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix );
-
-				} else if ( scope.object.isOrthographicCamera ) {
-
-					// orthographic
-					panLeft( deltaX * ( scope.object.right - scope.object.left ) / scope.object.zoom / element.clientWidth, scope.object.matrix );
-					panUp( deltaY * ( scope.object.top - scope.object.bottom ) / scope.object.zoom / element.clientHeight, scope.object.matrix );
-
-				} else {
-
-					// camera neither orthographic nor perspective
-					console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
-					scope.enablePan = false;
-
-				}
-
-			};
-
-		}();
-
-		function dollyOut( dollyScale ) {
-
-			if ( scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera ) {
-
-				scale /= dollyScale;
-
-			} else {
-
-				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
-				scope.enableZoom = false;
-
-			}
-
-		}
-
-		function dollyIn( dollyScale ) {
-
-			if ( scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera ) {
-
-				scale *= dollyScale;
-
-			} else {
-
-				console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
-				scope.enableZoom = false;
-
-			}
-
-		}
-
-		function updateZoomParameters( x, y ) {
-
-			if ( ! scope.zoomToCursor ) {
-
-				return;
-
-			}
-
-			performCursorZoom = true;
-
-			const rect = scope.domElement.getBoundingClientRect();
-			const dx = x - rect.left;
-			const dy = y - rect.top;
-			const w = rect.width;
-			const h = rect.height;
-
-			mouse.x = ( dx / w ) * 2 - 1;
-			mouse.y = - ( dy / h ) * 2 + 1;
-
-			dollyDirection.set( mouse.x, mouse.y, 1 ).unproject( scope.object ).sub( scope.object.position ).normalize();
-
-		}
-
-		function clampDistance( dist ) {
-
-			return Math.max( scope.minDistance, Math.min( scope.maxDistance, dist ) );
-
-		}
-
-		//
-		// event callbacks - update the object state
-		//
-
-		function handleMouseDownRotate( event ) {
-
-			rotateStart.set( event.clientX, event.clientY );
-
-		}
-
-		function handleMouseDownDolly( event ) {
-
-			updateZoomParameters( event.clientX, event.clientX );
-			dollyStart.set( event.clientX, event.clientY );
-
-		}
-
-		function handleMouseDownPan( event ) {
-
-			panStart.set( event.clientX, event.clientY );
-
-		}
-
-		function handleMouseMoveRotate( event ) {
-
-			rotateEnd.set( event.clientX, event.clientY );
-
-			rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
-
-			const element = scope.domElement;
-
-			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
-
-			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
-
-			rotateStart.copy( rotateEnd );
-
-			scope.update();
-
-		}
-
-		function handleMouseMoveDolly( event ) {
-
-			dollyEnd.set( event.clientX, event.clientY );
-
-			dollyDelta.subVectors( dollyEnd, dollyStart );
-
-			if ( dollyDelta.y > 0 ) {
-
-				dollyOut( getZoomScale( dollyDelta.y ) );
-
-			} else if ( dollyDelta.y < 0 ) {
-
-				dollyIn( getZoomScale( dollyDelta.y ) );
-
-			}
-
-			dollyStart.copy( dollyEnd );
-
-			scope.update();
-
-		}
-
-		function handleMouseMovePan( event ) {
-
-			panEnd.set( event.clientX, event.clientY );
-
-			panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
-
-			pan( panDelta.x, panDelta.y );
-
-			panStart.copy( panEnd );
-
-			scope.update();
-
-		}
-
-		function handleMouseWheel( event ) {
-
-			updateZoomParameters( event.clientX, event.clientY );
-
-			if ( event.deltaY < 0 ) {
-
-				dollyIn( getZoomScale( event.deltaY ) );
-
-			} else if ( event.deltaY > 0 ) {
-
-				dollyOut( getZoomScale( event.deltaY ) );
-
-			}
-
-			scope.update();
-
-		}
-
-		function handleKeyDown( event ) {
-
-			let needsUpdate = false;
-
-			switch ( event.code ) {
-
-				case scope.keys.UP:
-
-					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
-
-						rotateUp( 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
-
-					} else {
-
-						pan( 0, scope.keyPanSpeed );
-
-					}
-
-					needsUpdate = true;
-					break;
-
-				case scope.keys.BOTTOM:
-
-					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
-
-						rotateUp( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
-
-					} else {
-
-						pan( 0, - scope.keyPanSpeed );
-
-					}
-
-					needsUpdate = true;
-					break;
-
-				case scope.keys.LEFT:
-
-					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
-
-						rotateLeft( 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
-
-					} else {
-
-						pan( scope.keyPanSpeed, 0 );
-
-					}
-
-					needsUpdate = true;
-					break;
-
-				case scope.keys.RIGHT:
-
-					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
-
-						rotateLeft( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
-
-					} else {
-
-						pan( - scope.keyPanSpeed, 0 );
-
-					}
-
-					needsUpdate = true;
-					break;
-
-			}
-
-			if ( needsUpdate ) {
-
-				// prevent the browser from scrolling on cursor keys
-				event.preventDefault();
-
-				scope.update();
-
-			}
-
-
-		}
-
-		function handleTouchStartRotate( event ) {
-
-			if ( pointers.length === 1 ) {
-
-				rotateStart.set( event.pageX, event.pageY );
-
-			} else {
-
-				const position = getSecondPointerPosition( event );
-
-				const x = 0.5 * ( event.pageX + position.x );
-				const y = 0.5 * ( event.pageY + position.y );
-
-				rotateStart.set( x, y );
-
-			}
-
-		}
-
-		function handleTouchStartPan( event ) {
-
-			if ( pointers.length === 1 ) {
-
-				panStart.set( event.pageX, event.pageY );
-
-			} else {
-
-				const position = getSecondPointerPosition( event );
-
-				const x = 0.5 * ( event.pageX + position.x );
-				const y = 0.5 * ( event.pageY + position.y );
-
-				panStart.set( x, y );
-
-			}
-
-		}
-
-		function handleTouchStartDolly( event ) {
-
-			const position = getSecondPointerPosition( event );
-
-			const dx = event.pageX - position.x;
-			const dy = event.pageY - position.y;
-
-			const distance = Math.sqrt( dx * dx + dy * dy );
-
-			dollyStart.set( 0, distance );
-
-		}
-
-		function handleTouchStartDollyPan( event ) {
-
-			if ( scope.enableZoom ) handleTouchStartDolly( event );
-
-			if ( scope.enablePan ) handleTouchStartPan( event );
-
-		}
-
-		function handleTouchStartDollyRotate( event ) {
-
-			if ( scope.enableZoom ) handleTouchStartDolly( event );
-
-			if ( scope.enableRotate ) handleTouchStartRotate( event );
-
-		}
-
-		function handleTouchMoveRotate( event ) {
-
-			if ( pointers.length == 1 ) {
-
-				rotateEnd.set( event.pageX, event.pageY );
-
-			} else {
-
-				const position = getSecondPointerPosition( event );
-
-				const x = 0.5 * ( event.pageX + position.x );
-				const y = 0.5 * ( event.pageY + position.y );
-
-				rotateEnd.set( x, y );
-
-			}
-
-			rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
-
-			const element = scope.domElement;
-
-			rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
-
-			rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
-
-			rotateStart.copy( rotateEnd );
-
-		}
-
-		function handleTouchMovePan( event ) {
-
-			if ( pointers.length === 1 ) {
-
-				panEnd.set( event.pageX, event.pageY );
-
-			} else {
-
-				const position = getSecondPointerPosition( event );
-
-				const x = 0.5 * ( event.pageX + position.x );
-				const y = 0.5 * ( event.pageY + position.y );
-
-				panEnd.set( x, y );
-
-			}
-
-			panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
-
-			pan( panDelta.x, panDelta.y );
-
-			panStart.copy( panEnd );
-
-		}
-
-		function handleTouchMoveDolly( event ) {
-
-			const position = getSecondPointerPosition( event );
-
-			const dx = event.pageX - position.x;
-			const dy = event.pageY - position.y;
-
-			const distance = Math.sqrt( dx * dx + dy * dy );
-
-			dollyEnd.set( 0, distance );
-
-			dollyDelta.set( 0, Math.pow( dollyEnd.y / dollyStart.y, scope.zoomSpeed ) );
-
-			dollyOut( dollyDelta.y );
-
-			dollyStart.copy( dollyEnd );
-
-			const centerX = ( event.pageX + position.x ) * 0.5;
-			const centerY = ( event.pageY + position.y ) * 0.5;
-
-			updateZoomParameters( centerX, centerY );
-
-		}
-
-		function handleTouchMoveDollyPan( event ) {
-
-			if ( scope.enableZoom ) handleTouchMoveDolly( event );
-
-			if ( scope.enablePan ) handleTouchMovePan( event );
-
-		}
-
-		function handleTouchMoveDollyRotate( event ) {
-
-			if ( scope.enableZoom ) handleTouchMoveDolly( event );
-
-			if ( scope.enableRotate ) handleTouchMoveRotate( event );
-
-		}
-
-		//
-		// event handlers - FSM: listen for events and reset state
-		//
-
-		function onPointerDown( event ) {
-
-			if ( scope.enabled === false ) return;
-
-			if ( pointers.length === 0 ) {
-
-				scope.domElement.setPointerCapture( event.pointerId );
-
-				scope.domElement.addEventListener( 'pointermove', onPointerMove );
-				scope.domElement.addEventListener( 'pointerup', onPointerUp );
-
-			}
-
-			//
-
-			addPointer( event );
-
-			if ( event.pointerType === 'touch' ) {
-
-				onTouchStart( event );
-
-			} else {
-
-				onMouseDown( event );
-
-			}
-
-		}
-
-		function onPointerMove( event ) {
-
-			if ( scope.enabled === false ) return;
-
-			if ( event.pointerType === 'touch' ) {
-
-				onTouchMove( event );
-
-			} else {
-
-				onMouseMove( event );
-
-			}
-
-		}
-
-		function onPointerUp( event ) {
-
-			removePointer( event );
-
-			if ( pointers.length === 0 ) {
-
-				scope.domElement.releasePointerCapture( event.pointerId );
-
-				scope.domElement.removeEventListener( 'pointermove', onPointerMove );
-				scope.domElement.removeEventListener( 'pointerup', onPointerUp );
-
-			}
-
-			scope.dispatchEvent( _endEvent );
-
-			state = STATE.NONE;
-
-		}
-
-		function onMouseDown( event ) {
-
-			let mouseAction;
-
-			switch ( event.button ) {
-
-				case 0:
-
-					mouseAction = scope.mouseButtons.LEFT;
-					break;
-
-				case 1:
-
-					mouseAction = scope.mouseButtons.MIDDLE;
-					break;
-
-				case 2:
-
-					mouseAction = scope.mouseButtons.RIGHT;
-					break;
-
-				default:
-
-					mouseAction = - 1;
-
-			}
-
-			switch ( mouseAction ) {
-
-				case MOUSE.DOLLY:
-
-					if ( scope.enableZoom === false ) return;
-
-					handleMouseDownDolly( event );
-
-					state = STATE.DOLLY;
-
-					break;
-
-				case MOUSE.ROTATE:
-
-					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
-
-						if ( scope.enablePan === false ) return;
-
-						handleMouseDownPan( event );
-
-						state = STATE.PAN;
-
-					} else {
-
-						if ( scope.enableRotate === false ) return;
-
-						handleMouseDownRotate( event );
-
-						state = STATE.ROTATE;
-
-					}
-
-					break;
-
-				case MOUSE.PAN:
-
-					if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
-
-						if ( scope.enableRotate === false ) return;
-
-						handleMouseDownRotate( event );
-
-						state = STATE.ROTATE;
-
-					} else {
-
-						if ( scope.enablePan === false ) return;
-
-						handleMouseDownPan( event );
-
-						state = STATE.PAN;
-
-					}
-
-					break;
-
-				default:
-
-					state = STATE.NONE;
-
-			}
-
-			if ( state !== STATE.NONE ) {
-
-				scope.dispatchEvent( _startEvent );
-
-			}
-
-		}
-
-		function onMouseMove( event ) {
-
-			switch ( state ) {
-
-				case STATE.ROTATE:
-
-					if ( scope.enableRotate === false ) return;
-
-					handleMouseMoveRotate( event );
-
-					break;
-
-				case STATE.DOLLY:
-
-					if ( scope.enableZoom === false ) return;
-
-					handleMouseMoveDolly( event );
-
-					break;
-
-				case STATE.PAN:
-
-					if ( scope.enablePan === false ) return;
-
-					handleMouseMovePan( event );
-
-					break;
-
-			}
-
-		}
-
-		function onMouseWheel( event ) {
-
-			if ( scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE ) return;
-
-			event.preventDefault();
-
-			scope.dispatchEvent( _startEvent );
-
-			handleMouseWheel( customWheelEvent( event ) );
-
-			scope.dispatchEvent( _endEvent );
-
-		}
-
-		function customWheelEvent( event ) {
-
-			const mode = event.deltaMode;
-
-			// minimal wheel event altered to meet delta-zoom demand
-			const newEvent = {
-				clientX: event.clientX,
-				clientY: event.clientY,
-				deltaY: event.deltaY,
-			};
-
-			switch ( mode ) {
-
-				case 1: // LINE_MODE
-					newEvent.deltaY *= 16;
-					break;
-
-				case 2: // PAGE_MODE
-					newEvent.deltaY *= 100;
-					break;
-
-			}
-
-			// detect if event was triggered by pinching
-			if ( event.ctrlKey && !controlActive ) {
-
-				newEvent.deltaY *= 10;
-
-			}
-
-			return newEvent;
-
-		}
-
-		function interceptControlDown( event ) {
-
-			if ( event.key === "Control" ) {
-
-				controlActive = true;
-				
-				document.addEventListener('keyup', interceptControlUp, { passive: true, capture: true });
-
-			}
-
-		}
-
-		function interceptControlUp( event ) {
-
-			if ( event.key === "Control" ) {
-
-				controlActive = false;
-				
-				document.removeEventListener('keyup', interceptControlUp, { passive: true, capture: true });
-
-			}
-
-		}
-
-		function onKeyDown( event ) {
-
-			if ( scope.enabled === false || scope.enablePan === false ) return;
-
-			handleKeyDown( event );
-
-		}
-
-		function onTouchStart( event ) {
-
-			trackPointer( event );
-
-			switch ( pointers.length ) {
-
-				case 1:
-
-					switch ( scope.touches.ONE ) {
-
-						case TOUCH.ROTATE:
-
-							if ( scope.enableRotate === false ) return;
-
-							handleTouchStartRotate( event );
-
-							state = STATE.TOUCH_ROTATE;
-
-							break;
-
-						case TOUCH.PAN:
-
-							if ( scope.enablePan === false ) return;
-
-							handleTouchStartPan( event );
-
-							state = STATE.TOUCH_PAN;
-
-							break;
-
-						default:
-
-							state = STATE.NONE;
-
-					}
-
-					break;
-
-				case 2:
-
-					switch ( scope.touches.TWO ) {
-
-						case TOUCH.DOLLY_PAN:
-
-							if ( scope.enableZoom === false && scope.enablePan === false ) return;
-
-							handleTouchStartDollyPan( event );
-
-							state = STATE.TOUCH_DOLLY_PAN;
-
-							break;
-
-						case TOUCH.DOLLY_ROTATE:
-
-							if ( scope.enableZoom === false && scope.enableRotate === false ) return;
-
-							handleTouchStartDollyRotate( event );
-
-							state = STATE.TOUCH_DOLLY_ROTATE;
-
-							break;
-
-						default:
-
-							state = STATE.NONE;
-
-					}
-
-					break;
-
-				default:
-
-					state = STATE.NONE;
-
-			}
-
-			if ( state !== STATE.NONE ) {
-
-				scope.dispatchEvent( _startEvent );
-
-			}
-
-		}
-
-		function onTouchMove( event ) {
-
-			trackPointer( event );
-
-			switch ( state ) {
-
-				case STATE.TOUCH_ROTATE:
-
-					if ( scope.enableRotate === false ) return;
-
-					handleTouchMoveRotate( event );
-
-					scope.update();
-
-					break;
-
-				case STATE.TOUCH_PAN:
-
-					if ( scope.enablePan === false ) return;
-
-					handleTouchMovePan( event );
-
-					scope.update();
-
-					break;
-
-				case STATE.TOUCH_DOLLY_PAN:
-
-					if ( scope.enableZoom === false && scope.enablePan === false ) return;
-
-					handleTouchMoveDollyPan( event );
-
-					scope.update();
-
-					break;
-
-				case STATE.TOUCH_DOLLY_ROTATE:
-
-					if ( scope.enableZoom === false && scope.enableRotate === false ) return;
-
-					handleTouchMoveDollyRotate( event );
-
-					scope.update();
-
-					break;
-
-				default:
-
-					state = STATE.NONE;
-
-			}
-
-		}
-
-		function onContextMenu( event ) {
-
-			if ( scope.enabled === false ) return;
-
-			event.preventDefault();
-
-		}
-
-		function addPointer( event ) {
-
-			pointers.push( event.pointerId );
-
-		}
-
-		function removePointer( event ) {
-
-			delete pointerPositions[ event.pointerId ];
-
-			for ( let i = 0; i < pointers.length; i ++ ) {
-
-				if ( pointers[ i ] == event.pointerId ) {
-
-					pointers.splice( i, 1 );
-					return;
-
-				}
-
-			}
-
-		}
-
-		function trackPointer( event ) {
-
-			let position = pointerPositions[ event.pointerId ];
-
-			if ( position === undefined ) {
-
-				position = new Vector2();
-				pointerPositions[ event.pointerId ] = position;
-
-			}
-
-			position.set( event.pageX, event.pageY );
-
-		}
-
-		function getSecondPointerPosition( event ) {
-
-			const pointerId = ( event.pointerId === pointers[ 0 ] ) ? pointers[ 1 ] : pointers[ 0 ];
-
-			return pointerPositions[ pointerId ];
-
-		}
-
-		//
-
-		scope.domElement.addEventListener( 'contextmenu', onContextMenu );
-
-		scope.domElement.addEventListener( 'pointerdown', onPointerDown );
-		scope.domElement.addEventListener( 'pointercancel', onPointerUp );
-		scope.domElement.addEventListener( 'wheel', onMouseWheel, { passive: false } );
-
-		document.addEventListener( 'keydown', interceptControlDown, { passive: true, capture: true } );
-
-		// force an update at start
-
-		this.update();
-
-	}
-
-}
 
 /**
  * Full-screen textured quad shader
@@ -22738,10 +21300,9 @@ class Infinite2dGrid {
         // Step 2: find out its order of magnitude
         const magnitudeX = Math.ceil(Math.log10(horizontalDistance / this.scaleX));
         const magnitudeY = Math.ceil(Math.log10(verticalDistance / this.scaleY));
-        const magnitude = Math.min(magnitudeX, magnitudeY);
         // Step 3: represent main grid
-        const sDistanceHor = 10 ** (magnitude - 2) * this.scaleX;
-        const sDistanceVert = 10 ** (magnitude - 2) * this.scaleY;
+        const sDistanceHor = 10 ** (magnitudeX - 2) * this.scaleX;
+        const sDistanceVert = 10 ** (magnitudeY - 2) * this.scaleY;
         const mDistanceHor = sDistanceHor * this.gridsFactor;
         const mDistanceVert = sDistanceVert * this.gridsFactor;
         const mainGridCountVert = Math.ceil(verticalDistance / mDistanceVert);
@@ -22761,20 +21322,26 @@ class Infinite2dGrid {
         this.numbers.children = [];
         const mPoints = [];
         const realWidthPerCharacter = 9 * unit3dPixelRel; // 9 pixels per char
+        const p = 10000;
         // Avoid horizontal text overlap by computing the real width of a text
         // and computing which lines should have a label starting from zero
-        const minLabel = Math.abs(mTrueLeft / this.scaleX);
+        const minLabel = Math.round(Math.abs(mTrueLeft / this.scaleX) * p) / p;
         const maxDist = (mainGridCountHor - 1) * mDistanceHor;
-        const maxLabel = Math.abs((mTrueLeft + maxDist) / this.scaleX);
+        const maxLabel = Math.round(Math.abs((mTrueLeft + maxDist) / this.scaleX) * p) / p;
         const biggestLabelLength = Math.max(minLabel, maxLabel).toString().length;
         const biggestLabelSize = biggestLabelLength * realWidthPerCharacter;
         const cellsOccupiedByALabel = Math.ceil(biggestLabelSize / mDistanceHor);
-        const offsetToZero = cellsOccupiedByALabel * mDistanceHor;
+        let offsetToZero = cellsOccupiedByALabel * mDistanceHor;
         for (let i = 0; i < mainGridCountHor; i++) {
-            const offset = mTrueLeft + i * mDistanceHor;
+            let offset = mTrueLeft + i * mDistanceHor;
             mPoints.push(offset, top, 0, offset, bottom, 0);
             const value = offset / this.scaleX;
-            if (Math.abs(offset % offsetToZero) > 0.01) {
+            offset = Math.round(offset * p) / p;
+            offsetToZero = Math.round(offsetToZero * p) / p;
+            const result = offset % offsetToZero;
+            // TODO: Removing horizontal labels for clarity doesn't work for small distances
+            const isSmall = mDistanceHor < 1 || mDistanceVert < 1;
+            if (!isSmall && Math.abs(result) > 0.01) {
                 continue;
             }
             const sign = this.newNumber(value);
@@ -22802,26 +21369,16 @@ class Infinite2dGrid {
             const offset = sTrueBottom + i * sDistanceVert;
             sPoints.push(left, offset, 0, right, offset, 0);
         }
-        const mIndices = [];
-        const sIndices = [];
-        this.fillIndices(mPoints, mIndices);
-        this.fillIndices(sPoints, sIndices);
         const mBuffer = new THREE$1.BufferAttribute(new Float32Array(mPoints), 3);
         const sBuffer = new THREE$1.BufferAttribute(new Float32Array(sPoints), 3);
         const { main, secondary } = this.grids;
         main.geometry.setAttribute("position", mBuffer);
-        main.geometry.setIndex(mIndices);
         secondary.geometry.setAttribute("position", sBuffer);
-        secondary.geometry.setIndex(sIndices);
-    }
-    fillIndices(points, indices) {
-        for (let i = 0; i < points.length / 2 - 1; i += 2) {
-            indices.push(i, i + 1);
-        }
     }
     newNumber(offset) {
         const text = document.createElement("div");
-        text.textContent = `${offset}`;
+        const formattedNumber = Math.round(offset * 100) / 100;
+        text.textContent = `${formattedNumber}`;
         text.style.height = "24px";
         text.style.fontSize = "12px";
         const sign = new CSS2DObject(text);
@@ -22854,6 +21411,9 @@ class Infinite2dGrid {
  * with all the power of Three.js.
  */
 class Simple2DScene extends Component {
+    get size() {
+        return this._size.clone();
+    }
     get scaleX() {
         return this._scaleX;
     }
@@ -22913,7 +21473,9 @@ class Simple2DScene extends Component {
         this._size.set(window.innerWidth, window.innerHeight);
         const { width, height } = this._size;
         // Creates the camera (point of view of the user)
-        this.camera = new THREE$1.OrthographicCamera(75, width / height);
+        const aspect = width / height;
+        const halfSize = this._frustumSize * 0.5;
+        this.camera = new THREE$1.OrthographicCamera(-halfSize * aspect, halfSize * aspect, halfSize, -halfSize, -1000, 1000);
         this.scene.add(this.camera);
         this.camera.position.z = 10;
         const domContainer = container.domElement;
@@ -22932,11 +21494,14 @@ class Simple2DScene extends Component {
         this.renderer.setupEvents(false);
         this.renderer.overrideScene = this.scene;
         this.renderer.overrideCamera = this.camera;
-        this.controls = new OrbitControls(this.camera, renderer.domElement);
-        this.controls.target.set(0, 0, 0);
-        this.controls.enableRotate = false;
-        this.controls.enableZoom = true;
-        this.controls.addEventListener("change", () => this.grid.regenerate());
+        this.controls = new CameraControls(this.camera, renderer.domElement);
+        // this.controls.smoothTime = 0.6;
+        this.controls.setTarget(0, 0, 0);
+        this.controls.addEventListener("update", () => this.grid.regenerate());
+        this.controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
+        this.controls.dollyToCursor = true;
+        this.controls.restThreshold = 2;
+        this.controls.smoothTime = 0.2;
     }
     /**
      * {@link Component.get}
@@ -22962,7 +21527,7 @@ class Simple2DScene extends Component {
     /** {@link Updateable.update} */
     async update() {
         await this.onBeforeUpdate.trigger();
-        this.controls.update();
+        this.controls.update(1 / 60);
         await this.renderer.update();
         await this.onAfterUpdate.trigger();
     }
@@ -23079,7 +21644,9 @@ let Fragment$1 = class Fragment {
         this.id = this.mesh.uuid;
         this.capacity = count;
         this.mesh.count = 0;
-        BVH.apply(geometry);
+        if (this.mesh.geometry.index.count) {
+            BVH.apply(this.mesh.geometry);
+        }
     }
     dispose(disposeResources = true) {
         this.clear();
@@ -24132,7 +22699,72 @@ class Builder {
 }
 
 // automatically generated by the FlatBuffers compiler, do not modify
-class Alignment {
+let CivilCurve$1 = class CivilCurve {
+    constructor() {
+        this.bb = null;
+        this.bb_pos = 0;
+    }
+    __init(i, bb) {
+        this.bb_pos = i;
+        this.bb = bb;
+        return this;
+    }
+    static getRootAsCivilCurve(bb, obj) {
+        return (obj || new CivilCurve()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    static getSizePrefixedRootAsCivilCurve(bb, obj) {
+        bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
+        return (obj || new CivilCurve()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    }
+    points(index) {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    }
+    pointsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    pointsArray() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    }
+    data(optionalEncoding) {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    }
+    static startCivilCurve(builder) {
+        builder.startObject(2);
+    }
+    static addPoints(builder, pointsOffset) {
+        builder.addFieldOffset(0, pointsOffset, 0);
+    }
+    static createPointsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startPointsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addData(builder, dataOffset) {
+        builder.addFieldOffset(1, dataOffset, 0);
+    }
+    static endCivilCurve(builder) {
+        const offset = builder.endObject();
+        return offset;
+    }
+    static createCivilCurve(builder, pointsOffset, dataOffset) {
+        CivilCurve.startCivilCurve(builder);
+        CivilCurve.addPoints(builder, pointsOffset);
+        CivilCurve.addData(builder, dataOffset);
+        return CivilCurve.endCivilCurve(builder);
+    }
+};
+
+// automatically generated by the FlatBuffers compiler, do not modify
+let Alignment$1 = class Alignment {
     constructor() {
         this.bb = null;
         this.bb_pos = 0;
@@ -24149,99 +22781,95 @@ class Alignment {
         bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
         return (obj || new Alignment()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
-    position(index) {
+    vertical(index, obj) {
         const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? (obj || new CivilCurve$1()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
     }
-    positionLength() {
+    verticalLength() {
         const offset = this.bb.__offset(this.bb_pos, 4);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    positionArray() {
-        const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    curve(index) {
+    horizontal(index, obj) {
         const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? (obj || new CivilCurve$1()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
     }
-    curveLength() {
+    horizontalLength() {
         const offset = this.bb.__offset(this.bb_pos, 6);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    curveArray() {
-        const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
-    }
-    segment(index) {
+    absolute(index, obj) {
         const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+        return offset ? (obj || new CivilCurve$1()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
     }
-    segmentLength() {
+    absoluteLength() {
         const offset = this.bb.__offset(this.bb_pos, 8);
         return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    segmentArray() {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    initialPk() {
+        const offset = this.bb.__offset(this.bb_pos, 10);
+        return offset ? this.bb.readFloat32(this.bb_pos + offset) : 0.0;
     }
     static startAlignment(builder) {
-        builder.startObject(3);
+        builder.startObject(4);
     }
-    static addPosition(builder, positionOffset) {
-        builder.addFieldOffset(0, positionOffset, 0);
+    static addVertical(builder, verticalOffset) {
+        builder.addFieldOffset(0, verticalOffset, 0);
     }
-    static createPositionVector(builder, data) {
+    static createVerticalVector(builder, data) {
         builder.startVector(4, data.length, 4);
         for (let i = data.length - 1; i >= 0; i--) {
-            builder.addFloat32(data[i]);
+            builder.addOffset(data[i]);
         }
         return builder.endVector();
     }
-    static startPositionVector(builder, numElems) {
+    static startVerticalVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
-    static addCurve(builder, curveOffset) {
-        builder.addFieldOffset(1, curveOffset, 0);
+    static addHorizontal(builder, horizontalOffset) {
+        builder.addFieldOffset(1, horizontalOffset, 0);
     }
-    static createCurveVector(builder, data) {
+    static createHorizontalVector(builder, data) {
         builder.startVector(4, data.length, 4);
         for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
+            builder.addOffset(data[i]);
         }
         return builder.endVector();
     }
-    static startCurveVector(builder, numElems) {
+    static startHorizontalVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
     }
-    static addSegment(builder, segmentOffset) {
-        builder.addFieldOffset(2, segmentOffset, 0);
+    static addAbsolute(builder, absoluteOffset) {
+        builder.addFieldOffset(2, absoluteOffset, 0);
     }
-    static createSegmentVector(builder, data) {
+    static createAbsoluteVector(builder, data) {
         builder.startVector(4, data.length, 4);
         for (let i = data.length - 1; i >= 0; i--) {
-            builder.addInt32(data[i]);
+            builder.addOffset(data[i]);
         }
         return builder.endVector();
     }
-    static startSegmentVector(builder, numElems) {
+    static startAbsoluteVector(builder, numElems) {
         builder.startVector(4, numElems, 4);
+    }
+    static addInitialPk(builder, initialPk) {
+        builder.addFieldFloat32(3, initialPk, 0.0);
     }
     static endAlignment(builder) {
         const offset = builder.endObject();
         return offset;
     }
-    static createAlignment(builder, positionOffset, curveOffset, segmentOffset) {
+    static createAlignment(builder, verticalOffset, horizontalOffset, absoluteOffset, initialPk) {
         Alignment.startAlignment(builder);
-        Alignment.addPosition(builder, positionOffset);
-        Alignment.addCurve(builder, curveOffset);
-        Alignment.addSegment(builder, segmentOffset);
+        Alignment.addVertical(builder, verticalOffset);
+        Alignment.addHorizontal(builder, horizontalOffset);
+        Alignment.addAbsolute(builder, absoluteOffset);
+        Alignment.addInitialPk(builder, initialPk);
         return Alignment.endAlignment(builder);
     }
-}
+};
 
 // automatically generated by the FlatBuffers compiler, do not modify
-class Civil {
+class CivilData {
     constructor() {
         this.bb = null;
         this.bb_pos = 0;
@@ -24251,40 +22879,71 @@ class Civil {
         this.bb = bb;
         return this;
     }
-    static getRootAsCivil(bb, obj) {
-        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    static getRootAsCivilData(bb, obj) {
+        return (obj || new CivilData()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
-    static getSizePrefixedRootAsCivil(bb, obj) {
+    static getSizePrefixedRootAsCivilData(bb, obj) {
         bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-        return (obj || new Civil()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+        return (obj || new CivilData()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
     }
-    alignmentHorizontal(obj) {
+    alignments(index, obj) {
         const offset = this.bb.__offset(this.bb_pos, 4);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+        return offset ? (obj || new Alignment$1()).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
     }
-    alignmentVertical(obj) {
+    alignmentsLength() {
+        const offset = this.bb.__offset(this.bb_pos, 4);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
+    }
+    coordinationMatrix(index) {
         const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+        return offset ? this.bb.readFloat32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
     }
-    alignment3d(obj) {
-        const offset = this.bb.__offset(this.bb_pos, 8);
-        return offset ? (obj || new Alignment()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    coordinationMatrixLength() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? this.bb.__vector_len(this.bb_pos + offset) : 0;
     }
-    static startCivil(builder) {
-        builder.startObject(3);
+    coordinationMatrixArray() {
+        const offset = this.bb.__offset(this.bb_pos, 6);
+        return offset ? new Float32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
     }
-    static addAlignmentHorizontal(builder, alignmentHorizontalOffset) {
-        builder.addFieldOffset(0, alignmentHorizontalOffset, 0);
+    static startCivilData(builder) {
+        builder.startObject(2);
     }
-    static addAlignmentVertical(builder, alignmentVerticalOffset) {
-        builder.addFieldOffset(1, alignmentVerticalOffset, 0);
+    static addAlignments(builder, alignmentsOffset) {
+        builder.addFieldOffset(0, alignmentsOffset, 0);
     }
-    static addAlignment3d(builder, alignment3dOffset) {
-        builder.addFieldOffset(2, alignment3dOffset, 0);
+    static createAlignmentsVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addOffset(data[i]);
+        }
+        return builder.endVector();
     }
-    static endCivil(builder) {
+    static startAlignmentsVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static addCoordinationMatrix(builder, coordinationMatrixOffset) {
+        builder.addFieldOffset(1, coordinationMatrixOffset, 0);
+    }
+    static createCoordinationMatrixVector(builder, data) {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+            builder.addFloat32(data[i]);
+        }
+        return builder.endVector();
+    }
+    static startCoordinationMatrixVector(builder, numElems) {
+        builder.startVector(4, numElems, 4);
+    }
+    static endCivilData(builder) {
         const offset = builder.endObject();
         return offset;
+    }
+    static createCivilData(builder, alignmentsOffset, coordinationMatrixOffset) {
+        CivilData.startCivilData(builder);
+        CivilData.addAlignments(builder, alignmentsOffset);
+        CivilData.addCoordinationMatrix(builder, coordinationMatrixOffset);
+        return CivilData.endCivilData(builder);
     }
 }
 
@@ -24605,7 +23264,7 @@ let FragmentsGroup$1 = class FragmentsGroup {
     }
     civil(obj) {
         const offset = this.bb.__offset(this.bb_pos, 6);
-        return offset ? (obj || new Civil()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+        return offset ? (obj || new CivilData()).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
     }
     coordinationMatrix(index) {
         const offset = this.bb.__offset(this.bb_pos, 8);
@@ -26003,7 +24662,15 @@ class FragmentsGroup extends THREE$1.Group {
         this._properties = {};
         this.removeFromParent();
         this.items = [];
-        this.ifcCivil = undefined;
+        if (this.civilData) {
+            const { alignments } = this.civilData;
+            for (const [_id, alignment] of alignments) {
+                this.disposeAlignment(alignment.vertical);
+                this.disposeAlignment(alignment.horizontal);
+                this.disposeAlignment(alignment.absolute);
+            }
+        }
+        this.civilData = undefined;
     }
     setLocalProperties(properties) {
         this._properties = properties;
@@ -26120,17 +24787,170 @@ class FragmentsGroup extends THREE$1.Group {
         const { baseUrl } = this.streamSettings;
         return `${baseUrl}${name}`;
     }
+    disposeAlignment(alignment) {
+        for (const curve of alignment) {
+            curve.mesh.geometry.dispose();
+            if (Array.isArray(curve.mesh.material)) {
+                for (const mat of curve.mesh.material) {
+                    mat.dispose();
+                }
+            }
+            else {
+                curve.mesh.material.dispose();
+            }
+        }
+        alignment.length = 0;
+    }
 }
 
-class IfcAlignmentData {
+class Alignment {
     constructor() {
-        this.coordinates = new Float32Array(0);
-        this.alignmentIndex = [];
-        this.curveIndex = [];
+        this.vertical = [];
+        this.horizontal = [];
+        this.absolute = [];
+        this.initialKP = 0;
     }
-    exportData() {
-        const { coordinates, alignmentIndex, curveIndex } = this;
-        return { coordinates, alignmentIndex, curveIndex };
+    getLength(type) {
+        let length = 0;
+        for (const curve of this[type]) {
+            length += curve.getLength();
+        }
+        return length;
+    }
+    getPointAt(percentage, type) {
+        const found = this.getCurveAt(percentage, type);
+        return found.curve.getPointAt(found.percentage);
+    }
+    // Returns the percentage or null if the point is not contained in this alignment
+    getPercentageAt(point, type, tolerance = 0.01) {
+        const alignment = this[type];
+        let currentLength = 0;
+        for (const curve of alignment) {
+            const factor = curve.getPercentageAt(point, tolerance);
+            const curveLength = curve.getLength();
+            if (factor !== null) {
+                // This segment has the point
+                const foundLength = currentLength + factor * curveLength;
+                const totalLength = this.getLength(type);
+                return foundLength / totalLength;
+            }
+            currentLength += curveLength;
+        }
+        return null;
+    }
+    getCurveAt(percentage, type) {
+        if (percentage < 0) {
+            percentage = 0;
+        }
+        else if (percentage > 1) {
+            percentage = 1;
+        }
+        const alignment = this[type];
+        const alignmentLength = this.getLength(type);
+        const targetLength = alignmentLength * percentage;
+        let accumulatedLength = 0;
+        for (const curve of alignment) {
+            const curveLength = curve.getLength();
+            if (accumulatedLength + curveLength >= targetLength) {
+                const targetCurveLength = targetLength - accumulatedLength;
+                const percentage = targetCurveLength / curveLength;
+                return { curve, percentage };
+            }
+            accumulatedLength += curveLength;
+        }
+        throw new Error("Could not compute point!");
+    }
+}
+
+class CivilCurve {
+    get _index() {
+        return this.mesh.geometry.index;
+    }
+    get _pos() {
+        return this.mesh.geometry.attributes.position.array;
+    }
+    constructor(index, mesh, data, alignment) {
+        this.index = index;
+        this.mesh = mesh;
+        this.data = data;
+        this.alignment = alignment;
+    }
+    getLength() {
+        let length = 0;
+        for (let i = 0; i < this._index.array.length - 1; i += 2) {
+            const { startPoint, endPoint } = this.getSegment(i);
+            length += startPoint.distanceTo(endPoint);
+        }
+        return length;
+    }
+    getPointAt(percentage) {
+        // Strategy: get start-end segment, normalize it,
+        // multiply by target length and add it to start point
+        const { startPoint, endPoint, distanceToStart } = this.getSegmentAt(percentage);
+        const targetPoint = endPoint.clone();
+        targetPoint.sub(startPoint);
+        targetPoint.normalize();
+        targetPoint.multiplyScalar(distanceToStart);
+        targetPoint.add(startPoint);
+        return targetPoint;
+    }
+    getSegmentAt(percentage) {
+        if (percentage < 0) {
+            percentage = 0;
+        }
+        else if (percentage > 1) {
+            percentage = 1;
+        }
+        const totalLength = this.getLength();
+        const targetLength = totalLength * percentage;
+        let accumulatedLength = 0;
+        for (let index = 0; index < this._index.array.length - 1; index += 2) {
+            const { startPoint, endPoint } = this.getSegment(index);
+            const segmentLength = startPoint.distanceTo(endPoint);
+            if (accumulatedLength + segmentLength >= targetLength) {
+                // Position is the distance from the startPoint to the target point
+                const distanceToStart = targetLength - accumulatedLength;
+                return { distanceToStart, index, startPoint, endPoint };
+            }
+            accumulatedLength += segmentLength;
+        }
+        throw new Error("Could not compute point");
+    }
+    // Returns the percentage or null if the point is not contained in this curve
+    getPercentageAt(point, tolerance = 0.01) {
+        let currentLength = 0;
+        for (let i = 0; i < this._index.array.length - 1; i += 2) {
+            const { startPoint, endPoint } = this.getSegment(i);
+            // Strategy: all points contained in a segment fulfill that
+            // distanceToStart + distanceToEnd = segmentLength
+            const segmentLength = startPoint.distanceTo(endPoint);
+            const startLength = point.distanceTo(startPoint);
+            const endLength = point.distanceTo(endPoint);
+            const combinedLength = startLength + endLength;
+            const hasPoint = combinedLength - segmentLength <= tolerance;
+            if (hasPoint) {
+                // Length from start to the found point
+                const foundLength = currentLength + startLength;
+                const totalLength = this.getLength();
+                return foundLength / totalLength;
+            }
+            currentLength += segmentLength;
+        }
+        return null;
+    }
+    getSegment(index) {
+        const start = this._index.array[index] * 3;
+        const end = this._index.array[index + 1] * 3;
+        const startPoint = new THREE$1.Vector3(this._pos[start], this._pos[start + 1], this._pos[start + 2]);
+        const endPoint = new THREE$1.Vector3(this._pos[end], this._pos[end + 1], this._pos[end + 2]);
+        return { startPoint, endPoint };
+    }
+}
+
+class CurveMesh extends THREE$1.LineSegments {
+    constructor(index, data, alignment, geometry, material) {
+        super(geometry, material);
+        this.curve = new CivilCurve(index, this, data, alignment);
     }
 }
 
@@ -26168,42 +24988,33 @@ class Serializer {
         const items = [];
         const G = FragmentsGroup$1;
         const F = Fragment;
-        const C = Civil;
-        let exportedCivil = null;
-        if (group.ifcCivil) {
-            const A = Alignment;
-            const resultH = group.ifcCivil.horizontalAlignments.exportData();
-            const posVectorH = A.createPositionVector(builder, resultH.coordinates);
-            const curveVectorH = A.createSegmentVector(builder, resultH.curveIndex);
-            const alignVectorH = A.createCurveVector(builder, resultH.alignmentIndex);
-            A.startAlignment(builder);
-            A.addPosition(builder, posVectorH);
-            A.addSegment(builder, curveVectorH);
-            A.addCurve(builder, alignVectorH);
-            const exportedH = Alignment.endAlignment(builder);
-            const resultV = group.ifcCivil.verticalAlignments.exportData();
-            const posVectorV = A.createPositionVector(builder, resultV.coordinates);
-            const curveVectorV = A.createSegmentVector(builder, resultV.curveIndex);
-            const alignVectorV = A.createCurveVector(builder, resultV.alignmentIndex);
-            A.startAlignment(builder);
-            A.addPosition(builder, posVectorV);
-            A.addSegment(builder, curveVectorV);
-            A.addCurve(builder, alignVectorV);
-            const exportedV = Alignment.endAlignment(builder);
-            const resultR = group.ifcCivil.realAlignments.exportData();
-            const posVectorR = A.createPositionVector(builder, resultR.coordinates);
-            const curveVectorR = A.createSegmentVector(builder, resultR.curveIndex);
-            const alignVectorR = A.createCurveVector(builder, resultR.alignmentIndex);
-            A.startAlignment(builder);
-            A.addPosition(builder, posVectorR);
-            A.addSegment(builder, curveVectorR);
-            A.addCurve(builder, alignVectorR);
-            const exportedR = Alignment.endAlignment(builder);
-            C.startCivil(builder);
-            C.addAlignmentHorizontal(builder, exportedH);
-            C.addAlignmentVertical(builder, exportedV);
-            C.addAlignment3d(builder, exportedR);
-            exportedCivil = Civil.endCivil(builder);
+        let civilData = null;
+        if (group.civilData) {
+            const alignments = [];
+            const A = Alignment$1;
+            const C = CivilData;
+            for (const [_id, alignment] of group.civilData.alignments) {
+                const { absolute, horizontal, vertical } = alignment;
+                const horCurves = this.saveCivilCurves(horizontal, builder);
+                const verCurves = this.saveCivilCurves(vertical, builder);
+                const absCurves = this.saveCivilCurves(absolute, builder);
+                const horVector = A.createHorizontalVector(builder, horCurves);
+                const verVector = A.createVerticalVector(builder, verCurves);
+                const absVector = A.createAbsoluteVector(builder, absCurves);
+                A.startAlignment(builder);
+                A.addHorizontal(builder, horVector);
+                A.addVertical(builder, verVector);
+                A.addAbsolute(builder, absVector);
+                A.addInitialPk(builder, alignment.initialKP);
+                const exported = A.endAlignment(builder);
+                alignments.push(exported);
+            }
+            const algVector = C.createAlignmentsVector(builder, alignments);
+            const coordVector = C.createCoordinationMatrixVector(builder, group.coordinationMatrix.elements);
+            C.startCivilData(builder);
+            C.addAlignments(builder, algVector);
+            C.addCoordinationMatrix(builder, coordVector);
+            civilData = C.endCivilData(builder);
         }
         for (const fragment of group.items) {
             const result = fragment.exportData();
@@ -26295,9 +25106,6 @@ class Serializer {
         const bbox = [min.x, min.y, min.z, max.x, max.y, max.z];
         const bboxVector = G.createBoundingBoxVector(builder, bbox);
         G.startFragmentsGroup(builder);
-        if (exportedCivil !== null) {
-            G.addCivil(builder, exportedCivil);
-        }
         G.addId(builder, groupID);
         G.addName(builder, groupName);
         G.addIfcName(builder, ifcName);
@@ -26315,6 +25123,9 @@ class Serializer {
         G.addBoundingBox(builder, bboxVector);
         G.addOpaqueGeometriesIds(builder, oIdsVector);
         G.addTransparentGeometriesIds(builder, tIdsVector);
+        if (civilData !== null) {
+            G.addCivil(builder, civilData);
+        }
         const result = FragmentsGroup$1.endFragmentsGroup(builder);
         builder.finish(result);
         return builder.asUint8Array();
@@ -26382,22 +25193,31 @@ class Serializer {
     }
     constructFragmentGroup(group) {
         const fragmentsGroup = new FragmentsGroup();
-        const FBcivil = group.civil();
-        const horizontalAlignments = new IfcAlignmentData();
-        const verticalAlignments = new IfcAlignmentData();
-        const realAlignments = new IfcAlignmentData();
-        if (FBcivil) {
-            const FBalignmentH = FBcivil.alignmentHorizontal();
-            this.getAlignmentData(FBalignmentH, horizontalAlignments);
-            const FBalignmentV = FBcivil.alignmentVertical();
-            this.getAlignmentData(FBalignmentV, verticalAlignments);
-            const FBalignment3D = FBcivil.alignment3d();
-            this.getAlignmentData(FBalignment3D, realAlignments);
-            fragmentsGroup.ifcCivil = {
-                horizontalAlignments,
-                verticalAlignments,
-                realAlignments,
-            };
+        const civil = group.civil();
+        if (civil) {
+            const matArray = civil.coordinationMatrixArray();
+            const coordinationMatrix = new THREE$1.Matrix4();
+            if (matArray) {
+                coordinationMatrix.fromArray(matArray);
+            }
+            fragmentsGroup.civilData = { alignments: new Map(), coordinationMatrix };
+            const aligLength = civil.alignmentsLength();
+            for (let i = 0; i < aligLength; i++) {
+                const lineMat = new THREE$1.LineBasicMaterial({ color: 0xffffff });
+                const alignment = new Alignment();
+                const aligData = civil.alignments(i);
+                if (!aligData) {
+                    throw new Error("Alignment not found!");
+                }
+                const horLength = aligData.horizontalLength();
+                alignment.horizontal = this.constructCivilCurves(aligData, alignment, "horizontal", horLength, lineMat);
+                const verLength = aligData.verticalLength();
+                alignment.vertical = this.constructCivilCurves(aligData, alignment, "vertical", verLength, lineMat);
+                const absLength = aligData.horizontalLength();
+                alignment.absolute = this.constructCivilCurves(aligData, alignment, "absolute", absLength, lineMat);
+                alignment.initialKP = aligData.initialPk();
+                fragmentsGroup.civilData.alignments.set(i, alignment);
+            }
         }
         // fragmentsGroup.ifcCivil?.horizontalAlignments
         fragmentsGroup.uuid = group.id() || fragmentsGroup.uuid;
@@ -26446,19 +25266,6 @@ class Serializer {
         }
         return fragmentsGroup;
     }
-    getAlignmentData(alignment, result) {
-        if (alignment) {
-            if (alignment.positionArray) {
-                result.coordinates = alignment.positionArray();
-                for (let j = 0; j < alignment.curveLength(); j++) {
-                    result.alignmentIndex.push(alignment.curve(j));
-                }
-                for (let j = 0; j < alignment.segmentLength(); j++) {
-                    result.curveIndex.push(alignment.segment(j));
-                }
-            }
-        }
-    }
     setGroupData(group, ids, indices, array, index) {
         for (let i = 0; i < indices.length; i++) {
             const expressID = ids[i];
@@ -26497,6 +25304,51 @@ class Serializer {
             }
         }
         return geometry;
+    }
+    constructCivilCurves(alignData, alignment, option, length, lineMat) {
+        const curves = [];
+        for (let i = 0; i < length; i++) {
+            const found = alignData[option](i);
+            if (!found) {
+                throw new Error("Curve not found!");
+            }
+            const points = found.pointsArray();
+            if (points === null) {
+                throw new Error("Curve points not found!");
+            }
+            let data = {};
+            const curveData = found.data();
+            if (curveData) {
+                data = JSON.parse(curveData);
+            }
+            const geometry = new THREE$1.EdgesGeometry();
+            const posAttr = new THREE$1.BufferAttribute(points, 3);
+            geometry.setAttribute("position", posAttr);
+            const index = [];
+            for (let i = 0; i < points.length / 3 - 1; i++) {
+                index.push(i, i + 1);
+            }
+            geometry.setIndex(index);
+            const curveMesh = new CurveMesh(i, data, alignment, geometry, lineMat);
+            curves.push(curveMesh.curve);
+        }
+        return curves;
+    }
+    saveCivilCurves(curves, builder) {
+        const CC = CivilCurve$1;
+        const curvesRef = [];
+        for (const curve of curves) {
+            const attrs = curve.mesh.geometry.attributes;
+            const position = attrs.position.array;
+            const posVector = CC.createPointsVector(builder, position);
+            const dataStr = builder.createString(JSON.stringify(curve.data));
+            CC.startCivilCurve(builder);
+            CC.addPoints(builder, posVector);
+            CC.addData(builder, dataStr);
+            const exported = CC.endCivilCurve(builder);
+            curvesRef.push(exported);
+        }
+        return curvesRef;
     }
 }
 
@@ -101142,6 +99994,9 @@ class IfcFragmentSettings {
 }
 
 class CivilReader {
+    constructor() {
+        this.defLineMat = new THREE$1.LineBasicMaterial({ color: 0xffffff });
+    }
     read(webIfc) {
         const IfcAlignment = webIfc.GetAllAlignments(0);
         const IfcCrossSection2D = webIfc.GetAllCrossSections2D(0);
@@ -101155,60 +100010,46 @@ class CivilReader {
     }
     get(civilItems) {
         if (civilItems.IfcAlignment) {
-            const horizontalAlignments = new IfcAlignmentData();
-            const verticalAlignments = new IfcAlignmentData();
-            const realAlignments = new IfcAlignmentData();
-            let countH = 0;
-            let countV = 0;
-            let countR = 0;
-            const valuesH = [];
-            const valuesV = [];
-            const valuesR = [];
-            for (const alignment of civilItems.IfcAlignment) {
-                horizontalAlignments.alignmentIndex.push(countH);
-                verticalAlignments.alignmentIndex.push(countV);
-                if (alignment.horizontal) {
-                    for (const hAlignment of alignment.horizontal) {
-                        horizontalAlignments.curveIndex.push(countH);
-                        for (const point of hAlignment.points) {
-                            valuesH.push(point.x);
-                            valuesH.push(point.y);
-                            countH++;
-                        }
-                    }
-                }
-                if (alignment.vertical) {
-                    for (const vAlignment of alignment.vertical) {
-                        verticalAlignments.curveIndex.push(countV);
-                        for (const point of vAlignment.points) {
-                            valuesV.push(point.x);
-                            valuesV.push(point.y);
-                            countV++;
-                        }
-                    }
-                }
-                if (alignment.curve3D) {
-                    for (const rAlignment of alignment.curve3D) {
-                        realAlignments.curveIndex.push(countR);
-                        for (const point of rAlignment.points) {
-                            valuesR.push(point.x);
-                            valuesR.push(point.y);
-                            valuesR.push(point.z);
-                            countR++;
-                        }
-                    }
-                }
+            const alignments = new Map();
+            for (const ifcAlign of civilItems.IfcAlignment) {
+                const alignment = new Alignment();
+                alignment.absolute = this.getCurves(ifcAlign.curve3D, alignment);
+                alignment.horizontal = this.getCurves(ifcAlign.horizontal, alignment);
+                alignment.vertical = this.getCurves(ifcAlign.vertical, alignment);
+                alignments.set(alignments.size, alignment);
             }
-            horizontalAlignments.coordinates = new Float32Array(valuesH);
-            verticalAlignments.coordinates = new Float32Array(valuesV);
-            realAlignments.coordinates = new Float32Array(valuesR);
-            return {
-                horizontalAlignments,
-                verticalAlignments,
-                realAlignments,
-            };
+            return { alignments, coordinationMatrix: new THREE$1.Matrix4() };
         }
         return undefined;
+    }
+    getCurves(ifcAlignData, alignment) {
+        const curves = [];
+        let index = 0;
+        for (const curve of ifcAlignData) {
+            const data = {};
+            if (curve.data) {
+                for (const entry of curve.data) {
+                    const [key, value] = entry.split(": ");
+                    const numValue = parseFloat(value);
+                    data[key] = numValue || value;
+                }
+            }
+            const { points } = curve;
+            const array = new Float32Array(points.length * 3);
+            for (let i = 0; i < points.length; i++) {
+                const { x, y, z } = points[i];
+                array[i * 3] = x;
+                array[i * 3 + 1] = y;
+                array[i * 3 + 2] = z || 0;
+            }
+            const attr = new THREE$1.BufferAttribute(array, 3);
+            const geometry = new THREE$1.EdgesGeometry();
+            geometry.setAttribute("position", attr);
+            const mesh = new CurveMesh(index, data, alignment, geometry, this.defLineMat);
+            curves.push(mesh.curve);
+            index++;
+        }
+        return curves;
     }
 }
 
@@ -101465,7 +100306,7 @@ class FragmentIfcLoader extends Component {
         }
         const matrix = this._webIfc.GetCoordinationMatrix(0);
         group.coordinationMatrix.fromArray(matrix);
-        group.ifcCivil = this._civil.read(this._webIfc);
+        group.civilData = this._civil.read(this._webIfc);
         return group;
     }
     cleanUp() {
@@ -102382,822 +101223,1146 @@ class IfcCategories {
 }
 
 const IfcCategoryMap = {
-    3821786052: "IFCACTIONREQUEST",
-    2296667514: "IFCACTOR",
-    3630933823: "IFCACTORROLE",
-    4288193352: "IFCACTUATOR",
-    2874132201: "IFCACTUATORTYPE",
-    618182010: "IFCADDRESS",
-    1635779807: "IFCADVANCEDBREP",
-    2603310189: "IFCADVANCEDBREPWITHVOIDS",
-    3406155212: "IFCADVANCEDFACE",
-    1634111441: "IFCAIRTERMINAL",
-    177149247: "IFCAIRTERMINALBOX",
-    1411407467: "IFCAIRTERMINALBOXTYPE",
-    3352864051: "IFCAIRTERMINALTYPE",
-    2056796094: "IFCAIRTOAIRHEATRECOVERY",
-    1871374353: "IFCAIRTOAIRHEATRECOVERYTYPE",
-    3087945054: "IFCALARM",
-    3001207471: "IFCALARMTYPE",
-    325726236: "IFCALIGNMENT",
-    749761778: "IFCALIGNMENT2DHORIZONTAL",
-    3199563722: "IFCALIGNMENT2DHORIZONTALSEGMENT",
-    2483840362: "IFCALIGNMENT2DSEGMENT",
-    3379348081: "IFCALIGNMENT2DVERSEGCIRCULARARC",
-    3239324667: "IFCALIGNMENT2DVERSEGLINE",
-    4263986512: "IFCALIGNMENT2DVERSEGPARABOLICARC",
-    53199957: "IFCALIGNMENT2DVERTICAL",
-    2029264950: "IFCALIGNMENT2DVERTICALSEGMENT",
-    3512275521: "IFCALIGNMENTCURVE",
-    1674181508: "IFCANNOTATION",
-    669184980: "IFCANNOTATIONFILLAREA",
-    639542469: "IFCAPPLICATION",
-    411424972: "IFCAPPLIEDVALUE",
-    130549933: "IFCAPPROVAL",
-    3869604511: "IFCAPPROVALRELATIONSHIP",
-    3798115385: "IFCARBITRARYCLOSEDPROFILEDEF",
-    1310608509: "IFCARBITRARYOPENPROFILEDEF",
-    2705031697: "IFCARBITRARYPROFILEDEFWITHVOIDS",
-    3460190687: "IFCASSET",
-    3207858831: "IFCASYMMETRICISHAPEPROFILEDEF",
-    277319702: "IFCAUDIOVISUALAPPLIANCE",
-    1532957894: "IFCAUDIOVISUALAPPLIANCETYPE",
-    4261334040: "IFCAXIS1PLACEMENT",
-    3125803723: "IFCAXIS2PLACEMENT2D",
-    2740243338: "IFCAXIS2PLACEMENT3D",
-    1967976161: "IFCBSPLINECURVE",
-    2461110595: "IFCBSPLINECURVEWITHKNOTS",
-    2887950389: "IFCBSPLINESURFACE",
-    167062518: "IFCBSPLINESURFACEWITHKNOTS",
-    753842376: "IFCBEAM",
-    2906023776: "IFCBEAMSTANDARDCASE",
-    819618141: "IFCBEAMTYPE",
-    4196446775: "IFCBEARING",
-    3649138523: "IFCBEARINGTYPE",
-    616511568: "IFCBLOBTEXTURE",
-    1334484129: "IFCBLOCK",
-    32344328: "IFCBOILER",
-    231477066: "IFCBOILERTYPE",
-    3649129432: "IFCBOOLEANCLIPPINGRESULT",
-    2736907675: "IFCBOOLEANRESULT",
-    4037036970: "IFCBOUNDARYCONDITION",
-    1136057603: "IFCBOUNDARYCURVE",
-    1560379544: "IFCBOUNDARYEDGECONDITION",
-    3367102660: "IFCBOUNDARYFACECONDITION",
-    1387855156: "IFCBOUNDARYNODECONDITION",
-    2069777674: "IFCBOUNDARYNODECONDITIONWARPING",
-    1260505505: "IFCBOUNDEDCURVE",
-    4182860854: "IFCBOUNDEDSURFACE",
-    2581212453: "IFCBOUNDINGBOX",
-    2713105998: "IFCBOXEDHALFSPACE",
-    644574406: "IFCBRIDGE",
-    963979645: "IFCBRIDGEPART",
-    4031249490: "IFCBUILDING",
-    3299480353: "IFCBUILDINGELEMENT",
-    2979338954: "IFCBUILDINGELEMENTPART",
-    39481116: "IFCBUILDINGELEMENTPARTTYPE",
-    1095909175: "IFCBUILDINGELEMENTPROXY",
-    1909888760: "IFCBUILDINGELEMENTPROXYTYPE",
-    1950629157: "IFCBUILDINGELEMENTTYPE",
-    3124254112: "IFCBUILDINGSTOREY",
-    1177604601: "IFCBUILDINGSYSTEM",
-    2938176219: "IFCBURNER",
-    2188180465: "IFCBURNERTYPE",
-    2898889636: "IFCCSHAPEPROFILEDEF",
-    635142910: "IFCCABLECARRIERFITTING",
-    395041908: "IFCCABLECARRIERFITTINGTYPE",
-    3758799889: "IFCCABLECARRIERSEGMENT",
-    3293546465: "IFCCABLECARRIERSEGMENTTYPE",
-    1051757585: "IFCCABLEFITTING",
-    2674252688: "IFCCABLEFITTINGTYPE",
-    4217484030: "IFCCABLESEGMENT",
-    1285652485: "IFCCABLESEGMENTTYPE",
+    950732822: "IFCURIREFERENCE",
+    4075327185: "IFCTIME",
+    1209108979: "IFCTEMPERATURERATEOFCHANGEMEASURE",
+    3457685358: "IFCSOUNDPRESSURELEVELMEASURE",
+    4157543285: "IFCSOUNDPOWERLEVELMEASURE",
+    2798247006: "IFCPROPERTYSETDEFINITIONSET",
+    1790229001: "IFCPOSITIVEINTEGER",
+    525895558: "IFCNONNEGATIVELENGTHMEASURE",
+    1774176899: "IFCLINEINDEX",
+    1275358634: "IFCLANGUAGEID",
+    2541165894: "IFCDURATION",
+    3701338814: "IFCDAYINWEEKNUMBER",
+    2195413836: "IFCDATETIME",
+    937566702: "IFCDATE",
+    1683019596: "IFCCARDINALPOINTREFERENCE",
+    2314439260: "IFCBINARY",
+    1500781891: "IFCAREADENSITYMEASURE",
+    3683503648: "IFCARCINDEX",
+    4065007721: "IFCYEARNUMBER",
+    1718600412: "IFCWARPINGMOMENTMEASURE",
+    51269191: "IFCWARPINGCONSTANTMEASURE",
+    2593997549: "IFCVOLUMETRICFLOWRATEMEASURE",
+    3458127941: "IFCVOLUMEMEASURE",
+    3345633955: "IFCVAPORPERMEABILITYMEASURE",
+    1278329552: "IFCTORQUEMEASURE",
+    2591213694: "IFCTIMESTAMP",
+    2726807636: "IFCTIMEMEASURE",
+    743184107: "IFCTHERMODYNAMICTEMPERATUREMEASURE",
+    2016195849: "IFCTHERMALTRANSMITTANCEMEASURE",
+    857959152: "IFCTHERMALRESISTANCEMEASURE",
+    2281867870: "IFCTHERMALEXPANSIONCOEFFICIENTMEASURE",
+    2645777649: "IFCTHERMALCONDUCTIVITYMEASURE",
+    232962298: "IFCTHERMALADMITTANCEMEASURE",
+    296282323: "IFCTEXTTRANSFORMATION",
+    603696268: "IFCTEXTFONTNAME",
+    3490877962: "IFCTEXTDECORATION",
+    1460886941: "IFCTEXTALIGNMENT",
+    2801250643: "IFCTEXT",
+    58845555: "IFCTEMPERATUREGRADIENTMEASURE",
+    361837227: "IFCSPECULARROUGHNESS",
+    2757832317: "IFCSPECULAREXPONENT",
+    3477203348: "IFCSPECIFICHEATCAPACITYMEASURE",
+    993287707: "IFCSOUNDPRESSUREMEASURE",
+    846465480: "IFCSOUNDPOWERMEASURE",
+    3471399674: "IFCSOLIDANGLEMEASURE",
+    408310005: "IFCSHEARMODULUSMEASURE",
+    2190458107: "IFCSECTIONALAREAINTEGRALMEASURE",
+    3467162246: "IFCSECTIONMODULUSMEASURE",
+    2766185779: "IFCSECONDINMINUTE",
+    3211557302: "IFCROTATIONALSTIFFNESSMEASURE",
+    1755127002: "IFCROTATIONALMASSMEASURE",
+    2133746277: "IFCROTATIONALFREQUENCYMEASURE",
+    200335297: "IFCREAL",
+    96294661: "IFCRATIOMEASURE",
+    3972513137: "IFCRADIOACTIVITYMEASURE",
+    3665567075: "IFCPRESSUREMEASURE",
+    2169031380: "IFCPRESENTABLETEXT",
+    1364037233: "IFCPOWERMEASURE",
+    1245737093: "IFCPOSITIVERATIOMEASURE",
+    3054510233: "IFCPOSITIVEPLANEANGLEMEASURE",
+    2815919920: "IFCPOSITIVELENGTHMEASURE",
+    4042175685: "IFCPLANEANGLEMEASURE",
+    2642773653: "IFCPLANARFORCEMEASURE",
+    2260317790: "IFCPARAMETERVALUE",
+    929793134: "IFCPHMEASURE",
+    2395907400: "IFCNUMERICMEASURE",
+    2095195183: "IFCNORMALISEDRATIOMEASURE",
+    765770214: "IFCMONTHINYEARNUMBER",
+    2615040989: "IFCMONETARYMEASURE",
+    3114022597: "IFCMOMENTOFINERTIAMEASURE",
+    1648970520: "IFCMOLECULARWEIGHTMEASURE",
+    3177669450: "IFCMOISTUREDIFFUSIVITYMEASURE",
+    1753493141: "IFCMODULUSOFSUBGRADEREACTIONMEASURE",
+    1052454078: "IFCMODULUSOFROTATIONALSUBGRADEREACTIONMEASURE",
+    2173214787: "IFCMODULUSOFLINEARSUBGRADEREACTIONMEASURE",
+    3341486342: "IFCMODULUSOFELASTICITYMEASURE",
+    102610177: "IFCMINUTEINHOUR",
+    3531705166: "IFCMASSPERLENGTHMEASURE",
+    3124614049: "IFCMASSMEASURE",
+    4017473158: "IFCMASSFLOWRATEMEASURE",
+    1477762836: "IFCMASSDENSITYMEASURE",
+    2486716878: "IFCMAGNETICFLUXMEASURE",
+    286949696: "IFCMAGNETICFLUXDENSITYMEASURE",
+    151039812: "IFCLUMINOUSINTENSITYMEASURE",
+    2755797622: "IFCLUMINOUSINTENSITYDISTRIBUTIONMEASURE",
+    2095003142: "IFCLUMINOUSFLUXMEASURE",
+    503418787: "IFCLOGICAL",
+    3086160713: "IFCLINEARVELOCITYMEASURE",
+    1307019551: "IFCLINEARSTIFFNESSMEASURE",
+    2128979029: "IFCLINEARMOMENTMEASURE",
+    191860431: "IFCLINEARFORCEMEASURE",
+    1243674935: "IFCLENGTHMEASURE",
+    3258342251: "IFCLABEL",
+    2054016361: "IFCKINEMATICVISCOSITYMEASURE",
+    3192672207: "IFCISOTHERMALMOISTURECAPACITYMEASURE",
+    3686016028: "IFCIONCONCENTRATIONMEASURE",
+    3809634241: "IFCINTEGERCOUNTRATEMEASURE",
+    1939436016: "IFCINTEGER",
+    2679005408: "IFCINDUCTANCEMEASURE",
+    3358199106: "IFCILLUMINANCEMEASURE",
+    983778844: "IFCIDENTIFIER",
+    2589826445: "IFCHOURINDAY",
+    1158859006: "IFCHEATINGVALUEMEASURE",
+    3113092358: "IFCHEATFLUXDENSITYMEASURE",
+    3064340077: "IFCGLOBALLYUNIQUEID",
+    3044325142: "IFCFREQUENCYMEASURE",
+    1361398929: "IFCFORCEMEASURE",
+    2590844177: "IFCFONTWEIGHT",
+    2715512545: "IFCFONTVARIANT",
+    1102727119: "IFCFONTSTYLE",
+    2078135608: "IFCENERGYMEASURE",
+    2506197118: "IFCELECTRICVOLTAGEMEASURE",
+    2951915441: "IFCELECTRICRESISTANCEMEASURE",
+    3790457270: "IFCELECTRICCURRENTMEASURE",
+    2093906313: "IFCELECTRICCONDUCTANCEMEASURE",
+    3818826038: "IFCELECTRICCHARGEMEASURE",
+    1827137117: "IFCELECTRICCAPACITANCEMEASURE",
+    69416015: "IFCDYNAMICVISCOSITYMEASURE",
+    524656162: "IFCDOSEEQUIVALENTMEASURE",
+    4134073009: "IFCDIMENSIONCOUNT",
+    1514641115: "IFCDESCRIPTIVEMEASURE",
+    300323983: "IFCDAYLIGHTSAVINGHOUR",
+    86635668: "IFCDAYINMONTHNUMBER",
+    94842927: "IFCCURVATUREMEASURE",
+    1778710042: "IFCCOUNTMEASURE",
+    3238673880: "IFCCONTEXTDEPENDENTMEASURE",
+    3812528620: "IFCCOMPOUNDPLANEANGLEMEASURE",
+    2991860651: "IFCCOMPLEXNUMBER",
+    1867003952: "IFCBOXALIGNMENT",
+    2735952531: "IFCBOOLEAN",
+    2650437152: "IFCAREAMEASURE",
+    632304761: "IFCANGULARVELOCITYMEASURE",
+    360377573: "IFCAMOUNTOFSUBSTANCEMEASURE",
+    4182062534: "IFCACCELERATIONMEASURE",
+    3699917729: "IFCABSORBEDDOSEMEASURE",
+    1971632696: "IFCGEOSLICE",
+    2680139844: "IFCGEOMODEL",
+    24726584: "IFCELECTRICFLOWTREATMENTDEVICE",
+    3693000487: "IFCDISTRIBUTIONBOARD",
+    3460952963: "IFCCONVEYORSEGMENT",
     3999819293: "IFCCAISSONFOUNDATION",
-    3203706013: "IFCCAISSONFOUNDATIONTYPE",
-    1123145078: "IFCCARTESIANPOINT",
-    574549367: "IFCCARTESIANPOINTLIST",
-    1675464909: "IFCCARTESIANPOINTLIST2D",
-    2059837836: "IFCCARTESIANPOINTLIST3D",
-    59481748: "IFCCARTESIANTRANSFORMATIONOPERATOR",
-    3749851601: "IFCCARTESIANTRANSFORMATIONOPERATOR2D",
-    3486308946: "IFCCARTESIANTRANSFORMATIONOPERATOR2DNONUNIFORM",
-    3331915920: "IFCCARTESIANTRANSFORMATIONOPERATOR3D",
-    1416205885: "IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM",
-    3150382593: "IFCCENTERLINEPROFILEDEF",
-    3902619387: "IFCCHILLER",
-    2951183804: "IFCCHILLERTYPE",
-    3296154744: "IFCCHIMNEY",
-    2197970202: "IFCCHIMNEYTYPE",
-    2611217952: "IFCCIRCLE",
-    2937912522: "IFCCIRCLEHOLLOWPROFILEDEF",
-    1383045692: "IFCCIRCLEPROFILEDEF",
-    1062206242: "IFCCIRCULARARCSEGMENT2D",
-    1677625105: "IFCCIVILELEMENT",
-    3893394355: "IFCCIVILELEMENTTYPE",
-    747523909: "IFCCLASSIFICATION",
-    647927063: "IFCCLASSIFICATIONREFERENCE",
-    2205249479: "IFCCLOSEDSHELL",
-    639361253: "IFCCOIL",
-    2301859152: "IFCCOILTYPE",
-    776857604: "IFCCOLOURRGB",
-    3285139300: "IFCCOLOURRGBLIST",
-    3264961684: "IFCCOLOURSPECIFICATION",
-    843113511: "IFCCOLUMN",
-    905975707: "IFCCOLUMNSTANDARDCASE",
-    300633059: "IFCCOLUMNTYPE",
-    3221913625: "IFCCOMMUNICATIONSAPPLIANCE",
-    400855858: "IFCCOMMUNICATIONSAPPLIANCETYPE",
-    2542286263: "IFCCOMPLEXPROPERTY",
-    3875453745: "IFCCOMPLEXPROPERTYTEMPLATE",
-    3732776249: "IFCCOMPOSITECURVE",
-    15328376: "IFCCOMPOSITECURVEONSURFACE",
-    2485617015: "IFCCOMPOSITECURVESEGMENT",
-    1485152156: "IFCCOMPOSITEPROFILEDEF",
-    3571504051: "IFCCOMPRESSOR",
-    3850581409: "IFCCOMPRESSORTYPE",
-    2272882330: "IFCCONDENSER",
-    2816379211: "IFCCONDENSERTYPE",
-    2510884976: "IFCCONIC",
-    370225590: "IFCCONNECTEDFACESET",
-    1981873012: "IFCCONNECTIONCURVEGEOMETRY",
-    2859738748: "IFCCONNECTIONGEOMETRY",
-    45288368: "IFCCONNECTIONPOINTECCENTRICITY",
-    2614616156: "IFCCONNECTIONPOINTGEOMETRY",
-    2732653382: "IFCCONNECTIONSURFACEGEOMETRY",
-    775493141: "IFCCONNECTIONVOLUMEGEOMETRY",
-    1959218052: "IFCCONSTRAINT",
-    3898045240: "IFCCONSTRUCTIONEQUIPMENTRESOURCE",
-    2185764099: "IFCCONSTRUCTIONEQUIPMENTRESOURCETYPE",
-    1060000209: "IFCCONSTRUCTIONMATERIALRESOURCE",
-    4105962743: "IFCCONSTRUCTIONMATERIALRESOURCETYPE",
-    488727124: "IFCCONSTRUCTIONPRODUCTRESOURCE",
-    1525564444: "IFCCONSTRUCTIONPRODUCTRESOURCETYPE",
-    2559216714: "IFCCONSTRUCTIONRESOURCE",
-    2574617495: "IFCCONSTRUCTIONRESOURCETYPE",
-    3419103109: "IFCCONTEXT",
-    3050246964: "IFCCONTEXTDEPENDENTUNIT",
-    3293443760: "IFCCONTROL",
-    25142252: "IFCCONTROLLER",
-    578613899: "IFCCONTROLLERTYPE",
-    2889183280: "IFCCONVERSIONBASEDUNIT",
-    2713554722: "IFCCONVERSIONBASEDUNITWITHOFFSET",
-    4136498852: "IFCCOOLEDBEAM",
-    335055490: "IFCCOOLEDBEAMTYPE",
-    3640358203: "IFCCOOLINGTOWER",
-    2954562838: "IFCCOOLINGTOWERTYPE",
-    1785450214: "IFCCOORDINATEOPERATION",
-    1466758467: "IFCCOORDINATEREFERENCESYSTEM",
-    3895139033: "IFCCOSTITEM",
-    1419761937: "IFCCOSTSCHEDULE",
-    602808272: "IFCCOSTVALUE",
-    1973544240: "IFCCOVERING",
-    1916426348: "IFCCOVERINGTYPE",
-    3295246426: "IFCCREWRESOURCE",
-    1815067380: "IFCCREWRESOURCETYPE",
-    2506170314: "IFCCSGPRIMITIVE3D",
-    2147822146: "IFCCSGSOLID",
-    539742890: "IFCCURRENCYRELATIONSHIP",
-    3495092785: "IFCCURTAINWALL",
-    1457835157: "IFCCURTAINWALLTYPE",
-    2601014836: "IFCCURVE",
-    2827736869: "IFCCURVEBOUNDEDPLANE",
-    2629017746: "IFCCURVEBOUNDEDSURFACE",
-    1186437898: "IFCCURVESEGMENT2D",
-    3800577675: "IFCCURVESTYLE",
-    1105321065: "IFCCURVESTYLEFONT",
-    2367409068: "IFCCURVESTYLEFONTANDSCALING",
-    3510044353: "IFCCURVESTYLEFONTPATTERN",
-    1213902940: "IFCCYLINDRICALSURFACE",
-    4074379575: "IFCDAMPER",
-    3961806047: "IFCDAMPERTYPE",
-    3426335179: "IFCDEEPFOUNDATION",
-    1306400036: "IFCDEEPFOUNDATIONTYPE",
-    3632507154: "IFCDERIVEDPROFILEDEF",
-    1765591967: "IFCDERIVEDUNIT",
-    1045800335: "IFCDERIVEDUNITELEMENT",
-    2949456006: "IFCDIMENSIONALEXPONENTS",
-    32440307: "IFCDIRECTION",
-    1335981549: "IFCDISCRETEACCESSORY",
-    2635815018: "IFCDISCRETEACCESSORYTYPE",
-    1945343521: "IFCDISTANCEEXPRESSION",
-    1052013943: "IFCDISTRIBUTIONCHAMBERELEMENT",
-    1599208980: "IFCDISTRIBUTIONCHAMBERELEMENTTYPE",
-    562808652: "IFCDISTRIBUTIONCIRCUIT",
-    1062813311: "IFCDISTRIBUTIONCONTROLELEMENT",
-    2063403501: "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
-    1945004755: "IFCDISTRIBUTIONELEMENT",
-    3256556792: "IFCDISTRIBUTIONELEMENTTYPE",
-    3040386961: "IFCDISTRIBUTIONFLOWELEMENT",
-    3849074793: "IFCDISTRIBUTIONFLOWELEMENTTYPE",
-    3041715199: "IFCDISTRIBUTIONPORT",
-    3205830791: "IFCDISTRIBUTIONSYSTEM",
-    1154170062: "IFCDOCUMENTINFORMATION",
-    770865208: "IFCDOCUMENTINFORMATIONRELATIONSHIP",
-    3732053477: "IFCDOCUMENTREFERENCE",
-    395920057: "IFCDOOR",
-    2963535650: "IFCDOORLININGPROPERTIES",
-    1714330368: "IFCDOORPANELPROPERTIES",
-    3242481149: "IFCDOORSTANDARDCASE",
-    526551008: "IFCDOORSTYLE",
-    2323601079: "IFCDOORTYPE",
-    445594917: "IFCDRAUGHTINGPREDEFINEDCOLOUR",
-    4006246654: "IFCDRAUGHTINGPREDEFINEDCURVEFONT",
-    342316401: "IFCDUCTFITTING",
-    869906466: "IFCDUCTFITTINGTYPE",
-    3518393246: "IFCDUCTSEGMENT",
-    3760055223: "IFCDUCTSEGMENTTYPE",
-    1360408905: "IFCDUCTSILENCER",
-    2030761528: "IFCDUCTSILENCERTYPE",
-    3900360178: "IFCEDGE",
-    476780140: "IFCEDGECURVE",
-    1472233963: "IFCEDGELOOP",
-    1904799276: "IFCELECTRICAPPLIANCE",
-    663422040: "IFCELECTRICAPPLIANCETYPE",
-    862014818: "IFCELECTRICDISTRIBUTIONBOARD",
-    2417008758: "IFCELECTRICDISTRIBUTIONBOARDTYPE",
-    3310460725: "IFCELECTRICFLOWSTORAGEDEVICE",
-    3277789161: "IFCELECTRICFLOWSTORAGEDEVICETYPE",
-    264262732: "IFCELECTRICGENERATOR",
-    1534661035: "IFCELECTRICGENERATORTYPE",
-    402227799: "IFCELECTRICMOTOR",
-    1217240411: "IFCELECTRICMOTORTYPE",
-    1003880860: "IFCELECTRICTIMECONTROL",
-    712377611: "IFCELECTRICTIMECONTROLTYPE",
-    1758889154: "IFCELEMENT",
-    4123344466: "IFCELEMENTASSEMBLY",
-    2397081782: "IFCELEMENTASSEMBLYTYPE",
-    1623761950: "IFCELEMENTCOMPONENT",
-    2590856083: "IFCELEMENTCOMPONENTTYPE",
-    1883228015: "IFCELEMENTQUANTITY",
-    339256511: "IFCELEMENTTYPE",
-    2777663545: "IFCELEMENTARYSURFACE",
-    1704287377: "IFCELLIPSE",
-    2835456948: "IFCELLIPSEPROFILEDEF",
-    1658829314: "IFCENERGYCONVERSIONDEVICE",
-    2107101300: "IFCENERGYCONVERSIONDEVICETYPE",
-    2814081492: "IFCENGINE",
-    132023988: "IFCENGINETYPE",
-    3747195512: "IFCEVAPORATIVECOOLER",
-    3174744832: "IFCEVAPORATIVECOOLERTYPE",
-    484807127: "IFCEVAPORATOR",
-    3390157468: "IFCEVAPORATORTYPE",
-    4148101412: "IFCEVENT",
-    211053100: "IFCEVENTTIME",
-    4024345920: "IFCEVENTTYPE",
-    297599258: "IFCEXTENDEDPROPERTIES",
-    4294318154: "IFCEXTERNALINFORMATION",
-    3200245327: "IFCEXTERNALREFERENCE",
-    1437805879: "IFCEXTERNALREFERENCERELATIONSHIP",
-    1209101575: "IFCEXTERNALSPATIALELEMENT",
-    2853485674: "IFCEXTERNALSPATIALSTRUCTUREELEMENT",
-    2242383968: "IFCEXTERNALLYDEFINEDHATCHSTYLE",
-    1040185647: "IFCEXTERNALLYDEFINEDSURFACESTYLE",
-    3548104201: "IFCEXTERNALLYDEFINEDTEXTFONT",
-    477187591: "IFCEXTRUDEDAREASOLID",
-    2804161546: "IFCEXTRUDEDAREASOLIDTAPERED",
-    2556980723: "IFCFACE",
-    2047409740: "IFCFACEBASEDSURFACEMODEL",
-    1809719519: "IFCFACEBOUND",
-    803316827: "IFCFACEOUTERBOUND",
-    3008276851: "IFCFACESURFACE",
-    807026263: "IFCFACETEDBREP",
-    3737207727: "IFCFACETEDBREPWITHVOIDS",
-    24185140: "IFCFACILITY",
-    1310830890: "IFCFACILITYPART",
-    4219587988: "IFCFAILURECONNECTIONCONDITION",
-    3415622556: "IFCFAN",
-    346874300: "IFCFANTYPE",
-    647756555: "IFCFASTENER",
-    2489546625: "IFCFASTENERTYPE",
-    2827207264: "IFCFEATUREELEMENT",
-    2143335405: "IFCFEATUREELEMENTADDITION",
-    1287392070: "IFCFEATUREELEMENTSUBTRACTION",
-    738692330: "IFCFILLAREASTYLE",
-    374418227: "IFCFILLAREASTYLEHATCHING",
-    315944413: "IFCFILLAREASTYLETILES",
-    819412036: "IFCFILTER",
-    1810631287: "IFCFILTERTYPE",
-    1426591983: "IFCFIRESUPPRESSIONTERMINAL",
-    4222183408: "IFCFIRESUPPRESSIONTERMINALTYPE",
-    2652556860: "IFCFIXEDREFERENCESWEPTAREASOLID",
-    2058353004: "IFCFLOWCONTROLLER",
-    3907093117: "IFCFLOWCONTROLLERTYPE",
-    4278956645: "IFCFLOWFITTING",
-    3198132628: "IFCFLOWFITTINGTYPE",
-    182646315: "IFCFLOWINSTRUMENT",
-    4037862832: "IFCFLOWINSTRUMENTTYPE",
-    2188021234: "IFCFLOWMETER",
-    3815607619: "IFCFLOWMETERTYPE",
-    3132237377: "IFCFLOWMOVINGDEVICE",
-    1482959167: "IFCFLOWMOVINGDEVICETYPE",
-    987401354: "IFCFLOWSEGMENT",
-    1834744321: "IFCFLOWSEGMENTTYPE",
-    707683696: "IFCFLOWSTORAGEDEVICE",
-    1339347760: "IFCFLOWSTORAGEDEVICETYPE",
-    2223149337: "IFCFLOWTERMINAL",
-    2297155007: "IFCFLOWTERMINALTYPE",
-    3508470533: "IFCFLOWTREATMENTDEVICE",
-    3009222698: "IFCFLOWTREATMENTDEVICETYPE",
-    900683007: "IFCFOOTING",
-    1893162501: "IFCFOOTINGTYPE",
-    263784265: "IFCFURNISHINGELEMENT",
-    4238390223: "IFCFURNISHINGELEMENTTYPE",
-    1509553395: "IFCFURNITURE",
-    1268542332: "IFCFURNITURETYPE",
-    3493046030: "IFCGEOGRAPHICELEMENT",
-    4095422895: "IFCGEOGRAPHICELEMENTTYPE",
-    987898635: "IFCGEOMETRICCURVESET",
-    3448662350: "IFCGEOMETRICREPRESENTATIONCONTEXT",
-    2453401579: "IFCGEOMETRICREPRESENTATIONITEM",
-    4142052618: "IFCGEOMETRICREPRESENTATIONSUBCONTEXT",
-    3590301190: "IFCGEOMETRICSET",
-    3009204131: "IFCGRID",
-    852622518: "IFCGRIDAXIS",
-    178086475: "IFCGRIDPLACEMENT",
-    2706460486: "IFCGROUP",
-    812098782: "IFCHALFSPACESOLID",
-    3319311131: "IFCHEATEXCHANGER",
-    1251058090: "IFCHEATEXCHANGERTYPE",
-    2068733104: "IFCHUMIDIFIER",
-    1806887404: "IFCHUMIDIFIERTYPE",
-    1484403080: "IFCISHAPEPROFILEDEF",
-    3905492369: "IFCIMAGETEXTURE",
-    3570813810: "IFCINDEXEDCOLOURMAP",
-    2571569899: "IFCINDEXEDPOLYCURVE",
-    178912537: "IFCINDEXEDPOLYGONALFACE",
-    2294589976: "IFCINDEXEDPOLYGONALFACEWITHVOIDS",
-    1437953363: "IFCINDEXEDTEXTUREMAP",
-    2133299955: "IFCINDEXEDTRIANGLETEXTUREMAP",
-    4175244083: "IFCINTERCEPTOR",
-    3946677679: "IFCINTERCEPTORTYPE",
-    3113134337: "IFCINTERSECTIONCURVE",
-    2391368822: "IFCINVENTORY",
-    3741457305: "IFCIRREGULARTIMESERIES",
-    3020489413: "IFCIRREGULARTIMESERIESVALUE",
-    2176052936: "IFCJUNCTIONBOX",
-    4288270099: "IFCJUNCTIONBOXTYPE",
-    572779678: "IFCLSHAPEPROFILEDEF",
-    3827777499: "IFCLABORRESOURCE",
-    428585644: "IFCLABORRESOURCETYPE",
-    1585845231: "IFCLAGTIME",
-    76236018: "IFCLAMP",
-    1051575348: "IFCLAMPTYPE",
-    2655187982: "IFCLIBRARYINFORMATION",
-    3452421091: "IFCLIBRARYREFERENCE",
-    4162380809: "IFCLIGHTDISTRIBUTIONDATA",
-    629592764: "IFCLIGHTFIXTURE",
-    1161773419: "IFCLIGHTFIXTURETYPE",
-    1566485204: "IFCLIGHTINTENSITYDISTRIBUTION",
-    1402838566: "IFCLIGHTSOURCE",
-    125510826: "IFCLIGHTSOURCEAMBIENT",
-    2604431987: "IFCLIGHTSOURCEDIRECTIONAL",
-    4266656042: "IFCLIGHTSOURCEGONIOMETRIC",
-    1520743889: "IFCLIGHTSOURCEPOSITIONAL",
-    3422422726: "IFCLIGHTSOURCESPOT",
-    1281925730: "IFCLINE",
-    3092502836: "IFCLINESEGMENT2D",
-    388784114: "IFCLINEARPLACEMENT",
+    3314249567: "IFCBOREHOLE",
+    4196446775: "IFCBEARING",
+    325726236: "IFCALIGNMENT",
+    3425753595: "IFCTRACKELEMENT",
+    991950508: "IFCSIGNAL",
+    3798194928: "IFCREINFORCEDSOIL",
+    3290496277: "IFCRAIL",
+    1383356374: "IFCPAVEMENT",
+    2182337498: "IFCNAVIGATIONELEMENT",
+    234836483: "IFCMOORINGDEVICE",
+    2078563270: "IFCMOBILETELECOMMUNICATIONSAPPLIANCE",
+    1638804497: "IFCLIQUIDTERMINAL",
     1154579445: "IFCLINEARPOSITIONINGELEMENT",
-    2624227202: "IFCLOCALPLACEMENT",
-    1008929658: "IFCLOOP",
-    1425443689: "IFCMANIFOLDSOLIDBREP",
-    3057273783: "IFCMAPCONVERSION",
-    2347385850: "IFCMAPPEDITEM",
-    1838606355: "IFCMATERIAL",
-    1847130766: "IFCMATERIALCLASSIFICATIONRELATIONSHIP",
-    3708119000: "IFCMATERIALCONSTITUENT",
-    2852063980: "IFCMATERIALCONSTITUENTSET",
-    760658860: "IFCMATERIALDEFINITION",
-    2022407955: "IFCMATERIALDEFINITIONREPRESENTATION",
-    248100487: "IFCMATERIALLAYER",
-    3303938423: "IFCMATERIALLAYERSET",
-    1303795690: "IFCMATERIALLAYERSETUSAGE",
-    1847252529: "IFCMATERIALLAYERWITHOFFSETS",
-    2199411900: "IFCMATERIALLIST",
-    2235152071: "IFCMATERIALPROFILE",
-    164193824: "IFCMATERIALPROFILESET",
-    3079605661: "IFCMATERIALPROFILESETUSAGE",
-    3404854881: "IFCMATERIALPROFILESETUSAGETAPERING",
-    552965576: "IFCMATERIALPROFILEWITHOFFSETS",
-    3265635763: "IFCMATERIALPROPERTIES",
-    853536259: "IFCMATERIALRELATIONSHIP",
-    1507914824: "IFCMATERIALUSAGEDEFINITION",
-    2597039031: "IFCMEASUREWITHUNIT",
-    377706215: "IFCMECHANICALFASTENER",
-    2108223431: "IFCMECHANICALFASTENERTYPE",
-    1437502449: "IFCMEDICALDEVICE",
-    1114901282: "IFCMEDICALDEVICETYPE",
-    1073191201: "IFCMEMBER",
-    1911478936: "IFCMEMBERSTANDARDCASE",
-    3181161470: "IFCMEMBERTYPE",
-    3368373690: "IFCMETRIC",
-    2998442950: "IFCMIRROREDPROFILEDEF",
-    2706619895: "IFCMONETARYUNIT",
-    2474470126: "IFCMOTORCONNECTION",
-    977012517: "IFCMOTORCONNECTIONTYPE",
-    1918398963: "IFCNAMEDUNIT",
-    3888040117: "IFCOBJECT",
-    219451334: "IFCOBJECTDEFINITION",
-    3701648758: "IFCOBJECTPLACEMENT",
-    2251480897: "IFCOBJECTIVE",
-    4143007308: "IFCOCCUPANT",
-    590820931: "IFCOFFSETCURVE",
-    3388369263: "IFCOFFSETCURVE2D",
-    3505215534: "IFCOFFSETCURVE3D",
-    2485787929: "IFCOFFSETCURVEBYDISTANCES",
-    2665983363: "IFCOPENSHELL",
-    3588315303: "IFCOPENINGELEMENT",
-    3079942009: "IFCOPENINGSTANDARDCASE",
-    4251960020: "IFCORGANIZATION",
-    1411181986: "IFCORGANIZATIONRELATIONSHIP",
-    643959842: "IFCORIENTATIONEXPRESSION",
-    1029017970: "IFCORIENTEDEDGE",
-    144952367: "IFCOUTERBOUNDARYCURVE",
-    3694346114: "IFCOUTLET",
-    2837617999: "IFCOUTLETTYPE",
-    1207048766: "IFCOWNERHISTORY",
-    2529465313: "IFCPARAMETERIZEDPROFILEDEF",
-    2519244187: "IFCPATH",
-    1682466193: "IFCPCURVE",
-    2382730787: "IFCPERFORMANCEHISTORY",
-    3566463478: "IFCPERMEABLECOVERINGPROPERTIES",
-    3327091369: "IFCPERMIT",
-    2077209135: "IFCPERSON",
-    101040310: "IFCPERSONANDORGANIZATION",
-    3021840470: "IFCPHYSICALCOMPLEXQUANTITY",
-    2483315170: "IFCPHYSICALQUANTITY",
-    2226359599: "IFCPHYSICALSIMPLEQUANTITY",
-    1687234759: "IFCPILE",
-    1158309216: "IFCPILETYPE",
-    310824031: "IFCPIPEFITTING",
-    804291784: "IFCPIPEFITTINGTYPE",
-    3612865200: "IFCPIPESEGMENT",
-    4231323485: "IFCPIPESEGMENTTYPE",
-    597895409: "IFCPIXELTEXTURE",
-    2004835150: "IFCPLACEMENT",
-    603570806: "IFCPLANARBOX",
-    1663979128: "IFCPLANAREXTENT",
-    220341763: "IFCPLANE",
-    3171933400: "IFCPLATE",
-    1156407060: "IFCPLATESTANDARDCASE",
-    4017108033: "IFCPLATETYPE",
-    2067069095: "IFCPOINT",
-    4022376103: "IFCPOINTONCURVE",
-    1423911732: "IFCPOINTONSURFACE",
-    2924175390: "IFCPOLYLOOP",
-    2775532180: "IFCPOLYGONALBOUNDEDHALFSPACE",
-    2839578677: "IFCPOLYGONALFACESET",
-    3724593414: "IFCPOLYLINE",
-    3740093272: "IFCPORT",
-    1946335990: "IFCPOSITIONINGELEMENT",
-    3355820592: "IFCPOSTALADDRESS",
-    759155922: "IFCPREDEFINEDCOLOUR",
-    2559016684: "IFCPREDEFINEDCURVEFONT",
-    3727388367: "IFCPREDEFINEDITEM",
-    3778827333: "IFCPREDEFINEDPROPERTIES",
-    3967405729: "IFCPREDEFINEDPROPERTYSET",
-    1775413392: "IFCPREDEFINEDTEXTFONT",
-    677532197: "IFCPRESENTATIONITEM",
-    2022622350: "IFCPRESENTATIONLAYERASSIGNMENT",
-    1304840413: "IFCPRESENTATIONLAYERWITHSTYLE",
-    3119450353: "IFCPRESENTATIONSTYLE",
-    2417041796: "IFCPRESENTATIONSTYLEASSIGNMENT",
-    2744685151: "IFCPROCEDURE",
-    569719735: "IFCPROCEDURETYPE",
-    2945172077: "IFCPROCESS",
-    4208778838: "IFCPRODUCT",
-    673634403: "IFCPRODUCTDEFINITIONSHAPE",
-    2095639259: "IFCPRODUCTREPRESENTATION",
-    3958567839: "IFCPROFILEDEF",
-    2802850158: "IFCPROFILEPROPERTIES",
-    103090709: "IFCPROJECT",
-    653396225: "IFCPROJECTLIBRARY",
-    2904328755: "IFCPROJECTORDER",
-    3843373140: "IFCPROJECTEDCRS",
-    3651124850: "IFCPROJECTIONELEMENT",
-    2598011224: "IFCPROPERTY",
-    986844984: "IFCPROPERTYABSTRACTION",
-    871118103: "IFCPROPERTYBOUNDEDVALUE",
-    1680319473: "IFCPROPERTYDEFINITION",
-    148025276: "IFCPROPERTYDEPENDENCYRELATIONSHIP",
-    4166981789: "IFCPROPERTYENUMERATEDVALUE",
-    3710013099: "IFCPROPERTYENUMERATION",
-    2752243245: "IFCPROPERTYLISTVALUE",
-    941946838: "IFCPROPERTYREFERENCEVALUE",
-    1451395588: "IFCPROPERTYSET",
-    3357820518: "IFCPROPERTYSETDEFINITION",
-    492091185: "IFCPROPERTYSETTEMPLATE",
-    3650150729: "IFCPROPERTYSINGLEVALUE",
-    110355661: "IFCPROPERTYTABLEVALUE",
-    3521284610: "IFCPROPERTYTEMPLATE",
-    1482703590: "IFCPROPERTYTEMPLATEDEFINITION",
-    738039164: "IFCPROTECTIVEDEVICE",
-    2295281155: "IFCPROTECTIVEDEVICETRIPPINGUNIT",
-    655969474: "IFCPROTECTIVEDEVICETRIPPINGUNITTYPE",
-    1842657554: "IFCPROTECTIVEDEVICETYPE",
-    3219374653: "IFCPROXY",
-    90941305: "IFCPUMP",
-    2250791053: "IFCPUMPTYPE",
-    2044713172: "IFCQUANTITYAREA",
-    2093928680: "IFCQUANTITYCOUNT",
-    931644368: "IFCQUANTITYLENGTH",
-    2090586900: "IFCQUANTITYSET",
-    3252649465: "IFCQUANTITYTIME",
-    2405470396: "IFCQUANTITYVOLUME",
-    825690147: "IFCQUANTITYWEIGHT",
-    2262370178: "IFCRAILING",
-    2893384427: "IFCRAILINGTYPE",
-    3024970846: "IFCRAMP",
-    3283111854: "IFCRAMPFLIGHT",
-    2324767716: "IFCRAMPFLIGHTTYPE",
-    1469900589: "IFCRAMPTYPE",
-    1232101972: "IFCRATIONALBSPLINECURVEWITHKNOTS",
-    683857671: "IFCRATIONALBSPLINESURFACEWITHKNOTS",
-    2770003689: "IFCRECTANGLEHOLLOWPROFILEDEF",
-    3615266464: "IFCRECTANGLEPROFILEDEF",
-    2798486643: "IFCRECTANGULARPYRAMID",
-    3454111270: "IFCRECTANGULARTRIMMEDSURFACE",
-    3915482550: "IFCRECURRENCEPATTERN",
-    2433181523: "IFCREFERENCE",
-    4021432810: "IFCREFERENT",
-    3413951693: "IFCREGULARTIMESERIES",
-    1580146022: "IFCREINFORCEMENTBARPROPERTIES",
-    3765753017: "IFCREINFORCEMENTDEFINITIONPROPERTIES",
-    979691226: "IFCREINFORCINGBAR",
-    2572171363: "IFCREINFORCINGBARTYPE",
-    3027567501: "IFCREINFORCINGELEMENT",
-    964333572: "IFCREINFORCINGELEMENTTYPE",
-    2320036040: "IFCREINFORCINGMESH",
-    2310774935: "IFCREINFORCINGMESHTYPE",
-    160246688: "IFCRELAGGREGATES",
-    3939117080: "IFCRELASSIGNS",
-    1683148259: "IFCRELASSIGNSTOACTOR",
-    2495723537: "IFCRELASSIGNSTOCONTROL",
-    1307041759: "IFCRELASSIGNSTOGROUP",
-    1027710054: "IFCRELASSIGNSTOGROUPBYFACTOR",
-    4278684876: "IFCRELASSIGNSTOPROCESS",
-    2857406711: "IFCRELASSIGNSTOPRODUCT",
-    205026976: "IFCRELASSIGNSTORESOURCE",
-    1865459582: "IFCRELASSOCIATES",
-    4095574036: "IFCRELASSOCIATESAPPROVAL",
-    919958153: "IFCRELASSOCIATESCLASSIFICATION",
-    2728634034: "IFCRELASSOCIATESCONSTRAINT",
-    982818633: "IFCRELASSOCIATESDOCUMENT",
-    3840914261: "IFCRELASSOCIATESLIBRARY",
-    2655215786: "IFCRELASSOCIATESMATERIAL",
-    826625072: "IFCRELCONNECTS",
-    1204542856: "IFCRELCONNECTSELEMENTS",
-    3945020480: "IFCRELCONNECTSPATHELEMENTS",
-    4201705270: "IFCRELCONNECTSPORTTOELEMENT",
-    3190031847: "IFCRELCONNECTSPORTS",
-    2127690289: "IFCRELCONNECTSSTRUCTURALACTIVITY",
-    1638771189: "IFCRELCONNECTSSTRUCTURALMEMBER",
-    504942748: "IFCRELCONNECTSWITHECCENTRICITY",
-    3678494232: "IFCRELCONNECTSWITHREALIZINGELEMENTS",
-    3242617779: "IFCRELCONTAINEDINSPATIALSTRUCTURE",
-    886880790: "IFCRELCOVERSBLDGELEMENTS",
-    2802773753: "IFCRELCOVERSSPACES",
-    2565941209: "IFCRELDECLARES",
-    2551354335: "IFCRELDECOMPOSES",
-    693640335: "IFCRELDEFINES",
-    1462361463: "IFCRELDEFINESBYOBJECT",
-    4186316022: "IFCRELDEFINESBYPROPERTIES",
-    307848117: "IFCRELDEFINESBYTEMPLATE",
-    781010003: "IFCRELDEFINESBYTYPE",
-    3940055652: "IFCRELFILLSELEMENT",
-    279856033: "IFCRELFLOWCONTROLELEMENTS",
-    427948657: "IFCRELINTERFERESELEMENTS",
-    3268803585: "IFCRELNESTS",
-    1441486842: "IFCRELPOSITIONS",
-    750771296: "IFCRELPROJECTSELEMENT",
-    1245217292: "IFCRELREFERENCEDINSPATIALSTRUCTURE",
-    4122056220: "IFCRELSEQUENCE",
-    366585022: "IFCRELSERVICESBUILDINGS",
-    3451746338: "IFCRELSPACEBOUNDARY",
-    3523091289: "IFCRELSPACEBOUNDARY1STLEVEL",
-    1521410863: "IFCRELSPACEBOUNDARY2NDLEVEL",
-    1401173127: "IFCRELVOIDSELEMENT",
-    478536968: "IFCRELATIONSHIP",
-    816062949: "IFCREPARAMETRISEDCOMPOSITECURVESEGMENT",
-    1076942058: "IFCREPRESENTATION",
-    3377609919: "IFCREPRESENTATIONCONTEXT",
-    3008791417: "IFCREPRESENTATIONITEM",
-    1660063152: "IFCREPRESENTATIONMAP",
-    2914609552: "IFCRESOURCE",
-    2943643501: "IFCRESOURCEAPPROVALRELATIONSHIP",
-    1608871552: "IFCRESOURCECONSTRAINTRELATIONSHIP",
-    2439245199: "IFCRESOURCELEVELRELATIONSHIP",
-    1042787934: "IFCRESOURCETIME",
-    1856042241: "IFCREVOLVEDAREASOLID",
-    3243963512: "IFCREVOLVEDAREASOLIDTAPERED",
-    4158566097: "IFCRIGHTCIRCULARCONE",
-    3626867408: "IFCRIGHTCIRCULARCYLINDER",
-    2016517767: "IFCROOF",
-    2781568857: "IFCROOFTYPE",
-    2341007311: "IFCROOT",
-    2778083089: "IFCROUNDEDRECTANGLEPROFILEDEF",
-    448429030: "IFCSIUNIT",
-    3053780830: "IFCSANITARYTERMINAL",
-    1768891740: "IFCSANITARYTERMINALTYPE",
-    1054537805: "IFCSCHEDULINGTIME",
-    2157484638: "IFCSEAMCURVE",
-    2042790032: "IFCSECTIONPROPERTIES",
-    4165799628: "IFCSECTIONREINFORCEMENTPROPERTIES",
-    1862484736: "IFCSECTIONEDSOLID",
-    1290935644: "IFCSECTIONEDSOLIDHORIZONTAL",
-    1509187699: "IFCSECTIONEDSPINE",
-    4086658281: "IFCSENSOR",
-    1783015770: "IFCSENSORTYPE",
-    1329646415: "IFCSHADINGDEVICE",
-    4074543187: "IFCSHADINGDEVICETYPE",
-    867548509: "IFCSHAPEASPECT",
-    3982875396: "IFCSHAPEMODEL",
-    4240577450: "IFCSHAPEREPRESENTATION",
-    4124623270: "IFCSHELLBASEDSURFACEMODEL",
-    3692461612: "IFCSIMPLEPROPERTY",
-    3663146110: "IFCSIMPLEPROPERTYTEMPLATE",
-    4097777520: "IFCSITE",
-    1529196076: "IFCSLAB",
-    3127900445: "IFCSLABELEMENTEDCASE",
-    3027962421: "IFCSLABSTANDARDCASE",
-    2533589738: "IFCSLABTYPE",
-    2609359061: "IFCSLIPPAGECONNECTIONCONDITION",
-    3420628829: "IFCSOLARDEVICE",
-    1072016465: "IFCSOLARDEVICETYPE",
-    723233188: "IFCSOLIDMODEL",
-    3856911033: "IFCSPACE",
-    1999602285: "IFCSPACEHEATER",
-    1305183839: "IFCSPACEHEATERTYPE",
-    3812236995: "IFCSPACETYPE",
-    1412071761: "IFCSPATIALELEMENT",
-    710998568: "IFCSPATIALELEMENTTYPE",
-    2706606064: "IFCSPATIALSTRUCTUREELEMENT",
-    3893378262: "IFCSPATIALSTRUCTUREELEMENTTYPE",
-    463610769: "IFCSPATIALZONE",
-    2481509218: "IFCSPATIALZONETYPE",
-    451544542: "IFCSPHERE",
-    4015995234: "IFCSPHERICALSURFACE",
-    1404847402: "IFCSTACKTERMINAL",
-    3112655638: "IFCSTACKTERMINALTYPE",
-    331165859: "IFCSTAIR",
-    4252922144: "IFCSTAIRFLIGHT",
-    1039846685: "IFCSTAIRFLIGHTTYPE",
-    338393293: "IFCSTAIRTYPE",
-    682877961: "IFCSTRUCTURALACTION",
-    3544373492: "IFCSTRUCTURALACTIVITY",
-    2515109513: "IFCSTRUCTURALANALYSISMODEL",
-    1179482911: "IFCSTRUCTURALCONNECTION",
-    2273995522: "IFCSTRUCTURALCONNECTIONCONDITION",
-    1004757350: "IFCSTRUCTURALCURVEACTION",
-    4243806635: "IFCSTRUCTURALCURVECONNECTION",
-    214636428: "IFCSTRUCTURALCURVEMEMBER",
-    2445595289: "IFCSTRUCTURALCURVEMEMBERVARYING",
-    2757150158: "IFCSTRUCTURALCURVEREACTION",
-    3136571912: "IFCSTRUCTURALITEM",
-    1807405624: "IFCSTRUCTURALLINEARACTION",
-    2162789131: "IFCSTRUCTURALLOAD",
-    385403989: "IFCSTRUCTURALLOADCASE",
-    3478079324: "IFCSTRUCTURALLOADCONFIGURATION",
-    1252848954: "IFCSTRUCTURALLOADGROUP",
-    1595516126: "IFCSTRUCTURALLOADLINEARFORCE",
-    609421318: "IFCSTRUCTURALLOADORRESULT",
-    2668620305: "IFCSTRUCTURALLOADPLANARFORCE",
-    2473145415: "IFCSTRUCTURALLOADSINGLEDISPLACEMENT",
-    1973038258: "IFCSTRUCTURALLOADSINGLEDISPLACEMENTDISTORTION",
-    1597423693: "IFCSTRUCTURALLOADSINGLEFORCE",
-    1190533807: "IFCSTRUCTURALLOADSINGLEFORCEWARPING",
-    2525727697: "IFCSTRUCTURALLOADSTATIC",
-    3408363356: "IFCSTRUCTURALLOADTEMPERATURE",
-    530289379: "IFCSTRUCTURALMEMBER",
-    1621171031: "IFCSTRUCTURALPLANARACTION",
-    2082059205: "IFCSTRUCTURALPOINTACTION",
-    734778138: "IFCSTRUCTURALPOINTCONNECTION",
-    1235345126: "IFCSTRUCTURALPOINTREACTION",
-    3689010777: "IFCSTRUCTURALREACTION",
-    2986769608: "IFCSTRUCTURALRESULTGROUP",
-    3657597509: "IFCSTRUCTURALSURFACEACTION",
-    1975003073: "IFCSTRUCTURALSURFACECONNECTION",
-    3979015343: "IFCSTRUCTURALSURFACEMEMBER",
-    2218152070: "IFCSTRUCTURALSURFACEMEMBERVARYING",
-    603775116: "IFCSTRUCTURALSURFACEREACTION",
-    2830218821: "IFCSTYLEMODEL",
-    3958052878: "IFCSTYLEDITEM",
-    3049322572: "IFCSTYLEDREPRESENTATION",
-    148013059: "IFCSUBCONTRACTRESOURCE",
-    4095615324: "IFCSUBCONTRACTRESOURCETYPE",
-    2233826070: "IFCSUBEDGE",
-    2513912981: "IFCSURFACE",
-    699246055: "IFCSURFACECURVE",
-    2028607225: "IFCSURFACECURVESWEPTAREASOLID",
-    3101698114: "IFCSURFACEFEATURE",
-    2809605785: "IFCSURFACEOFLINEAREXTRUSION",
-    4124788165: "IFCSURFACEOFREVOLUTION",
-    2934153892: "IFCSURFACEREINFORCEMENTAREA",
-    1300840506: "IFCSURFACESTYLE",
-    3303107099: "IFCSURFACESTYLELIGHTING",
-    1607154358: "IFCSURFACESTYLEREFRACTION",
-    1878645084: "IFCSURFACESTYLERENDERING",
-    846575682: "IFCSURFACESTYLESHADING",
-    1351298697: "IFCSURFACESTYLEWITHTEXTURES",
-    626085974: "IFCSURFACETEXTURE",
-    2247615214: "IFCSWEPTAREASOLID",
-    1260650574: "IFCSWEPTDISKSOLID",
-    1096409881: "IFCSWEPTDISKSOLIDPOLYGONAL",
-    230924584: "IFCSWEPTSURFACE",
-    1162798199: "IFCSWITCHINGDEVICE",
-    2315554128: "IFCSWITCHINGDEVICETYPE",
-    2254336722: "IFCSYSTEM",
-    413509423: "IFCSYSTEMFURNITUREELEMENT",
-    1580310250: "IFCSYSTEMFURNITUREELEMENTTYPE",
-    3071757647: "IFCTSHAPEPROFILEDEF",
-    985171141: "IFCTABLE",
-    2043862942: "IFCTABLECOLUMN",
-    531007025: "IFCTABLEROW",
-    812556717: "IFCTANK",
-    5716631: "IFCTANKTYPE",
-    3473067441: "IFCTASK",
-    1549132990: "IFCTASKTIME",
-    2771591690: "IFCTASKTIMERECURRING",
-    3206491090: "IFCTASKTYPE",
-    912023232: "IFCTELECOMADDRESS",
-    3824725483: "IFCTENDON",
-    2347447852: "IFCTENDONANCHOR",
-    3081323446: "IFCTENDONANCHORTYPE",
-    3663046924: "IFCTENDONCONDUIT",
-    2281632017: "IFCTENDONCONDUITTYPE",
-    2415094496: "IFCTENDONTYPE",
-    2387106220: "IFCTESSELLATEDFACESET",
-    901063453: "IFCTESSELLATEDITEM",
-    4282788508: "IFCTEXTLITERAL",
-    3124975700: "IFCTEXTLITERALWITHEXTENT",
-    1447204868: "IFCTEXTSTYLE",
-    1983826977: "IFCTEXTSTYLEFONTMODEL",
-    2636378356: "IFCTEXTSTYLEFORDEFINEDFONT",
-    1640371178: "IFCTEXTSTYLETEXTMODEL",
-    280115917: "IFCTEXTURECOORDINATE",
-    1742049831: "IFCTEXTURECOORDINATEGENERATOR",
-    2552916305: "IFCTEXTUREMAP",
-    1210645708: "IFCTEXTUREVERTEX",
-    3611470254: "IFCTEXTUREVERTEXLIST",
-    1199560280: "IFCTIMEPERIOD",
-    3101149627: "IFCTIMESERIES",
-    581633288: "IFCTIMESERIESVALUE",
-    1377556343: "IFCTOPOLOGICALREPRESENTATIONITEM",
-    1735638870: "IFCTOPOLOGYREPRESENTATION",
-    1935646853: "IFCTOROIDALSURFACE",
-    3825984169: "IFCTRANSFORMER",
-    1692211062: "IFCTRANSFORMERTYPE",
-    2595432518: "IFCTRANSITIONCURVESEGMENT2D",
-    1620046519: "IFCTRANSPORTELEMENT",
-    2097647324: "IFCTRANSPORTELEMENTTYPE",
-    2715220739: "IFCTRAPEZIUMPROFILEDEF",
-    2916149573: "IFCTRIANGULATEDFACESET",
-    1229763772: "IFCTRIANGULATEDIRREGULARNETWORK",
-    3593883385: "IFCTRIMMEDCURVE",
-    3026737570: "IFCTUBEBUNDLE",
-    1600972822: "IFCTUBEBUNDLETYPE",
-    1628702193: "IFCTYPEOBJECT",
-    3736923433: "IFCTYPEPROCESS",
-    2347495698: "IFCTYPEPRODUCT",
-    3698973494: "IFCTYPERESOURCE",
-    427810014: "IFCUSHAPEPROFILEDEF",
-    180925521: "IFCUNITASSIGNMENT",
-    630975310: "IFCUNITARYCONTROLELEMENT",
-    3179687236: "IFCUNITARYCONTROLELEMENTTYPE",
-    4292641817: "IFCUNITARYEQUIPMENT",
-    1911125066: "IFCUNITARYEQUIPMENTTYPE",
-    4207607924: "IFCVALVE",
-    728799441: "IFCVALVETYPE",
-    1417489154: "IFCVECTOR",
-    2799835756: "IFCVERTEX",
-    2759199220: "IFCVERTEXLOOP",
-    1907098498: "IFCVERTEXPOINT",
-    1530820697: "IFCVIBRATIONDAMPER",
+    2696325953: "IFCKERB",
+    2713699986: "IFCGEOTECHNICALASSEMBLY",
+    2142170206: "IFCELECTRICFLOWTREATMENTDEVICETYPE",
+    3376911765: "IFCEARTHWORKSFILL",
+    1077100507: "IFCEARTHWORKSELEMENT",
+    3071239417: "IFCEARTHWORKSCUT",
+    479945903: "IFCDISTRIBUTIONBOARDTYPE",
+    3426335179: "IFCDEEPFOUNDATION",
+    1502416096: "IFCCOURSE",
+    2940368186: "IFCCONVEYORSEGMENTTYPE",
+    3203706013: "IFCCAISSONFOUNDATIONTYPE",
+    3862327254: "IFCBUILTSYSTEM",
+    1876633798: "IFCBUILTELEMENT",
+    963979645: "IFCBRIDGEPART",
+    644574406: "IFCBRIDGE",
+    3649138523: "IFCBEARINGTYPE",
+    1662888072: "IFCALIGNMENTVERTICAL",
+    317615605: "IFCALIGNMENTSEGMENT",
+    1545765605: "IFCALIGNMENTHORIZONTAL",
+    4266260250: "IFCALIGNMENTCANT",
     3956297820: "IFCVIBRATIONDAMPERTYPE",
-    2391383451: "IFCVIBRATIONISOLATOR",
-    3313531582: "IFCVIBRATIONISOLATORTYPE",
-    2769231204: "IFCVIRTUALELEMENT",
-    891718957: "IFCVIRTUALGRIDINTERSECTION",
-    926996030: "IFCVOIDINGFEATURE",
-    2391406946: "IFCWALL",
-    4156078855: "IFCWALLELEMENTEDCASE",
-    3512223829: "IFCWALLSTANDARDCASE",
-    1898987631: "IFCWALLTYPE",
-    4237592921: "IFCWASTETERMINAL",
-    1133259667: "IFCWASTETERMINALTYPE",
-    3304561284: "IFCWINDOW",
-    336235671: "IFCWINDOWLININGPROPERTIES",
-    512836454: "IFCWINDOWPANELPROPERTIES",
+    1530820697: "IFCVIBRATIONDAMPER",
+    840318589: "IFCVEHICLE",
+    1953115116: "IFCTRANSPORTATIONDEVICE",
+    618700268: "IFCTRACKELEMENTTYPE",
+    2281632017: "IFCTENDONCONDUITTYPE",
+    3663046924: "IFCTENDONCONDUIT",
+    42703149: "IFCSINESPIRAL",
+    1894708472: "IFCSIGNALTYPE",
+    3599934289: "IFCSIGNTYPE",
+    33720170: "IFCSIGN",
+    1027922057: "IFCSEVENTHORDERPOLYNOMIALSPIRAL",
+    544395925: "IFCSEGMENTEDREFERENCECURVE",
+    3649235739: "IFCSECONDORDERPOLYNOMIALSPIRAL",
+    550521510: "IFCROADPART",
+    146592293: "IFCROAD",
+    3818125796: "IFCRELADHERESTOELEMENT",
+    4021432810: "IFCREFERENT",
+    1891881377: "IFCRAILWAYPART",
+    3992365140: "IFCRAILWAY",
+    1763565496: "IFCRAILTYPE",
+    1946335990: "IFCPOSITIONINGELEMENT",
+    514975943: "IFCPAVEMENTTYPE",
+    506776471: "IFCNAVIGATIONELEMENTTYPE",
+    710110818: "IFCMOORINGDEVICETYPE",
+    1950438474: "IFCMOBILETELECOMMUNICATIONSAPPLIANCETYPE",
+    976884017: "IFCMARINEPART",
+    525669439: "IFCMARINEFACILITY",
+    1770583370: "IFCLIQUIDTERMINALTYPE",
+    2176059722: "IFCLINEARELEMENT",
+    679976338: "IFCKERBTYPE",
+    3948183225: "IFCIMPACTPROTECTIONDEVICETYPE",
+    2568555532: "IFCIMPACTPROTECTIONDEVICE",
+    2898700619: "IFCGRADIENTCURVE",
+    1594536857: "IFCGEOTECHNICALSTRATUM",
+    4230923436: "IFCGEOTECHNICALELEMENT",
+    4228831410: "IFCFACILITYPARTCOMMON",
+    1310830890: "IFCFACILITYPART",
+    24185140: "IFCFACILITY",
+    4234616927: "IFCDIRECTRIXDERIVEDREFERENCESWEPTAREASOLID",
+    1306400036: "IFCDEEPFOUNDATIONTYPE",
+    4189326743: "IFCCOURSETYPE",
+    2000195564: "IFCCOSINESPIRAL",
+    3497074424: "IFCCLOTHOID",
+    1626504194: "IFCBUILTELEMENTTYPE",
+    3651464721: "IFCVEHICLETYPE",
+    1229763772: "IFCTRIANGULATEDIRREGULARNETWORK",
+    3665877780: "IFCTRANSPORTATIONDEVICETYPE",
+    782932809: "IFCTHIRDORDERPOLYNOMIALSPIRAL",
+    2735484536: "IFCSPIRAL",
+    1356537516: "IFCSECTIONEDSURFACE",
+    1290935644: "IFCSECTIONEDSOLIDHORIZONTAL",
+    1862484736: "IFCSECTIONEDSOLID",
+    1441486842: "IFCRELPOSITIONS",
+    1033248425: "IFCRELASSOCIATESPROFILEDEF",
+    3381221214: "IFCPOLYNOMIALCURVE",
+    2485787929: "IFCOFFSETCURVEBYDISTANCES",
+    590820931: "IFCOFFSETCURVE",
+    3465909080: "IFCINDEXEDPOLYGONALTEXTUREMAP",
+    593015953: "IFCDIRECTRIXCURVESWEPTAREASOLID",
+    4212018352: "IFCCURVESEGMENT",
+    3425423356: "IFCAXIS2PLACEMENTLINEAR",
+    823603102: "IFCSEGMENT",
+    2165702409: "IFCPOINTBYDISTANCEEXPRESSION",
+    182550632: "IFCOPENCROSSPROFILEDEF",
+    388784114: "IFCLINEARPLACEMENT",
+    536804194: "IFCALIGNMENTHORIZONTALSEGMENT",
+    3752311538: "IFCALIGNMENTCANTSEGMENT",
+    1010789467: "IFCTEXTURECOORDINATEINDICESWITHVOIDS",
+    222769930: "IFCTEXTURECOORDINATEINDICES",
+    2691318326: "IFCQUANTITYNUMBER",
+    3633395639: "IFCALIGNMENTVERTICALSEGMENT",
+    2879124712: "IFCALIGNMENTPARAMETERSEGMENT",
+    25142252: "IFCCONTROLLER",
+    3087945054: "IFCALARM",
+    4288193352: "IFCACTUATOR",
+    630975310: "IFCUNITARYCONTROLELEMENT",
+    4086658281: "IFCSENSOR",
+    2295281155: "IFCPROTECTIVEDEVICETRIPPINGUNIT",
+    182646315: "IFCFLOWINSTRUMENT",
+    1426591983: "IFCFIRESUPPRESSIONTERMINAL",
+    819412036: "IFCFILTER",
+    3415622556: "IFCFAN",
+    1003880860: "IFCELECTRICTIMECONTROL",
+    402227799: "IFCELECTRICMOTOR",
+    264262732: "IFCELECTRICGENERATOR",
+    3310460725: "IFCELECTRICFLOWSTORAGEDEVICE",
+    862014818: "IFCELECTRICDISTRIBUTIONBOARD",
+    1904799276: "IFCELECTRICAPPLIANCE",
+    1360408905: "IFCDUCTSILENCER",
+    3518393246: "IFCDUCTSEGMENT",
+    342316401: "IFCDUCTFITTING",
+    562808652: "IFCDISTRIBUTIONCIRCUIT",
+    4074379575: "IFCDAMPER",
+    3640358203: "IFCCOOLINGTOWER",
+    4136498852: "IFCCOOLEDBEAM",
+    2272882330: "IFCCONDENSER",
+    3571504051: "IFCCOMPRESSOR",
+    3221913625: "IFCCOMMUNICATIONSAPPLIANCE",
+    639361253: "IFCCOIL",
+    3902619387: "IFCCHILLER",
+    4217484030: "IFCCABLESEGMENT",
+    1051757585: "IFCCABLEFITTING",
+    3758799889: "IFCCABLECARRIERSEGMENT",
+    635142910: "IFCCABLECARRIERFITTING",
+    2938176219: "IFCBURNER",
+    32344328: "IFCBOILER",
+    2906023776: "IFCBEAMSTANDARDCASE",
+    277319702: "IFCAUDIOVISUALAPPLIANCE",
+    2056796094: "IFCAIRTOAIRHEATRECOVERY",
+    177149247: "IFCAIRTERMINALBOX",
+    1634111441: "IFCAIRTERMINAL",
     486154966: "IFCWINDOWSTANDARDCASE",
-    1299126871: "IFCWINDOWSTYLE",
-    4009809668: "IFCWINDOWTYPE",
+    4237592921: "IFCWASTETERMINAL",
+    4156078855: "IFCWALLELEMENTEDCASE",
+    4207607924: "IFCVALVE",
+    4292641817: "IFCUNITARYEQUIPMENT",
+    3179687236: "IFCUNITARYCONTROLELEMENTTYPE",
+    3026737570: "IFCTUBEBUNDLE",
+    3825984169: "IFCTRANSFORMER",
+    812556717: "IFCTANK",
+    1162798199: "IFCSWITCHINGDEVICE",
+    385403989: "IFCSTRUCTURALLOADCASE",
+    1404847402: "IFCSTACKTERMINAL",
+    1999602285: "IFCSPACEHEATER",
+    3420628829: "IFCSOLARDEVICE",
+    3027962421: "IFCSLABSTANDARDCASE",
+    3127900445: "IFCSLABELEMENTEDCASE",
+    1329646415: "IFCSHADINGDEVICE",
+    3053780830: "IFCSANITARYTERMINAL",
+    2572171363: "IFCREINFORCINGBARTYPE",
+    1232101972: "IFCRATIONALBSPLINECURVEWITHKNOTS",
+    90941305: "IFCPUMP",
+    655969474: "IFCPROTECTIVEDEVICETRIPPINGUNITTYPE",
+    738039164: "IFCPROTECTIVEDEVICE",
+    1156407060: "IFCPLATESTANDARDCASE",
+    3612865200: "IFCPIPESEGMENT",
+    310824031: "IFCPIPEFITTING",
+    3694346114: "IFCOUTLET",
+    144952367: "IFCOUTERBOUNDARYCURVE",
+    2474470126: "IFCMOTORCONNECTION",
+    1911478936: "IFCMEMBERSTANDARDCASE",
+    1437502449: "IFCMEDICALDEVICE",
+    629592764: "IFCLIGHTFIXTURE",
+    76236018: "IFCLAMP",
+    2176052936: "IFCJUNCTIONBOX",
+    4175244083: "IFCINTERCEPTOR",
+    2068733104: "IFCHUMIDIFIER",
+    3319311131: "IFCHEATEXCHANGER",
+    2188021234: "IFCFLOWMETER",
+    1209101575: "IFCEXTERNALSPATIALELEMENT",
+    484807127: "IFCEVAPORATOR",
+    3747195512: "IFCEVAPORATIVECOOLER",
+    2814081492: "IFCENGINE",
+    2417008758: "IFCELECTRICDISTRIBUTIONBOARDTYPE",
+    3242481149: "IFCDOORSTANDARDCASE",
+    3205830791: "IFCDISTRIBUTIONSYSTEM",
+    400855858: "IFCCOMMUNICATIONSAPPLIANCETYPE",
+    905975707: "IFCCOLUMNSTANDARDCASE",
+    1677625105: "IFCCIVILELEMENT",
+    3296154744: "IFCCHIMNEY",
+    2674252688: "IFCCABLEFITTINGTYPE",
+    2188180465: "IFCBURNERTYPE",
+    1177604601: "IFCBUILDINGSYSTEM",
+    39481116: "IFCBUILDINGELEMENTPARTTYPE",
+    1136057603: "IFCBOUNDARYCURVE",
+    2461110595: "IFCBSPLINECURVEWITHKNOTS",
+    1532957894: "IFCAUDIOVISUALAPPLIANCETYPE",
     4088093105: "IFCWORKCALENDAR",
-    1028945134: "IFCWORKCONTROL",
-    4218914973: "IFCWORKPLAN",
-    3342526732: "IFCWORKSCHEDULE",
+    4009809668: "IFCWINDOWTYPE",
+    926996030: "IFCVOIDINGFEATURE",
+    2391383451: "IFCVIBRATIONISOLATOR",
+    2415094496: "IFCTENDONTYPE",
+    3081323446: "IFCTENDONANCHORTYPE",
+    413509423: "IFCSYSTEMFURNITUREELEMENT",
+    3101698114: "IFCSURFACEFEATURE",
+    3657597509: "IFCSTRUCTURALSURFACEACTION",
+    2757150158: "IFCSTRUCTURALCURVEREACTION",
+    1004757350: "IFCSTRUCTURALCURVEACTION",
+    338393293: "IFCSTAIRTYPE",
+    1072016465: "IFCSOLARDEVICETYPE",
+    4074543187: "IFCSHADINGDEVICETYPE",
+    2157484638: "IFCSEAMCURVE",
+    2781568857: "IFCROOFTYPE",
+    2310774935: "IFCREINFORCINGMESHTYPE",
+    964333572: "IFCREINFORCINGELEMENTTYPE",
+    683857671: "IFCRATIONALBSPLINESURFACEWITHKNOTS",
+    1469900589: "IFCRAMPTYPE",
+    2839578677: "IFCPOLYGONALFACESET",
+    1158309216: "IFCPILETYPE",
+    3079942009: "IFCOPENINGSTANDARDCASE",
+    1114901282: "IFCMEDICALDEVICETYPE",
+    3113134337: "IFCINTERSECTIONCURVE",
+    3946677679: "IFCINTERCEPTORTYPE",
+    2571569899: "IFCINDEXEDPOLYCURVE",
+    3493046030: "IFCGEOGRAPHICELEMENT",
+    1509553395: "IFCFURNITURE",
+    1893162501: "IFCFOOTINGTYPE",
+    2853485674: "IFCEXTERNALSPATIALSTRUCTUREELEMENT",
+    4148101412: "IFCEVENT",
+    132023988: "IFCENGINETYPE",
+    2397081782: "IFCELEMENTASSEMBLYTYPE",
+    2323601079: "IFCDOORTYPE",
+    1213902940: "IFCCYLINDRICALSURFACE",
+    1525564444: "IFCCONSTRUCTIONPRODUCTRESOURCETYPE",
+    4105962743: "IFCCONSTRUCTIONMATERIALRESOURCETYPE",
+    2185764099: "IFCCONSTRUCTIONEQUIPMENTRESOURCETYPE",
+    15328376: "IFCCOMPOSITECURVEONSURFACE",
+    3875453745: "IFCCOMPLEXPROPERTYTEMPLATE",
+    3893394355: "IFCCIVILELEMENTTYPE",
+    2197970202: "IFCCHIMNEYTYPE",
+    167062518: "IFCBSPLINESURFACEWITHKNOTS",
+    2887950389: "IFCBSPLINESURFACE",
+    2603310189: "IFCADVANCEDBREPWITHVOIDS",
+    1635779807: "IFCADVANCEDBREP",
+    2916149573: "IFCTRIANGULATEDFACESET",
+    1935646853: "IFCTOROIDALSURFACE",
+    2387106220: "IFCTESSELLATEDFACESET",
+    3206491090: "IFCTASKTYPE",
+    699246055: "IFCSURFACECURVE",
+    4095615324: "IFCSUBCONTRACTRESOURCETYPE",
+    603775116: "IFCSTRUCTURALSURFACEREACTION",
+    4015995234: "IFCSPHERICALSURFACE",
+    2481509218: "IFCSPATIALZONETYPE",
+    463610769: "IFCSPATIALZONE",
+    710998568: "IFCSPATIALELEMENTTYPE",
+    1412071761: "IFCSPATIALELEMENT",
+    3663146110: "IFCSIMPLEPROPERTYTEMPLATE",
+    3243963512: "IFCREVOLVEDAREASOLIDTAPERED",
+    816062949: "IFCREPARAMETRISEDCOMPOSITECURVESEGMENT",
+    1521410863: "IFCRELSPACEBOUNDARY2NDLEVEL",
+    3523091289: "IFCRELSPACEBOUNDARY1STLEVEL",
+    427948657: "IFCRELINTERFERESELEMENTS",
+    307848117: "IFCRELDEFINESBYTEMPLATE",
+    1462361463: "IFCRELDEFINESBYOBJECT",
+    2565941209: "IFCRELDECLARES",
+    1027710054: "IFCRELASSIGNSTOGROUPBYFACTOR",
+    3521284610: "IFCPROPERTYTEMPLATE",
+    492091185: "IFCPROPERTYSETTEMPLATE",
+    653396225: "IFCPROJECTLIBRARY",
+    569719735: "IFCPROCEDURETYPE",
+    3967405729: "IFCPREDEFINEDPROPERTYSET",
+    1682466193: "IFCPCURVE",
+    428585644: "IFCLABORRESOURCETYPE",
+    2294589976: "IFCINDEXEDPOLYGONALFACEWITHVOIDS",
+    178912537: "IFCINDEXEDPOLYGONALFACE",
+    4095422895: "IFCGEOGRAPHICELEMENTTYPE",
+    2652556860: "IFCFIXEDREFERENCESWEPTAREASOLID",
+    2804161546: "IFCEXTRUDEDAREASOLIDTAPERED",
+    4024345920: "IFCEVENTTYPE",
+    2629017746: "IFCCURVEBOUNDEDSURFACE",
+    1815067380: "IFCCREWRESOURCETYPE",
+    3419103109: "IFCCONTEXT",
+    2574617495: "IFCCONSTRUCTIONRESOURCETYPE",
+    2059837836: "IFCCARTESIANPOINTLIST3D",
+    1675464909: "IFCCARTESIANPOINTLIST2D",
+    574549367: "IFCCARTESIANPOINTLIST",
+    3406155212: "IFCADVANCEDFACE",
+    3698973494: "IFCTYPERESOURCE",
+    3736923433: "IFCTYPEPROCESS",
+    901063453: "IFCTESSELLATEDITEM",
+    1096409881: "IFCSWEPTDISKSOLIDPOLYGONAL",
+    1042787934: "IFCRESOURCETIME",
+    1608871552: "IFCRESOURCECONSTRAINTRELATIONSHIP",
+    2943643501: "IFCRESOURCEAPPROVALRELATIONSHIP",
+    2090586900: "IFCQUANTITYSET",
+    1482703590: "IFCPROPERTYTEMPLATEDEFINITION",
+    3778827333: "IFCPREDEFINEDPROPERTIES",
+    2998442950: "IFCMIRROREDPROFILEDEF",
+    853536259: "IFCMATERIALRELATIONSHIP",
+    3404854881: "IFCMATERIALPROFILESETUSAGETAPERING",
+    3079605661: "IFCMATERIALPROFILESETUSAGE",
+    2852063980: "IFCMATERIALCONSTITUENTSET",
+    3708119000: "IFCMATERIALCONSTITUENT",
+    1585845231: "IFCLAGTIME",
+    2133299955: "IFCINDEXEDTRIANGLETEXTUREMAP",
+    1437953363: "IFCINDEXEDTEXTUREMAP",
+    3570813810: "IFCINDEXEDCOLOURMAP",
+    1437805879: "IFCEXTERNALREFERENCERELATIONSHIP",
+    297599258: "IFCEXTENDEDPROPERTIES",
+    211053100: "IFCEVENTTIME",
+    2713554722: "IFCCONVERSIONBASEDUNITWITHOFFSET",
+    3285139300: "IFCCOLOURRGBLIST",
     1236880293: "IFCWORKTIME",
-    2543172580: "IFCZSHAPEPROFILEDEF",
+    1199560280: "IFCTIMEPERIOD",
+    3611470254: "IFCTEXTUREVERTEXLIST",
+    2771591690: "IFCTASKTIMERECURRING",
+    1549132990: "IFCTASKTIME",
+    2043862942: "IFCTABLECOLUMN",
+    2934153892: "IFCSURFACEREINFORCEMENTAREA",
+    609421318: "IFCSTRUCTURALLOADORRESULT",
+    3478079324: "IFCSTRUCTURALLOADCONFIGURATION",
+    1054537805: "IFCSCHEDULINGTIME",
+    2439245199: "IFCRESOURCELEVELRELATIONSHIP",
+    2433181523: "IFCREFERENCE",
+    3915482550: "IFCRECURRENCEPATTERN",
+    986844984: "IFCPROPERTYABSTRACTION",
+    3843373140: "IFCPROJECTEDCRS",
+    677532197: "IFCPRESENTATIONITEM",
+    1507914824: "IFCMATERIALUSAGEDEFINITION",
+    552965576: "IFCMATERIALPROFILEWITHOFFSETS",
+    164193824: "IFCMATERIALPROFILESET",
+    2235152071: "IFCMATERIALPROFILE",
+    1847252529: "IFCMATERIALLAYERWITHOFFSETS",
+    760658860: "IFCMATERIALDEFINITION",
+    3057273783: "IFCMAPCONVERSION",
+    4294318154: "IFCEXTERNALINFORMATION",
+    1466758467: "IFCCOORDINATEREFERENCESYSTEM",
+    1785450214: "IFCCOORDINATEOPERATION",
+    775493141: "IFCCONNECTIONVOLUMEGEOMETRY",
+    979691226: "IFCREINFORCINGBAR",
+    3700593921: "IFCELECTRICDISTRIBUTIONPOINT",
+    1062813311: "IFCDISTRIBUTIONCONTROLELEMENT",
+    1052013943: "IFCDISTRIBUTIONCHAMBERELEMENT",
+    578613899: "IFCCONTROLLERTYPE",
+    2454782716: "IFCCHAMFEREDGEFEATURE",
+    753842376: "IFCBEAM",
+    3001207471: "IFCALARMTYPE",
+    2874132201: "IFCACTUATORTYPE",
+    3304561284: "IFCWINDOW",
+    3512223829: "IFCWALLSTANDARDCASE",
+    2391406946: "IFCWALL",
+    3313531582: "IFCVIBRATIONISOLATORTYPE",
+    2347447852: "IFCTENDONANCHOR",
+    3824725483: "IFCTENDON",
+    2515109513: "IFCSTRUCTURALANALYSISMODEL",
+    4252922144: "IFCSTAIRFLIGHT",
+    331165859: "IFCSTAIR",
+    1529196076: "IFCSLAB",
+    1783015770: "IFCSENSORTYPE",
+    1376911519: "IFCROUNDEDEDGEFEATURE",
+    2016517767: "IFCROOF",
+    2320036040: "IFCREINFORCINGMESH",
+    3027567501: "IFCREINFORCINGELEMENT",
+    3055160366: "IFCRATIONALBEZIERCURVE",
+    3283111854: "IFCRAMPFLIGHT",
+    3024970846: "IFCRAMP",
+    2262370178: "IFCRAILING",
+    3171933400: "IFCPLATE",
+    1687234759: "IFCPILE",
+    1073191201: "IFCMEMBER",
+    900683007: "IFCFOOTING",
+    3508470533: "IFCFLOWTREATMENTDEVICE",
+    2223149337: "IFCFLOWTERMINAL",
+    707683696: "IFCFLOWSTORAGEDEVICE",
+    987401354: "IFCFLOWSEGMENT",
+    3132237377: "IFCFLOWMOVINGDEVICE",
+    4037862832: "IFCFLOWINSTRUMENTTYPE",
+    4278956645: "IFCFLOWFITTING",
+    2058353004: "IFCFLOWCONTROLLER",
+    4222183408: "IFCFIRESUPPRESSIONTERMINALTYPE",
+    1810631287: "IFCFILTERTYPE",
+    346874300: "IFCFANTYPE",
+    1658829314: "IFCENERGYCONVERSIONDEVICE",
+    857184966: "IFCELECTRICALELEMENT",
+    1634875225: "IFCELECTRICALCIRCUIT",
+    712377611: "IFCELECTRICTIMECONTROLTYPE",
+    1217240411: "IFCELECTRICMOTORTYPE",
+    1365060375: "IFCELECTRICHEATERTYPE",
+    1534661035: "IFCELECTRICGENERATORTYPE",
+    3277789161: "IFCELECTRICFLOWSTORAGEDEVICETYPE",
+    663422040: "IFCELECTRICAPPLIANCETYPE",
+    855621170: "IFCEDGEFEATURE",
+    2030761528: "IFCDUCTSILENCERTYPE",
+    3760055223: "IFCDUCTSEGMENTTYPE",
+    869906466: "IFCDUCTFITTINGTYPE",
+    395920057: "IFCDOOR",
+    3041715199: "IFCDISTRIBUTIONPORT",
+    3040386961: "IFCDISTRIBUTIONFLOWELEMENT",
+    1945004755: "IFCDISTRIBUTIONELEMENT",
+    2063403501: "IFCDISTRIBUTIONCONTROLELEMENTTYPE",
+    1599208980: "IFCDISTRIBUTIONCHAMBERELEMENTTYPE",
+    2635815018: "IFCDISCRETEACCESSORYTYPE",
+    1335981549: "IFCDISCRETEACCESSORY",
+    4147604152: "IFCDIAMETERDIMENSION",
+    3961806047: "IFCDAMPERTYPE",
+    3495092785: "IFCCURTAINWALL",
+    1973544240: "IFCCOVERING",
+    2954562838: "IFCCOOLINGTOWERTYPE",
+    335055490: "IFCCOOLEDBEAMTYPE",
+    488727124: "IFCCONSTRUCTIONPRODUCTRESOURCE",
+    1060000209: "IFCCONSTRUCTIONMATERIALRESOURCE",
+    3898045240: "IFCCONSTRUCTIONEQUIPMENTRESOURCE",
+    1163958913: "IFCCONDITIONCRITERION",
+    2188551683: "IFCCONDITION",
+    2816379211: "IFCCONDENSERTYPE",
+    3850581409: "IFCCOMPRESSORTYPE",
+    843113511: "IFCCOLUMN",
+    2301859152: "IFCCOILTYPE",
+    2611217952: "IFCCIRCLE",
+    2951183804: "IFCCHILLERTYPE",
+    1285652485: "IFCCABLESEGMENTTYPE",
+    3293546465: "IFCCABLECARRIERSEGMENTTYPE",
+    395041908: "IFCCABLECARRIERFITTINGTYPE",
+    1909888760: "IFCBUILDINGELEMENTPROXYTYPE",
+    1095909175: "IFCBUILDINGELEMENTPROXY",
+    2979338954: "IFCBUILDINGELEMENTPART",
+    52481810: "IFCBUILDINGELEMENTCOMPONENT",
+    3299480353: "IFCBUILDINGELEMENT",
+    231477066: "IFCBOILERTYPE",
+    1916977116: "IFCBEZIERCURVE",
+    819618141: "IFCBEAMTYPE",
+    1967976161: "IFCBSPLINECURVE",
+    3460190687: "IFCASSET",
+    2470393545: "IFCANGULARDIMENSION",
+    1871374353: "IFCAIRTOAIRHEATRECOVERYTYPE",
+    3352864051: "IFCAIRTERMINALTYPE",
+    1411407467: "IFCAIRTERMINALBOXTYPE",
+    3821786052: "IFCACTIONREQUEST",
+    1213861670: "IFC2DCOMPOSITECURVE",
     1033361043: "IFCZONE",
+    3342526732: "IFCWORKSCHEDULE",
+    4218914973: "IFCWORKPLAN",
+    1028945134: "IFCWORKCONTROL",
+    1133259667: "IFCWASTETERMINALTYPE",
+    1898987631: "IFCWALLTYPE",
+    2769231204: "IFCVIRTUALELEMENT",
+    728799441: "IFCVALVETYPE",
+    1911125066: "IFCUNITARYEQUIPMENTTYPE",
+    1600972822: "IFCTUBEBUNDLETYPE",
+    3593883385: "IFCTRIMMEDCURVE",
+    1620046519: "IFCTRANSPORTELEMENT",
+    1692211062: "IFCTRANSFORMERTYPE",
+    1637806684: "IFCTIMESERIESSCHEDULE",
+    5716631: "IFCTANKTYPE",
+    2254336722: "IFCSYSTEM",
+    2315554128: "IFCSWITCHINGDEVICETYPE",
+    148013059: "IFCSUBCONTRACTRESOURCE",
+    1975003073: "IFCSTRUCTURALSURFACECONNECTION",
+    2986769608: "IFCSTRUCTURALRESULTGROUP",
+    1235345126: "IFCSTRUCTURALPOINTREACTION",
+    734778138: "IFCSTRUCTURALPOINTCONNECTION",
+    2082059205: "IFCSTRUCTURALPOINTACTION",
+    3987759626: "IFCSTRUCTURALPLANARACTIONVARYING",
+    1621171031: "IFCSTRUCTURALPLANARACTION",
+    1252848954: "IFCSTRUCTURALLOADGROUP",
+    1721250024: "IFCSTRUCTURALLINEARACTIONVARYING",
+    1807405624: "IFCSTRUCTURALLINEARACTION",
+    2445595289: "IFCSTRUCTURALCURVEMEMBERVARYING",
+    214636428: "IFCSTRUCTURALCURVEMEMBER",
+    4243806635: "IFCSTRUCTURALCURVECONNECTION",
+    1179482911: "IFCSTRUCTURALCONNECTION",
+    682877961: "IFCSTRUCTURALACTION",
+    1039846685: "IFCSTAIRFLIGHTTYPE",
+    3112655638: "IFCSTACKTERMINALTYPE",
+    3812236995: "IFCSPACETYPE",
+    652456506: "IFCSPACEPROGRAM",
+    1305183839: "IFCSPACEHEATERTYPE",
+    3856911033: "IFCSPACE",
+    2533589738: "IFCSLABTYPE",
+    4097777520: "IFCSITE",
+    4105383287: "IFCSERVICELIFE",
+    3517283431: "IFCSCHEDULETIMECONTROL",
+    1768891740: "IFCSANITARYTERMINALTYPE",
+    2863920197: "IFCRELASSIGNSTASKS",
+    160246688: "IFCRELAGGREGATES",
+    2324767716: "IFCRAMPFLIGHTTYPE",
+    2893384427: "IFCRAILINGTYPE",
+    3248260540: "IFCRADIUSDIMENSION",
+    2250791053: "IFCPUMPTYPE",
+    1842657554: "IFCPROTECTIVEDEVICETYPE",
+    3651124850: "IFCPROJECTIONELEMENT",
+    3642467123: "IFCPROJECTORDERRECORD",
+    2904328755: "IFCPROJECTORDER",
+    2744685151: "IFCPROCEDURE",
+    3740093272: "IFCPORT",
+    3724593414: "IFCPOLYLINE",
+    4017108033: "IFCPLATETYPE",
+    4231323485: "IFCPIPESEGMENTTYPE",
+    804291784: "IFCPIPEFITTINGTYPE",
+    3327091369: "IFCPERMIT",
+    2382730787: "IFCPERFORMANCEHISTORY",
+    2837617999: "IFCOUTLETTYPE",
+    3425660407: "IFCORDERACTION",
+    3588315303: "IFCOPENINGELEMENT",
+    4143007308: "IFCOCCUPANT",
+    1916936684: "IFCMOVE",
+    977012517: "IFCMOTORCONNECTIONTYPE",
+    3181161470: "IFCMEMBERTYPE",
+    2108223431: "IFCMECHANICALFASTENERTYPE",
+    377706215: "IFCMECHANICALFASTENER",
+    2506943328: "IFCLINEARDIMENSION",
+    1161773419: "IFCLIGHTFIXTURETYPE",
+    1051575348: "IFCLAMPTYPE",
+    3827777499: "IFCLABORRESOURCE",
+    4288270099: "IFCJUNCTIONBOXTYPE",
+    2391368822: "IFCINVENTORY",
+    1806887404: "IFCHUMIDIFIERTYPE",
+    1251058090: "IFCHEATEXCHANGERTYPE",
+    2706460486: "IFCGROUP",
+    3009204131: "IFCGRID",
+    200128114: "IFCGASTERMINALTYPE",
+    814719939: "IFCFURNITURESTANDARD",
+    263784265: "IFCFURNISHINGELEMENT",
+    3009222698: "IFCFLOWTREATMENTDEVICETYPE",
+    2297155007: "IFCFLOWTERMINALTYPE",
+    1339347760: "IFCFLOWSTORAGEDEVICETYPE",
+    1834744321: "IFCFLOWSEGMENTTYPE",
+    1482959167: "IFCFLOWMOVINGDEVICETYPE",
+    3815607619: "IFCFLOWMETERTYPE",
+    3198132628: "IFCFLOWFITTINGTYPE",
+    3907093117: "IFCFLOWCONTROLLERTYPE",
+    1287392070: "IFCFEATUREELEMENTSUBTRACTION",
+    2143335405: "IFCFEATUREELEMENTADDITION",
+    2827207264: "IFCFEATUREELEMENT",
+    2489546625: "IFCFASTENERTYPE",
+    647756555: "IFCFASTENER",
+    3737207727: "IFCFACETEDBREPWITHVOIDS",
+    807026263: "IFCFACETEDBREP",
+    3390157468: "IFCEVAPORATORTYPE",
+    3174744832: "IFCEVAPORATIVECOOLERTYPE",
+    3272907226: "IFCEQUIPMENTSTANDARD",
+    1962604670: "IFCEQUIPMENTELEMENT",
+    2107101300: "IFCENERGYCONVERSIONDEVICETYPE",
+    1704287377: "IFCELLIPSE",
+    2590856083: "IFCELEMENTCOMPONENTTYPE",
+    1623761950: "IFCELEMENTCOMPONENT",
+    4123344466: "IFCELEMENTASSEMBLY",
+    1758889154: "IFCELEMENT",
+    360485395: "IFCELECTRICALBASEPROPERTIES",
+    3849074793: "IFCDISTRIBUTIONFLOWELEMENTTYPE",
+    3256556792: "IFCDISTRIBUTIONELEMENTTYPE",
+    681481545: "IFCDIMENSIONCURVEDIRECTEDCALLOUT",
+    1457835157: "IFCCURTAINWALLTYPE",
+    3295246426: "IFCCREWRESOURCE",
+    1916426348: "IFCCOVERINGTYPE",
+    1419761937: "IFCCOSTSCHEDULE",
+    3895139033: "IFCCOSTITEM",
+    3293443760: "IFCCONTROL",
+    2559216714: "IFCCONSTRUCTIONRESOURCE",
+    2510884976: "IFCCONIC",
+    3732776249: "IFCCOMPOSITECURVE",
+    300633059: "IFCCOLUMNTYPE",
+    2937912522: "IFCCIRCLEHOLLOWPROFILEDEF",
+    3124254112: "IFCBUILDINGSTOREY",
+    1950629157: "IFCBUILDINGELEMENTTYPE",
+    4031249490: "IFCBUILDING",
+    1260505505: "IFCBOUNDEDCURVE",
+    3649129432: "IFCBOOLEANCLIPPINGRESULT",
+    1334484129: "IFCBLOCK",
+    3207858831: "IFCASYMMETRICISHAPEPROFILEDEF",
+    1674181508: "IFCANNOTATION",
+    2296667514: "IFCACTOR",
+    2097647324: "IFCTRANSPORTELEMENTTYPE",
+    3473067441: "IFCTASK",
+    1580310250: "IFCSYSTEMFURNITUREELEMENTTYPE",
+    4124788165: "IFCSURFACEOFREVOLUTION",
+    2809605785: "IFCSURFACEOFLINEAREXTRUSION",
+    2028607225: "IFCSURFACECURVESWEPTAREASOLID",
+    4070609034: "IFCSTRUCTUREDDIMENSIONCALLOUT",
+    2218152070: "IFCSTRUCTURALSURFACEMEMBERVARYING",
+    3979015343: "IFCSTRUCTURALSURFACEMEMBER",
+    3689010777: "IFCSTRUCTURALREACTION",
+    530289379: "IFCSTRUCTURALMEMBER",
+    3136571912: "IFCSTRUCTURALITEM",
+    3544373492: "IFCSTRUCTURALACTIVITY",
+    451544542: "IFCSPHERE",
+    3893378262: "IFCSPATIALSTRUCTUREELEMENTTYPE",
+    2706606064: "IFCSPATIALSTRUCTUREELEMENT",
+    3626867408: "IFCRIGHTCIRCULARCYLINDER",
+    4158566097: "IFCRIGHTCIRCULARCONE",
+    1856042241: "IFCREVOLVEDAREASOLID",
+    2914609552: "IFCRESOURCE",
+    1401173127: "IFCRELVOIDSELEMENT",
+    3451746338: "IFCRELSPACEBOUNDARY",
+    366585022: "IFCRELSERVICESBUILDINGS",
+    4122056220: "IFCRELSEQUENCE",
+    1058617721: "IFCRELSCHEDULESCOSTITEMS",
+    1245217292: "IFCRELREFERENCEDINSPATIALSTRUCTURE",
+    750771296: "IFCRELPROJECTSELEMENT",
+    202636808: "IFCRELOVERRIDESPROPERTIES",
+    2051452291: "IFCRELOCCUPIESSPACES",
+    3268803585: "IFCRELNESTS",
+    4189434867: "IFCRELINTERACTIONREQUIREMENTS",
+    279856033: "IFCRELFLOWCONTROLELEMENTS",
+    3940055652: "IFCRELFILLSELEMENT",
+    781010003: "IFCRELDEFINESBYTYPE",
+    4186316022: "IFCRELDEFINESBYPROPERTIES",
+    693640335: "IFCRELDEFINES",
+    2551354335: "IFCRELDECOMPOSES",
+    2802773753: "IFCRELCOVERSSPACES",
+    886880790: "IFCRELCOVERSBLDGELEMENTS",
+    3242617779: "IFCRELCONTAINEDINSPATIALSTRUCTURE",
+    3678494232: "IFCRELCONNECTSWITHREALIZINGELEMENTS",
+    504942748: "IFCRELCONNECTSWITHECCENTRICITY",
+    1638771189: "IFCRELCONNECTSSTRUCTURALMEMBER",
+    3912681535: "IFCRELCONNECTSSTRUCTURALELEMENT",
+    2127690289: "IFCRELCONNECTSSTRUCTURALACTIVITY",
+    3190031847: "IFCRELCONNECTSPORTS",
+    4201705270: "IFCRELCONNECTSPORTTOELEMENT",
+    3945020480: "IFCRELCONNECTSPATHELEMENTS",
+    1204542856: "IFCRELCONNECTSELEMENTS",
+    826625072: "IFCRELCONNECTS",
+    2851387026: "IFCRELASSOCIATESPROFILEPROPERTIES",
+    2655215786: "IFCRELASSOCIATESMATERIAL",
+    3840914261: "IFCRELASSOCIATESLIBRARY",
+    982818633: "IFCRELASSOCIATESDOCUMENT",
+    2728634034: "IFCRELASSOCIATESCONSTRAINT",
+    919958153: "IFCRELASSOCIATESCLASSIFICATION",
+    4095574036: "IFCRELASSOCIATESAPPROVAL",
+    1327628568: "IFCRELASSOCIATESAPPLIEDVALUE",
+    1865459582: "IFCRELASSOCIATES",
+    205026976: "IFCRELASSIGNSTORESOURCE",
+    3372526763: "IFCRELASSIGNSTOPROJECTORDER",
+    2857406711: "IFCRELASSIGNSTOPRODUCT",
+    4278684876: "IFCRELASSIGNSTOPROCESS",
+    1307041759: "IFCRELASSIGNSTOGROUP",
+    2495723537: "IFCRELASSIGNSTOCONTROL",
+    1683148259: "IFCRELASSIGNSTOACTOR",
+    3939117080: "IFCRELASSIGNS",
+    3454111270: "IFCRECTANGULARTRIMMEDSURFACE",
+    2798486643: "IFCRECTANGULARPYRAMID",
+    2770003689: "IFCRECTANGLEHOLLOWPROFILEDEF",
+    3219374653: "IFCPROXY",
+    1451395588: "IFCPROPERTYSET",
+    4194566429: "IFCPROJECTIONCURVE",
+    103090709: "IFCPROJECT",
+    4208778838: "IFCPRODUCT",
+    2945172077: "IFCPROCESS",
+    220341763: "IFCPLANE",
+    603570806: "IFCPLANARBOX",
+    3566463478: "IFCPERMEABLECOVERINGPROPERTIES",
+    3505215534: "IFCOFFSETCURVE3D",
+    3388369263: "IFCOFFSETCURVE2D",
+    3888040117: "IFCOBJECT",
+    1425443689: "IFCMANIFOLDSOLIDBREP",
+    1281925730: "IFCLINE",
+    572779678: "IFCLSHAPEPROFILEDEF",
+    1484403080: "IFCISHAPEPROFILEDEF",
+    987898635: "IFCGEOMETRICCURVESET",
+    1268542332: "IFCFURNITURETYPE",
+    4238390223: "IFCFURNISHINGELEMENTTYPE",
+    3455213021: "IFCFLUIDFLOWPROPERTIES",
+    315944413: "IFCFILLAREASTYLETILES",
+    4203026998: "IFCFILLAREASTYLETILESYMBOLWITHSTYLE",
+    374418227: "IFCFILLAREASTYLEHATCHING",
+    2047409740: "IFCFACEBASEDSURFACEMODEL",
+    477187591: "IFCEXTRUDEDAREASOLID",
+    80994333: "IFCENERGYPROPERTIES",
+    2835456948: "IFCELLIPSEPROFILEDEF",
+    2777663545: "IFCELEMENTARYSURFACE",
+    339256511: "IFCELEMENTTYPE",
+    1883228015: "IFCELEMENTQUANTITY",
+    1472233963: "IFCEDGELOOP",
+    4006246654: "IFCDRAUGHTINGPREDEFINEDCURVEFONT",
+    445594917: "IFCDRAUGHTINGPREDEFINEDCOLOUR",
+    3073041342: "IFCDRAUGHTINGCALLOUT",
+    526551008: "IFCDOORSTYLE",
+    1714330368: "IFCDOORPANELPROPERTIES",
+    2963535650: "IFCDOORLININGPROPERTIES",
+    32440307: "IFCDIRECTION",
+    4054601972: "IFCDIMENSIONCURVETERMINATOR",
+    606661476: "IFCDIMENSIONCURVE",
+    693772133: "IFCDEFINEDSYMBOL",
+    2827736869: "IFCCURVEBOUNDEDPLANE",
+    2601014836: "IFCCURVE",
+    2147822146: "IFCCSGSOLID",
+    2506170314: "IFCCSGPRIMITIVE3D",
+    194851669: "IFCCRANERAILFSHAPEPROFILEDEF",
+    4133800736: "IFCCRANERAILASHAPEPROFILEDEF",
+    2485617015: "IFCCOMPOSITECURVESEGMENT",
+    2205249479: "IFCCLOSEDSHELL",
+    1383045692: "IFCCIRCLEPROFILEDEF",
+    1416205885: "IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM",
+    3331915920: "IFCCARTESIANTRANSFORMATIONOPERATOR3D",
+    3486308946: "IFCCARTESIANTRANSFORMATIONOPERATOR2DNONUNIFORM",
+    3749851601: "IFCCARTESIANTRANSFORMATIONOPERATOR2D",
+    59481748: "IFCCARTESIANTRANSFORMATIONOPERATOR",
+    1123145078: "IFCCARTESIANPOINT",
+    2898889636: "IFCCSHAPEPROFILEDEF",
+    2713105998: "IFCBOXEDHALFSPACE",
+    2581212453: "IFCBOUNDINGBOX",
+    4182860854: "IFCBOUNDEDSURFACE",
+    2736907675: "IFCBOOLEANRESULT",
+    2740243338: "IFCAXIS2PLACEMENT3D",
+    3125803723: "IFCAXIS2PLACEMENT2D",
+    4261334040: "IFCAXIS1PLACEMENT",
+    1302238472: "IFCANNOTATIONSURFACE",
+    2265737646: "IFCANNOTATIONFILLAREAOCCURRENCE",
+    669184980: "IFCANNOTATIONFILLAREA",
+    3288037868: "IFCANNOTATIONCURVEOCCURRENCE",
+    2543172580: "IFCZSHAPEPROFILEDEF",
+    1299126871: "IFCWINDOWSTYLE",
+    512836454: "IFCWINDOWPANELPROPERTIES",
+    336235671: "IFCWINDOWLININGPROPERTIES",
+    2759199220: "IFCVERTEXLOOP",
+    1417489154: "IFCVECTOR",
+    427810014: "IFCUSHAPEPROFILEDEF",
+    2347495698: "IFCTYPEPRODUCT",
+    1628702193: "IFCTYPEOBJECT",
+    1345879162: "IFCTWODIRECTIONREPEATFACTOR",
+    2715220739: "IFCTRAPEZIUMPROFILEDEF",
+    3124975700: "IFCTEXTLITERALWITHEXTENT",
+    4282788508: "IFCTEXTLITERAL",
+    3028897424: "IFCTERMINATORSYMBOL",
+    3071757647: "IFCTSHAPEPROFILEDEF",
+    230924584: "IFCSWEPTSURFACE",
+    1260650574: "IFCSWEPTDISKSOLID",
+    2247615214: "IFCSWEPTAREASOLID",
+    1878645084: "IFCSURFACESTYLERENDERING",
+    2513912981: "IFCSURFACE",
+    2233826070: "IFCSUBEDGE",
+    3653947884: "IFCSTRUCTURALSTEELPROFILEPROPERTIES",
+    3843319758: "IFCSTRUCTURALPROFILEPROPERTIES",
+    1190533807: "IFCSTRUCTURALLOADSINGLEFORCEWARPING",
+    1597423693: "IFCSTRUCTURALLOADSINGLEFORCE",
+    1973038258: "IFCSTRUCTURALLOADSINGLEDISPLACEMENTDISTORTION",
+    2473145415: "IFCSTRUCTURALLOADSINGLEDISPLACEMENT",
+    2668620305: "IFCSTRUCTURALLOADPLANARFORCE",
+    1595516126: "IFCSTRUCTURALLOADLINEARFORCE",
+    390701378: "IFCSPACETHERMALLOADPROPERTIES",
+    1202362311: "IFCSOUNDVALUE",
+    2485662743: "IFCSOUNDPROPERTIES",
+    723233188: "IFCSOLIDMODEL",
+    2609359061: "IFCSLIPPAGECONNECTIONCONDITION",
+    4124623270: "IFCSHELLBASEDSURFACEMODEL",
+    2411513650: "IFCSERVICELIFEFACTOR",
+    1509187699: "IFCSECTIONEDSPINE",
+    2778083089: "IFCROUNDEDRECTANGLEPROFILEDEF",
+    478536968: "IFCRELATIONSHIP",
+    3765753017: "IFCREINFORCEMENTDEFINITIONPROPERTIES",
+    3413951693: "IFCREGULARTIMESERIES",
+    3615266464: "IFCRECTANGLEPROFILEDEF",
+    110355661: "IFCPROPERTYTABLEVALUE",
+    3650150729: "IFCPROPERTYSINGLEVALUE",
+    3357820518: "IFCPROPERTYSETDEFINITION",
+    941946838: "IFCPROPERTYREFERENCEVALUE",
+    2752243245: "IFCPROPERTYLISTVALUE",
+    4166981789: "IFCPROPERTYENUMERATEDVALUE",
+    1680319473: "IFCPROPERTYDEFINITION",
+    871118103: "IFCPROPERTYBOUNDEDVALUE",
+    673634403: "IFCPRODUCTDEFINITIONSHAPE",
+    179317114: "IFCPREDEFINEDPOINTMARKERSYMBOL",
+    433424934: "IFCPREDEFINEDDIMENSIONSYMBOL",
+    2559016684: "IFCPREDEFINEDCURVEFONT",
+    759155922: "IFCPREDEFINEDCOLOUR",
+    2775532180: "IFCPOLYGONALBOUNDEDHALFSPACE",
+    2924175390: "IFCPOLYLOOP",
+    1423911732: "IFCPOINTONSURFACE",
+    4022376103: "IFCPOINTONCURVE",
+    2067069095: "IFCPOINT",
+    1663979128: "IFCPLANAREXTENT",
+    2004835150: "IFCPLACEMENT",
+    597895409: "IFCPIXELTEXTURE",
+    3021840470: "IFCPHYSICALCOMPLEXQUANTITY",
+    2519244187: "IFCPATH",
+    2529465313: "IFCPARAMETERIZEDPROFILEDEF",
+    1029017970: "IFCORIENTEDEDGE",
+    2665983363: "IFCOPENSHELL",
+    2833995503: "IFCONEDIRECTIONREPEATFACTOR",
+    219451334: "IFCOBJECTDEFINITION",
+    1430189142: "IFCMECHANICALCONCRETEMATERIALPROPERTIES",
+    2022407955: "IFCMATERIALDEFINITIONREPRESENTATION",
+    2347385850: "IFCMAPPEDITEM",
+    1008929658: "IFCLOOP",
+    2624227202: "IFCLOCALPLACEMENT",
+    3422422726: "IFCLIGHTSOURCESPOT",
+    1520743889: "IFCLIGHTSOURCEPOSITIONAL",
+    4266656042: "IFCLIGHTSOURCEGONIOMETRIC",
+    2604431987: "IFCLIGHTSOURCEDIRECTIONAL",
+    125510826: "IFCLIGHTSOURCEAMBIENT",
+    1402838566: "IFCLIGHTSOURCE",
+    3741457305: "IFCIRREGULARTIMESERIES",
+    3905492369: "IFCIMAGETEXTURE",
+    2445078500: "IFCHYGROSCOPICMATERIALPROPERTIES",
+    812098782: "IFCHALFSPACESOLID",
+    178086475: "IFCGRIDPLACEMENT",
+    3590301190: "IFCGEOMETRICSET",
+    4142052618: "IFCGEOMETRICREPRESENTATIONSUBCONTEXT",
+    2453401579: "IFCGEOMETRICREPRESENTATIONITEM",
+    3448662350: "IFCGEOMETRICREPRESENTATIONCONTEXT",
+    1446786286: "IFCGENERALPROFILEPROPERTIES",
+    803998398: "IFCGENERALMATERIALPROPERTIES",
+    3857492461: "IFCFUELPROPERTIES",
+    738692330: "IFCFILLAREASTYLE",
+    4219587988: "IFCFAILURECONNECTIONCONDITION",
+    3008276851: "IFCFACESURFACE",
+    803316827: "IFCFACEOUTERBOUND",
+    1809719519: "IFCFACEBOUND",
+    2556980723: "IFCFACE",
+    1860660968: "IFCEXTENDEDMATERIALPROPERTIES",
+    476780140: "IFCEDGECURVE",
+    3900360178: "IFCEDGE",
+    4170525392: "IFCDRAUGHTINGPREDEFINEDTEXTFONT",
+    3732053477: "IFCDOCUMENTREFERENCE",
+    1694125774: "IFCDIMENSIONPAIR",
+    2273265877: "IFCDIMENSIONCALLOUTRELATIONSHIP",
+    3632507154: "IFCDERIVEDPROFILEDEF",
+    3800577675: "IFCCURVESTYLE",
+    2889183280: "IFCCONVERSIONBASEDUNIT",
+    3050246964: "IFCCONTEXTDEPENDENTUNIT",
+    45288368: "IFCCONNECTIONPOINTECCENTRICITY",
+    1981873012: "IFCCONNECTIONCURVEGEOMETRY",
+    370225590: "IFCCONNECTEDFACESET",
+    1485152156: "IFCCOMPOSITEPROFILEDEF",
+    2542286263: "IFCCOMPLEXPROPERTY",
+    776857604: "IFCCOLOURRGB",
+    647927063: "IFCCLASSIFICATIONREFERENCE",
+    3150382593: "IFCCENTERLINEPROFILEDEF",
+    616511568: "IFCBLOBTEXTURE",
+    2705031697: "IFCARBITRARYPROFILEDEFWITHVOIDS",
+    1310608509: "IFCARBITRARYOPENPROFILEDEF",
+    3798115385: "IFCARBITRARYCLOSEDPROFILEDEF",
+    2297822566: "IFCANNOTATIONTEXTOCCURRENCE",
+    3612888222: "IFCANNOTATIONSYMBOLOCCURRENCE",
+    962685235: "IFCANNOTATIONSURFACEOCCURRENCE",
+    2442683028: "IFCANNOTATIONOCCURRENCE",
+    1065908215: "IFCWATERPROPERTIES",
+    891718957: "IFCVIRTUALGRIDINTERSECTION",
+    1907098498: "IFCVERTEXPOINT",
+    3304826586: "IFCVERTEXBASEDTEXTUREMAP",
+    2799835756: "IFCVERTEX",
+    180925521: "IFCUNITASSIGNMENT",
+    1735638870: "IFCTOPOLOGYREPRESENTATION",
+    1377556343: "IFCTOPOLOGICALREPRESENTATIONITEM",
+    581633288: "IFCTIMESERIESVALUE",
+    1718945513: "IFCTIMESERIESREFERENCERELATIONSHIP",
+    3101149627: "IFCTIMESERIES",
+    3317419933: "IFCTHERMALMATERIALPROPERTIES",
+    1210645708: "IFCTEXTUREVERTEX",
+    2552916305: "IFCTEXTUREMAP",
+    1742049831: "IFCTEXTURECOORDINATEGENERATOR",
+    280115917: "IFCTEXTURECOORDINATE",
+    1484833681: "IFCTEXTSTYLEWITHBOXCHARACTERISTICS",
+    1640371178: "IFCTEXTSTYLETEXTMODEL",
+    2636378356: "IFCTEXTSTYLEFORDEFINEDFONT",
+    1983826977: "IFCTEXTSTYLEFONTMODEL",
+    1447204868: "IFCTEXTSTYLE",
+    912023232: "IFCTELECOMADDRESS",
+    531007025: "IFCTABLEROW",
+    985171141: "IFCTABLE",
+    1290481447: "IFCSYMBOLSTYLE",
+    626085974: "IFCSURFACETEXTURE",
+    1351298697: "IFCSURFACESTYLEWITHTEXTURES",
+    846575682: "IFCSURFACESTYLESHADING",
+    1607154358: "IFCSURFACESTYLEREFRACTION",
+    3303107099: "IFCSURFACESTYLELIGHTING",
+    1300840506: "IFCSURFACESTYLE",
+    3049322572: "IFCSTYLEDREPRESENTATION",
+    3958052878: "IFCSTYLEDITEM",
+    2830218821: "IFCSTYLEMODEL",
+    3408363356: "IFCSTRUCTURALLOADTEMPERATURE",
+    2525727697: "IFCSTRUCTURALLOADSTATIC",
+    2162789131: "IFCSTRUCTURALLOAD",
+    2273995522: "IFCSTRUCTURALCONNECTIONCONDITION",
+    3692461612: "IFCSIMPLEPROPERTY",
+    4240577450: "IFCSHAPEREPRESENTATION",
+    3982875396: "IFCSHAPEMODEL",
+    867548509: "IFCSHAPEASPECT",
+    4165799628: "IFCSECTIONREINFORCEMENTPROPERTIES",
+    2042790032: "IFCSECTIONPROPERTIES",
+    448429030: "IFCSIUNIT",
+    2341007311: "IFCROOT",
+    3679540991: "IFCRIBPLATEPROFILEPROPERTIES",
+    1660063152: "IFCREPRESENTATIONMAP",
+    3008791417: "IFCREPRESENTATIONITEM",
+    3377609919: "IFCREPRESENTATIONCONTEXT",
+    1076942058: "IFCREPRESENTATION",
+    1222501353: "IFCRELAXATION",
+    1580146022: "IFCREINFORCEMENTBARPROPERTIES",
+    2692823254: "IFCREFERENCESVALUEDOCUMENT",
+    825690147: "IFCQUANTITYWEIGHT",
+    2405470396: "IFCQUANTITYVOLUME",
+    3252649465: "IFCQUANTITYTIME",
+    931644368: "IFCQUANTITYLENGTH",
+    2093928680: "IFCQUANTITYCOUNT",
+    2044713172: "IFCQUANTITYAREA",
+    3710013099: "IFCPROPERTYENUMERATION",
+    148025276: "IFCPROPERTYDEPENDENCYRELATIONSHIP",
+    3896028662: "IFCPROPERTYCONSTRAINTRELATIONSHIP",
+    2598011224: "IFCPROPERTY",
+    2802850158: "IFCPROFILEPROPERTIES",
+    3958567839: "IFCPROFILEDEF",
+    2267347899: "IFCPRODUCTSOFCOMBUSTIONPROPERTIES",
+    2095639259: "IFCPRODUCTREPRESENTATION",
+    2417041796: "IFCPRESENTATIONSTYLEASSIGNMENT",
+    3119450353: "IFCPRESENTATIONSTYLE",
+    1304840413: "IFCPRESENTATIONLAYERWITHSTYLE",
+    2022622350: "IFCPRESENTATIONLAYERASSIGNMENT",
+    1775413392: "IFCPREDEFINEDTEXTFONT",
+    3213052703: "IFCPREDEFINEDTERMINATORSYMBOL",
+    990879717: "IFCPREDEFINEDSYMBOL",
+    3727388367: "IFCPREDEFINEDITEM",
+    3355820592: "IFCPOSTALADDRESS",
+    2226359599: "IFCPHYSICALSIMPLEQUANTITY",
+    2483315170: "IFCPHYSICALQUANTITY",
+    101040310: "IFCPERSONANDORGANIZATION",
+    2077209135: "IFCPERSON",
+    1207048766: "IFCOWNERHISTORY",
+    1411181986: "IFCORGANIZATIONRELATIONSHIP",
+    4251960020: "IFCORGANIZATION",
+    1227763645: "IFCOPTICALMATERIALPROPERTIES",
+    2251480897: "IFCOBJECTIVE",
+    3701648758: "IFCOBJECTPLACEMENT",
+    1918398963: "IFCNAMEDUNIT",
+    2706619895: "IFCMONETARYUNIT",
+    3368373690: "IFCMETRIC",
+    677618848: "IFCMECHANICALSTEELMATERIALPROPERTIES",
+    4256014907: "IFCMECHANICALMATERIALPROPERTIES",
+    2597039031: "IFCMEASUREWITHUNIT",
+    3265635763: "IFCMATERIALPROPERTIES",
+    2199411900: "IFCMATERIALLIST",
+    1303795690: "IFCMATERIALLAYERSETUSAGE",
+    3303938423: "IFCMATERIALLAYERSET",
+    248100487: "IFCMATERIALLAYER",
+    1847130766: "IFCMATERIALCLASSIFICATIONRELATIONSHIP",
+    1838606355: "IFCMATERIAL",
+    30780891: "IFCLOCALTIME",
+    1566485204: "IFCLIGHTINTENSITYDISTRIBUTION",
+    4162380809: "IFCLIGHTDISTRIBUTIONDATA",
+    3452421091: "IFCLIBRARYREFERENCE",
+    2655187982: "IFCLIBRARYINFORMATION",
+    3020489413: "IFCIRREGULARTIMESERIESVALUE",
+    852622518: "IFCGRIDAXIS",
+    3548104201: "IFCEXTERNALLYDEFINEDTEXTFONT",
+    3207319532: "IFCEXTERNALLYDEFINEDSYMBOL",
+    1040185647: "IFCEXTERNALLYDEFINEDSURFACESTYLE",
+    2242383968: "IFCEXTERNALLYDEFINEDHATCHSTYLE",
+    3200245327: "IFCEXTERNALREFERENCE",
+    1648886627: "IFCENVIRONMENTALIMPACTVALUE",
+    3796139169: "IFCDRAUGHTINGCALLOUTRELATIONSHIP",
+    770865208: "IFCDOCUMENTINFORMATIONRELATIONSHIP",
+    1154170062: "IFCDOCUMENTINFORMATION",
+    1376555844: "IFCDOCUMENTELECTRONICFORMAT",
+    2949456006: "IFCDIMENSIONALEXPONENTS",
+    1045800335: "IFCDERIVEDUNITELEMENT",
+    1765591967: "IFCDERIVEDUNIT",
+    1072939445: "IFCDATEANDTIME",
+    3510044353: "IFCCURVESTYLEFONTPATTERN",
+    2367409068: "IFCCURVESTYLEFONTANDSCALING",
+    1105321065: "IFCCURVESTYLEFONT",
+    539742890: "IFCCURRENCYRELATIONSHIP",
+    602808272: "IFCCOSTVALUE",
+    1065062679: "IFCCOORDINATEDUNIVERSALTIMEOFFSET",
+    347226245: "IFCCONSTRAINTRELATIONSHIP",
+    613356794: "IFCCONSTRAINTCLASSIFICATIONRELATIONSHIP",
+    1658513725: "IFCCONSTRAINTAGGREGATIONRELATIONSHIP",
+    1959218052: "IFCCONSTRAINT",
+    2732653382: "IFCCONNECTIONSURFACEGEOMETRY",
+    4257277454: "IFCCONNECTIONPORTGEOMETRY",
+    2614616156: "IFCCONNECTIONPOINTGEOMETRY",
+    2859738748: "IFCCONNECTIONGEOMETRY",
+    3264961684: "IFCCOLOURSPECIFICATION",
+    3639012971: "IFCCLASSIFICATIONNOTATIONFACET",
+    938368621: "IFCCLASSIFICATIONNOTATION",
+    1098599126: "IFCCLASSIFICATIONITEMRELATIONSHIP",
+    1767535486: "IFCCLASSIFICATIONITEM",
+    747523909: "IFCCLASSIFICATION",
+    622194075: "IFCCALENDARDATE",
+    2069777674: "IFCBOUNDARYNODECONDITIONWARPING",
+    1387855156: "IFCBOUNDARYNODECONDITION",
+    3367102660: "IFCBOUNDARYFACECONDITION",
+    1560379544: "IFCBOUNDARYEDGECONDITION",
+    4037036970: "IFCBOUNDARYCONDITION",
+    3869604511: "IFCAPPROVALRELATIONSHIP",
+    390851274: "IFCAPPROVALPROPERTYRELATIONSHIP",
+    2080292479: "IFCAPPROVALACTORRELATIONSHIP",
+    130549933: "IFCAPPROVAL",
+    1110488051: "IFCAPPLIEDVALUERELATIONSHIP",
+    411424972: "IFCAPPLIEDVALUE",
+    639542469: "IFCAPPLICATION",
+    618182010: "IFCADDRESS",
+    3630933823: "IFCACTORROLE",
+    599546466: "FILE_DESCRIPTION",
+    1390159747: "FILE_NAME",
+    1109904537: "FILE_SCHEMA",
 };
 
 class IfcPropertiesUtils {
@@ -107371,8 +106536,10 @@ class ClippingEdges extends Component {
         const attributes = edges.mesh.geometry.attributes;
         const position = attributes.position;
         if (!Number.isNaN(position.array[0])) {
-            const scene = this.components.scene.get();
-            scene.add(edges.mesh);
+            if (!edges.mesh.parent) {
+                const scene = this.components.scene.get();
+                scene.add(edges.mesh);
+            }
             if (this.fillNeedsUpdate && edges.fill) {
                 edges.fill.geometry = edges.mesh.geometry;
                 edges.fill.update(indexes);
@@ -108637,7 +107804,7 @@ class FragmentIfcStreamConverter extends Component {
         }
         const matrix = this._webIfc.GetCoordinationMatrix(0);
         group.coordinationMatrix.fromArray(matrix);
-        group.ifcCivil = this._civil.read(this._webIfc);
+        group.civilData = this._civil.read(this._webIfc);
         const buffer = this._groupSerializer.export(group);
         await this.onIfcLoaded.trigger(buffer);
         group.dispose(true);
@@ -121844,276 +121011,1558 @@ class RoadNavigator extends Component {
     constructor(components) {
         super(components);
         this.enabled = true;
-        this.uiElement = new UIElement();
-        this._selected = null;
-        this._anchor = new THREE$1.Vector3();
-        this._anchorID = "thatopen-roadnavigator-anchor";
-        this._anchors = {
-            horizontal: new THREE$1.Vector2(),
-            horizontalIndex: 0,
-            real: new THREE$1.Vector3(),
+        this.onHighlight = new Event();
+        this.onMarkerChange = new Event();
+        this.onMarkerHidden = new Event();
+        this._curveMeshes = [];
+        this._previousAlignment = null;
+        this.scene = new Simple2DScene(this.components, false);
+        this.mouseMarkers = {
+            select: this.newMouseMarker("#ffffff"),
+            hover: this.newMouseMarker("#575757"),
         };
-        this._caster = new THREE$1.Raycaster();
-        const threshold = 5;
-        this._caster.params.Line = { threshold };
-        this.components.tools.add(RoadNavigator.uuid, this);
-        this._scenes = {
-            horizontal: new Simple2DScene(this.components, false),
-            vertical: new Simple2DScene(this.components, false),
-        };
-        this._points = {
-            horizontal: new THREE$1.Points(new THREE$1.BufferGeometry(), new THREE$1.PointsMaterial({
-                size: 10,
-            })),
-        };
-        this._points.horizontal.frustumCulled = false;
-        this._scenes.horizontal.scene.add(this._points.horizontal);
-        this._alignments = {
-            horizontal: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
-            vertical: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
-            real: new THREE$1.LineSegments(new THREE$1.BufferGeometry(), new THREE$1.LineBasicMaterial()),
-        };
-        this._alignments.real.frustumCulled = false;
-        this._scenes.vertical.get().add(this._alignments.vertical);
-        this._scenes.horizontal.get().add(this._alignments.horizontal);
-        const scene = this.components.scene.get();
-        scene.add(this._alignments.real);
-        const hRenderer = this._scenes.horizontal.renderer.get();
-        const hCamera = this._scenes.horizontal.camera;
-        hRenderer.domElement.addEventListener("click", (event) => {
-            if (!this._selected || !this._selected.ifcCivil)
-                return;
-            const lim = hRenderer.domElement.getBoundingClientRect();
-            const y = -((event.clientY - lim.top) / (lim.bottom - lim.top)) * 2 + 1;
-            const x = ((event.clientX - lim.left) / (lim.right - lim.left)) * 2 - 1;
-            const position = new THREE$1.Vector2(x, y);
-            this._caster.setFromCamera(position, hCamera);
-            const result = this._caster.intersectObject(this._alignments.horizontal);
-            if (result.length) {
-                const { index, point } = result[0];
-                if (index === undefined)
-                    return;
-                const geom = this._alignments.horizontal.geometry;
-                if (!geom.index)
-                    return;
-                const pos = geom.attributes.position;
-                const pointIndex1 = geom.index.array[index];
-                const pointIndex2 = geom.index.array[index + 1];
-                const x1 = pos.getX(pointIndex1);
-                const y1 = pos.getY(pointIndex1);
-                const x2 = pos.getX(pointIndex2);
-                const y2 = pos.getY(pointIndex2);
-                const dist1 = new THREE$1.Vector3(x1, y1, 0).distanceTo(point);
-                const dist2 = new THREE$1.Vector3(x2, y2, 0).distanceTo(point);
-                const isFirst = dist1 < dist2;
-                const x = isFirst ? x1 : x2;
-                const y = isFirst ? y1 : y2;
-                this._anchors.horizontal.set(x, y);
-                this._anchors.horizontalIndex = isFirst ? pointIndex1 : pointIndex2;
-                const { horizontal } = this._points;
-                const coordsBuffer = new Float32Array([x, y, 0]);
-                const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
-                horizontal.geometry.setAttribute("position", coordsAttr);
-                let verticalIndex = -1;
-                const alignmentIndex = this._selected.ifcCivil.horizontalAlignments.alignmentIndex;
-                if (pointIndex1 >= alignmentIndex[alignmentIndex.length - 1]) {
-                    verticalIndex = alignmentIndex.length - 1;
+        this.setupEvents();
+        this.adjustRaycasterOnZoom();
+    }
+    initialize() {
+        console.log("View for RoadNavigator: ", this.view);
+    }
+    get() {
+        return null;
+    }
+    async draw(model, filter) {
+        if (!model.civilData) {
+            throw new Error("The provided model doesn't have civil data!");
+        }
+        const { alignments } = model.civilData;
+        const allAlignments = filter || alignments.values();
+        const scene = this.scene.get();
+        const totalBBox = new THREE$1.Box3();
+        totalBBox.makeEmpty();
+        totalBBox.min.set(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+        totalBBox.max.set(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+        for (const alignment of allAlignments) {
+            if (!alignment) {
+                throw new Error("Alignment not found!");
+            }
+            for (const curve of alignment[this.view]) {
+                scene.add(curve.mesh);
+                this._curveMeshes.push(curve.mesh);
+                if (!totalBBox.isEmpty()) {
+                    totalBBox.expandByObject(curve.mesh);
                 }
                 else {
-                    for (let i = 0; i < alignmentIndex.length - 1; i++) {
-                        const start = alignmentIndex[i];
-                        const end = alignmentIndex[i + 1];
-                        if (pointIndex1 >= start && pointIndex1 < end) {
-                            verticalIndex = i;
-                        }
-                    }
-                }
-                this.getAlignmentGeometry(this._selected.ifcCivil.verticalAlignments, this._alignments.vertical.geometry, false, verticalIndex);
-                // const { alignmentIndex } = this._selected.ifcCivil.horizontalAlignments;
-                // let counter = 0;
-                // for (let i = 0; i < alignmentIndex.length; i++) {
-                // const currentAlignment = alignmentIndex[i];
-                // if (currentAlignment > index) {
-                //   console.log(`Selected alignment: ${counter - 1}`);
-                //   break;
-                // }
-                // counter++;
-                // }
-            }
-        });
-        if (this.components.uiEnabled) {
-            this.setUI();
-        }
-    }
-    get() { }
-    select(model) {
-        if (!model.ifcCivil) {
-            console.warn("The provided model doesn't have civil data!");
-            return;
-        }
-        this._selected = model;
-        this.getAlignmentGeometry(model.ifcCivil.horizontalAlignments, this._alignments.horizontal.geometry, false);
-        this.getAlignmentGeometry(model.ifcCivil.realAlignments, this._alignments.real.geometry, true);
-    }
-    setAnchor() {
-        if (!this._selected || !this._selected.ifcCivil)
-            return;
-        const result = this.components.raycaster.castRay([this._selected]);
-        if (result === null)
-            return;
-        this._anchors.real.copy(result.point);
-        const { horizontal, real, horizontalIndex } = this._anchors;
-        const geom = this._alignments.real.geometry;
-        const yPosition3D = geom.attributes.position.getY(horizontalIndex);
-        this._anchor.x = real.x - horizontal.x;
-        this._anchor.z = real.z + horizontal.y;
-        this._anchor.y = real.y - yPosition3D;
-        this.updateAnchor();
-    }
-    saveAnchor() {
-        const { x, y, z } = this._anchor;
-        localStorage.setItem(this._anchorID, `${x}_${y}_${z}`);
-    }
-    loadAnchor() {
-        const serialized = localStorage.getItem(this._anchorID);
-        if (!serialized)
-            return;
-        const [x, y, z] = serialized.split("_").map((item) => parseFloat(item));
-        this._anchor.set(x, y, z);
-        this.updateAnchor();
-    }
-    updateAnchor() {
-        const position = this._alignments.real.position;
-        position.copy(this._anchor);
-    }
-    getAlignmentGeometry(alignment, geometry, is3D, selectedIndex = -1) {
-        const data = this.getAlignmentData(alignment, is3D, selectedIndex);
-        const coordsBuffer = new Float32Array(data.coords);
-        const coordsAttr = new THREE$1.BufferAttribute(coordsBuffer, 3);
-        geometry.setAttribute("position", coordsAttr);
-        geometry.setIndex(data.index);
-    }
-    getAlignmentData(alignment, is3D, selectedIndex = -1) {
-        const coords = [];
-        const index = [];
-        const { coordinates, curveIndex } = alignment;
-        const offsetX = coordinates[0];
-        const offsetY = coordinates[1];
-        const offsetZ = is3D ? coordinates[2] : 0;
-        let isSegmentStart = true;
-        const factor = is3D ? 3 : 2;
-        const last = coordinates.length / factor - 1;
-        if (selectedIndex === -1) {
-            for (let i = 0; i < curveIndex.length; i++) {
-                const start = curveIndex[i];
-                const isLast = i === curveIndex.length - 1;
-                const end = isLast ? last : curveIndex[i + 1];
-                isSegmentStart = true;
-                for (let j = start; j < end; j++) {
-                    const x = coordinates[j * factor] - offsetX;
-                    const y = coordinates[j * factor + 1] - offsetY;
-                    const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
-                    coords.push(x, y, z);
-                    if (isSegmentStart) {
-                        isSegmentStart = false;
-                    }
-                    else {
-                        index.push(j - 1, j);
+                    curve.mesh.geometry.computeBoundingBox();
+                    const cbox = curve.mesh.geometry.boundingBox;
+                    if (cbox instanceof THREE$1.Box3) {
+                        totalBBox.copy(cbox).applyMatrix4(curve.mesh.matrixWorld);
                     }
                 }
             }
         }
-        else {
-            let counter = 0;
-            for (let i = 0; i < curveIndex.length; i++) {
-                if (selectedIndex === this.currentAlignment(alignment, curveIndex[i])) {
-                    const start = curveIndex[i];
-                    const isLast = i === curveIndex.length - 1;
-                    const end = isLast ? last : curveIndex[i + 1];
-                    isSegmentStart = true;
-                    for (let j = start; j < end; j++) {
-                        const x = coordinates[j * factor] - offsetX;
-                        const y = coordinates[j * factor + 1] - offsetY;
-                        const z = is3D ? coordinates[j * factor + 2] - offsetZ : 0;
-                        coords.push(x, y, z);
-                        if (isSegmentStart) {
-                            isSegmentStart = false;
-                        }
-                        else {
-                            index.push(counter - 1, counter);
-                        }
-                        counter++;
-                    }
+        const scaledBbox = new THREE$1.Box3();
+        const size = new THREE$1.Vector3();
+        const center = new THREE$1.Vector3();
+        totalBBox.getCenter(center);
+        totalBBox.getSize(size);
+        size.multiplyScalar(1.2);
+        scaledBbox.setFromCenterAndSize(center, size);
+        await this.scene.controls.fitToBox(scaledBbox, false);
+    }
+    setupEvents() {
+        this.scene.uiElement
+            .get("container")
+            .domElement.addEventListener("mousemove", async (event) => {
+            const dom = this.scene.uiElement.get("container").domElement;
+            const result = this.highlighter.castRay(event, this.scene.camera, dom, this._curveMeshes);
+            if (result) {
+                const { object } = result;
+                this.highlighter.hover(object);
+                await this.updateMarker(result, "hover");
+                return;
+            }
+            this.mouseMarkers.hover.visible = false;
+            this.highlighter.unHover();
+            await this.onMarkerHidden.trigger({ type: "hover" });
+        });
+        this.scene.uiElement
+            .get("container")
+            .domElement.addEventListener("click", async (event) => {
+            const dom = this.scene.uiElement.get("container").domElement;
+            const intersects = this.highlighter.castRay(event, this.scene.camera, dom, this._curveMeshes);
+            if (intersects) {
+                const result = intersects;
+                const mesh = result.object;
+                this.highlighter.select(mesh);
+                await this.updateMarker(result, "select");
+                await this.onHighlight.trigger({ mesh, point: result.point });
+                if (this._previousAlignment !== mesh.curve.alignment) {
+                    this.kpManager.clearKPStations();
+                    // this.showKPStations(mesh);
+                    this.kpManager.showKPStations(mesh);
+                    // this.kpManager.createKP();
+                    this._previousAlignment = mesh.curve.alignment;
                 }
             }
-        }
-        return { coords, index };
+            // this.highlighter.unSelect();
+            // this.clearKPStations();
+        });
     }
-    currentAlignment(alignment, curveIndex) {
-        const last = alignment.alignmentIndex.length - 1;
-        if (curveIndex >= alignment.alignmentIndex[last]) {
-            return last;
-        }
-        for (let i = 0; i < alignment.alignmentIndex.length - 1; i++) {
-            const start = alignment.alignmentIndex[i];
-            const end = alignment.alignmentIndex[i + 1];
-            if (curveIndex >= start && curveIndex < end) {
-                return i;
-            }
-        }
-        return -1;
+    async dispose() {
+        this.highlighter.dispose();
+        this.clear();
+        this.onHighlight.reset();
+        await this.scene.dispose();
+        this._curveMeshes = [];
     }
-    setUI() {
-        const horizontalAlignment = new FloatingWindow(this.components);
-        this.components.ui.add(horizontalAlignment);
-        horizontalAlignment.visible = false;
-        const hContainer = this._scenes.horizontal.uiElement.get("container");
-        horizontalAlignment.addChild(hContainer);
-        horizontalAlignment.onResized.add(() => this._scenes.horizontal.grid.regenerate());
-        horizontalAlignment.slots.content.domElement.style.padding = "0";
-        horizontalAlignment.slots.content.domElement.style.overflow = "hidden";
-        horizontalAlignment.onResized.add(() => {
-            const { width, height } = horizontalAlignment.containerSize;
-            this._scenes.horizontal.setSize(height, width);
-        });
-        horizontalAlignment.domElement.style.width = "20rem";
-        horizontalAlignment.domElement.style.height = "20rem";
-        horizontalAlignment.onVisible.add(() => {
-            if (horizontalAlignment.visible) {
-                this._scenes.horizontal.grid.regenerate();
-            }
-        });
-        const verticalAlignment = new Drawer(this.components);
-        this.components.ui.add(verticalAlignment);
-        verticalAlignment.alignment = "top";
-        verticalAlignment.onVisible.add(() => {
-            this._scenes.vertical.grid.regenerate();
-        });
-        verticalAlignment.visible = false;
-        verticalAlignment.slots.content.domElement.style.padding = "0";
-        verticalAlignment.slots.content.domElement.style.overflow = "hidden";
-        const { clientWidth, clientHeight } = verticalAlignment.domElement;
-        this._scenes.vertical.setSize(clientHeight, clientWidth);
-        const vContainer = this._scenes.vertical.uiElement.get("container");
-        verticalAlignment.addChild(vContainer);
-        if (this.components.renderer.isUpdateable()) {
-            this.components.renderer.onAfterUpdate.add(async () => {
-                if (horizontalAlignment.visible) {
-                    await this._scenes.horizontal.update();
+    clear() {
+        this.highlighter.unSelect();
+        this.highlighter.unHover();
+        for (const mesh of this._curveMeshes) {
+            mesh.removeFromParent();
+        }
+        this._curveMeshes = [];
+    }
+    setMarker(alignment, percentage, type) {
+        if (!this._curveMeshes.length) {
+            return;
+        }
+        const found = alignment.getCurveAt(percentage, this.view);
+        const point = alignment.getPointAt(percentage, this.view);
+        const { index } = found.curve.getSegmentAt(found.percentage);
+        this.setMouseMarker(point, found.curve.mesh, index, type);
+    }
+    setDefSegments(segmentsArray) {
+        const defSegments = [];
+        const slope = [];
+        const calculateSlopeSegment = (point1, point2) => {
+            const deltaY = point2[1] - point1[1];
+            const deltaX = point2[0] - point1[0];
+            return deltaY / deltaX;
+        };
+        for (let i = 0; i < segmentsArray.length; i++) {
+            const segment = segmentsArray[i];
+            let startX;
+            let startY;
+            let endX;
+            let endY;
+            // Set start
+            for (let j = 0; j < Object.keys(segment).length / 3; j++) {
+                if (segment[j * 3] !== undefined && segment[j * 3 + 1] !== undefined) {
+                    startX = segment[j * 3];
+                    startY = segment[j * 3 + 1];
+                    break;
                 }
-                if (verticalAlignment.visible) {
-                    await this._scenes.vertical.update();
+            }
+            // Set end
+            for (let j = Object.keys(segment).length / 3 - 1; j >= 0; j--) {
+                if (segment[j * 3] !== undefined && segment[j * 3 + 1] !== undefined) {
+                    endX = segment[j * 3];
+                    endY = segment[j * 3 + 1];
+                    break;
+                }
+            }
+            const defSlope = calculateSlopeSegment(
+            // @ts-ignore
+            [startX, startY], 
+            // @ts-ignore
+            [endX, endY]);
+            const slopeSegment = (defSlope * 100).toFixed(2);
+            slope.push({ slope: slopeSegment });
+        }
+        segmentsArray.forEach((segment) => {
+            for (let i = 0; i < segment.length - 3; i += 3) {
+                const startX = segment[i];
+                const startY = segment[i + 1];
+                const startZ = segment[i + 2];
+                const endX = segment[i + 3];
+                const endY = segment[i + 4];
+                const endZ = segment[i + 5];
+                defSegments.push({
+                    start: new THREE$1.Vector3(startX, startY, startZ),
+                    end: new THREE$1.Vector3(endX, endY, endZ),
+                });
+            }
+        });
+        return { defSegments, slope };
+    }
+    hideMarker(type) {
+        this.mouseMarkers[type].visible = false;
+    }
+    adjustRaycasterOnZoom() {
+        this.scene.controls.addEventListener("update", () => {
+            const { zoom, left, right, top, bottom } = this.scene.camera;
+            const width = left - right;
+            const height = top - bottom;
+            const screenSize = Math.max(width, height);
+            const realScreenSize = screenSize / zoom;
+            const range = 40;
+            const { caster } = this.highlighter;
+            caster.params.Line.threshold = realScreenSize / range;
+        });
+    }
+    newMouseMarker(color) {
+        const scene = this.scene.get();
+        const root = document.createElement("div");
+        const bar = document.createElement("div");
+        root.appendChild(bar);
+        bar.style.backgroundColor = color;
+        bar.style.width = "3rem";
+        bar.style.height = "3px";
+        const mouseMarker = new Simple2DMarker(this.components, root, scene);
+        mouseMarker.visible = false;
+        return mouseMarker;
+    }
+    setMouseMarker(point, object, index, type) {
+        if (index === undefined) {
+            return;
+        }
+        this.mouseMarkers[type].visible = true;
+        const marker = this.mouseMarkers[type].get();
+        marker.position.copy(point);
+        const curveMesh = object;
+        const { startPoint, endPoint } = curveMesh.curve.getSegment(index);
+        const angle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x);
+        const bar = marker.element.children[0];
+        const trueAngle = 90 - (angle / Math.PI) * 180;
+        bar.style.transform = `rotate(${trueAngle}deg)`;
+    }
+    async updateMarker(intersects, type) {
+        const { point, index, object } = intersects;
+        const mesh = object;
+        const curve = mesh.curve;
+        const alignment = mesh.curve.alignment;
+        const percentage = alignment.getPercentageAt(point, this.view);
+        const markerPoint = point.clone();
+        this.setMouseMarker(markerPoint, mesh, index, type);
+        if (percentage !== null) {
+            await this.onMarkerChange.trigger({ alignment, percentage, type, curve });
+        }
+    }
+}
+
+class CurveHighlighter {
+    constructor(scene, type) {
+        this.onSelect = new Event();
+        this.caster = new THREE$1.Raycaster();
+        this.scene = scene;
+        this.type = type;
+        this.hoverCurve = this.newCurve(0.003, 0x444444, false);
+        this.hoverPoints = this.newPoints(5, 0x444444);
+        this.selectCurve = this.newCurve(0.005, 0xffffff, true);
+        this.selectPoints = this.newPoints(7, 0xffffff);
+    }
+    dispose() {
+        if (this.selectCurve) {
+            this.scene.remove(this.selectCurve);
+        }
+        this.selectCurve.material.dispose();
+        this.selectCurve.geometry.dispose();
+        this.selectCurve = null;
+        this.hoverCurve.material.dispose();
+        this.hoverCurve.geometry.dispose();
+        this.hoverCurve = null;
+        this.hoverPoints.material.dispose();
+        this.hoverPoints.geometry.dispose();
+        this.selectPoints.material.dispose();
+        this.selectPoints.geometry.dispose();
+        this.scene = null;
+    }
+    castRay(event, camera, dom, meshes) {
+        const mouse = new THREE$1.Vector2();
+        const rect = dom.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        this.caster.setFromCamera(mouse, camera);
+        const intersects = this.caster.intersectObjects(meshes);
+        if (!intersects.length) {
+            return null;
+        }
+        return intersects[0];
+    }
+    select(mesh) {
+        this.highlight(mesh, this.selectCurve, this.selectPoints, true);
+        this.onSelect.trigger(mesh);
+    }
+    unSelect() {
+        this.selectCurve.removeFromParent();
+        this.selectPoints.removeFromParent();
+    }
+    hover(mesh) {
+        this.highlight(mesh, this.hoverCurve, this.hoverPoints, false);
+    }
+    unHover() {
+        this.hoverCurve.removeFromParent();
+        this.hoverPoints.removeFromParent();
+    }
+    highlight(mesh, curve, points, useColors) {
+        const { alignment } = mesh.curve;
+        this.scene.add(curve);
+        this.scene.add(points);
+        const lines = [];
+        const colors = [];
+        const vertices = [];
+        for (const foundCurve of alignment[this.type]) {
+            const position = foundCurve.mesh.geometry.attributes.position;
+            for (const coord of position.array) {
+                lines.push(coord);
+            }
+            if (useColors) {
+                let type;
+                if (this.type === "absolute") {
+                    // 3D curves don't have type defined, so we take the horizontal
+                    const { horizontal } = foundCurve.alignment;
+                    type = horizontal[foundCurve.index].data.TYPE;
+                }
+                else {
+                    type = foundCurve.data.TYPE;
+                }
+                const found = CurveHighlighter.settings.colors[type] || [1, 1, 1];
+                for (let i = 0; i < position.count; i++) {
+                    colors.push(...found);
+                }
+            }
+            const [x, y, z] = position.array;
+            vertices.push(new THREE$1.Vector3(x, y, z));
+        }
+        const lastX = lines[lines.length - 3];
+        const lastY = lines[lines.length - 2];
+        const lastZ = lines[lines.length - 1];
+        vertices.push(new THREE$1.Vector3(lastX, lastY, lastZ));
+        if (lines.length / 3 > curve.geometry.attributes.position.count) {
+            curve.geometry.dispose();
+            curve.geometry = new LineGeometry();
+        }
+        curve.geometry.setPositions(lines);
+        if (useColors) {
+            curve.geometry.setColors(colors);
+        }
+        points.geometry.setFromPoints(vertices);
+    }
+    newCurve(linewidth, color, vertexColors) {
+        const selectGeometry = new LineGeometry();
+        const selectMaterial = new LineMaterial({
+            color,
+            linewidth,
+            vertexColors,
+            worldUnits: false,
+            depthTest: false,
+        });
+        const curve = new Line2(selectGeometry, selectMaterial);
+        this.scene.add(curve);
+        return curve;
+    }
+    newPoints(size, color) {
+        const pointsGeometry = new THREE$1.BufferGeometry();
+        const pointsAttr = new THREE$1.BufferAttribute(new Float32Array(), 3);
+        pointsGeometry.setAttribute("position", pointsAttr);
+        const pointsMaterial = new THREE$1.PointsMaterial({
+            size,
+            color,
+            sizeAttenuation: false,
+            depthTest: false,
+        });
+        const points = new THREE$1.Points(pointsGeometry, pointsMaterial);
+        points.frustumCulled = false;
+        this.scene.add(points);
+        return points;
+    }
+}
+CurveHighlighter.settings = {
+    colors: {
+        LINE: [213 / 255, 0 / 255, 255 / 255],
+        CIRCULARARC: [0 / 255, 46, 255 / 255],
+        CLOTHOID: [0 / 255, 255 / 255, 0 / 255],
+        PARABOLICARC: [0 / 255, 255 / 255, 72 / 255],
+        CONSTANTGRADIENT: [213 / 255, 0 / 255, 255 / 255],
+    },
+};
+
+class PlanHighlighter extends CurveHighlighter {
+    constructor(scene, kpManager) {
+        super(scene, "horizontal");
+        this.kpManager = kpManager;
+        this.offset = 10;
+        this.markupLines = [];
+        this.markupMaterial = new THREE$1.LineBasicMaterial({
+            color: 0x686868,
+        });
+    }
+    showCurveInfo(curveMesh) {
+        this.disposeMarkups();
+        this.currentCurveMesh = curveMesh;
+        switch (curveMesh.curve.data.TYPE) {
+            case "LINE":
+                this.showLineInfo(curveMesh, this.offset);
+                break;
+            case "CIRCULARARC":
+                this.showCircularArcInfo(curveMesh, this.offset);
+                break;
+            case "CLOTHOID":
+                this.showClothoidInfo(curveMesh, this.offset);
+                break;
+            default:
+                console.log("Unknown curve type:", curveMesh.curve.data.TYPE);
+                break;
+        }
+    }
+    updateOffset(screenSize, _zoom, _triggerRedraw) {
+        const biggerSize = Math.max(screenSize.height, screenSize.width);
+        const newOffset = biggerSize / (_zoom * 150);
+        if (newOffset !== this.offset) {
+            this.offset = newOffset;
+            if (_triggerRedraw && this.currentCurveMesh) {
+                this.showCurveInfo(this.currentCurveMesh);
+            }
+        }
+    }
+    dispose() {
+        super.dispose();
+        for (const line of this.markupLines) {
+            this.scene.remove(line);
+            line.removeFromParent();
+        }
+        this.disposeMarkups();
+        this.markupMaterial.dispose();
+    }
+    disposeMarkups() {
+        for (const line of this.markupLines) {
+            line.geometry.dispose();
+            this.scene.remove(line);
+        }
+        this.markupLines = [];
+    }
+    unSelect() {
+        super.unSelect();
+        this.disposeMarkups();
+    }
+    calculateTangent(positions, index) {
+        const numComponents = 3;
+        const pointIndex = index * numComponents;
+        const prevPointIndex = Math.max(0, pointIndex - numComponents);
+        const nextPointIndex = Math.min(positions.length - numComponents, pointIndex + numComponents);
+        const prevPoint = new THREE$1.Vector3().fromArray(positions, prevPointIndex);
+        const nextPoint = new THREE$1.Vector3().fromArray(positions, nextPointIndex);
+        const tangent = nextPoint.clone().sub(prevPoint).normalize();
+        return tangent;
+    }
+    calculateParallelCurve(positions, count, offset) {
+        const parallelCurvePoints = [];
+        for (let i = 0; i < count; i++) {
+            const tangentVector = this.calculateTangent(positions, i);
+            const perpendicularVector = tangentVector
+                .clone()
+                .applyAxisAngle(new THREE$1.Vector3(0, 0, 1), Math.PI / 2);
+            perpendicularVector.normalize();
+            const offsetVector = perpendicularVector.clone().multiplyScalar(offset);
+            const pointIndex = i * 3;
+            const parallelPoint = new THREE$1.Vector3()
+                .fromArray(positions, pointIndex)
+                .add(offsetVector);
+            parallelCurvePoints.push(parallelPoint);
+        }
+        return parallelCurvePoints;
+    }
+    calculateDimensionLines(curve, line) {
+        const startDimensionPoints = [];
+        const curvePositions = curve.geometry.attributes.position.array;
+        const linePositions = line.geometry.attributes.position.array;
+        if (curvePositions.length < 6 && linePositions.length < 6) {
+            throw new Error("Line must have at least two vertices");
+        }
+        const startCurvePoint = new THREE$1.Vector3(curvePositions[0], curvePositions[1], curvePositions[2]);
+        const startLinePoint = new THREE$1.Vector3(linePositions[0], linePositions[1], linePositions[2]);
+        const endDimensionPoints = [];
+        const lastCurveIndex = curvePositions.length - 3;
+        const endCurvePoint = new THREE$1.Vector3(curvePositions[lastCurveIndex], curvePositions[lastCurveIndex + 1], curvePositions[lastCurveIndex + 2]);
+        const lastLineIndex = linePositions.length - 3;
+        const endLinePoint = new THREE$1.Vector3(linePositions[lastLineIndex], linePositions[lastLineIndex + 1], linePositions[lastLineIndex + 2]);
+        startDimensionPoints.push(startCurvePoint, startLinePoint);
+        endDimensionPoints.push(endCurvePoint, endLinePoint);
+        return { startDimensionPoints, endDimensionPoints };
+    }
+    offsetDimensionLine(points, offset) {
+        const direction = new THREE$1.Vector3()
+            .copy(points[points.length - 1])
+            .sub(points[0])
+            .normalize();
+        const offsetVector = direction.clone().multiplyScalar(offset);
+        const newPoints = points.map((point) => point.clone().add(offsetVector));
+        return newPoints;
+    }
+    showLineInfo(curveMesh, offset) {
+        this.kpManager.clearMarkersByType("Length");
+        this.kpManager.clearMarkersByType("Radius");
+        const positions = curveMesh.geometry.attributes.position.array;
+        const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, offset);
+        const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        const lineParallelLine = new THREE$1.Line(lengthGeometry, this.markupMaterial);
+        this.kpManager.showLineLength(lineParallelLine, curveMesh.curve.getLength());
+        this.scene.add(lineParallelLine);
+        this.markupLines.push(lineParallelLine);
+        const { startDimensionPoints, endDimensionPoints } = this.calculateDimensionLines(curveMesh, lineParallelLine);
+        const offsetStartDimensionPoints = this.offsetDimensionLine(startDimensionPoints, offset * 0.1);
+        const offsetEndDimensionPoints = this.offsetDimensionLine(endDimensionPoints, offset * 0.1);
+        const startDimensionGeometry = new THREE$1.BufferGeometry().setFromPoints(offsetStartDimensionPoints);
+        const endDimensionGeometry = new THREE$1.BufferGeometry().setFromPoints(offsetEndDimensionPoints);
+        const lineStartDimensionlLine = new THREE$1.Line(startDimensionGeometry, this.markupMaterial);
+        this.scene.add(lineStartDimensionlLine);
+        this.markupLines.push(lineStartDimensionlLine);
+        const lineEndDimensionlLine = new THREE$1.Line(endDimensionGeometry, this.markupMaterial);
+        this.scene.add(lineEndDimensionlLine);
+        this.markupLines.push(lineEndDimensionlLine);
+    }
+    showClothoidInfo(curveMesh, offset) {
+        this.kpManager.clearMarkersByType("Length");
+        this.kpManager.clearMarkersByType("Radius");
+        const positions = curveMesh.geometry.attributes.position.array;
+        const parallelCurvePoints = this.calculateParallelCurve(positions, positions.length / 3, offset);
+        const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        this.kpManager.showCurveLength(parallelCurvePoints, curveMesh.curve.getLength());
+        const clothParallelLine = new THREE$1.Line(lengthGeometry, this.markupMaterial);
+        this.scene.add(clothParallelLine);
+        this.markupLines.push(clothParallelLine);
+        const { startDimensionPoints, endDimensionPoints } = this.calculateDimensionLines(curveMesh, clothParallelLine);
+        const offsetStartDimensionPoints = this.offsetDimensionLine(startDimensionPoints, offset * 0.1);
+        const offsetEndDimensionPoints = this.offsetDimensionLine(endDimensionPoints, offset * 0.1);
+        const startDimensionGeometry = new THREE$1.BufferGeometry().setFromPoints(offsetStartDimensionPoints);
+        const endDimensionGeometry = new THREE$1.BufferGeometry().setFromPoints(offsetEndDimensionPoints);
+        const clothStartDimensionlLine = new THREE$1.Line(startDimensionGeometry, this.markupMaterial);
+        this.scene.add(clothStartDimensionlLine);
+        this.markupLines.push(clothStartDimensionlLine);
+        const clothEndDimensionlLine = new THREE$1.Line(endDimensionGeometry, this.markupMaterial);
+        this.scene.add(clothEndDimensionlLine);
+        this.markupLines.push(clothEndDimensionlLine);
+    }
+    showCircularArcInfo(curveMesh, offset) {
+        this.kpManager.clearMarkersByType("Length");
+        this.kpManager.clearMarkersByType("Radius");
+        const radius = curveMesh.curve.data.RADIUS;
+        const positions = curveMesh.geometry.attributes.position.array;
+        const count = curveMesh.geometry.attributes.position.count;
+        const linePoints = [];
+        const firstPoint = new THREE$1.Vector3(positions[0], positions[1], positions[2]);
+        const lastPointIndex = (count - 1) * 3;
+        const lastPoint = new THREE$1.Vector3(positions[lastPointIndex], positions[lastPointIndex + 1], positions[lastPointIndex + 2]);
+        const middlePointIndex = (count / 2) * 3;
+        const middlePoint = new THREE$1.Vector3(positions[middlePointIndex], positions[middlePointIndex + 1], positions[middlePointIndex + 2]);
+        const tangentVector = lastPoint.clone().sub(firstPoint).normalize();
+        const perpendicularVector = new THREE$1.Vector3(-tangentVector.y, tangentVector.x, 0);
+        perpendicularVector.multiplyScalar(radius);
+        const arcCenterPoint = middlePoint.clone().add(perpendicularVector);
+        linePoints.push(middlePoint);
+        linePoints.push(arcCenterPoint);
+        const radiusGeometry = new THREE$1.BufferGeometry().setFromPoints(linePoints);
+        const radiusLine = new THREE$1.Line(radiusGeometry, this.markupMaterial);
+        this.kpManager.showCurveRadius(radiusLine, Math.abs(radius));
+        this.scene.add(radiusLine);
+        this.markupLines.push(radiusLine);
+        const parallelCurvePoints = [];
+        for (let i = 0; i < count; i++) {
+            const tangentVector = this.calculateTangent(positions, i);
+            const radius = curveMesh.curve.data.RADIUS;
+            const perpendicularVector = new THREE$1.Vector3(tangentVector.y, -tangentVector.x, 0);
+            perpendicularVector.normalize();
+            if (radius < 0) {
+                perpendicularVector.negate();
+            }
+            const offsetVector = perpendicularVector.clone().multiplyScalar(offset);
+            const pointIndex = i * 3;
+            const parallelPoint = new THREE$1.Vector3(positions[pointIndex] + offsetVector.x, positions[pointIndex + 1] + offsetVector.y, positions[pointIndex + 2] + offsetVector.z);
+            parallelCurvePoints.push(parallelPoint);
+        }
+        const lengthGeometry = new THREE$1.BufferGeometry().setFromPoints(parallelCurvePoints);
+        this.kpManager.showCurveLength(parallelCurvePoints, curveMesh.curve.getLength());
+        const circArcParallelLine = new THREE$1.Line(lengthGeometry, this.markupMaterial);
+        this.scene.add(circArcParallelLine);
+        this.markupLines.push(circArcParallelLine);
+        const { startDimensionPoints, endDimensionPoints } = this.calculateDimensionLines(curveMesh, circArcParallelLine);
+        const offsetStartDimensionPoints = this.offsetDimensionLine(startDimensionPoints, offset * 0.1);
+        const offsetEndDimensionPoints = this.offsetDimensionLine(endDimensionPoints, offset * 0.1);
+        const startDimensionGeometry = new THREE$1.BufferGeometry().setFromPoints(offsetStartDimensionPoints);
+        const endDimensionGeometry = new THREE$1.BufferGeometry().setFromPoints(offsetEndDimensionPoints);
+        const circArcStartDimensionlLine = new THREE$1.Line(startDimensionGeometry, this.markupMaterial);
+        this.scene.add(circArcStartDimensionlLine);
+        this.markupLines.push(circArcStartDimensionlLine);
+        const circArcEndDimensionlLine = new THREE$1.Line(endDimensionGeometry, this.markupMaterial);
+        this.scene.add(circArcEndDimensionlLine);
+        this.markupLines.push(circArcEndDimensionlLine);
+    }
+}
+
+class CivilFloatingWindow {
+    static get(components, scene, name) {
+        const floatingWindow = new FloatingWindow(components);
+        floatingWindow.title = name;
+        components.ui.add(floatingWindow);
+        floatingWindow.visible = false;
+        const hContainer = scene.uiElement.get("container");
+        floatingWindow.addChild(hContainer);
+        floatingWindow.onResized.add(() => scene.grid.regenerate());
+        floatingWindow.slots.content.domElement.style.padding = "0";
+        floatingWindow.slots.content.domElement.style.overflow = "hidden";
+        floatingWindow.onResized.add(() => {
+            const { width, height } = floatingWindow.containerSize;
+            scene.setSize(height, width);
+        });
+        floatingWindow.domElement.style.width = "20rem";
+        floatingWindow.domElement.style.height = "20rem";
+        floatingWindow.onVisible.add(() => {
+            if (floatingWindow.visible) {
+                scene.grid.regenerate();
+            }
+        });
+        if (components.renderer.isUpdateable()) {
+            components.renderer.onAfterUpdate.add(async () => {
+                if (floatingWindow.visible) {
+                    await scene.update();
                 }
             });
         }
-        this.uiElement.set({
-            horizontalAlignment,
-            verticalAlignment,
+        floatingWindow.onResized.trigger();
+        return floatingWindow;
+    }
+}
+
+/**
+ * Class for Managing Markers along with creating different types of markers
+ * Every marker is a Simple2DMarker
+ * For every marker that needs to be added, you can use the Manager to add the marker and change its look and feel
+ */
+class MarkerManager {
+    constructor(components, renderer, scene, controls) {
+        this.components = components;
+        this.renderer = renderer;
+        this.controls = controls;
+        this.markers = new Set();
+        this.clusterLabels = new Set();
+        this.currentKeys = new Set();
+        this._clusterOnZoom = true;
+        this._color = "white";
+        // TODO: Replace with UUID for the marker key
+        this._markerKey = 0;
+        this._clusterKey = 0;
+        this._clusterThreeshold = 50;
+        this.isNavigating = false;
+        this.scene = scene;
+        this.setupEvents();
+    }
+    set clusterOnZoom(value) {
+        this._clusterOnZoom = value;
+    }
+    get clusterOnZoom() {
+        return this._clusterOnZoom;
+    }
+    set color(value) {
+        this._color = value;
+        for (const marker of this.markers) {
+            marker.label.get().element.style.color = value;
+        }
+    }
+    set clusterThreeshold(value) {
+        this._clusterThreeshold = value;
+    }
+    get clusterThreeshold() {
+        return this._clusterThreeshold;
+    }
+    setupEvents() {
+        if (this.scene) {
+            this.controls.addEventListener("sleep", () => {
+                this.manageCluster();
+            });
+            this.controls.addEventListener("rest", () => {
+                if (this.isNavigating) {
+                    this.manageCluster();
+                    this.isNavigating = false;
+                }
+            });
+        }
+    }
+    resetMarkers() {
+        for (const marker of this.markers) {
+            marker.merged = false;
+        }
+        for (const cluster of this.clusterLabels) {
+            this.scene.remove(cluster.label.get());
+        }
+        this.clusterLabels.clear();
+        this._clusterKey = 0;
+    }
+    removeMergeMarkers() {
+        for (const marker of this.markers) {
+            if (marker.merged) {
+                this.scene.remove(marker.label.get());
+            }
+            else {
+                this.scene.add(marker.label.get());
+            }
+        }
+        for (const cluster of this.clusterLabels) {
+            if (cluster.markerKeys.length === 1) {
+                const marker = Array.from(this.markers).find((marker) => marker.key === cluster.markerKeys[0]);
+                if (marker) {
+                    this.scene.add(marker.label.get());
+                    marker.merged = false;
+                }
+                this.scene.remove(cluster.label.get());
+                this.clusterLabels.delete(cluster);
+            }
+        }
+    }
+    manageCluster() {
+        this.resetMarkers();
+        for (const marker of this.markers) {
+            if (!marker.merged && !marker.static) {
+                this.currentKeys.clear();
+                for (const marker2 of this.markers) {
+                    if (marker2.static) {
+                        continue;
+                    }
+                    if (marker.key !== marker2.key && !marker2.merged) {
+                        const distance = this.distance(marker.label, marker2.label);
+                        if (distance < this._clusterThreeshold) {
+                            this.currentKeys.add(marker2.key);
+                            marker2.merged = true;
+                        }
+                    }
+                }
+                if (this.currentKeys.size > 0) {
+                    if (!this.scene) {
+                        return;
+                    }
+                    this.currentKeys.add(marker.key);
+                    marker.merged = true;
+                    const clusterGroup = Array.from(this.currentKeys);
+                    const averagePosition = this.getAveragePositionFromLabels(clusterGroup);
+                    const clusterLabel = new Simple2DMarker(this.components, this.createClusterElement(this._clusterKey.toString()), this.scene);
+                    clusterLabel.get().element.textContent =
+                        clusterGroup.length.toString();
+                    clusterLabel.get().position.copy(averagePosition);
+                    this.clusterLabels.add({
+                        key: this._clusterKey.toString(),
+                        markerKeys: clusterGroup,
+                        label: clusterLabel,
+                    });
+                    this._clusterKey++;
+                }
+            }
+        }
+        this.removeMergeMarkers();
+    }
+    getAveragePositionFromLabels(clusterGroup) {
+        const positions = clusterGroup.map((key) => {
+            const marker = Array.from(this.markers).find((marker) => marker.key === key);
+            if (marker) {
+                return marker.label.get().position;
+            }
+            return new THREE$1.Vector3();
+        });
+        const averagePosition = positions
+            .reduce((acc, curr) => acc.add(curr), new THREE$1.Vector3())
+            .divideScalar(positions.length);
+        return averagePosition;
+    }
+    createClusterElement(key) {
+        const div = document.createElement("div");
+        div.textContent = key;
+        div.style.color = "#000000";
+        div.style.background = "#FFFFFF";
+        div.style.fontSize = "1.2rem";
+        div.style.fontWeight = "500";
+        div.style.pointerEvents = "auto";
+        div.style.borderRadius = "50%";
+        div.style.padding = "5px 11px";
+        div.style.textAlign = "center";
+        div.style.cursor = "pointer";
+        // div.style.transition = "all 0.05s";
+        div.addEventListener("pointerdown", () => {
+            this.navigateToCluster(key);
+        });
+        div.addEventListener("pointerover", () => {
+            div.style.background = "#BCF124";
+        });
+        div.addEventListener("pointerout", () => {
+            div.style.background = "#FFFFFF";
+        });
+        return div;
+    }
+    addMarker(text, mesh) {
+        const span = document.createElement("span");
+        span.innerHTML = text;
+        span.style.color = this._color;
+        const marker = this.addMarkerToScene(span);
+        marker.get().position.copy(mesh.position);
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+    }
+    addMarkerAtPoint(text, point, type, isStatic = false) {
+        if (type !== undefined) {
+            const span = document.createElement("span");
+            span.innerHTML = text;
+            span.style.color = this._color;
+            const marker = new Simple2DMarker(this.components, span, this.scene);
+            marker.get().position.copy(point);
+            this.markers.add({
+                label: marker,
+                mesh: new THREE$1.Mesh(),
+                key: this._markerKey.toString(),
+                merged: false,
+                type,
+                static: isStatic,
+            });
+            this._markerKey++;
+        }
+    }
+    // TODO: Move this to switch statement inside addCivilMarker
+    addKPStation(text, mesh) {
+        const container = document.createElement("div");
+        const span = document.createElement("div");
+        container.appendChild(span);
+        span.innerHTML = text;
+        span.style.color = this._color;
+        span.style.borderBottom = "1px dotted white";
+        span.style.width = "160px";
+        span.style.textAlign = "left";
+        const marker = new Simple2DMarker(this.components, container, this.scene);
+        const point = new THREE$1.Vector3();
+        point.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
+        point.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
+        point.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
+        const secondLastPoint = new THREE$1.Vector3();
+        secondLastPoint.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 2);
+        secondLastPoint.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 2);
+        secondLastPoint.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 2);
+        const midPoint = new THREE$1.Vector3();
+        midPoint.x = (point.x + secondLastPoint.x) / 2;
+        midPoint.y = (point.y + secondLastPoint.y) / 2;
+        midPoint.z = (point.z + secondLastPoint.z) / 2;
+        marker.get().position.copy(midPoint);
+        const direction = new THREE$1.Vector3();
+        direction.subVectors(point, secondLastPoint).normalize();
+        const quaternion = new THREE$1.Quaternion();
+        quaternion.setFromUnitVectors(new THREE$1.Vector3(0, 1, 0), direction);
+        const eulerZ = new THREE$1.Euler().setFromQuaternion(quaternion).z;
+        const rotationZ = THREE$1.MathUtils.radToDeg(eulerZ);
+        span.style.transform = `rotate(${-rotationZ - 90}deg) translate(-35%, -50%)`;
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+    }
+    addCivilVerticalMarker(text, mesh, type, root) {
+        const span = document.createElement("span");
+        span.innerHTML = text;
+        span.style.color = this._color;
+        const marker = new Simple2DMarker(this.components, span, root);
+        if (type === "Height") {
+            const span = document.createElement("span");
+            span.innerHTML = text;
+            span.style.color = this._color;
+            const { position } = mesh.geometry.attributes;
+            const setArray = position.array.length / 3;
+            const firstIndex = (setArray - 1) * 3;
+            const lastIndex = position.array.slice(firstIndex, firstIndex + 3);
+            marker.get().position.set(lastIndex[0], lastIndex[1] + 10, lastIndex[2]);
+        }
+        else if (type === "InitialKPV") {
+            const { position } = mesh.geometry.attributes;
+            const pX = position.getX(0);
+            const pY = position.getY(0);
+            const pZ = position.getZ(0);
+            marker.get().position.set(pX - 20, pY, pZ);
+        }
+        else if (type === "FinalKPV") {
+            const { position } = mesh.geometry.attributes;
+            const pX = position.getX(mesh.geometry.attributes.position.count - 1);
+            const pY = position.getY(mesh.geometry.attributes.position.count - 1);
+            const pZ = position.getZ(mesh.geometry.attributes.position.count - 1);
+            marker.get().position.set(pX + 20, pY, pZ);
+        }
+        else if (type === "Slope") {
+            span.style.color = "grey";
+            const { position } = mesh.geometry.attributes;
+            const pointStart = new THREE$1.Vector3();
+            pointStart.x = position.getX(0);
+            pointStart.y = position.getY(0);
+            pointStart.z = position.getZ(0);
+            const pointEnd = new THREE$1.Vector3();
+            pointEnd.x = position.getX(position.count - 1);
+            pointEnd.y = position.getY(position.count - 1);
+            pointEnd.z = position.getZ(position.count - 1);
+            const midPoint = new THREE$1.Vector3();
+            midPoint.addVectors(pointStart, pointEnd).multiplyScalar(0.5);
+            marker.get().position.set(midPoint.x, midPoint.y - 10, midPoint.z);
+        }
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            type,
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+        return marker;
+    }
+    addCivilMarker(text, mesh, type) {
+        const span = document.createElement("span");
+        span.innerHTML = text;
+        span.style.color = this._color;
+        const marker = this.addMarkerToScene(span);
+        if (type === "InitialKP") {
+            const pX = mesh.geometry.attributes.position.getX(0);
+            const pY = mesh.geometry.attributes.position.getY(0);
+            const pZ = mesh.geometry.attributes.position.getZ(0);
+            marker.get().position.set(pX + 2, pY + 2, pZ);
+        }
+        else if (type === "FinalKP") {
+            const pX = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
+            const pY = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
+            const pZ = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
+            marker.get().position.set(pX + 2, pY - 2, pZ);
+        }
+        else if (type === "Length") {
+            const pointStart = new THREE$1.Vector3();
+            pointStart.x = mesh.geometry.attributes.position.getX(0);
+            pointStart.y = mesh.geometry.attributes.position.getY(0);
+            pointStart.z = mesh.geometry.attributes.position.getZ(0);
+            const pointEnd = new THREE$1.Vector3();
+            pointEnd.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
+            pointEnd.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
+            pointEnd.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
+            const length = pointStart.distanceTo(pointEnd);
+            marker.get().element.innerText = length.toFixed(2);
+            marker
+                .get()
+                .position.copy(pointEnd.clone().add(pointStart).divideScalar(2));
+        }
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            type,
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+        return marker;
+    }
+    addMarkerToScene(span) {
+        if (!this.scene) {
+            throw new Error("Scene is needed to add markers!");
+        }
+        const scene = this.scene;
+        const marker = new Simple2DMarker(this.components, span, scene);
+        return marker;
+    }
+    getScreenPosition(label) {
+        const screenPosition = new THREE$1.Vector3();
+        if (!this.scene) {
+            const labelPosition = label
+                .get()
+                .position.clone()
+                .project(this.components.camera.get());
+            const dimensions = this.components.renderer.getSize();
+            screenPosition.x =
+                (labelPosition.x * dimensions.x) / 2 + dimensions.x / 2;
+            screenPosition.y =
+                -((labelPosition.y * dimensions.y) / 2) + dimensions.y / 2;
+        }
+        else {
+            const labelPosition = label
+                .get()
+                .position.clone()
+                .project(this.controls.camera);
+            const dimensions = this.renderer.getSize();
+            screenPosition.x =
+                (labelPosition.x * dimensions.x) / 2 + dimensions.x / 2;
+            screenPosition.y =
+                -((labelPosition.y * dimensions.y) / 2) + dimensions.y / 2;
+        }
+        return screenPosition;
+    }
+    distance(label1, label2) {
+        const screenPosition1 = this.getScreenPosition(label1);
+        const screenPosition2 = this.getScreenPosition(label2);
+        const dx = screenPosition1.x - screenPosition2.x;
+        const dy = screenPosition1.y - screenPosition2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy) * 0.5;
+        // Managing Overlapping Labels
+        if (distance === 0) {
+            const updateDistance = this._clusterThreeshold + 1;
+            return updateDistance;
+        }
+        return distance;
+    }
+    navigateToCluster(key) {
+        const boundingRegion = [];
+        const cluster = Array.from(this.clusterLabels).find((cluster) => cluster.key === key);
+        if (cluster) {
+            for (const markerKey of cluster.markerKeys) {
+                const marker = Array.from(this.markers).find((marker) => marker.key === markerKey);
+                if (marker) {
+                    boundingRegion.push(marker.label.get().position);
+                }
+            }
+            this.scene.remove(cluster?.label.get());
+            this.clusterLabels.delete(cluster);
+        }
+        if (this.scene) {
+            const box3 = this.createBox3FromPoints(boundingRegion);
+            const size = new THREE$1.Vector3();
+            box3.getSize(size);
+            const center = new THREE$1.Vector3();
+            box3.getCenter(center);
+            const geometry = new THREE$1.BoxGeometry(size.x, size.y, size.z);
+            geometry.translate(center.x, center.y, center.z);
+            const mesh = new THREE$1.Mesh(geometry);
+            mesh.geometry.computeBoundingSphere();
+            const boundingSphere = mesh.geometry?.boundingSphere;
+            if (this.controls && boundingSphere) {
+                this.controls.fitToSphere(mesh, true);
+            }
+            this.isNavigating = true;
+            geometry.dispose();
+            mesh.clear();
+        }
+        boundingRegion.length = 0;
+    }
+    createBox3FromPoints(points) {
+        const bbox = new THREE$1.Box3();
+        for (const point of points) {
+            bbox.expandByPoint(point);
+        }
+        return bbox;
+    }
+    clearMarkers() {
+        for (const marker of this.markers) {
+            this.scene.remove(marker.label.get());
+        }
+        this.markers.clear();
+        this._markerKey = 0;
+    }
+    clearMarkersByType(type) {
+        for (const marker of this.markers) {
+            if (marker.type === type) {
+                this.scene.remove(marker.label.get());
+                this.markers.delete(marker);
+            }
+        }
+    }
+    dispose() {
+        for (const marker of this.markers) {
+            marker.label.dispose();
+        }
+        this.markers.clear();
+        this._markerKey = 0;
+        for (const cluster of this.clusterLabels) {
+            cluster.label.dispose();
+        }
+        this.clusterLabels.clear();
+        this._clusterKey = 0;
+        this.currentKeys.clear();
+    }
+}
+
+class KPManager extends MarkerManager {
+    constructor(components, renderer, scene, controls, type) {
+        super(components, renderer, scene, controls);
+        this.divisionLength = 100;
+        this.view = type;
+    }
+    showKPStations(mesh) {
+        if (this.view === "horizontal") {
+            const endKPStations = this.generateStartAndEndKP(mesh);
+            for (const [, data] of endKPStations) {
+                this.addKPStation(data.value, data.normal);
+            }
+            const constantKPStations = this.generateConstantKP(mesh);
+            for (const [, data] of constantKPStations) {
+                this.addKPStation(data.value, data.normal);
+            }
+        }
+    }
+    showCurveLength(points, length) {
+        const count = points.length;
+        const formattedLength = `${length.toFixed(2)} m`;
+        const midpointIndex = Math.round(count / 2);
+        const middlePoint = points[midpointIndex];
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Length", true);
+    }
+    showLineLength(line, length) {
+        const startPoint = new THREE$1.Vector3();
+        startPoint.x = line.geometry.getAttribute("position").getX(0);
+        startPoint.y = line.geometry.getAttribute("position").getY(0);
+        startPoint.z = line.geometry.getAttribute("position").getZ(0);
+        const endPoint = new THREE$1.Vector3();
+        endPoint.x = line.geometry.getAttribute("position").getX(1);
+        endPoint.y = line.geometry.getAttribute("position").getY(1);
+        endPoint.z = line.geometry.getAttribute("position").getZ(1);
+        const formattedLength = `${length.toFixed(2)} m`;
+        const middlePoint = new THREE$1.Vector3();
+        middlePoint.addVectors(startPoint, endPoint).multiplyScalar(0.5);
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Length", true);
+    }
+    showCurveRadius(line, radius) {
+        const startPoint = new THREE$1.Vector3();
+        startPoint.x = line.geometry.getAttribute("position").getX(0);
+        startPoint.y = line.geometry.getAttribute("position").getY(0);
+        startPoint.z = line.geometry.getAttribute("position").getZ(0);
+        const endPoint = new THREE$1.Vector3();
+        endPoint.x = line.geometry.getAttribute("position").getX(1);
+        endPoint.y = line.geometry.getAttribute("position").getY(1);
+        endPoint.z = line.geometry.getAttribute("position").getZ(1);
+        const formattedLength = `R = ${radius.toFixed(2)} m`;
+        const middlePoint = new THREE$1.Vector3();
+        middlePoint.addVectors(startPoint, endPoint).multiplyScalar(0.5);
+        this.addMarkerAtPoint(formattedLength, middlePoint, "Radius", true);
+    }
+    generateStartAndEndKP(mesh) {
+        const { alignment } = mesh.curve;
+        const data = new Map();
+        for (const curve of alignment.horizontal) {
+            const length = curve.getLength();
+            if (data.size > 0) {
+                const last = curve.index - 1;
+                const previousData = data.get(last);
+                const updateDistance = previousData.distance + length;
+                const curvePosition = curve.mesh.geometry.getAttribute("position");
+                const lastSegmentIndex = curvePosition.count - 1;
+                const lastSegment = new THREE$1.Vector3();
+                lastSegment.x = curvePosition.getX(lastSegmentIndex);
+                lastSegment.y = curvePosition.getY(lastSegmentIndex);
+                lastSegment.z = curvePosition.getZ(lastSegmentIndex);
+                const normalLine = this.createNormalLine(curve.mesh);
+                data.set(curve.index, {
+                    value: this.getShortendKPValue(updateDistance),
+                    distance: updateDistance,
+                    point: lastSegment,
+                    normal: normalLine,
+                });
+            }
+            else {
+                const curvePosition = curve.mesh.geometry.getAttribute("position");
+                const lastSegmentIndex = curvePosition.count - 1;
+                const lastSegment = new THREE$1.Vector3();
+                lastSegment.x = curvePosition.getX(lastSegmentIndex);
+                lastSegment.y = curvePosition.getY(lastSegmentIndex);
+                lastSegment.z = curvePosition.getZ(lastSegmentIndex);
+                const normalLine = this.createNormalLine(curve.mesh);
+                data.set(curve.index, {
+                    value: this.getShortendKPValue(length),
+                    distance: length,
+                    point: lastSegment,
+                    normal: normalLine,
+                });
+            }
+        }
+        return data;
+    }
+    createNormalLine(curveMesh) {
+        const lastIndex = curveMesh.geometry.attributes.position.count - 1;
+        const secondLastIndex = lastIndex - 1;
+        const lastPoint = new THREE$1.Vector3();
+        lastPoint.x = curveMesh.geometry.attributes.position.getX(lastIndex);
+        lastPoint.y = curveMesh.geometry.attributes.position.getY(lastIndex);
+        lastPoint.z = curveMesh.geometry.attributes.position.getZ(lastIndex);
+        const secondLastPoint = new THREE$1.Vector3();
+        secondLastPoint.x =
+            curveMesh.geometry.attributes.position.getX(secondLastIndex);
+        secondLastPoint.y =
+            curveMesh.geometry.attributes.position.getY(secondLastIndex);
+        secondLastPoint.z =
+            curveMesh.geometry.attributes.position.getZ(secondLastIndex);
+        const direction = new THREE$1.Vector3().subVectors(lastPoint, secondLastPoint);
+        const normal = direction
+            .clone()
+            .applyAxisAngle(new THREE$1.Vector3(0, 0, 1), Math.PI * 0.5)
+            .normalize();
+        const normalGeom = new THREE$1.BufferGeometry().setFromPoints([
+            normal.clone().setLength(10).add(lastPoint),
+            normal.clone().setLength(-10).add(lastPoint),
+        ]);
+        const normalLine = new THREE$1.Line(normalGeom);
+        // this.scene.add(normalLine);
+        return normalLine;
+    }
+    generateConstantKP(mesh) {
+        const { alignment } = mesh.curve;
+        const data = new Map();
+        const alignmentLength = alignment.getLength("horizontal");
+        const divisions = Math.floor(alignmentLength / this.divisionLength);
+        for (let i = 0; i < divisions; i++) {
+            const percentage = i / divisions;
+            const kpPoint = alignment.getPointAt(percentage, "horizontal");
+            const length = alignmentLength * percentage;
+            // const curve = alignment.getCurveAt(percentage, "horizontal");
+            const normalLine = this.getNormal(alignment, kpPoint);
+            data.set(i, {
+                value: this.getShortendKPValue(length),
+                distance: length,
+                point: kpPoint,
+                normal: normalLine,
+            });
+        }
+        return data;
+    }
+    // TODO: Move Generation of Points to Previous Method Call
+    getNormal(curve, point) {
+        const pointsInCurve = [];
+        const normalPoints = {
+            start: new THREE$1.Vector3(),
+            end: new THREE$1.Vector3(),
+        };
+        for (let i = 0; i < curve.horizontal.length; i++) {
+            const curveMesh = curve.horizontal[i].mesh;
+            const position = curveMesh.geometry.attributes.position;
+            const length = position.count;
+            for (let j = 0; j < length; j++) {
+                const x = position.getX(j);
+                const y = position.getY(j);
+                const z = position.getZ(j);
+                pointsInCurve.push(new THREE$1.Vector3(x, y, z));
+            }
+        }
+        for (let i = 0; i < pointsInCurve.length - 1; i++) {
+            const p1 = pointsInCurve[i];
+            const p2 = pointsInCurve[i + 1];
+            const distanceP1 = p1.distanceTo(point);
+            const distanceP2 = p2.distanceTo(point);
+            const distanceP1P2 = p1.distanceTo(p2);
+            const epsilion = 0.00001;
+            const isOnLine = Math.abs(distanceP1 + distanceP2 - distanceP1P2);
+            if (isOnLine < epsilion) {
+                normalPoints.start = p1;
+                normalPoints.end = p2;
+            }
+        }
+        const direction = new THREE$1.Vector3().subVectors(normalPoints.end, normalPoints.start);
+        const normal = direction
+            .clone()
+            .applyAxisAngle(new THREE$1.Vector3(0, 0, 1), Math.PI * 0.5)
+            .normalize();
+        const normalGeom = new THREE$1.BufferGeometry().setFromPoints([
+            normal.clone().setLength(10).add(point),
+            normal.clone().setLength(-10).add(point),
+        ]);
+        const normalLine = new THREE$1.Line(normalGeom, new THREE$1.LineBasicMaterial({ color: 0xff0000 }));
+        return normalLine;
+    }
+    getShortendKPValue(value) {
+        const formattedValue = value.toFixed(2);
+        const [integerPart, fractionalPart] = formattedValue.toString().split(".");
+        const formattedFractionalPart = fractionalPart || "00";
+        if (parseInt(integerPart, 10) > 1000 && parseInt(integerPart, 10) < 10000) {
+            const [first, ...rest] = integerPart;
+            return `${first}+${rest.join("")}.${formattedFractionalPart}`;
+        }
+        if (parseInt(integerPart, 10) > 10000) {
+            const [first, second, ...rest] = integerPart;
+            return `${first}${second}+${rest.join("")}.${formattedFractionalPart}`;
+        }
+        return `0+${integerPart.padStart(3, "0")}.${formattedFractionalPart}`;
+    }
+    clearKPStations() {
+        this.clearMarkers();
+    }
+}
+
+class RoadPlanNavigator extends RoadNavigator {
+    constructor(components) {
+        super(components);
+        this.view = "horizontal";
+        this.uiElement = new UIElement();
+        const scene = this.scene.get();
+        this.kpManager = new KPManager(components, this.scene.renderer, this.scene.get(), this.scene.controls, this.view);
+        this.highlighter = new PlanHighlighter(scene, this.kpManager);
+        this.setUI();
+        this.components.tools.add(RoadPlanNavigator.uuid, this);
+        this.onHighlight.add(({ mesh }) => {
+            this.highlighter.showCurveInfo(mesh);
+            this.fitCameraToAlignment(mesh);
+        });
+    }
+    async fitCameraToAlignment(curveMesh) {
+        const bbox = this.components.tools.get(FragmentBoundingBox);
+        const alignment = curveMesh.curve.alignment;
+        for (const curve of alignment.horizontal) {
+            bbox.addMesh(curve.mesh);
+        }
+        const box = bbox.get();
+        const center = new THREE$1.Vector3();
+        const { min, max } = box;
+        const offset = 1.2;
+        const size = new THREE$1.Vector3((max.x - min.x) * offset, (max.y - min.y) * offset, (max.z - min.z) * offset);
+        box.getCenter(center);
+        box.setFromCenterAndSize(center, size);
+        bbox.reset();
+        await this.scene.controls.fitToBox(box, true);
+    }
+    // showKPStations(curveMesh: FRAGS.CurveMesh): void {
+    //   this.kpStation.showKPStations(curveMesh);
+    // }
+    // clearKPStations(): void {
+    //   this.kpStation.clearKPStations();
+    // }
+    setUI() {
+        const name = "Horizontal alignment";
+        const floatingWindow = CivilFloatingWindow.get(this.components, this.scene, name);
+        this.uiElement.set({ floatingWindow });
+        this.scene.controls.addEventListener("update", () => {
+            const screenSize = floatingWindow.containerSize;
+            const { zoom } = this.scene.camera;
+            this.highlighter.updateOffset(screenSize, zoom, true);
+        });
+        floatingWindow.onResized.add(() => {
+            const screenSize = floatingWindow.containerSize;
+            const { zoom } = this.scene.camera;
+            this.highlighter.updateOffset(screenSize, zoom, true);
         });
     }
 }
-/** {@link Component.uuid} */
-RoadNavigator.uuid = "85f2c89c-4c6b-4c7d-bc20-5b675874b228";
-ToolComponent.libraryUUIDs.add(RoadNavigator.uuid);
+RoadPlanNavigator.uuid = "3096dea0-5bc2-41c7-abce-9089b6c9431b";
+ToolComponent.libraryUUIDs.add(RoadPlanNavigator.uuid);
 
-export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, RoadNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, isPointInFrontOfPlane, isTransparent, obbFromPoints };
+class RoadElevationNavigator extends RoadNavigator {
+    constructor(components) {
+        super(components);
+        this.view = "vertical";
+        this.uiElement = new UIElement();
+        this.setUI();
+        const scene = this.scene.get();
+        this.highlighter = new CurveHighlighter(scene, "vertical");
+        this.kpManager = new KPManager(components, this.scene.renderer, this.scene.get(), this.scene.controls, this.view);
+        this.highlighter.onSelect.add((mesh) => {
+            // Add markers elevation
+            this.kpManager.dispose();
+            const { alignment } = mesh.curve;
+            const positionsVertical = [];
+            for (const align of alignment.vertical) {
+                const pos = align.mesh.geometry.attributes.position.array;
+                positionsVertical.push(pos);
+            }
+            const { defSegments, slope } = this.setDefSegments(positionsVertical);
+            const scene = this.scene.get();
+            alignment.vertical.forEach((align, index) => {
+                this.kpManager.addCivilVerticalMarker(`S: ${slope[index].slope}%`, align.mesh, "Slope", scene);
+                this.kpManager.addCivilVerticalMarker(`H: ${defSegments[index].end.y.toFixed(2)}`, align.mesh, "Height", scene);
+            });
+            this.kpManager.addCivilVerticalMarker("KP: 0", alignment.vertical[0].mesh, "InitialKPV", scene);
+            this.kpManager.addCivilVerticalMarker(`KP: ${alignment.vertical.length}`, alignment.vertical[alignment.vertical.length - 1].mesh, "FinalKPV", scene);
+        });
+    }
+    get() {
+        return null;
+    }
+    showKPStations(mesh) {
+        // TODO: Discuss and Implement the Logic for Vertical Views and KP Stations
+        console.log(mesh);
+    }
+    clearKPStations() {
+        // Clearing KP Stations
+    }
+    setUI() {
+        const drawer = new Drawer(this.components);
+        this.components.ui.add(drawer);
+        drawer.alignment = "top";
+        drawer.onVisible.add(() => {
+            this.scene.grid.regenerate();
+        });
+        drawer.visible = false;
+        drawer.slots.content.domElement.style.padding = "0";
+        drawer.slots.content.domElement.style.overflow = "hidden";
+        const { clientWidth, clientHeight } = drawer.domElement;
+        this.scene.setSize(clientHeight, clientWidth);
+        const vContainer = this.scene.uiElement.get("container");
+        drawer.addChild(vContainer);
+        this.uiElement.set({ drawer });
+        drawer.onResized.add(() => {
+            const width = window.innerWidth;
+            const height = this.scene.size.y;
+            this.scene.setSize(height, width);
+        });
+        drawer.onResized.add(() => {
+            const { width, height } = drawer.containerSize;
+            this.scene.setSize(height, width);
+        });
+        if (this.components.renderer.isUpdateable()) {
+            this.components.renderer.onAfterUpdate.add(async () => {
+                if (drawer.visible) {
+                    await this.scene.update();
+                }
+            });
+        }
+    }
+}
+RoadElevationNavigator.uuid = "097eea29-2d5a-431a-a247-204d44670621";
+
+class Road3DNavigator extends Component {
+    constructor(components) {
+        super(components);
+        this.onHighlight = new Event();
+        this.enabled = true;
+        this.onMarkerChange = new Event();
+        this.onMarkerHidden = new Event();
+        this._curves = [];
+        this.components.tools.add(Road3DNavigator.uuid, this);
+        const scene = this.components.scene.get();
+        this.highlighter = new CurveHighlighter(scene, "absolute");
+        this.mouseMarkers = {
+            select: this.newMouseMarker("#ffffff"),
+            hover: this.newMouseMarker("#575757"),
+        };
+    }
+    get() {
+        return null;
+    }
+    draw(model) {
+        if (!model.civilData) {
+            throw new Error("Model must have civil data!");
+        }
+        const scene = this.components.scene.get();
+        for (const [_id, alignment] of model.civilData.alignments) {
+            for (const { mesh } of alignment.absolute) {
+                scene.add(mesh);
+                this._curves.push(mesh);
+            }
+        }
+    }
+    setup() {
+        const dom = this.components.renderer.get().domElement;
+        dom.addEventListener("click", async (event) => {
+            if (!this.enabled) {
+                return;
+            }
+            const camera = this.components.camera.get();
+            const found = this.highlighter.castRay(event, camera, dom, this._curves);
+            if (found) {
+                const curve = found.object;
+                this.highlighter.select(curve);
+                await this.updateMarker(found, "select");
+                const { point, index } = found;
+                if (index !== undefined) {
+                    await this.onHighlight.trigger({ curve, point, index });
+                }
+                return;
+            }
+            this.highlighter.unSelect();
+            this.mouseMarkers.hover.visible = false;
+            await this.onMarkerHidden.trigger({ type: "hover" });
+        });
+        dom.addEventListener("mousemove", async (event) => {
+            if (!this.enabled) {
+                return;
+            }
+            const camera = this.components.camera.get();
+            const found = this.highlighter.castRay(event, camera, dom, this._curves);
+            if (found) {
+                this.highlighter.hover(found.object);
+                await this.updateMarker(found, "hover");
+                return;
+            }
+            this.highlighter.unHover();
+        });
+    }
+    newMouseMarker(color) {
+        const scene = this.components.scene.get();
+        const root = document.createElement("div");
+        root.style.backgroundColor = color;
+        root.style.width = "1rem";
+        root.style.height = "1rem";
+        root.style.borderRadius = "1rem";
+        const mouseMarker = new Simple2DMarker(this.components, root, scene);
+        mouseMarker.visible = false;
+        return mouseMarker;
+    }
+    setMarker(alignment, percentage, type) {
+        const point = alignment.getPointAt(percentage, "absolute");
+        this.mouseMarkers[type].visible = true;
+        const marker = this.mouseMarkers[type].get();
+        marker.position.copy(point);
+    }
+    hideMarker(type) {
+        const marker = this.mouseMarkers[type].get();
+        marker.visible = false;
+    }
+    async updateMarker(intersects, type) {
+        const { point, object } = intersects;
+        const mesh = object;
+        const curve = mesh.curve;
+        const alignment = mesh.curve.alignment;
+        const percentage = alignment.getPercentageAt(point, "absolute");
+        this.mouseMarkers[type].visible = true;
+        const marker = this.mouseMarkers[type].get();
+        marker.position.copy(point);
+        if (percentage !== null) {
+            await this.onMarkerChange.trigger({ alignment, percentage, type, curve });
+        }
+    }
+}
+Road3DNavigator.uuid = "0a59c09e-2b49-474a-9320-99f51f40f182";
+ToolComponent.libraryUUIDs.add(Road3DNavigator.uuid);
+
+class RoadCrossSectionNavigator extends Component {
+    constructor(components) {
+        super(components);
+        this.uiElement = new UIElement();
+        this.enabled = true;
+        this.scene = new Simple2DScene(components);
+        this.setUI();
+        this.components.tools.add(RoadCrossSectionNavigator.uuid, this);
+        const clipper = components.tools.get(EdgesClipper);
+        this.plane = clipper.createFromNormalAndCoplanarPoint(new THREE$1.Vector3(1, 0, 0), new THREE$1.Vector3());
+        this.plane.visible = false;
+        this.plane.enabled = false;
+    }
+    get() {
+        return null;
+    }
+    async set(curveMesh, point) {
+        this.plane.enabled = true;
+        const percentage = curveMesh.curve.getPercentageAt(point);
+        if (percentage === null)
+            return;
+        const { startPoint, endPoint } = curveMesh.curve.getSegmentAt(percentage);
+        if (curveMesh.geometry.index === null) {
+            throw new Error("Geometry must be indexed!");
+        }
+        const direction = new THREE$1.Vector3();
+        direction.subVectors(endPoint, startPoint);
+        direction.normalize();
+        await this.plane.setFromNormalAndCoplanarPoint(direction, point);
+        const transform = this.plane.helper.matrix.clone();
+        transform.invert();
+        const scene = this.scene.get();
+        const edges = this.plane.edges.get();
+        for (const styleName in edges) {
+            const { mesh } = edges[styleName];
+            mesh.position.set(0, 0, 0);
+            mesh.rotation.set(0, 0, 0);
+            mesh.updateMatrix();
+            mesh.applyMatrix4(transform);
+            if (mesh.parent !== scene) {
+                scene.add(mesh);
+            }
+        }
+        this.plane.enabled = false;
+    }
+    setUI() {
+        const name = "Cross section";
+        const floatingWindow = CivilFloatingWindow.get(this.components, this.scene, name);
+        this.uiElement.set({ floatingWindow });
+    }
+}
+RoadCrossSectionNavigator.uuid = "96b2c87e-d90b-4639-8257-8f01136fe324";
+ToolComponent.libraryUUIDs.add(RoadCrossSectionNavigator.uuid);
+
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, Road3DNavigator, RoadCrossSectionNavigator, RoadElevationNavigator, RoadNavigator, RoadPlanNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, distanceFromPointToLine, generateExpressIDFragmentIDMap, generateIfcGUID, getIndexAndPos, getIndices, getPlane, getRaycastedFace, getVertices, isPointInFrontOfPlane, isTransparent, obbFromPoints, roundVector };
