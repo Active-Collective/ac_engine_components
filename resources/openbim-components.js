@@ -120965,456 +120965,6 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
-/**
- * Class for Managing Markers along with creating different types of markers
- * Every marker is a Simple2DMarker
- * For every marker that needs to be added, you can use the Manager to add the marker and change its look and feel
- */
-class MarkerManager {
-    constructor(components, renderer, scene, controls) {
-        this.components = components;
-        this.renderer = renderer;
-        this.controls = controls;
-        this.markers = new Set();
-        this.clusterLabels = new Set();
-        this.currentKeys = new Set();
-        this._clusterOnZoom = true;
-        this._color = "white";
-        // TODO: Replace with UUID for the marker key
-        this._markerKey = 0;
-        this._clusterKey = 0;
-        this._clusterThreeshold = 50;
-        this.isNavigating = false;
-        this.scene = scene;
-        this.setupEvents();
-    }
-    set clusterOnZoom(value) {
-        this._clusterOnZoom = value;
-    }
-    get clusterOnZoom() {
-        return this._clusterOnZoom;
-    }
-    set color(value) {
-        this._color = value;
-        for (const marker of this.markers) {
-            marker.label.get().element.style.color = value;
-        }
-    }
-    set clusterThreeshold(value) {
-        this._clusterThreeshold = value;
-    }
-    get clusterThreeshold() {
-        return this._clusterThreeshold;
-    }
-    setupEvents() {
-        if (this.scene) {
-            this.controls.addEventListener("sleep", () => {
-                this.manageCluster();
-            });
-            this.controls.addEventListener("rest", () => {
-                if (this.isNavigating) {
-                    this.manageCluster();
-                    this.isNavigating = false;
-                }
-            });
-        }
-    }
-    resetMarkers() {
-        for (const marker of this.markers) {
-            marker.merged = false;
-        }
-        for (const cluster of this.clusterLabels) {
-            this.scene.remove(cluster.label.get());
-        }
-        this.clusterLabels.clear();
-        this._clusterKey = 0;
-    }
-    removeMergeMarkers() {
-        for (const marker of this.markers) {
-            if (marker.merged) {
-                this.scene.remove(marker.label.get());
-            }
-            else {
-                this.scene.add(marker.label.get());
-            }
-        }
-        for (const cluster of this.clusterLabels) {
-            if (cluster.markerKeys.length === 1) {
-                const marker = Array.from(this.markers).find((marker) => marker.key === cluster.markerKeys[0]);
-                if (marker) {
-                    this.scene.add(marker.label.get());
-                    marker.merged = false;
-                }
-                this.scene.remove(cluster.label.get());
-                this.clusterLabels.delete(cluster);
-            }
-        }
-    }
-    manageCluster() {
-        this.resetMarkers();
-        for (const marker of this.markers) {
-            if (!marker.merged && !marker.static) {
-                this.currentKeys.clear();
-                for (const marker2 of this.markers) {
-                    if (marker2.static) {
-                        continue;
-                    }
-                    if (marker.key !== marker2.key && !marker2.merged) {
-                        const distance = this.distance(marker.label, marker2.label);
-                        if (distance < this._clusterThreeshold) {
-                            this.currentKeys.add(marker2.key);
-                            marker2.merged = true;
-                        }
-                    }
-                }
-                if (this.currentKeys.size > 0) {
-                    if (!this.scene) {
-                        return;
-                    }
-                    this.currentKeys.add(marker.key);
-                    marker.merged = true;
-                    const clusterGroup = Array.from(this.currentKeys);
-                    const averagePosition = this.getAveragePositionFromLabels(clusterGroup);
-                    const clusterLabel = new Simple2DMarker(this.components, this.createClusterElement(this._clusterKey.toString()), this.scene);
-                    clusterLabel.get().element.textContent =
-                        clusterGroup.length.toString();
-                    clusterLabel.get().position.copy(averagePosition);
-                    this.clusterLabels.add({
-                        key: this._clusterKey.toString(),
-                        markerKeys: clusterGroup,
-                        label: clusterLabel,
-                    });
-                    this._clusterKey++;
-                }
-            }
-        }
-        this.removeMergeMarkers();
-    }
-    getAveragePositionFromLabels(clusterGroup) {
-        const positions = clusterGroup.map((key) => {
-            const marker = Array.from(this.markers).find((marker) => marker.key === key);
-            if (marker) {
-                return marker.label.get().position;
-            }
-            return new THREE$1.Vector3();
-        });
-        const averagePosition = positions
-            .reduce((acc, curr) => acc.add(curr), new THREE$1.Vector3())
-            .divideScalar(positions.length);
-        return averagePosition;
-    }
-    createClusterElement(key) {
-        const div = document.createElement("div");
-        div.textContent = key;
-        div.style.color = "#000000";
-        div.style.background = "#FFFFFF";
-        div.style.fontSize = "1.2rem";
-        div.style.fontWeight = "500";
-        div.style.pointerEvents = "auto";
-        div.style.borderRadius = "50%";
-        div.style.padding = "5px 11px";
-        div.style.textAlign = "center";
-        div.style.cursor = "pointer";
-        // div.style.transition = "all 0.05s";
-        div.addEventListener("pointerdown", () => {
-            this.navigateToCluster(key);
-        });
-        div.addEventListener("pointerover", () => {
-            div.style.background = "#BCF124";
-        });
-        div.addEventListener("pointerout", () => {
-            div.style.background = "#FFFFFF";
-        });
-        return div;
-    }
-    addMarker(text, mesh) {
-        const span = document.createElement("span");
-        span.innerHTML = text;
-        span.style.color = this._color;
-        const marker = this.addMarkerToScene(span);
-        marker.get().position.copy(mesh.position);
-        this.markers.add({
-            label: marker,
-            mesh,
-            key: this._markerKey.toString(),
-            merged: false,
-            static: false,
-        });
-        this._markerKey++;
-    }
-    addMarkerAtPoint(text, point, type, isStatic = false) {
-        if (type !== undefined) {
-            const span = document.createElement("span");
-            span.innerHTML = text;
-            span.style.color = this._color;
-            const marker = new Simple2DMarker(this.components, span, this.scene);
-            marker.get().position.copy(point);
-            this.markers.add({
-                label: marker,
-                mesh: new THREE$1.Mesh(),
-                key: this._markerKey.toString(),
-                merged: false,
-                type,
-                static: isStatic,
-            });
-            this._markerKey++;
-        }
-    }
-    // TODO: Move this to switch statement inside addCivilMarker
-    addKPStation(text, mesh) {
-        const container = document.createElement("div");
-        const span = document.createElement("div");
-        container.appendChild(span);
-        span.innerHTML = text;
-        span.style.color = this._color;
-        span.style.borderBottom = "1px dotted white";
-        span.style.width = "160px";
-        span.style.textAlign = "left";
-        const marker = new Simple2DMarker(this.components, container, this.scene);
-        const point = new THREE$1.Vector3();
-        point.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
-        point.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
-        point.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
-        const secondLastPoint = new THREE$1.Vector3();
-        secondLastPoint.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 2);
-        secondLastPoint.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 2);
-        secondLastPoint.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 2);
-        const midPoint = new THREE$1.Vector3();
-        midPoint.x = (point.x + secondLastPoint.x) / 2;
-        midPoint.y = (point.y + secondLastPoint.y) / 2;
-        midPoint.z = (point.z + secondLastPoint.z) / 2;
-        marker.get().position.copy(midPoint);
-        const direction = new THREE$1.Vector3();
-        direction.subVectors(point, secondLastPoint).normalize();
-        const quaternion = new THREE$1.Quaternion();
-        quaternion.setFromUnitVectors(new THREE$1.Vector3(0, 1, 0), direction);
-        const eulerZ = new THREE$1.Euler().setFromQuaternion(quaternion).z;
-        const rotationZ = THREE$1.MathUtils.radToDeg(eulerZ);
-        span.style.transform = `rotate(${-rotationZ - 90}deg) translate(-35%, -50%)`;
-        this.markers.add({
-            label: marker,
-            mesh,
-            key: this._markerKey.toString(),
-            merged: false,
-            static: false,
-        });
-        this._markerKey++;
-    }
-    addCivilVerticalMarker(text, mesh, type, scene) {
-        const span = document.createElement("span");
-        span.innerHTML = text;
-        span.style.color = this._color;
-        const marker = new Simple2DMarker(this.components, span, scene);
-        if (type === "Height") {
-            const span = document.createElement("span");
-            span.innerHTML = text;
-            span.style.color = this._color;
-            const { position } = mesh.geometry.attributes;
-            const setArray = position.array.length / 3;
-            const firstIndex = (setArray - 1) * 3;
-            const lastIndex = position.array.slice(firstIndex, firstIndex + 3);
-            marker.get().position.set(lastIndex[0], lastIndex[1] + 10, lastIndex[2]);
-        }
-        else if (type === "InitialKPV") {
-            const { position } = mesh.geometry.attributes;
-            const pX = position.getX(0);
-            const pY = position.getY(0);
-            const pZ = position.getZ(0);
-            marker.get().position.set(pX - 20, pY, pZ);
-        }
-        else if (type === "FinalKPV") {
-            const { position } = mesh.geometry.attributes;
-            const pX = position.getX(mesh.geometry.attributes.position.count - 1);
-            const pY = position.getY(mesh.geometry.attributes.position.count - 1);
-            const pZ = position.getZ(mesh.geometry.attributes.position.count - 1);
-            marker.get().position.set(pX + 20, pY, pZ);
-        }
-        else if (type === "Slope") {
-            span.style.color = "grey";
-            const { position } = mesh.geometry.attributes;
-            const pointStart = new THREE$1.Vector3();
-            pointStart.x = position.getX(0);
-            pointStart.y = position.getY(0);
-            pointStart.z = position.getZ(0);
-            const pointEnd = new THREE$1.Vector3();
-            pointEnd.x = position.getX(position.count - 1);
-            pointEnd.y = position.getY(position.count - 1);
-            pointEnd.z = position.getZ(position.count - 1);
-            const midPoint = new THREE$1.Vector3();
-            midPoint.addVectors(pointStart, pointEnd).multiplyScalar(0.5);
-            marker.get().position.set(midPoint.x, midPoint.y - 10, midPoint.z);
-        }
-        this.markers.add({
-            label: marker,
-            mesh,
-            key: this._markerKey.toString(),
-            type,
-            merged: false,
-            static: false,
-        });
-        this._markerKey++;
-        return marker;
-    }
-    addCivilMarker(text, mesh, type) {
-        const span = document.createElement("span");
-        span.innerHTML = text;
-        span.style.color = this._color;
-        const marker = this.addMarkerToScene(span);
-        if (type === "InitialKP") {
-            const pX = mesh.geometry.attributes.position.getX(0);
-            const pY = mesh.geometry.attributes.position.getY(0);
-            const pZ = mesh.geometry.attributes.position.getZ(0);
-            marker.get().position.set(pX + 2, pY + 2, pZ);
-        }
-        else if (type === "FinalKP") {
-            const pX = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
-            const pY = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
-            const pZ = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
-            marker.get().position.set(pX + 2, pY - 2, pZ);
-        }
-        else if (type === "Length") {
-            const pointStart = new THREE$1.Vector3();
-            pointStart.x = mesh.geometry.attributes.position.getX(0);
-            pointStart.y = mesh.geometry.attributes.position.getY(0);
-            pointStart.z = mesh.geometry.attributes.position.getZ(0);
-            const pointEnd = new THREE$1.Vector3();
-            pointEnd.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
-            pointEnd.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
-            pointEnd.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
-            const length = pointStart.distanceTo(pointEnd);
-            marker.get().element.innerText = length.toFixed(2);
-            marker
-                .get()
-                .position.copy(pointEnd.clone().add(pointStart).divideScalar(2));
-        }
-        this.markers.add({
-            label: marker,
-            mesh,
-            key: this._markerKey.toString(),
-            type,
-            merged: false,
-            static: false,
-        });
-        this._markerKey++;
-        return marker;
-    }
-    addMarkerToScene(span) {
-        if (!this.scene) {
-            throw new Error("Scene is needed to add markers!");
-        }
-        const scene = this.scene;
-        const marker = new Simple2DMarker(this.components, span, scene);
-        return marker;
-    }
-    getScreenPosition(label) {
-        const screenPosition = new THREE$1.Vector3();
-        if (!this.scene) {
-            const labelPosition = label
-                .get()
-                .position.clone()
-                .project(this.components.camera.get());
-            const dimensions = this.components.renderer.getSize();
-            screenPosition.x =
-                (labelPosition.x * dimensions.x) / 2 + dimensions.x / 2;
-            screenPosition.y =
-                -((labelPosition.y * dimensions.y) / 2) + dimensions.y / 2;
-        }
-        else {
-            const labelPosition = label
-                .get()
-                .position.clone()
-                .project(this.controls.camera);
-            const dimensions = this.renderer.getSize();
-            screenPosition.x =
-                (labelPosition.x * dimensions.x) / 2 + dimensions.x / 2;
-            screenPosition.y =
-                -((labelPosition.y * dimensions.y) / 2) + dimensions.y / 2;
-        }
-        return screenPosition;
-    }
-    distance(label1, label2) {
-        const screenPosition1 = this.getScreenPosition(label1);
-        const screenPosition2 = this.getScreenPosition(label2);
-        const dx = screenPosition1.x - screenPosition2.x;
-        const dy = screenPosition1.y - screenPosition2.y;
-        const distance = Math.sqrt(dx * dx + dy * dy) * 0.5;
-        // Managing Overlapping Labels
-        if (distance === 0) {
-            const updateDistance = this._clusterThreeshold + 1;
-            return updateDistance;
-        }
-        return distance;
-    }
-    navigateToCluster(key) {
-        const boundingRegion = [];
-        const cluster = Array.from(this.clusterLabels).find((cluster) => cluster.key === key);
-        if (cluster) {
-            for (const markerKey of cluster.markerKeys) {
-                const marker = Array.from(this.markers).find((marker) => marker.key === markerKey);
-                if (marker) {
-                    boundingRegion.push(marker.label.get().position);
-                }
-            }
-            this.scene.remove(cluster?.label.get());
-            this.clusterLabels.delete(cluster);
-        }
-        if (this.scene) {
-            const box3 = this.createBox3FromPoints(boundingRegion);
-            const size = new THREE$1.Vector3();
-            box3.getSize(size);
-            const center = new THREE$1.Vector3();
-            box3.getCenter(center);
-            const geometry = new THREE$1.BoxGeometry(size.x, size.y, size.z);
-            geometry.translate(center.x, center.y, center.z);
-            const mesh = new THREE$1.Mesh(geometry);
-            mesh.geometry.computeBoundingSphere();
-            const boundingSphere = mesh.geometry?.boundingSphere;
-            if (this.controls && boundingSphere) {
-                this.controls.fitToSphere(mesh, true);
-            }
-            this.isNavigating = true;
-            geometry.dispose();
-            mesh.clear();
-        }
-        boundingRegion.length = 0;
-    }
-    createBox3FromPoints(points) {
-        const bbox = new THREE$1.Box3();
-        for (const point of points) {
-            bbox.expandByPoint(point);
-        }
-        return bbox;
-    }
-    clearMarkers() {
-        for (const marker of this.markers) {
-            this.scene.remove(marker.label.get());
-        }
-        this.markers.clear();
-        this._markerKey = 0;
-    }
-    clearMarkersByType(type) {
-        for (const marker of this.markers) {
-            if (marker.type === type) {
-                this.scene.remove(marker.label.get());
-                this.markers.delete(marker);
-            }
-        }
-    }
-    dispose() {
-        this.markers.forEach((marker) => {
-            marker.label.dispose();
-        });
-        this.markers.clear();
-        this._markerKey = 0;
-        this.clusterLabels.forEach((cluster) => {
-            cluster.label.dispose();
-        });
-        this.clusterLabels.clear();
-        this._clusterKey = 0;
-        this.currentKeys.clear();
-    }
-}
-
 class RoadNavigator extends Component {
     constructor(components) {
         super(components);
@@ -121425,11 +120975,6 @@ class RoadNavigator extends Component {
         this._curveMeshes = [];
         this._previousAlignment = null;
         this.scene = new Simple2DScene(this.components, false);
-        // @ts-ignore
-        this.components._renderer._renderer;
-        // @ts-ignore
-        const controls = this.components._camera.controls;
-        this.markerManager = new MarkerManager(this.components, this.scene.renderer, this.scene.scene, controls);
         this.mouseMarkers = {
             select: this.newMouseMarker("#ffffff"),
             hover: this.newMouseMarker("#575757"),
@@ -121546,8 +121091,8 @@ class RoadNavigator extends Component {
         this.setMouseMarker(point, found.curve.mesh, index, type);
     }
     setDefSegments(segmentsArray) {
-        let defSegments = [];
-        let slope = [];
+        const defSegments = [];
+        const slope = [];
         const calculateSlopeSegment = (point1, point2) => {
             const deltaY = point2[1] - point1[1];
             const deltaX = point2[0] - point1[0];
@@ -121555,7 +121100,10 @@ class RoadNavigator extends Component {
         };
         for (let i = 0; i < segmentsArray.length; i++) {
             const segment = segmentsArray[i];
-            let startX, startY, endX, endY;
+            let startX;
+            let startY;
+            let endX;
+            let endY;
             // Set start
             for (let j = 0; j < Object.keys(segment).length / 3; j++) {
                 if (segment[j * 3] !== undefined && segment[j * 3 + 1] !== undefined) {
@@ -121582,12 +121130,12 @@ class RoadNavigator extends Component {
         }
         segmentsArray.forEach((segment) => {
             for (let i = 0; i < segment.length - 3; i += 3) {
-                let startX = segment[i];
-                let startY = segment[i + 1];
-                let startZ = segment[i + 2];
-                let endX = segment[i + 3];
-                let endY = segment[i + 4];
-                let endZ = segment[i + 5];
+                const startX = segment[i];
+                const startY = segment[i + 1];
+                const startZ = segment[i + 2];
+                const endX = segment[i + 3];
+                const endY = segment[i + 4];
+                const endZ = segment[i + 5];
                 defSegments.push({
                     start: new THREE$1.Vector3(startX, startY, startZ),
                     end: new THREE$1.Vector3(endX, endY, endZ),
@@ -121653,6 +121201,7 @@ class RoadNavigator extends Component {
 
 class CurveHighlighter {
     constructor(scene, type) {
+        this.onSelect = new Event();
         this.caster = new THREE$1.Raycaster();
         this.scene = scene;
         this.type = type;
@@ -121691,6 +121240,7 @@ class CurveHighlighter {
     }
     select(mesh) {
         this.highlight(mesh, this.selectCurve, this.selectPoints, true);
+        this.onSelect.trigger(mesh);
     }
     unSelect() {
         this.selectCurve.removeFromParent();
@@ -122032,6 +121582,456 @@ class CivilFloatingWindow {
     }
 }
 
+/**
+ * Class for Managing Markers along with creating different types of markers
+ * Every marker is a Simple2DMarker
+ * For every marker that needs to be added, you can use the Manager to add the marker and change its look and feel
+ */
+class MarkerManager {
+    constructor(components, renderer, scene, controls) {
+        this.components = components;
+        this.renderer = renderer;
+        this.controls = controls;
+        this.markers = new Set();
+        this.clusterLabels = new Set();
+        this.currentKeys = new Set();
+        this._clusterOnZoom = true;
+        this._color = "white";
+        // TODO: Replace with UUID for the marker key
+        this._markerKey = 0;
+        this._clusterKey = 0;
+        this._clusterThreeshold = 50;
+        this.isNavigating = false;
+        this.scene = scene;
+        this.setupEvents();
+    }
+    set clusterOnZoom(value) {
+        this._clusterOnZoom = value;
+    }
+    get clusterOnZoom() {
+        return this._clusterOnZoom;
+    }
+    set color(value) {
+        this._color = value;
+        for (const marker of this.markers) {
+            marker.label.get().element.style.color = value;
+        }
+    }
+    set clusterThreeshold(value) {
+        this._clusterThreeshold = value;
+    }
+    get clusterThreeshold() {
+        return this._clusterThreeshold;
+    }
+    setupEvents() {
+        if (this.scene) {
+            this.controls.addEventListener("sleep", () => {
+                this.manageCluster();
+            });
+            this.controls.addEventListener("rest", () => {
+                if (this.isNavigating) {
+                    this.manageCluster();
+                    this.isNavigating = false;
+                }
+            });
+        }
+    }
+    resetMarkers() {
+        for (const marker of this.markers) {
+            marker.merged = false;
+        }
+        for (const cluster of this.clusterLabels) {
+            this.scene.remove(cluster.label.get());
+        }
+        this.clusterLabels.clear();
+        this._clusterKey = 0;
+    }
+    removeMergeMarkers() {
+        for (const marker of this.markers) {
+            if (marker.merged) {
+                this.scene.remove(marker.label.get());
+            }
+            else {
+                this.scene.add(marker.label.get());
+            }
+        }
+        for (const cluster of this.clusterLabels) {
+            if (cluster.markerKeys.length === 1) {
+                const marker = Array.from(this.markers).find((marker) => marker.key === cluster.markerKeys[0]);
+                if (marker) {
+                    this.scene.add(marker.label.get());
+                    marker.merged = false;
+                }
+                this.scene.remove(cluster.label.get());
+                this.clusterLabels.delete(cluster);
+            }
+        }
+    }
+    manageCluster() {
+        this.resetMarkers();
+        for (const marker of this.markers) {
+            if (!marker.merged && !marker.static) {
+                this.currentKeys.clear();
+                for (const marker2 of this.markers) {
+                    if (marker2.static) {
+                        continue;
+                    }
+                    if (marker.key !== marker2.key && !marker2.merged) {
+                        const distance = this.distance(marker.label, marker2.label);
+                        if (distance < this._clusterThreeshold) {
+                            this.currentKeys.add(marker2.key);
+                            marker2.merged = true;
+                        }
+                    }
+                }
+                if (this.currentKeys.size > 0) {
+                    if (!this.scene) {
+                        return;
+                    }
+                    this.currentKeys.add(marker.key);
+                    marker.merged = true;
+                    const clusterGroup = Array.from(this.currentKeys);
+                    const averagePosition = this.getAveragePositionFromLabels(clusterGroup);
+                    const clusterLabel = new Simple2DMarker(this.components, this.createClusterElement(this._clusterKey.toString()), this.scene);
+                    clusterLabel.get().element.textContent =
+                        clusterGroup.length.toString();
+                    clusterLabel.get().position.copy(averagePosition);
+                    this.clusterLabels.add({
+                        key: this._clusterKey.toString(),
+                        markerKeys: clusterGroup,
+                        label: clusterLabel,
+                    });
+                    this._clusterKey++;
+                }
+            }
+        }
+        this.removeMergeMarkers();
+    }
+    getAveragePositionFromLabels(clusterGroup) {
+        const positions = clusterGroup.map((key) => {
+            const marker = Array.from(this.markers).find((marker) => marker.key === key);
+            if (marker) {
+                return marker.label.get().position;
+            }
+            return new THREE$1.Vector3();
+        });
+        const averagePosition = positions
+            .reduce((acc, curr) => acc.add(curr), new THREE$1.Vector3())
+            .divideScalar(positions.length);
+        return averagePosition;
+    }
+    createClusterElement(key) {
+        const div = document.createElement("div");
+        div.textContent = key;
+        div.style.color = "#000000";
+        div.style.background = "#FFFFFF";
+        div.style.fontSize = "1.2rem";
+        div.style.fontWeight = "500";
+        div.style.pointerEvents = "auto";
+        div.style.borderRadius = "50%";
+        div.style.padding = "5px 11px";
+        div.style.textAlign = "center";
+        div.style.cursor = "pointer";
+        // div.style.transition = "all 0.05s";
+        div.addEventListener("pointerdown", () => {
+            this.navigateToCluster(key);
+        });
+        div.addEventListener("pointerover", () => {
+            div.style.background = "#BCF124";
+        });
+        div.addEventListener("pointerout", () => {
+            div.style.background = "#FFFFFF";
+        });
+        return div;
+    }
+    addMarker(text, mesh) {
+        const span = document.createElement("span");
+        span.innerHTML = text;
+        span.style.color = this._color;
+        const marker = this.addMarkerToScene(span);
+        marker.get().position.copy(mesh.position);
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+    }
+    addMarkerAtPoint(text, point, type, isStatic = false) {
+        if (type !== undefined) {
+            const span = document.createElement("span");
+            span.innerHTML = text;
+            span.style.color = this._color;
+            const marker = new Simple2DMarker(this.components, span, this.scene);
+            marker.get().position.copy(point);
+            this.markers.add({
+                label: marker,
+                mesh: new THREE$1.Mesh(),
+                key: this._markerKey.toString(),
+                merged: false,
+                type,
+                static: isStatic,
+            });
+            this._markerKey++;
+        }
+    }
+    // TODO: Move this to switch statement inside addCivilMarker
+    addKPStation(text, mesh) {
+        const container = document.createElement("div");
+        const span = document.createElement("div");
+        container.appendChild(span);
+        span.innerHTML = text;
+        span.style.color = this._color;
+        span.style.borderBottom = "1px dotted white";
+        span.style.width = "160px";
+        span.style.textAlign = "left";
+        const marker = new Simple2DMarker(this.components, container, this.scene);
+        const point = new THREE$1.Vector3();
+        point.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
+        point.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
+        point.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
+        const secondLastPoint = new THREE$1.Vector3();
+        secondLastPoint.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 2);
+        secondLastPoint.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 2);
+        secondLastPoint.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 2);
+        const midPoint = new THREE$1.Vector3();
+        midPoint.x = (point.x + secondLastPoint.x) / 2;
+        midPoint.y = (point.y + secondLastPoint.y) / 2;
+        midPoint.z = (point.z + secondLastPoint.z) / 2;
+        marker.get().position.copy(midPoint);
+        const direction = new THREE$1.Vector3();
+        direction.subVectors(point, secondLastPoint).normalize();
+        const quaternion = new THREE$1.Quaternion();
+        quaternion.setFromUnitVectors(new THREE$1.Vector3(0, 1, 0), direction);
+        const eulerZ = new THREE$1.Euler().setFromQuaternion(quaternion).z;
+        const rotationZ = THREE$1.MathUtils.radToDeg(eulerZ);
+        span.style.transform = `rotate(${-rotationZ - 90}deg) translate(-35%, -50%)`;
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+    }
+    addCivilVerticalMarker(text, mesh, type, root) {
+        const span = document.createElement("span");
+        span.innerHTML = text;
+        span.style.color = this._color;
+        const marker = new Simple2DMarker(this.components, span, root);
+        if (type === "Height") {
+            const span = document.createElement("span");
+            span.innerHTML = text;
+            span.style.color = this._color;
+            const { position } = mesh.geometry.attributes;
+            const setArray = position.array.length / 3;
+            const firstIndex = (setArray - 1) * 3;
+            const lastIndex = position.array.slice(firstIndex, firstIndex + 3);
+            marker.get().position.set(lastIndex[0], lastIndex[1] + 10, lastIndex[2]);
+        }
+        else if (type === "InitialKPV") {
+            const { position } = mesh.geometry.attributes;
+            const pX = position.getX(0);
+            const pY = position.getY(0);
+            const pZ = position.getZ(0);
+            marker.get().position.set(pX - 20, pY, pZ);
+        }
+        else if (type === "FinalKPV") {
+            const { position } = mesh.geometry.attributes;
+            const pX = position.getX(mesh.geometry.attributes.position.count - 1);
+            const pY = position.getY(mesh.geometry.attributes.position.count - 1);
+            const pZ = position.getZ(mesh.geometry.attributes.position.count - 1);
+            marker.get().position.set(pX + 20, pY, pZ);
+        }
+        else if (type === "Slope") {
+            span.style.color = "grey";
+            const { position } = mesh.geometry.attributes;
+            const pointStart = new THREE$1.Vector3();
+            pointStart.x = position.getX(0);
+            pointStart.y = position.getY(0);
+            pointStart.z = position.getZ(0);
+            const pointEnd = new THREE$1.Vector3();
+            pointEnd.x = position.getX(position.count - 1);
+            pointEnd.y = position.getY(position.count - 1);
+            pointEnd.z = position.getZ(position.count - 1);
+            const midPoint = new THREE$1.Vector3();
+            midPoint.addVectors(pointStart, pointEnd).multiplyScalar(0.5);
+            marker.get().position.set(midPoint.x, midPoint.y - 10, midPoint.z);
+        }
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            type,
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+        return marker;
+    }
+    addCivilMarker(text, mesh, type) {
+        const span = document.createElement("span");
+        span.innerHTML = text;
+        span.style.color = this._color;
+        const marker = this.addMarkerToScene(span);
+        if (type === "InitialKP") {
+            const pX = mesh.geometry.attributes.position.getX(0);
+            const pY = mesh.geometry.attributes.position.getY(0);
+            const pZ = mesh.geometry.attributes.position.getZ(0);
+            marker.get().position.set(pX + 2, pY + 2, pZ);
+        }
+        else if (type === "FinalKP") {
+            const pX = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
+            const pY = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
+            const pZ = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
+            marker.get().position.set(pX + 2, pY - 2, pZ);
+        }
+        else if (type === "Length") {
+            const pointStart = new THREE$1.Vector3();
+            pointStart.x = mesh.geometry.attributes.position.getX(0);
+            pointStart.y = mesh.geometry.attributes.position.getY(0);
+            pointStart.z = mesh.geometry.attributes.position.getZ(0);
+            const pointEnd = new THREE$1.Vector3();
+            pointEnd.x = mesh.geometry.attributes.position.getX(mesh.geometry.attributes.position.count - 1);
+            pointEnd.y = mesh.geometry.attributes.position.getY(mesh.geometry.attributes.position.count - 1);
+            pointEnd.z = mesh.geometry.attributes.position.getZ(mesh.geometry.attributes.position.count - 1);
+            const length = pointStart.distanceTo(pointEnd);
+            marker.get().element.innerText = length.toFixed(2);
+            marker
+                .get()
+                .position.copy(pointEnd.clone().add(pointStart).divideScalar(2));
+        }
+        this.markers.add({
+            label: marker,
+            mesh,
+            key: this._markerKey.toString(),
+            type,
+            merged: false,
+            static: false,
+        });
+        this._markerKey++;
+        return marker;
+    }
+    addMarkerToScene(span) {
+        if (!this.scene) {
+            throw new Error("Scene is needed to add markers!");
+        }
+        const scene = this.scene;
+        const marker = new Simple2DMarker(this.components, span, scene);
+        return marker;
+    }
+    getScreenPosition(label) {
+        const screenPosition = new THREE$1.Vector3();
+        if (!this.scene) {
+            const labelPosition = label
+                .get()
+                .position.clone()
+                .project(this.components.camera.get());
+            const dimensions = this.components.renderer.getSize();
+            screenPosition.x =
+                (labelPosition.x * dimensions.x) / 2 + dimensions.x / 2;
+            screenPosition.y =
+                -((labelPosition.y * dimensions.y) / 2) + dimensions.y / 2;
+        }
+        else {
+            const labelPosition = label
+                .get()
+                .position.clone()
+                .project(this.controls.camera);
+            const dimensions = this.renderer.getSize();
+            screenPosition.x =
+                (labelPosition.x * dimensions.x) / 2 + dimensions.x / 2;
+            screenPosition.y =
+                -((labelPosition.y * dimensions.y) / 2) + dimensions.y / 2;
+        }
+        return screenPosition;
+    }
+    distance(label1, label2) {
+        const screenPosition1 = this.getScreenPosition(label1);
+        const screenPosition2 = this.getScreenPosition(label2);
+        const dx = screenPosition1.x - screenPosition2.x;
+        const dy = screenPosition1.y - screenPosition2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy) * 0.5;
+        // Managing Overlapping Labels
+        if (distance === 0) {
+            const updateDistance = this._clusterThreeshold + 1;
+            return updateDistance;
+        }
+        return distance;
+    }
+    navigateToCluster(key) {
+        const boundingRegion = [];
+        const cluster = Array.from(this.clusterLabels).find((cluster) => cluster.key === key);
+        if (cluster) {
+            for (const markerKey of cluster.markerKeys) {
+                const marker = Array.from(this.markers).find((marker) => marker.key === markerKey);
+                if (marker) {
+                    boundingRegion.push(marker.label.get().position);
+                }
+            }
+            this.scene.remove(cluster?.label.get());
+            this.clusterLabels.delete(cluster);
+        }
+        if (this.scene) {
+            const box3 = this.createBox3FromPoints(boundingRegion);
+            const size = new THREE$1.Vector3();
+            box3.getSize(size);
+            const center = new THREE$1.Vector3();
+            box3.getCenter(center);
+            const geometry = new THREE$1.BoxGeometry(size.x, size.y, size.z);
+            geometry.translate(center.x, center.y, center.z);
+            const mesh = new THREE$1.Mesh(geometry);
+            mesh.geometry.computeBoundingSphere();
+            const boundingSphere = mesh.geometry?.boundingSphere;
+            if (this.controls && boundingSphere) {
+                this.controls.fitToSphere(mesh, true);
+            }
+            this.isNavigating = true;
+            geometry.dispose();
+            mesh.clear();
+        }
+        boundingRegion.length = 0;
+    }
+    createBox3FromPoints(points) {
+        const bbox = new THREE$1.Box3();
+        for (const point of points) {
+            bbox.expandByPoint(point);
+        }
+        return bbox;
+    }
+    clearMarkers() {
+        for (const marker of this.markers) {
+            this.scene.remove(marker.label.get());
+        }
+        this.markers.clear();
+        this._markerKey = 0;
+    }
+    clearMarkersByType(type) {
+        for (const marker of this.markers) {
+            if (marker.type === type) {
+                this.scene.remove(marker.label.get());
+                this.markers.delete(marker);
+            }
+        }
+    }
+    dispose() {
+        for (const marker of this.markers) {
+            marker.label.dispose();
+        }
+        this.markers.clear();
+        this._markerKey = 0;
+        for (const cluster of this.clusterLabels) {
+            cluster.label.dispose();
+        }
+        this.clusterLabels.clear();
+        this._clusterKey = 0;
+        this.currentKeys.clear();
+    }
+}
+
 class KPManager extends MarkerManager {
     constructor(components, renderer, scene, controls, type) {
         super(components, renderer, scene, controls);
@@ -122233,9 +122233,6 @@ class KPManager extends MarkerManager {
     clearKPStations() {
         this.clearMarkers();
     }
-    dispose() {
-        this.dispose();
-    }
 }
 
 class RoadPlanNavigator extends RoadNavigator {
@@ -122303,6 +122300,24 @@ class RoadElevationNavigator extends RoadNavigator {
         const scene = this.scene.get();
         this.highlighter = new CurveHighlighter(scene, "vertical");
         this.kpManager = new KPManager(components, this.scene.renderer, this.scene.get(), this.scene.controls, this.view);
+        this.highlighter.onSelect.add((mesh) => {
+            // Add markers elevation
+            this.kpManager.dispose();
+            const { alignment } = mesh.curve;
+            const positionsVertical = [];
+            for (const align of alignment.vertical) {
+                const pos = align.mesh.geometry.attributes.position.array;
+                positionsVertical.push(pos);
+            }
+            const { defSegments, slope } = this.setDefSegments(positionsVertical);
+            const scene = this.scene.get();
+            alignment.vertical.forEach((align, index) => {
+                this.kpManager.addCivilVerticalMarker(`S: ${slope[index].slope}%`, align.mesh, "Slope", scene);
+                this.kpManager.addCivilVerticalMarker(`H: ${defSegments[index].end.y.toFixed(2)}`, align.mesh, "Height", scene);
+            });
+            this.kpManager.addCivilVerticalMarker("KP: 0", alignment.vertical[0].mesh, "InitialKPV", scene);
+            this.kpManager.addCivilVerticalMarker(`KP: ${alignment.vertical.length}`, alignment.vertical[alignment.vertical.length - 1].mesh, "FinalKPV", scene);
+        });
     }
     get() {
         return null;
