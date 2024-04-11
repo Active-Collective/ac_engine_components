@@ -121007,7 +121007,7 @@ class DXFExporter extends Component {
 DXFExporter.uuid = "568f2167-24a3-4519-b552-3b04cc74a6a6";
 ToolComponent.libraryUUIDs.add(DXFExporter.uuid);
 
-class RoadNavigator extends Component {
+class CivilNavigator extends Component {
     constructor(components) {
         super(components);
         this.enabled = true;
@@ -121025,7 +121025,7 @@ class RoadNavigator extends Component {
         this.adjustRaycasterOnZoom();
     }
     initialize() {
-        console.log("View for RoadNavigator: ", this.view);
+        console.log("View for CivilNavigator: ", this.view);
     }
     get() {
         return null;
@@ -122277,7 +122277,7 @@ class KPManager extends MarkerManager {
     }
 }
 
-class RoadPlanNavigator extends RoadNavigator {
+class CivilPlanNavigator extends CivilNavigator {
     constructor(components) {
         super(components);
         this.view = "horizontal";
@@ -122286,7 +122286,7 @@ class RoadPlanNavigator extends RoadNavigator {
         this.kpManager = new KPManager(components, this.scene.renderer, this.scene.get(), this.scene.controls, this.view);
         this.highlighter = new PlanHighlighter(scene, this.kpManager);
         this.setUI();
-        this.components.tools.add(RoadPlanNavigator.uuid, this);
+        this.components.tools.add(CivilPlanNavigator.uuid, this);
         this.onHighlight.add(({ mesh }) => {
             this.highlighter.showCurveInfo(mesh);
             this.fitCameraToAlignment(mesh);
@@ -122330,10 +122330,10 @@ class RoadPlanNavigator extends RoadNavigator {
         });
     }
 }
-RoadPlanNavigator.uuid = "3096dea0-5bc2-41c7-abce-9089b6c9431b";
-ToolComponent.libraryUUIDs.add(RoadPlanNavigator.uuid);
+CivilPlanNavigator.uuid = "3096dea0-5bc2-41c7-abce-9089b6c9431b";
+ToolComponent.libraryUUIDs.add(CivilPlanNavigator.uuid);
 
-class RoadElevationNavigator extends RoadNavigator {
+class CivilElevationNavigator extends CivilNavigator {
     constructor(components) {
         super(components);
         this.view = "vertical";
@@ -122405,9 +122405,9 @@ class RoadElevationNavigator extends RoadNavigator {
         }
     }
 }
-RoadElevationNavigator.uuid = "097eea29-2d5a-431a-a247-204d44670621";
+CivilElevationNavigator.uuid = "097eea29-2d5a-431a-a247-204d44670621";
 
-class Road3DNavigator extends Component {
+class Civil3DNavigator extends Component {
     constructor(components) {
         super(components);
         this.onHighlight = new Event();
@@ -122415,7 +122415,7 @@ class Road3DNavigator extends Component {
         this.onMarkerChange = new Event();
         this.onMarkerHidden = new Event();
         this._curves = [];
-        this.components.tools.add(Road3DNavigator.uuid, this);
+        this.components.tools.add(Civil3DNavigator.uuid, this);
         const scene = this.components.scene.get();
         this.highlighter = new CurveHighlighter(scene, "absolute");
         this.mouseMarkers = {
@@ -122509,17 +122509,17 @@ class Road3DNavigator extends Component {
         }
     }
 }
-Road3DNavigator.uuid = "0a59c09e-2b49-474a-9320-99f51f40f182";
-ToolComponent.libraryUUIDs.add(Road3DNavigator.uuid);
+Civil3DNavigator.uuid = "0a59c09e-2b49-474a-9320-99f51f40f182";
+ToolComponent.libraryUUIDs.add(Civil3DNavigator.uuid);
 
-class RoadCrossSectionNavigator extends Component {
+class CivilCrossSectionNavigator extends Component {
     constructor(components) {
         super(components);
         this.uiElement = new UIElement();
         this.enabled = true;
         this.scene = new Simple2DScene(components);
         this.setUI();
-        this.components.tools.add(RoadCrossSectionNavigator.uuid, this);
+        this.components.tools.add(CivilCrossSectionNavigator.uuid, this);
         const clipper = components.tools.get(EdgesClipper);
         this.plane = clipper.createFromNormalAndCoplanarPoint(new THREE$1.Vector3(1, 0, 0), new THREE$1.Vector3());
         this.plane.visible = false;
@@ -122563,7 +122563,7 @@ class RoadCrossSectionNavigator extends Component {
         this.uiElement.set({ floatingWindow });
     }
 }
-RoadCrossSectionNavigator.uuid = "96b2c87e-d90b-4639-8257-8f01136fe324";
-ToolComponent.libraryUUIDs.add(RoadCrossSectionNavigator.uuid);
+CivilCrossSectionNavigator.uuid = "96b2c87e-d90b-4639-8257-8f01136fe324";
+ToolComponent.libraryUUIDs.add(CivilCrossSectionNavigator.uuid);
 
-export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, Road3DNavigator, RoadCrossSectionNavigator, RoadElevationNavigator, RoadNavigator, RoadPlanNavigator, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, isPointInFrontOfPlane, isTransparent, obbFromPoints };
+export { AngleMeasurement, AreaMeasurement, ArrowAnnotation, AttributeSet, BaseRenderer, BaseSVGAnnotation, Button, Canvas, CheckboxInput, CircleAnnotation, Civil3DNavigator, CivilCrossSectionNavigator, CivilElevationNavigator, CivilNavigator, CivilPlanNavigator, CloudStorage, ColorInput, CommandsMenu, Component, Components, CubeMap, DXFExporter, DimensionLabelClassName, DimensionPreviewClassName, Disposer, DragAndDropInput, DrawManager, Drawer, Dropdown, EdgeMeasurement, EdgesClipper, EdgesPlane, Event, FaceMeasurement, FloatingWindow, FragmentBoundingBox, FragmentClassifier, FragmentClipStyler, FragmentExploder, FragmentHider, FragmentHighlighter, FragmentIfcLoader, FragmentIfcStreamConverter, FragmentManager, FragmentPlans, FragmentPropsStreamConverter, FragmentStreamLoader, FragmentTree, GeometryVerticesMarker, IfcCategories, IfcCategoryMap, IfcElements, IfcJsonExporter, IfcPropertiesFinder, IfcPropertiesManager, IfcPropertiesProcessor, IfcPropertiesUtils, IfcStreamingSettings, LengthMeasurement, LineIntersectionPicker, MaterialManager, MiniMap, Modal, Mouse, OrthoPerspectiveCamera, PostproductionRenderer, PropertiesStreamingSettings, PropertyTag, RangeInput, RectangleAnnotation, ScreenCuller, ShadowDropper, Simple2DMarker, Simple2DScene, SimpleCamera, SimpleClipper, SimpleDimensionLine, SimpleGrid, SimplePlane, SimpleRaycaster, SimpleRenderer, SimpleSVGViewport, SimpleScene, SimpleUICard, SimpleUIComponent, Spinner, TextAnnotation, TextArea, TextInput, ToastNotification, ToolComponent, Toolbar, TreeView, UIElement, UIManager, VertexPicker, ViewpointsManager, VolumeMeasurement, bufferGeometryToIndexed, generateExpressIDFragmentIDMap, generateIfcGUID, isPointInFrontOfPlane, isTransparent, obbFromPoints };
