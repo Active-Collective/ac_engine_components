@@ -117103,6 +117103,7 @@ class MeasurementUtils {
         ];
         const plane = new THREE$1.Plane();
         plane.setFromNormalAndCoplanarPoint(faceNormal, p1);
+        plane.constant = Math.round(plane.constant * 10) / 10;
         return { plane, edges };
     }
     static getVerticesAndNormal(mesh, faceIndex, instance) {
@@ -117125,9 +117126,6 @@ class MeasurementUtils {
         const averageNy = (n1.y + n2.y + n3.y) / 3;
         const averageNz = (n1.z + n2.z + n3.z) / 3;
         const faceNormal = new THREE$1.Vector3(averageNx, averageNy, averageNz);
-        if (!faceNormal.x && !faceNormal.y && !faceNormal.z) {
-            console.log("hey");
-        }
         // Apply instance transformation to vertex and normal
         if (instance !== undefined && mesh instanceof THREE$1.InstancedMesh) {
             const transform = new THREE$1.Matrix4();
@@ -117355,7 +117353,6 @@ class FaceMeasurement extends Component {
         scene.add(this.preview);
         const result = MeasurementUtils.getFace(mesh, faceIndex, instance);
         if (result === null) {
-            console.log("Hey!");
             return;
         }
         const area = this.regenerateHighlight(mesh, result.indices, instance);
