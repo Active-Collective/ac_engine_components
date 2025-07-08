@@ -86,6 +86,28 @@ world.scene.setup();
 world.camera.controls.setLookAt(3, 3, 3, 0, 0, 0);
 ```
 
+## 🧪 Viewer test
+
+Run the glTF viewer example to verify that local models load correctly.
+
+1. Install dependencies
+   ```bash
+   yarn
+   ```
+2. Build the core library so Vite can resolve its modules
+   ```bash
+   yarn build-core
+   ```
+3. Start the development server from the package folder
+   ```bash
+   cd packages/core
+   npx vite --host
+   ```
+4. Open [`http://localhost:5173/src/gltfViewer/example.html`](http://localhost:5173/src/gltfViewer/example.html) in your browser.
+5. If an `assets/unit1.glb` file exists it will load automatically. Use the file input in the top left to upload your own `.glb` or `.gltf` file.
+6. Press **R** to rotate the selected model by 90°.
+7. `yarn test` runs the placeholder test script.
+
 
 [npm]: https://img.shields.io/npm/v/@thatopen/components
 [npm-url]: https://www.npmjs.com/package/@thatopen/components
