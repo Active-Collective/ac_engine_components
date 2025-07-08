@@ -44,7 +44,7 @@ async function addModel(url: string) {
   const axes = new AxesHelper(1);
   world.scene.three.add(axes);
 
-  await addModel("/assets/unit1.glb");
+  await addModel("/packages/core/assets/unit1.glb");
 
   window.addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() === "r" && selected) {
