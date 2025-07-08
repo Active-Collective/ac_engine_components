@@ -104,7 +104,7 @@ Run the glTF viewer example to verify that local models load correctly.
    npx vite --host
    ```
 4. Open [`http://localhost:5173/src/gltfViewer/example.html`](http://localhost:5173/src/gltfViewer/example.html) in your browser.
-5. If an `assets/unit1.glb` file exists it will load automatically. Use the file input in the top left to upload your own `.glb` or `.gltf` file.
+5. If `packages/core/assets/unit1.glb` to `packages/core/assets/unit4.glb` exist they will load automatically, placed side by side. Use the file input in the top left to upload your own `.glb` or `.gltf` file.
 6. Press **R** to rotate the selected model by 90°.
 7. `yarn test` runs the placeholder test script.
 

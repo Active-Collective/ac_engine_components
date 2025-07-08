@@ -1,8 +1,13 @@
 import * as OBC from "@thatopen/components";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
 let selected: THREE.Object3D | null = null;
+let bbox: THREE.BoxHelper | null = null;
+let controls: TransformControls | null = null;
+const models: THREE.Object3D[] = [];
+const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 export let world: OBC.World;
 
 function loadGltf(url: string): Promise<THREE.Group> {
@@ -29,20 +34,86 @@ export async function bootstrap() {
   const grid = grids.create(world);
   grid.config.primarySize = 1;
 
+  const casters = components.get(OBC.Raycasters);
+  const caster = casters.get(world);
+
+  function selectObject(obj: THREE.Object3D | null) {
+    if (bbox) {
+      world.scene.three.remove(bbox);
+      bbox = null;
+    }
+
+    if (!obj) {
+      controls?.detach();
+      selected = null;
+      return;
+    }
+
+    const root = rootMap.get(obj) ?? obj;
+    selected = root;
+
+    if (!controls) {
+      controls = new TransformControls(
+        world.camera.three,
+        world.renderer.three.domElement,
+      );
+      controls.setMode("translate");
+      controls.showZ = false;
+      controls.addEventListener("dragging-changed", ev => {
+        world.camera.controls.enabled = !ev.value;
+      });
+      controls.addEventListener("change", () => {
+        bbox?.update();
+      });
+      world.scene.three.add(controls);
+    }
+
+    controls.attach(root);
+    bbox = new THREE.BoxHelper(root, 0x00ff00);
+    world.scene.three.add(bbox);
+  }
+
+  let offsetX = 0;
+
   async function addModel(url: string) {
     const gltf = await loadGltf(url);
+    const box = new THREE.Box3().setFromObject(gltf.scene);
+    const width = box.max.x - box.min.x;
+    gltf.scene.position.x = offsetX - box.min.x;
     gltf.scene.traverse(obj => {
+      rootMap.set(obj, gltf.scene);
       if (obj instanceof THREE.Object3D) obj.name ||= "unit";
     });
     world.scene.three.add(gltf.scene);
-    selected = gltf.scene;
+    models.push(gltf.scene);
+    offsetX += width;
+    return gltf.scene;
   }
 
-  await addModel("/assets/unit1.glb");
+  const urls = [
+    "/packages/core/assets/unit1.glb",
+    "/packages/core/assets/unit2.glb",
+    "/packages/core/assets/unit3.glb",
+    "/packages/core/assets/unit4.glb",
+  ];
+  for (const url of urls) {
+    await addModel(url);
+  }
+
+  world.renderer.three.domElement.addEventListener("pointerdown", () => {
+    if (controls && (controls as any).dragging) return;
+    const result = caster.castRay(models);
+    if (result) {
+      selectObject(result.object as THREE.Object3D);
+    } else {
+      selectObject(null);
+    }
+  });
 
   window.addEventListener("keydown", e => {
     if (e.key.toLowerCase() === "r" && selected) {
       selected.rotateY(Math.PI / 2);
+      bbox?.update();
     }
   });
 
@@ -54,7 +125,9 @@ export async function bootstrap() {
       return;
     }
     const url = URL.createObjectURL(file);
-    if (selected) world.scene.three.remove(selected);
-    await addModel(url);
+    const obj = await addModel(url);
+    selectObject(obj);
   });
 }
+
+bootstrap();
