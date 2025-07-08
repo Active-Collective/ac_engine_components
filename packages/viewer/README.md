@@ -17,7 +17,8 @@ This package demonstrates how to load and rotate a glTF model using
 4. Open [http://localhost:5173/packages/viewer/index.html](http://localhost:5173/packages/viewer/index.html) in your browser.
 
 You can load a local `.glb` or `.gltf` file via the file input. By default the
-viewer loads `assets/unit1.glb` if present.
+viewer loads `packages/core/assets/unit1.glb` through
+`packages/core/assets/unit4.glb` if present, arranging them next to each other.
 
 ## Building
 
