@@ -1,8 +1,10 @@
 import * as OBC from "@thatopen/components";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { BoxHelper, AxesHelper } from "three";
 
 let selected: THREE.Object3D | null = null;
+let bounds: BoxHelper | null = null;
 export let world: OBC.World;
 
 async function loadGltf(url: string) {
@@ -15,6 +17,9 @@ async function addModel(url: string) {
   const scene = await loadGltf(url);
   world.scene.three.add(scene);
   selected = scene;
+  if (bounds) world.scene.three.remove(bounds);
+  bounds = new BoxHelper(scene, 0xff0000);
+  world.scene.three.add(bounds);
 }
 
 (async () => {
@@ -36,11 +41,15 @@ async function addModel(url: string) {
   const grid = grids.create(world);
   grid.config.primarySize = 1;
 
+  const axes = new AxesHelper(1);
+  world.scene.three.add(axes);
+
   await addModel("/assets/unit1.glb");
 
   window.addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() === "r" && selected) {
       selected.rotateY(Math.PI / 2);
+      if (bounds) bounds.update();
     }
   });
 

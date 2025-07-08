@@ -14,7 +14,7 @@
     "build-examples": "vite build --config ./vite.config-examples.ts",
     "build": "yarn copy-readme && yarn build-libraries && yarn build-examples",
     "copy-readme": "node resources/readme-copier.mjs",
-    "test": "echo 'test to be implemented!'",
+    "test": "yarn workspace @thatopen/components test",
     "publish-repo": "yarn workspace @thatopen/components publish-repo && yarn workspace @thatopen/components-front publish-repo",
     "reset-release-please": "git commit --allow-empty -m \"chore: release 2.0.0\" -m \"Release-As: 2.0.0\""
   },
@@ -32,6 +32,7 @@
   ],
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
+    "@types/jest": "^30.0.0",
     "@types/node": "latest",
     "@typescript-eslint/eslint-plugin": "7.2.0",
     "@typescript-eslint/parser": "7.2.0",
@@ -41,13 +42,16 @@
     "eslint-plugin-import": "2.29.1",
     "eslint-plugin-prettier": "5.1.3",
     "glob": "latest",
+    "jest": "^30.0.4",
     "prettier": "3.2.5",
+    "ts-jest": "^29.4.0",
     "typescript": "5.4.2",
     "vite": "5.1.6",
     "vite-plugin-dts": "3.7.3"
   },
   "version": "2.4.0",
   "dependencies": {
+    "@gltf-transform/core": "^4.2.0",
     "camera-controls": "^2.9.0"
   }
 }
