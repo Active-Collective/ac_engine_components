@@ -62,8 +62,11 @@ const createIndex = () => ({
 export default defineConfig({
   resolve: {
     alias: {
-      three: resolve("./node_modules/three")
-    }
+      three: resolve("./node_modules/three"),
+    },
+  },
+  optimizeDeps: {
+    dedupe: ["three"],
   },
   plugins: [createIndex()],
 });
