@@ -122,10 +122,35 @@ export async function bootstrap() {
   });
 
   window.addEventListener("keydown", e => {
-    if (e.key.toLowerCase() === "r" && selected) {
-      selected.rotateY(Math.PI / 2);
-      bbox?.update();
+    if (!selected) return;
+
+    const step = grid.config.primarySize;
+
+    switch (e.key) {
+      case "ArrowUp":
+        selected.position.y += step;
+        break;
+      case "ArrowDown":
+        selected.position.y -= step;
+        break;
+      case "ArrowLeft":
+        selected.position.x -= step;
+        break;
+      case "ArrowRight":
+        selected.position.x += step;
+        break;
+      case "r":
+      case "R":
+        selected.rotateY(Math.PI / 2);
+        break;
+      default:
+        return;
     }
+
+    selected.updateMatrixWorld();
+    controls?.updateMatrixWorld(true);
+    bbox?.update();
+    e.preventDefault();
   });
 
   fileInput?.addEventListener("change", async () => {

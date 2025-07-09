@@ -106,8 +106,9 @@ Run the glTF viewer example to verify that local models load correctly.
    ```
 5. Open [`http://localhost:5173`](http://localhost:5173) in your browser.
 6. If `unit1.glb` … `unit4.glb` are present in `packages/core/assets` they load automatically. Use the file input to load your own `.glb` or `.gltf` file.
-7. Press **R** to rotate the selected model by 90°.
-8. Run `yarn test` to execute the placeholder test script.
+7. Use the **arrow keys** to move the selected model one meter at a time on X/Y.
+8. Press **R** to rotate the selected model by 90°.
+9. Run `yarn test` to execute the placeholder test script.
 
 
 [npm]: https://img.shields.io/npm/v/@thatopen/components
