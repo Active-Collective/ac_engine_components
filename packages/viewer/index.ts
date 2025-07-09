@@ -69,12 +69,9 @@ export async function bootstrap() {
       controls.addEventListener("change", () => {
         bbox?.update();
       });
-      world.scene.three.add(controls);
+      world.scene.three.add(controls.object);
     }
 
-    controls.minZ = root.position.z;
-    controls.maxZ = root.position.z;
-    
     controls.attach(root);
     bbox = new THREE.BoxHelper(root, 0x00ff00);
     world.scene.three.add(bbox);
