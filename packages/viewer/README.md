@@ -1,6 +1,6 @@
 # Viewer Example
 
-This package demonstrates how to load and rotate a glTF model using
+This package demonstrates how to load and manipulate glTF models using
 [@thatopen/components](https://www.npmjs.com/package/@thatopen/components).
 
 ## Installation
@@ -12,12 +12,13 @@ This package demonstrates how to load and rotate a glTF model using
    ```
 3. Start the development server:
    ```bash
-   yarn workspace viewer dev
+   yarn workspace viewer dev --host
    ```
-4. Open [http://localhost:5173/packages/viewer/index.html](http://localhost:5173/packages/viewer/index.html) in your browser.
+4. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-You can load a local `.glb` or `.gltf` file via the file input. By default the
-viewer loads `assets/unit1.glb` if present.
+If `unit1.glb` … `unit4.glb` exist under `packages/core/assets` they will load
+automatically and appear side by side. You can also load a local `.glb` or
+`.gltf` file via the file input.
 
 ## Building
 
@@ -25,5 +26,13 @@ To create a production build run:
 ```bash
 yarn workspace viewer build
 ```
+
+## Usage
+
+- Select a model with the left mouse button to move it on the grid using the
+  arrow keys. Press **R** to rotate it 90° around the Y&nbsp;axis.
+- Right-click a mesh (for example a door) to select that part only. Use the
+  color palette to apply a material to the selected object. The reset button
+  restores the original material.
 
 
