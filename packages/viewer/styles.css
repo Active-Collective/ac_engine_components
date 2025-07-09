@@ -25,3 +25,30 @@
   left:10px;
   z-index:10;
 }
+#sidebar{
+  position:fixed;
+  top:0;
+  right:0;
+  width:300px;
+  height:100%;
+  background:rgba(255,255,255,.9);
+  font:12px/14px sans-serif;
+  overflow:auto;
+  z-index:10;
+  transition:transform .3s;
+}
+#sidebar.collapsed{transform:translateX(100%);}
+#sidebarTab{
+  position:absolute;
+  left:-20px;
+  top:50%;
+  width:20px;
+  height:40px;
+  background:rgba(255,255,255,.9);
+  line-height:40px;
+  text-align:center;
+  cursor:pointer;
+  border:1px solid #ccc;
+  border-right:none;
+}
+#sidebarContent{padding:4px;}

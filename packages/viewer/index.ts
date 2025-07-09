@@ -2,6 +2,7 @@ import * as OBC from "@thatopen/components";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import { analyzeGroup, renderSidebar, unitInfoMap } from "./sidebar";
 
 let selected: THREE.Object3D | null = null;
 let subSelected: THREE.Mesh | null = null;
@@ -169,6 +170,9 @@ export async function bootstrap() {
 
     gltf.scene.position.set(offsetX - bounds.min.x, 0, 0);
     world.scene.three.add(gltf.scene);
+    const info = analyzeGroup(gltf.scene, url);
+    unitInfoMap.set(gltf.scene, info);
+    renderSidebar();
     return { object: gltf.scene, width: dims.width };
   }
 
