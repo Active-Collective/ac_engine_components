@@ -1,0 +1,27 @@
+#palette{
+  position:absolute;
+  top:10px;
+  right:10px;
+  z-index:10;
+  display:flex;
+  gap:4px;
+}
+#palette button{
+  width:24px;
+  height:24px;
+  border:none;
+  cursor:pointer;
+}
+#palette #resetBtn{
+  width:auto;
+  padding:0 6px;
+  background:#fff;
+  border:1px solid #ccc;
+  font-size:12px;
+}
+#fileInput{
+  position:absolute;
+  top:10px;
+  left:10px;
+  z-index:10;
+}

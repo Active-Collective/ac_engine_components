@@ -4,14 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Unit Viewer</title>
+  <link rel="stylesheet" href="./styles.css" />
   <style>
     body,html{margin:0;height:100%;overflow:hidden}
     #viewer{width:100%;height:100%;}
-    #fileInput{position:absolute;top:10px;left:10px;z-index:10}
   </style>
 </head>
 <body>
   <input id="fileInput" type="file" accept=".glb,.gltf" />
+  <div id="palette">
+    <button data-variant="red" style="background:#f33"></button>
+    <button data-variant="blue" style="background:#33f"></button>
+    <button data-variant="wood" style="background:url('/assets/wood.jpg') center/cover"></button>
+    <button id="resetBtn">reset</button>
+  </div>
   <div id="viewer"></div>
   <script type="module" src="./index.ts"></script>
 </body>
