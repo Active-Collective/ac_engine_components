@@ -6,9 +6,10 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 let selected: THREE.Object3D | null = null;
 let bbox: THREE.BoxHelper | null = null;
 let controls: TransformControls | null = null;
-const models: THREE.Object3D[] = [];
 const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
+
 export let world: OBC.World;
+let bboxer: OBC.BoundingBoxer;
 
 function loadGltf(url: string): Promise<THREE.Group> {
   const loader = new GLTFLoader();
@@ -29,6 +30,8 @@ export async function bootstrap() {
   components.init();
   world.scene.setup();
   world.camera.controls.setLookAt(5, 5, 5, 0, 0, 0);
+
+  bboxer = components.get(OBC.BoundingBoxer);
 
   const grids = components.get(OBC.Grids);
   const grid = grids.create(world);
@@ -73,31 +76,43 @@ export async function bootstrap() {
     world.scene.three.add(bbox);
   }
 
-  async function addModel(url: string, position: THREE.Vector3) {
+  async function addModel(url: string, offsetX: number) {
     const gltf = await loadGltf(url);
-    gltf.scene.position.copy(position);
+
+    gltf.scene.updateMatrixWorld(true);
+    bboxer.reset();
     gltf.scene.traverse(obj => {
       rootMap.set(obj, gltf.scene);
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.InstancedMesh) {
+        bboxer.addMesh(obj);
+        world.meshes.add(obj);
+      }
       if (obj instanceof THREE.Object3D) obj.name ||= "unit";
     });
+    const bounds = bboxer.get();
+    const dims = OBC.BoundingBoxer.getDimensions(bounds);
+    bboxer.reset();
+
+    gltf.scene.position.set(offsetX - bounds.min.x, 0, 0);
     world.scene.three.add(gltf.scene);
-    models.push(gltf.scene);
-    return gltf.scene;
+    return { object: gltf.scene, width: dims.width };
   }
 
   const urls = [
-    "/packages/core/assets/unit1.glb",
-    "/packages/core/assets/unit2.glb",
-    "/packages/core/assets/unit3.glb",
-    "/packages/core/assets/unit4.glb",
+    new URL("../core/assets/unit1.glb", import.meta.url).href,
+    new URL("../core/assets/unit2.glb", import.meta.url).href,
+    new URL("../core/assets/unit3.glb", import.meta.url).href,
+    new URL("../core/assets/unit4.glb", import.meta.url).href,
   ];
-  for (let i = 0; i < urls.length; i++) {
-    await addModel(urls[i], new THREE.Vector3(i * 2, 0, 0));
+  let offset = 0;
+  for (const url of urls) {
+    const { width } = await addModel(url, offset);
+    offset += width;
   }
 
   world.renderer.three.domElement.addEventListener("pointerdown", () => {
     if (controls && (controls as any).dragging) return;
-    const result = caster.castRay(models);
+    const result = caster.castRay();
     if (result) {
       selectObject(result.object as THREE.Object3D);
     } else {
@@ -120,8 +135,9 @@ export async function bootstrap() {
       return;
     }
     const url = URL.createObjectURL(file);
-    const obj = await addModel(url, new THREE.Vector3(models.length * 2, 0, 0));
-    selectObject(obj);
+    const { object, width } = await addModel(url, offset);
+    offset += width;
+    selectObject(object);
   });
 }
 

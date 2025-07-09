@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { defineConfig } from "vite";
 import { globSync } from "glob";
+import { resolve } from "path";
 
 const writeIndexHTML = () => {
   let links: string = "";
@@ -59,5 +60,10 @@ const createIndex = () => ({
 });
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      three: resolve("./node_modules/three")
+    }
+  },
   plugins: [createIndex()],
 });
