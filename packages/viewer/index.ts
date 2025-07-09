@@ -62,6 +62,7 @@ export async function bootstrap() {
       );
       controls.setMode("translate");
       controls.showZ = false;
+      controls.translationSnap = grid.config.primarySize;
       controls.addEventListener("dragging-changed", ev => {
         world.camera.controls.enabled = !ev.value;
       });
@@ -71,6 +72,9 @@ export async function bootstrap() {
       world.scene.three.add(controls);
     }
 
+    controls.minZ = root.position.z;
+    controls.maxZ = root.position.z;
+    
     controls.attach(root);
     bbox = new THREE.BoxHelper(root, 0x00ff00);
     world.scene.three.add(bbox);
