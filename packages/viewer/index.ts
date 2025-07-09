@@ -4,12 +4,43 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
 let selected: THREE.Object3D | null = null;
+let subSelected: THREE.Mesh | null = null;
 let bbox: THREE.BoxHelper | null = null;
+let subBox: THREE.BoxHelper | null = null;
+let hoverBox: THREE.BoxHelper | null = null;
 let controls: TransformControls | null = null;
 const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 
 export let world: OBC.World;
 let bboxer: OBC.BoundingBoxer;
+
+function applyVariant(target: THREE.Object3D, mat: THREE.Material) {
+  target.traverse(obj => {
+    if (obj instanceof THREE.Mesh) {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.userData.originalMaterial) {
+        mesh.userData.originalMaterial = mesh.material as THREE.Material;
+      }
+      const oldMat = mesh.material as THREE.Material;
+      if (oldMat !== mesh.userData.originalMaterial) oldMat.dispose();
+      mesh.material = mat.clone();
+      mesh.material.needsUpdate = true;
+    }
+  });
+}
+
+function resetMaterial(target: THREE.Object3D) {
+  target.traverse(obj => {
+    if (obj instanceof THREE.Mesh) {
+      const mesh = obj as THREE.Mesh;
+      const original = mesh.userData.originalMaterial as THREE.Material | undefined;
+      if (original && mesh.material !== original) {
+        (mesh.material as THREE.Material).dispose();
+        mesh.material = original;
+      }
+    }
+  });
+}
 
 function loadGltf(url: string): Promise<THREE.Group> {
   const loader = new GLTFLoader();
@@ -19,6 +50,8 @@ function loadGltf(url: string): Promise<THREE.Group> {
 export async function bootstrap() {
   const container = document.getElementById("viewer") as HTMLDivElement;
   const fileInput = document.getElementById("fileInput") as HTMLInputElement;
+  const palette = document.getElementById("palette") as HTMLDivElement;
+  const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
 
   const components = new OBC.Components();
   const worlds = components.get(OBC.Worlds);
@@ -31,6 +64,15 @@ export async function bootstrap() {
   world.scene.setup();
   world.camera.controls.setLookAt(5, 5, 5, 0, 0, 0);
 
+  world.renderer.three.outputEncoding = THREE.sRGBEncoding;
+  const pmrem = new THREE.PMREMGenerator(world.renderer.three);
+  new THREE.TextureLoader().load("/assets/ozone.jpg", tex => {
+    const env = pmrem.fromEquirectangular(tex).texture;
+    world.scene.three.environment = env;
+    tex.dispose();
+    pmrem.dispose();
+  });
+
   bboxer = components.get(OBC.BoundingBoxer);
 
   const grids = components.get(OBC.Grids);
@@ -39,6 +81,22 @@ export async function bootstrap() {
 
   const casters = components.get(OBC.Raycasters);
   const caster = casters.get(world);
+
+  function clearHover() {
+    if (hoverBox) {
+      world.scene.three.remove(hoverBox);
+      hoverBox = null;
+    }
+  }
+
+  function setHover(obj: THREE.Object3D | null) {
+    clearHover();
+    if (!obj) return;
+    const root = rootMap.get(obj) ?? obj;
+    if (root === selected) return;
+    hoverBox = new THREE.BoxHelper(root, 0xffff00);
+    world.scene.three.add(hoverBox);
+  }
 
   function selectObject(obj: THREE.Object3D | null) {
     if (bbox) {
@@ -77,6 +135,18 @@ export async function bootstrap() {
     world.scene.three.add(bbox);
   }
 
+  function selectSubObject(mesh: THREE.Mesh | null) {
+    if (subBox) {
+      world.scene.three.remove(subBox);
+      subBox = null;
+    }
+    subSelected = mesh;
+    if (mesh) {
+      subBox = new THREE.BoxHelper(mesh, 0xffff00);
+      world.scene.three.add(subBox);
+    }
+  }
+
   async function addModel(url: string, offsetX: number) {
     const gltf = await loadGltf(url);
 
@@ -87,6 +157,9 @@ export async function bootstrap() {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.InstancedMesh) {
         bboxer.addMesh(obj);
         world.meshes.add(obj);
+        if (!obj.userData.originalMaterial) {
+          obj.userData.originalMaterial = obj.material;
+        }
       }
       if (obj instanceof THREE.Object3D) obj.name ||= "unit";
     });
@@ -111,14 +184,34 @@ export async function bootstrap() {
     offset += width;
   }
 
-  world.renderer.three.domElement.addEventListener("pointerdown", () => {
+  world.renderer.three.domElement.addEventListener("pointermove", () => {
     if (controls && (controls as any).dragging) return;
     const result = caster.castRay();
-    if (result) {
-      selectObject(result.object as THREE.Object3D);
-    } else {
+    if (result) setHover(result.object as THREE.Object3D);
+    else clearHover();
+  });
+
+  world.renderer.three.domElement.addEventListener("pointerdown", ev => {
+    if (controls && (controls as any).dragging) return;
+    const result = caster.castRay();
+    if (!result) {
       selectObject(null);
+      selectSubObject(null);
+      return;
     }
+
+    if (ev.button === 2) {
+      if (result.object instanceof THREE.Mesh) {
+        selectSubObject(result.object as THREE.Mesh);
+      }
+    } else {
+      selectObject(result.object as THREE.Object3D);
+      selectSubObject(null);
+    }
+  });
+
+  world.renderer.three.domElement.addEventListener("contextmenu", ev => {
+    ev.preventDefault();
   });
 
   window.addEventListener("keydown", e => {
@@ -150,6 +243,7 @@ export async function bootstrap() {
     selected.updateMatrixWorld();
     controls?.updateMatrixWorld(true);
     bbox?.update();
+    subBox?.update();
     e.preventDefault();
   });
 
@@ -164,6 +258,32 @@ export async function bootstrap() {
     const { object, width } = await addModel(url, offset);
     offset += width;
     selectObject(object);
+  });
+
+  palette.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = subSelected ?? selected;
+      if (!target) return;
+      const type = btn.dataset.variant!;
+      let mat: THREE.Material;
+      if (type === "red") mat = new THREE.MeshStandardMaterial({ color: "red" });
+      else if (type === "blue") mat = new THREE.MeshStandardMaterial({ color: "blue" });
+      else {
+        const tex = new THREE.TextureLoader().load("/assets/wood.jpg");
+        mat = new THREE.MeshStandardMaterial({ map: tex });
+      }
+      applyVariant(target, mat);
+      if (subSelected) subBox?.update();
+      else bbox?.update();
+    });
+  });
+
+  resetBtn.addEventListener("click", () => {
+    const target = subSelected ?? selected;
+    if (!target) return;
+    resetMaterial(target);
+    if (subSelected) subBox?.update();
+    else bbox?.update();
   });
 }
 
