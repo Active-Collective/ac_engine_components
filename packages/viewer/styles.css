@@ -37,7 +37,7 @@
   z-index:10;
   transition:transform .3s;
 }
-#sidebar.collapsed{transform:translateX(100%);}
+#sidebar.collapsed{transform:translateX(calc(100% - 20px));}
 #sidebarTab{
   position:absolute;
   left:-20px;
