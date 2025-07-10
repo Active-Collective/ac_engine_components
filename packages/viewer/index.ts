@@ -128,7 +128,7 @@ export async function bootstrap() {
       controls.addEventListener("change", () => {
         bbox?.update();
       });
-      world.scene.three.add(controls.object);
+      world.scene.three.add(controls);
     }
 
     controls.attach(root);
