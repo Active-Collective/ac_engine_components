@@ -444,7 +444,7 @@ export async function bootstrap() {
         if (nudgeGroup) nudgeGroup.visible = !ev.value;
       });
       controls.addEventListener("change", () => {
-        if (!controls) return;
+        if (!controls || !controls.object) return;
         const p = controls.object.position;
         const size = grid.config.primarySize;
         p.set(
