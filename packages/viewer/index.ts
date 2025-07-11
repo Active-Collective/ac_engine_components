@@ -11,7 +11,14 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 //  - sidebar.ts: collects model metadata and renders the info sidebar
 //  - levels.ts: manages floor grids and level switching
 //  - settings.ts: binds UI inputs to runtime options
-import { analyzeGroup, renderSidebar, unitInfoMap } from "./sidebar";
+import {
+  initSidebar,
+  addUnitItem,
+  analyzeUnit,
+  metaCache,
+  renderMeta,
+  clearInfo,
+} from "./sidebar";
 import { initFloors, addUnitToLevel, moveUnitToLevel, setActiveFloor, currentLevel, floors, grids } from "./levels";
 import { initSettings } from "./settings";
 // Simple styling for the nudge arrows
@@ -293,6 +300,8 @@ export async function bootstrap() {
   const fileInput = document.getElementById("fileInput") as HTMLInputElement;
   const palette = document.getElementById("palette") as HTMLDivElement;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
+  initSidebar();
+  const sidebarEl = document.getElementById("sidebar") as HTMLElement;
   const menu = document.createElement("div");
   menu.id = "contextMenu";
   Object.assign(menu.style, {
@@ -304,8 +313,6 @@ export async function bootstrap() {
     display: "none",
   });
   document.body.appendChild(menu);
-  const library = document.getElementById("library") as HTMLDivElement;
-  const libItems = document.getElementById("libItems") as HTMLDivElement;
   const snapInput = document.getElementById("snapSize") as HTMLInputElement;
   const snapHeightInput = document.getElementById("snapHeight") as HTMLInputElement;
   const gridColorInput = document.getElementById("gridColor") as HTMLInputElement;
@@ -372,22 +379,6 @@ export async function bootstrap() {
     new URL("../core/assets/unit4.glb", import.meta.url).href,
   ];
 
-  libUrls.forEach(u => {
-    const item = document.createElement("div");
-    item.className = "lib-item";
-    item.draggable = true;
-    item.dataset.url = u;
-    item.addEventListener("dragstart", ev => {
-      ev.dataTransfer?.setData("text", u);
-    });
-    const thumb = document.createElement("div");
-    thumb.className = "thumb";
-    const label = document.createElement("span");
-    label.textContent = u.split("/").pop() || u;
-    item.appendChild(thumb);
-    item.appendChild(label);
-    libItems.appendChild(item);
-  });
 
   /** Remove the yellow hover box from the scene if present. */
   function clearHover() {
@@ -425,6 +416,7 @@ export async function bootstrap() {
       detachHandle();
       detachNudge();
       selected = null;
+      if (sidebarEl.dataset.mode === "info") clearInfo();
       return;
     }
 
@@ -466,6 +458,7 @@ export async function bootstrap() {
     world.scene.three.add(bbox);
     attachHandle(root);
     attachNudge(root);
+    if (sidebarEl.dataset.mode === "info") renderMeta(root);
   }
 
   /** Highlight an individual mesh within the selected model. */
@@ -517,9 +510,9 @@ export async function bootstrap() {
     );
     world.scene.three.add(gltf.scene);
     addUnitToLevel(gltf.scene, level);
-    const info = analyzeGroup(gltf.scene, url);
-    unitInfoMap.set(gltf.scene, info);
-    renderSidebar();
+    const info = analyzeUnit(gltf.scene, url);
+    metaCache.set(gltf.scene, info);
+    addUnitItem(gltf.scene, url);
     totalWidth += dims.width;
     totalHeight += dims.height;
     loadedCount++;

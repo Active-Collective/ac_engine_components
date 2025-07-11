@@ -1,89 +1,131 @@
 import * as THREE from "three";
 
-export interface UnitInfo {
-  id: string;
-  fileName: string;
+export interface UnitMeta {
+  file: string;
   meshes: number;
   tris: number;
-  materials: { name: string; color: string; texture?: string }[];
+  mats: { name: string; color: string; texture?: string }[];
   layers: string[];
-  children: string[];
 }
 
-export const unitInfoMap = new Map<THREE.Object3D, UnitInfo>();
+export const metaCache = new WeakMap<THREE.Object3D, UnitMeta>();
 
-export function analyzeGroup(group: THREE.Object3D, url: string): UnitInfo {
-  const info: UnitInfo = {
-    id: group.name || url,
-    fileName: url.split("/").pop() || url,
-    meshes: 0,
-    tris: 0,
-    materials: [],
-    layers: [],
-    children: [],
-  };
+let sidebar: HTMLElement;
+let unitList: HTMLUListElement;
+let metaTable: HTMLTableElement;
+let panelLibrary: HTMLElement;
+let panelInfo: HTMLElement;
+let panelTitle: HTMLElement;
+let backBtn: HTMLButtonElement;
+let toggleBtn: HTMLButtonElement;
 
-  const materialSet = new Map<string, { name: string; color: string; texture?: string }>();
-  const layerSet = new Set<string>();
+export function initSidebar() {
+  sidebar = document.getElementById("sidebar") as HTMLElement;
+  unitList = document.getElementById("unitList") as HTMLUListElement;
+  metaTable = document.getElementById("metaTable") as HTMLTableElement;
+  panelLibrary = document.getElementById("panelLibrary") as HTMLElement;
+  panelInfo = document.getElementById("panelInfo") as HTMLElement;
+  panelTitle = document.getElementById("panelTitle") as HTMLElement;
+  backBtn = document.getElementById("back") as HTMLButtonElement;
+  toggleBtn = document.getElementById("toggle") as HTMLButtonElement;
 
+  toggleBtn.onclick = () => sidebar.classList.toggle("collapsed");
+  backBtn.onclick = () => showLibrary();
+
+  showLibrary();
+}
+
+function showLibrary() {
+  sidebar.dataset.mode = "library";
+  panelLibrary.classList.add("active");
+  panelInfo.classList.remove("active");
+  panelTitle.textContent = "Units";
+  backBtn.hidden = true;
+}
+
+function showInfo(group: THREE.Object3D) {
+  sidebar.dataset.mode = "info";
+  panelLibrary.classList.remove("active");
+  panelInfo.classList.add("active");
+  panelTitle.textContent = "Info";
+  backBtn.hidden = false;
+  renderMeta(group);
+}
+
+export function addUnitItem(group: THREE.Object3D, url: string) {
+  const li = document.createElement("li");
+  li.className = "lib-item";
+  li.draggable = true;
+  li.dataset.url = url;
+  const span = document.createElement("span");
+  span.className = "name";
+  span.textContent = url.split("/").pop() || url;
+  const infoBtn = document.createElement("button");
+  infoBtn.className = "info";
+  infoBtn.textContent = "i";
+  infoBtn.onclick = () => showInfo(group);
+  li.append(span, infoBtn);
+  li.addEventListener("dragstart", ev => {
+    ev.dataTransfer?.setData("text", url);
+  });
+  unitList.appendChild(li);
+}
+
+export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
+  const meta: UnitMeta = { file: url.split("/").pop() || url, meshes: 0, tris: 0, mats: [], layers: [] };
+  const mats = new Map<string, { name: string; color: string; texture?: string }>();
+  const layers = new Set<string>();
   group.traverse(obj => {
     if (obj instanceof THREE.Mesh) {
-      info.meshes++;
-      info.tris += countTris(obj);
-      info.children.push(obj.name);
-      if (obj.userData.layer) layerSet.add(obj.userData.layer);
-      if (obj.userData.ifcCategory) layerSet.add(obj.userData.ifcCategory);
-      const mat = obj.material as THREE.Material | THREE.Material[];
-      const mats = Array.isArray(mat) ? mat : [mat];
-      for (const m of mats) {
-        const key = m.uuid;
-        if (!materialSet.has(key)) {
+      meta.meshes++;
+      meta.tris += countTris(obj);
+      if (obj.userData.layer) layers.add(obj.userData.layer);
+      if (obj.userData.ifcCategory) layers.add(obj.userData.ifcCategory);
+      const material = obj.material as THREE.Material | THREE.Material[];
+      const arr = Array.isArray(material) ? material : [material];
+      for (const m of arr) {
+        if (!mats.has(m.uuid)) {
           const entry: { name: string; color: string; texture?: string } = {
             name: (m as any).name || "",
             color: (m as any).color ? (m as any).color.getHexString() : "",
           };
           const map = (m as any).map;
           if (map) entry.texture = map.name || map.uuid;
-          materialSet.set(key, entry);
+          mats.set(m.uuid, entry);
         }
       }
     }
   });
-
-  info.materials = Array.from(materialSet.values());
-  info.layers = Array.from(layerSet);
-  return info;
+  meta.mats = Array.from(mats.values());
+  meta.layers = Array.from(layers);
+  return meta;
 }
 
-export function countTris(mesh: THREE.Mesh): number {
-  const geom = mesh.geometry;
-  if (geom.index) return geom.index.count / 3;
-  return geom.attributes.position.count / 3;
+function countTris(mesh: THREE.Mesh) {
+  const g = mesh.geometry;
+  return g.index ? g.index.count / 3 : g.attributes.position.count / 3;
 }
 
-export function renderSidebar(container: HTMLElement = document.getElementById("sidebar") as HTMLElement) {
-  if (!container) return;
-  const tab = container.querySelector<HTMLDivElement>("#sidebarTab");
-  const content = container.querySelector<HTMLDivElement>("#sidebarContent");
-  if (!tab || !content) return;
-
-  content.innerHTML = "";
-  const ul = document.createElement("ul");
-  unitInfoMap.forEach(info => {
-    const li = document.createElement("li");
-    li.innerHTML = `<strong>${info.fileName}</strong> (meshes: ${info.meshes}, tris: ${info.tris})`;
-    const mats = info.materials.map(m => `<li>${m.name || "mat"} - #${m.color}${m.texture ? ` (${m.texture})` : ""}</li>`).join("");
-    const layers = info.layers.map(l => `<li>${l}</li>`).join("");
-    const children = info.children.map(c => `<li>${c}</li>`).join("");
-    li.innerHTML += `<ul>${mats}</ul>`;
-    if (layers) li.innerHTML += `<ul>${layers}</ul>`;
-    if (children) li.innerHTML += `<ul>${children}</ul>`;
-    ul.appendChild(li);
-  });
-  content.appendChild(ul);
-
-  tab.onclick = () => {
-    container.classList.toggle("collapsed");
-    tab.textContent = container.classList.contains("collapsed") ? "»" : "«";
+export function renderMeta(group: THREE.Object3D) {
+  const meta = metaCache.get(group);
+  if (!meta) return;
+  metaTable.innerHTML = "";
+  const add = (k: string, v: string) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<th>${k}</th><td>${v}</td>`;
+    metaTable.appendChild(tr);
   };
+  add("File", meta.file);
+  add("Meshes", String(meta.meshes));
+  add("Triangles", String(meta.tris));
+  if (meta.layers.length) add("Layers", meta.layers.join(", "));
+  if (meta.mats.length) {
+    const rows = meta.mats.map(m => `${m.name || "mat"} #${m.color}`).join(", ");
+    add("Materials", rows);
+  }
 }
+
+export function clearInfo() {
+  metaTable.innerHTML = "";
+}
+*** End Patch
