@@ -72,7 +72,8 @@ function attachHandle(root: THREE.Object3D) {
   const dims = OBC.BoundingBoxer.getDimensions(b);
   bboxer.reset();
 
-  const size = Math.max(dims.width, dims.depth, dims.height) * 0.05;
+  let size = Math.max(dims.width, dims.depth, dims.height) * 0.05;
+  if (size <= 0) size = 0.1;
   if (!dragHandle) {
     dragHandle = new THREE.Mesh(
       new THREE.SphereGeometry(size, 16, 16),
@@ -116,7 +117,12 @@ function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
 }
 
 function createNudgeGizmos(obj: THREE.Object3D) {
-  const box = new THREE.Box3().setFromObject(obj);
+  bboxer.reset();
+  obj.traverse(o => {
+    if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) bboxer.addMesh(o);
+  });
+  const box = bboxer.get();
+  bboxer.reset();
   const midX = (box.min.x + box.max.x) / 2;
   const midY = (box.min.y + box.max.y) / 2;
   const midZ = (box.min.z + box.max.z) / 2;
@@ -164,12 +170,10 @@ function attachNudge(obj: THREE.Object3D) {
 function detachNudge() {
   if (!nudgeGroup) return;
   const group = nudgeGroup;
-  fadeNudge(group, 0, () => {
-    group.parent?.remove(group);
-    nudgeTargets.forEach(t => world.meshes.delete(t));
-    nudgeGroup = null;
-    nudgeTargets = [];
-  });
+  group.parent?.remove(group);
+  nudgeTargets.forEach(t => world.meshes.delete(t));
+  nudgeGroup = null;
+  nudgeTargets = [];
   hoveredArrow = null;
 }
 
@@ -394,7 +398,11 @@ export async function bootstrap() {
     }
   }
 
-  async function addModel(url: string, position = new THREE.Vector3()) {
+  async function addModel(
+    url: string,
+    position = new THREE.Vector3(),
+    level = currentLevel
+  ) {
     const gltf = await loadGltf(url);
 
     gltf.scene.updateMatrixWorld(true);
@@ -420,7 +428,7 @@ export async function bootstrap() {
       position.z - bounds.min.z,
     );
     world.scene.three.add(gltf.scene);
-    addUnitToLevel(gltf.scene, 0);
+    addUnitToLevel(gltf.scene, level);
     const info = analyzeGroup(gltf.scene, url);
     unitInfoMap.set(gltf.scene, info);
     renderSidebar();
@@ -447,7 +455,11 @@ export async function bootstrap() {
   ];
   let offset = 0;
   for (const url of loadUrls) {
-    const { width } = await addModel(url, new THREE.Vector3(offset, 0, 0));
+    const { width } = await addModel(
+      url,
+      new THREE.Vector3(offset, 0, 0),
+      0
+    );
     offset += width;
   }
 
@@ -616,7 +628,7 @@ export async function bootstrap() {
     point.x = Math.round(point.x / size) * size;
     point.z = Math.round(point.z / size) * size;
     point.y = currentLevel * floors[currentLevel].height;
-    const { object } = await addModel(url, point);
+    const { object } = await addModel(url, point, currentLevel);
     selectObject(object);
   });
 
@@ -696,7 +708,11 @@ export async function bootstrap() {
       return;
     }
     const url = URL.createObjectURL(file);
-    const { object, width } = await addModel(url, new THREE.Vector3(offset, 0, 0));
+    const { object, width } = await addModel(
+      url,
+      new THREE.Vector3(offset, currentLevel * floors[currentLevel].height, 0),
+      currentLevel
+    );
     offset += width;
     selectObject(object);
   });

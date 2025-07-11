@@ -32,7 +32,7 @@ function refreshInputs() {
 
 function refreshButtons() {
   levelBar.querySelectorAll<HTMLButtonElement>("button[data-level]").forEach(b => {
-    const i = parseInt(b.dataset.level!);
+    const i = parseInt(b.dataset.level!) - 1;
     b.classList.toggle("active", i === currentLevel);
   });
 }
@@ -58,10 +58,15 @@ export function initSettings() {
 
   levelBar.querySelectorAll<HTMLButtonElement>("button[data-level]").forEach(b => {
     b.onclick = () => {
-      setActiveFloor(parseInt(b.dataset.level!));
+      setActiveFloor(parseInt(b.dataset.level!) - 1);
       refreshButtons();
       refreshInputs();
       save();
     };
+  });
+
+  document.addEventListener("floorchange", () => {
+    refreshButtons();
+    refreshInputs();
   });
 }
