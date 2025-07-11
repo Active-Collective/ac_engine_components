@@ -18,7 +18,7 @@ This package demonstrates how to load and manipulate glTF models using
 
 If `unit1.glb` … `unit4.glb` exist under `packages/core/assets` they will load
 automatically and appear side by side. You can also load a local `.glb` or
-`.gltf` file via the file input.
+`.gltf` file via the file input at the bottom of the library sidebar.
 
 ## Building
 
@@ -29,8 +29,9 @@ yarn workspace viewer build
 
 ## Usage
 
-- Select a model with the left mouse button to move it on the grid using the
-  arrow keys. Press **R** to rotate it 90° around the Y&nbsp;axis.
+- Select a model and drag the red handle above it to reposition it on the grid.
+- Use the **arrow keys** or **W/A/S/D** to move horizontally and **Q/E** to
+  move up/down. Press **R** to rotate the selected model 90° around the Y axis.
 - Right-click a mesh (for example a door) to select that part only. Use the
   color palette to apply a material to the selected object. The reset button
   restores the original material.

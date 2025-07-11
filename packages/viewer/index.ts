@@ -10,12 +10,18 @@ let bbox: THREE.BoxHelper | null = null;
 let subBox: THREE.BoxHelper | null = null;
 let hoverBox: THREE.BoxHelper | null = null;
 let controls: TransformControls | null = null;
+let dragHandle: THREE.Mesh | null = null;
+let isDraggingHandle = false;
+const dragPlane = new THREE.Plane();
+const dragOffset = new THREE.Vector3();
 const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 
 export let world: OBC.World;
 let bboxer: OBC.BoundingBoxer;
 let totalWidth = 0;
 let loadedCount = 0;
+const tempBox = new THREE.Box3();
+const tempSize = new THREE.Vector3();
 
 function applyVariant(target: THREE.Object3D, mat: THREE.Material) {
   target.traverse(obj => {
@@ -45,6 +51,36 @@ function resetMaterial(target: THREE.Object3D) {
   });
 }
 
+function attachHandle(root: THREE.Object3D) {
+  bboxer.reset();
+  root.traverse(o => {
+    if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) bboxer.addMesh(o);
+  });
+  const b = bboxer.get();
+  const dims = OBC.BoundingBoxer.getDimensions(b);
+  bboxer.reset();
+
+  const size = Math.max(dims.width, dims.depth, dims.height) * 0.05;
+  if (!dragHandle) {
+    dragHandle = new THREE.Mesh(
+      new THREE.SphereGeometry(size, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    );
+  } else {
+    dragHandle.geometry.dispose();
+    dragHandle.geometry = new THREE.SphereGeometry(size, 16, 16);
+  }
+  dragHandle.position.set(dims.width / 2, dims.height * 1.1, dims.depth / 2);
+  dragHandle.visible = true;
+  root.add(dragHandle);
+  world.meshes.add(dragHandle);
+}
+
+function detachHandle() {
+  if (dragHandle && dragHandle.parent) dragHandle.parent.remove(dragHandle);
+  if (dragHandle) world.meshes.delete(dragHandle);
+}
+
 function loadGltf(url: string): Promise<THREE.Group> {
   const loader = new GLTFLoader();
   return loader.loadAsync(url);
@@ -56,6 +92,7 @@ export async function bootstrap() {
   const palette = document.getElementById("palette") as HTMLDivElement;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
   const library = document.getElementById("library") as HTMLDivElement;
+  const libItems = document.getElementById("libItems") as HTMLDivElement;
   const snapInput = document.getElementById("snapSize") as HTMLInputElement;
   const gridColorInput = document.getElementById("gridColor") as HTMLInputElement;
   const bgInput = document.getElementById("bgColor") as HTMLInputElement;
@@ -125,7 +162,7 @@ export async function bootstrap() {
     label.textContent = u.split("/").pop() || u;
     item.appendChild(thumb);
     item.appendChild(label);
-    library.appendChild(item);
+    libItems.appendChild(item);
   });
 
   function clearHover() {
@@ -149,9 +186,11 @@ export async function bootstrap() {
       world.scene.three.remove(bbox);
       bbox = null;
     }
+    detachHandle();
 
     if (!obj) {
       controls?.detach();
+      detachHandle();
       selected = null;
       return;
     }
@@ -188,6 +227,7 @@ export async function bootstrap() {
     controls.attach(root);
     bbox = new THREE.BoxHelper(root, 0x00ff00);
     world.scene.three.add(bbox);
+    attachHandle(root);
   }
 
   function selectSubObject(mesh: THREE.Mesh | null) {
@@ -252,7 +292,26 @@ export async function bootstrap() {
     offset += width;
   }
 
-  world.renderer.three.domElement.addEventListener("pointermove", () => {
+  world.renderer.three.domElement.addEventListener("pointermove", ev => {
+    if (isDraggingHandle && selected) {
+      const rect = container.getBoundingClientRect();
+      const ndc = new THREE.Vector2(
+        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+        -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      caster.three.setFromCamera(ndc, world.camera.three);
+      const point = new THREE.Vector3();
+      caster.three.ray.intersectPlane(dragPlane, point);
+      point.sub(dragOffset);
+      const size = grid.config.primarySize;
+      point.x = Math.round(point.x / size) * size;
+      point.z = Math.round(point.z / size) * size;
+      selected.position.x = point.x;
+      selected.position.z = point.z;
+      bbox?.update();
+      controls?.updateMatrixWorld(true);
+      return;
+    }
     if (controls && (controls as any).dragging) return;
     const result = caster.castRay();
     if (result) setHover(result.object as THREE.Object3D);
@@ -268,6 +327,16 @@ export async function bootstrap() {
       return;
     }
 
+    if (result.object === dragHandle) {
+      isDraggingHandle = true;
+      const point = new THREE.Vector3();
+      dragPlane.set(new THREE.Vector3(0, 1, 0), -selected!.position.y);
+      caster.three.ray.intersectPlane(dragPlane, point);
+      dragOffset.copy(point).sub(selected!.position);
+      world.camera.controls.enabled = false;
+      return;
+    }
+
     if (ev.button === 2) {
       if (result.object instanceof THREE.Mesh) {
         selectSubObject(result.object as THREE.Mesh);
@@ -275,6 +344,13 @@ export async function bootstrap() {
     } else {
       selectObject(result.object as THREE.Object3D);
       selectSubObject(null);
+    }
+  });
+
+  world.renderer.three.domElement.addEventListener("pointerup", () => {
+    if (isDraggingHandle) {
+      isDraggingHandle = false;
+      world.camera.controls.enabled = true;
     }
   });
 
@@ -309,16 +385,32 @@ export async function bootstrap() {
 
     switch (e.key) {
       case "ArrowUp":
+      case "w":
+      case "W":
         selected.position.z -= step;
         break;
       case "ArrowDown":
+      case "s":
+      case "S":
         selected.position.z += step;
         break;
       case "ArrowLeft":
+      case "a":
+      case "A":
         selected.position.x -= step;
         break;
       case "ArrowRight":
+      case "d":
+      case "D":
         selected.position.x += step;
+        break;
+      case "q":
+      case "Q":
+        selected.position.y += step;
+        break;
+      case "e":
+      case "E":
+        selected.position.y -= step;
         break;
       case "r":
       case "R":
@@ -329,6 +421,7 @@ export async function bootstrap() {
     }
 
     selected.position.x = Math.round(selected.position.x / step) * step;
+    selected.position.y = Math.round(selected.position.y / step) * step;
     selected.position.z = Math.round(selected.position.z / step) * step;
 
     selected.updateMatrixWorld();
