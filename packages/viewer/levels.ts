@@ -46,6 +46,9 @@ export function setActiveFloor(level: number) {
     g.material.transparent = op < 1;
   });
   workingPlane.constant = currentLevel * floors[currentLevel].height;
+  document.dispatchEvent(
+    new CustomEvent("floorchange", { detail: { level: currentLevel } })
+  );
 }
 
 export function addUnitToLevel(obj: THREE.Object3D, level = currentLevel) {
