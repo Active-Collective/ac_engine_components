@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { analyzeGroup, renderSidebar, unitInfoMap } from "./sidebar";
+import "./nudge.css";
 
 let selected: THREE.Object3D | null = null;
 let subSelected: THREE.Mesh | null = null;
@@ -15,6 +16,10 @@ let isDraggingHandle = false;
 const dragPlane = new THREE.Plane();
 const dragOffset = new THREE.Vector3();
 const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
+
+let nudgeGroup: THREE.Group | null = null;
+let nudgeTargets: THREE.Object3D[] = [];
+let hoveredArrow: THREE.Object3D | null = null;
 
 export let world: OBC.World;
 let bboxer: OBC.BoundingBoxer;
@@ -87,6 +92,76 @@ function attachHandle(root: THREE.Object3D) {
 function detachHandle() {
   if (dragHandle && dragHandle.parent) dragHandle.parent.remove(dragHandle);
   if (dragHandle) world.meshes.delete(dragHandle);
+}
+
+function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
+  const start = performance.now();
+  const from = (target.children[0] as THREE.ArrowHelper).cone.material.opacity;
+  function step() {
+    const t = Math.min(1, (performance.now() - start) / 200);
+    const val = from + (to - from) * t;
+    target.children.forEach(c => {
+      const a = c as THREE.ArrowHelper;
+      (a.cone.material as THREE.Material & { opacity: number }).opacity = val;
+      (a.line.material as THREE.Material & { opacity: number }).opacity = val;
+    });
+    if (t < 1) requestAnimationFrame(step); else done && done();
+  }
+  step();
+}
+
+function createNudgeGizmos(obj: THREE.Object3D) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const midX = (box.min.x + box.max.x) / 2;
+  const midY = (box.min.y + box.max.y) / 2;
+  const midZ = (box.min.z + box.max.z) / 2;
+  const gap = 0.5;
+  const len = 1;
+  const head = 0.2;
+  const infos = [
+    { n: new THREE.Vector3(1, 0, 0), p: new THREE.Vector3(box.max.x, midY, midZ) },
+    { n: new THREE.Vector3(-1, 0, 0), p: new THREE.Vector3(box.min.x, midY, midZ) },
+    { n: new THREE.Vector3(0, 1, 0), p: new THREE.Vector3(midX, box.max.y, midZ) },
+    { n: new THREE.Vector3(0, -1, 0), p: new THREE.Vector3(midX, box.min.y, midZ) },
+    { n: new THREE.Vector3(0, 0, 1), p: new THREE.Vector3(midX, midY, box.max.z) },
+    { n: new THREE.Vector3(0, 0, -1), p: new THREE.Vector3(midX, midY, box.min.z) },
+  ];
+  const g = new THREE.Group();
+  nudgeTargets = [];
+  const parent = obj.parent as THREE.Object3D;
+  infos.forEach(info => {
+    const pos = info.p.clone().addScaledVector(info.n, gap);
+    parent.worldToLocal(pos);
+    const arrow = new THREE.ArrowHelper(info.n, pos, len, 0x0078ff, head, head * 0.5);
+    arrow.cone.material.transparent = true;
+    arrow.line.material.transparent = true;
+    (arrow.cone.material as THREE.Material & { opacity: number }).opacity = 0;
+    (arrow.line.material as THREE.Material & { opacity: number }).opacity = 0;
+    (arrow as any).userData.normal = info.n.clone();
+    g.add(arrow);
+    nudgeTargets.push(arrow.cone, arrow.line);
+  });
+  return g;
+}
+
+function attachNudge(obj: THREE.Object3D) {
+  detachNudge();
+  nudgeGroup = createNudgeGizmos(obj);
+  obj.parent?.add(nudgeGroup);
+  nudgeTargets.forEach(t => world.meshes.add(t));
+  fadeNudge(nudgeGroup, 1);
+}
+
+function detachNudge() {
+  if (!nudgeGroup) return;
+  const group = nudgeGroup;
+  fadeNudge(group, 0, () => {
+    group.parent?.remove(group);
+    nudgeTargets.forEach(t => world.meshes.delete(t));
+    nudgeGroup = null;
+    nudgeTargets = [];
+  });
+  hoveredArrow = null;
 }
 
 function loadGltf(url: string): Promise<THREE.Group> {
@@ -201,10 +276,12 @@ export async function bootstrap() {
       bbox = null;
     }
     detachHandle();
+    detachNudge();
 
     if (!obj) {
       controls?.detach();
       detachHandle();
+      detachNudge();
       selected = null;
       return;
     }
@@ -222,6 +299,7 @@ export async function bootstrap() {
       controls.translationSnap = grid.config.primarySize;
       controls.addEventListener("dragging-changed", ev => {
         world.camera.controls.enabled = !ev.value;
+        if (nudgeGroup) nudgeGroup.visible = !ev.value;
       });
       controls.addEventListener("change", () => {
         if (!controls) return;
@@ -236,6 +314,7 @@ export async function bootstrap() {
         subBox?.update();
         detachHandle();
         attachHandle(controls.object as THREE.Object3D);
+        attachNudge(controls.object as THREE.Object3D);
       });
       world.scene.three.add(controls);
     }
@@ -244,6 +323,7 @@ export async function bootstrap() {
     bbox = new THREE.BoxHelper(root, 0x00ff00);
     world.scene.three.add(bbox);
     attachHandle(root);
+    attachNudge(root);
   }
 
   function selectSubObject(mesh: THREE.Mesh | null) {
@@ -333,6 +413,30 @@ export async function bootstrap() {
       return;
     }
     if (controls && (controls as any).dragging) return;
+    const rect = container.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+      -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, world.camera.three);
+    const hits = nudgeTargets.length ? ray.intersectObjects(nudgeTargets, false) : [];
+    if (hits.length) {
+      const obj = hits[0].object;
+      if (hoveredArrow && hoveredArrow !== obj) {
+        ((hoveredArrow.parent as THREE.ArrowHelper).setColor(0x0078ff));
+      }
+      hoveredArrow = obj;
+      ((obj.parent as THREE.ArrowHelper).setColor(0xffb800));
+      container.style.cursor = "pointer";
+      clearHover();
+      return;
+    }
+    if (hoveredArrow) {
+      ((hoveredArrow.parent as THREE.ArrowHelper).setColor(0x0078ff));
+      hoveredArrow = null;
+      container.style.cursor = "";
+    }
     const result = caster.castRay();
     if (result) setHover(result.object as THREE.Object3D);
     else clearHover();
@@ -340,6 +444,25 @@ export async function bootstrap() {
 
   world.renderer.three.domElement.addEventListener("pointerdown", ev => {
     if (controls && (controls as any).dragging) return;
+    if (hoveredArrow && selected) {
+      const arrow = hoveredArrow.parent as THREE.ArrowHelper;
+      const n = (arrow as any).userData.normal as THREE.Vector3;
+      const step = n.y ? verticalSnap : grid.config.primarySize;
+      selected.position.addScaledVector(n, step);
+      selected.position.x = Math.round(selected.position.x / grid.config.primarySize) * grid.config.primarySize;
+      selected.position.y = Math.round(selected.position.y / verticalSnap) * verticalSnap;
+      selected.position.z = Math.round(selected.position.z / grid.config.primarySize) * grid.config.primarySize;
+      bbox?.update();
+      controls?.updateMatrixWorld(true);
+      attachNudge(selected);
+      arrow.setColor(0x4caf50);
+      arrow.scale.set(1.25, 1.25, 1.25);
+      setTimeout(() => {
+        arrow.scale.set(1, 1, 1);
+        arrow.setColor(0x0078ff);
+      }, 150);
+      return;
+    }
     const result = caster.castRay();
     if (!result) {
       selectObject(null);
@@ -451,6 +574,7 @@ export async function bootstrap() {
     subBox?.update();
     detachHandle();
     attachHandle(selected);
+    attachNudge(selected);
     e.preventDefault();
   });
 
