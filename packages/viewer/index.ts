@@ -19,7 +19,9 @@ const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 export let world: OBC.World;
 let bboxer: OBC.BoundingBoxer;
 let totalWidth = 0;
+let totalHeight = 0;
 let loadedCount = 0;
+let verticalSnap = 1;
 const tempBox = new THREE.Box3();
 const tempSize = new THREE.Vector3();
 
@@ -70,7 +72,13 @@ function attachHandle(root: THREE.Object3D) {
     dragHandle.geometry.dispose();
     dragHandle.geometry = new THREE.SphereGeometry(size, 16, 16);
   }
-  dragHandle.position.set(dims.width / 2, dims.height * 1.1, dims.depth / 2);
+
+  const center = b.getCenter(new THREE.Vector3());
+  const top = b.max.y + dims.height * 0.1;
+  center.y = top;
+  root.worldToLocal(center);
+
+  dragHandle.position.copy(center);
   dragHandle.visible = true;
   root.add(dragHandle);
   world.meshes.add(dragHandle);
@@ -94,6 +102,7 @@ export async function bootstrap() {
   const library = document.getElementById("library") as HTMLDivElement;
   const libItems = document.getElementById("libItems") as HTMLDivElement;
   const snapInput = document.getElementById("snapSize") as HTMLInputElement;
+  const snapHeightInput = document.getElementById("snapHeight") as HTMLInputElement;
   const gridColorInput = document.getElementById("gridColor") as HTMLInputElement;
   const bgInput = document.getElementById("bgColor") as HTMLInputElement;
 
@@ -124,12 +133,17 @@ export async function bootstrap() {
   grid.config.primarySize = 1;
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   snapInput.value = String(grid.config.primarySize);
+  snapHeightInput.value = String(verticalSnap);
   gridColorInput.value = `#${grid.config.color.getHexString()}`;
   bgInput.value = "#000000";
   snapInput.addEventListener("change", () => {
     const v = parseFloat(snapInput.value) || 1;
     grid.config.primarySize = v;
     if (controls) controls.translationSnap = v;
+  });
+  snapHeightInput.addEventListener("change", () => {
+    const v = parseFloat(snapHeightInput.value) || 1;
+    verticalSnap = v;
   });
   gridColorInput.addEventListener("change", () => {
     grid.config.color = new THREE.Color(gridColorInput.value);
@@ -220,6 +234,8 @@ export async function bootstrap() {
         );
         bbox?.update();
         subBox?.update();
+        detachHandle();
+        attachHandle(controls.object as THREE.Object3D);
       });
       world.scene.three.add(controls);
     }
@@ -272,11 +288,15 @@ export async function bootstrap() {
     unitInfoMap.set(gltf.scene, info);
     renderSidebar();
     totalWidth += dims.width;
+    totalHeight += dims.height;
     loadedCount++;
     const avg = totalWidth / loadedCount;
+    const hAvg = totalHeight / loadedCount;
     grid.config.primarySize = avg;
+    verticalSnap = hAvg;
     if (controls) controls.translationSnap = avg;
     snapInput.value = String(avg);
+    snapHeightInput.value = String(hAvg);
     return { object: gltf.scene, width: dims.width };
   }
 
@@ -382,6 +402,7 @@ export async function bootstrap() {
     if (!selected) return;
 
     const step = grid.config.primarySize;
+    const vstep = verticalSnap;
 
     switch (e.key) {
       case "ArrowUp":
@@ -406,11 +427,11 @@ export async function bootstrap() {
         break;
       case "q":
       case "Q":
-        selected.position.y += step;
+        selected.position.y += vstep;
         break;
       case "e":
       case "E":
-        selected.position.y -= step;
+        selected.position.y -= vstep;
         break;
       case "r":
       case "R":
@@ -421,13 +442,15 @@ export async function bootstrap() {
     }
 
     selected.position.x = Math.round(selected.position.x / step) * step;
-    selected.position.y = Math.round(selected.position.y / step) * step;
+    selected.position.y = Math.round(selected.position.y / vstep) * vstep;
     selected.position.z = Math.round(selected.position.z / step) * step;
 
     selected.updateMatrixWorld();
     controls?.updateMatrixWorld(true);
     bbox?.update();
     subBox?.update();
+    detachHandle();
+    attachHandle(selected);
     e.preventDefault();
   });
 
