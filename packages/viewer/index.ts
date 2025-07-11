@@ -14,6 +14,8 @@ const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 
 export let world: OBC.World;
 let bboxer: OBC.BoundingBoxer;
+let totalWidth = 0;
+let loadedCount = 0;
 
 function applyVariant(target: THREE.Object3D, mat: THREE.Material) {
   target.traverse(obj => {
@@ -54,6 +56,9 @@ export async function bootstrap() {
   const palette = document.getElementById("palette") as HTMLDivElement;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
   const library = document.getElementById("library") as HTMLDivElement;
+  const snapInput = document.getElementById("snapSize") as HTMLInputElement;
+  const gridColorInput = document.getElementById("gridColor") as HTMLInputElement;
+  const bgInput = document.getElementById("bgColor") as HTMLInputElement;
 
   const components = new OBC.Components();
   const worlds = components.get(OBC.Worlds);
@@ -81,6 +86,20 @@ export async function bootstrap() {
   const grid = grids.create(world);
   grid.config.primarySize = 1;
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  snapInput.value = String(grid.config.primarySize);
+  gridColorInput.value = `#${grid.config.color.getHexString()}`;
+  bgInput.value = "#000000";
+  snapInput.addEventListener("change", () => {
+    const v = parseFloat(snapInput.value) || 1;
+    grid.config.primarySize = v;
+    if (controls) controls.translationSnap = v;
+  });
+  gridColorInput.addEventListener("change", () => {
+    grid.config.color = new THREE.Color(gridColorInput.value);
+  });
+  bgInput.addEventListener("change", () => {
+    world.renderer.three.setClearColor(bgInput.value);
+  });
 
   const casters = components.get(OBC.Raycasters);
   const caster = casters.get(world);
@@ -100,6 +119,12 @@ export async function bootstrap() {
     item.addEventListener("dragstart", ev => {
       ev.dataTransfer?.setData("text", u);
     });
+    const thumb = document.createElement("div");
+    thumb.className = "thumb";
+    const label = document.createElement("span");
+    label.textContent = u.split("/").pop() || u;
+    item.appendChild(thumb);
+    item.appendChild(label);
     library.appendChild(item);
   });
 
@@ -148,7 +173,12 @@ export async function bootstrap() {
       controls.addEventListener("change", () => {
         if (!controls) return;
         const p = controls.object.position;
-        p.set(Math.round(p.x), p.y, Math.round(p.z));
+        const size = grid.config.primarySize;
+        p.set(
+          Math.round(p.x / size) * size,
+          p.y,
+          Math.round(p.z / size) * size,
+        );
         bbox?.update();
         subBox?.update();
       });
@@ -201,6 +231,12 @@ export async function bootstrap() {
     const info = analyzeGroup(gltf.scene, url);
     unitInfoMap.set(gltf.scene, info);
     renderSidebar();
+    totalWidth += dims.width;
+    loadedCount++;
+    const avg = totalWidth / loadedCount;
+    grid.config.primarySize = avg;
+    if (controls) controls.translationSnap = avg;
+    snapInput.value = String(avg);
     return { object: gltf.scene, width: dims.width };
   }
 
@@ -291,6 +327,9 @@ export async function bootstrap() {
       default:
         return;
     }
+
+    selected.position.x = Math.round(selected.position.x / step) * step;
+    selected.position.z = Math.round(selected.position.z / step) * step;
 
     selected.updateMatrixWorld();
     controls?.updateMatrixWorld(true);
