@@ -24,6 +24,9 @@ export function initFloors(w: OBC.World, plane: THREE.Plane) {
   world = w;
   workingPlane = plane;
   const gridComp = world.components.get(OBC.Grids);
+  grids.length = 0;
+  unitsByLevel.length = 0;
+  if (gridComp.list.has(world.uuid)) gridComp.delete(world);
   floors.forEach((cfg, i) => {
     const grid = gridComp.create(world);
     grid.position.y = i * cfg.height;

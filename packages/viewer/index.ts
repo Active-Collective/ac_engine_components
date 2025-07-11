@@ -23,6 +23,8 @@ let nudgeGroup: THREE.Group | null = null;
 let nudgeTargets: THREE.Object3D[] = [];
 let hoveredArrow: THREE.Object3D | null = null;
 let planePreview: THREE.Mesh | null = null;
+let arrowHold: THREE.ArrowHelper | null = null;
+let holdInterval: number | null = null;
 
 export let world: OBC.World;
 let bboxer: OBC.BoundingBoxer;
@@ -120,7 +122,7 @@ function createNudgeGizmos(obj: THREE.Object3D) {
   const midZ = (box.min.z + box.max.z) / 2;
   const gap = 0.5;
   const len = 1;
-  const head = 0.2;
+  const head = 0.25;
   const infos = [
     { n: new THREE.Vector3(1, 0, 0), p: new THREE.Vector3(box.max.x, midY, midZ) },
     { n: new THREE.Vector3(-1, 0, 0), p: new THREE.Vector3(box.min.x, midY, midZ) },
@@ -133,13 +135,17 @@ function createNudgeGizmos(obj: THREE.Object3D) {
   nudgeTargets = [];
   const parent = obj.parent as THREE.Object3D;
   infos.forEach(info => {
+    if (info.n.y === 1 && currentLevel >= floors.length - 1) return;
+    if (info.n.y === -1 && currentLevel <= 0) return;
     const pos = info.p.clone().addScaledVector(info.n, gap);
     parent.worldToLocal(pos);
-    const arrow = new THREE.ArrowHelper(info.n, pos, len, 0x0078ff, head, head * 0.5);
+    const arrow = new THREE.ArrowHelper(info.n, pos, len, 0x0078ff, head, head * 0.6);
     arrow.cone.material.transparent = true;
     arrow.line.material.transparent = true;
     (arrow.cone.material as THREE.Material & { opacity: number }).opacity = 0;
     (arrow.line.material as THREE.Material & { opacity: number }).opacity = 0;
+    arrow.cone.scale.multiplyScalar(1.2);
+    (arrow.line.material as THREE.LineBasicMaterial).linewidth = 3;
     (arrow as any).userData.normal = info.n.clone();
     g.add(arrow);
     nudgeTargets.push(arrow.cone, arrow.line);
@@ -165,6 +171,20 @@ function detachNudge() {
     nudgeTargets = [];
   });
   hoveredArrow = null;
+}
+
+function nudge(arrow: THREE.ArrowHelper) {
+  if (!selected) return;
+  const n = (arrow as any).userData.normal as THREE.Vector3;
+  const step = n.y ? verticalSnap : grids[currentLevel].config.primarySize;
+  selected.position.addScaledVector(n, step);
+  const h = grids[currentLevel].config.primarySize;
+  selected.position.x = Math.round(selected.position.x / h) * h;
+  selected.position.y = Math.round(selected.position.y / verticalSnap) * verticalSnap;
+  selected.position.z = Math.round(selected.position.z / h) * h;
+  bbox?.update();
+  controls?.updateMatrixWorld(true);
+  attachNudge(selected);
 }
 
 function showPreview(y: number) {
@@ -258,7 +278,9 @@ export async function bootstrap() {
     grid.config.color = new THREE.Color(gridColorInput.value);
   });
   bgInput.addEventListener("change", () => {
-    world.renderer.three.setClearColor(bgInput.value);
+    const col = new THREE.Color(bgInput.value);
+    world.renderer.three.setClearColor(col);
+    world.scene.three.background = col;
   });
 
   const casters = components.get(OBC.Raycasters);
@@ -410,6 +432,7 @@ export async function bootstrap() {
     grid.config.primarySize = avg;
     verticalSnap = hAvg;
     floors.forEach(f => (f.height = hAvg));
+    setActiveFloor(currentLevel);
     if (controls) controls.translationSnap = avg;
     snapInput.value = String(avg);
     snapHeightInput.value = String(hAvg);
@@ -483,15 +506,9 @@ export async function bootstrap() {
     if (controls && (controls as any).dragging) return;
     if (hoveredArrow && selected) {
       const arrow = hoveredArrow.parent as THREE.ArrowHelper;
-      const n = (arrow as any).userData.normal as THREE.Vector3;
-      const step = n.y ? verticalSnap : grid.config.primarySize;
-      selected.position.addScaledVector(n, step);
-      selected.position.x = Math.round(selected.position.x / grid.config.primarySize) * grid.config.primarySize;
-      selected.position.y = Math.round(selected.position.y / verticalSnap) * verticalSnap;
-      selected.position.z = Math.round(selected.position.z / grid.config.primarySize) * grid.config.primarySize;
-      bbox?.update();
-      controls?.updateMatrixWorld(true);
-      attachNudge(selected);
+      nudge(arrow);
+      arrowHold = arrow;
+      holdInterval = window.setInterval(() => nudge(arrow), 200);
       arrow.setColor(0x4caf50);
       arrow.scale.set(1.25, 1.25, 1.25);
       setTimeout(() => {
@@ -529,6 +546,11 @@ export async function bootstrap() {
   });
 
   world.renderer.three.domElement.addEventListener("pointerup", () => {
+    if (holdInterval !== null) {
+      clearInterval(holdInterval);
+      holdInterval = null;
+      arrowHold = null;
+    }
     if (isDraggingHandle) {
       isDraggingHandle = false;
       world.camera.controls.enabled = true;
