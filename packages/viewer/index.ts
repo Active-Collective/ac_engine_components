@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { analyzeGroup, renderSidebar, unitInfoMap } from "./sidebar";
+import { initFloors, addUnitToLevel, moveUnitToLevel, setActiveFloor, currentLevel, floors, grids } from "./levels";
+import { initSettings } from "./settings";
 import "./nudge.css";
 
 let selected: THREE.Object3D | null = null;
@@ -20,6 +22,7 @@ const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 let nudgeGroup: THREE.Group | null = null;
 let nudgeTargets: THREE.Object3D[] = [];
 let hoveredArrow: THREE.Object3D | null = null;
+let planePreview: THREE.Mesh | null = null;
 
 export let world: OBC.World;
 let bboxer: OBC.BoundingBoxer;
@@ -164,6 +167,23 @@ function detachNudge() {
   hoveredArrow = null;
 }
 
+function showPreview(y: number) {
+  if (!planePreview) {
+    planePreview = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ color: 0x0078ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide })
+    );
+    planePreview.rotation.x = -Math.PI / 2;
+    world.scene.three.add(planePreview);
+  }
+  planePreview.position.y = y;
+  planePreview.visible = true;
+}
+
+function hidePreview() {
+  if (planePreview) planePreview.visible = false;
+}
+
 function loadGltf(url: string): Promise<THREE.Group> {
   const loader = new GLTFLoader();
   return loader.loadAsync(url);
@@ -174,6 +194,17 @@ export async function bootstrap() {
   const fileInput = document.getElementById("fileInput") as HTMLInputElement;
   const palette = document.getElementById("palette") as HTMLDivElement;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
+  const menu = document.createElement("div");
+  menu.id = "contextMenu";
+  Object.assign(menu.style, {
+    position: "absolute",
+    zIndex: "12",
+    background: "#fff",
+    border: "1px solid #ccc",
+    fontSize: "12px",
+    display: "none",
+  });
+  document.body.appendChild(menu);
   const library = document.getElementById("library") as HTMLDivElement;
   const libItems = document.getElementById("libItems") as HTMLDivElement;
   const snapInput = document.getElementById("snapSize") as HTMLInputElement;
@@ -203,12 +234,13 @@ export async function bootstrap() {
 
   bboxer = components.get(OBC.BoundingBoxer);
 
-  const grids = components.get(OBC.Grids);
-  const grid = grids.create(world);
-  grid.config.primarySize = 1;
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  initFloors(world, gridPlane);
+  const grid = grids[0];
+  verticalSnap = floors[0].height;
+  initSettings();
   snapInput.value = String(grid.config.primarySize);
-  snapHeightInput.value = String(verticalSnap);
+  snapHeightInput.value = String(floors[0].height);
   gridColorInput.value = `#${grid.config.color.getHexString()}`;
   bgInput.value = "#000000";
   snapInput.addEventListener("change", () => {
@@ -219,6 +251,8 @@ export async function bootstrap() {
   snapHeightInput.addEventListener("change", () => {
     const v = parseFloat(snapHeightInput.value) || 1;
     verticalSnap = v;
+    floors.forEach(f => (f.height = v));
+    setActiveFloor(currentLevel);
   });
   gridColorInput.addEventListener("change", () => {
     grid.config.color = new THREE.Color(gridColorInput.value);
@@ -364,6 +398,7 @@ export async function bootstrap() {
       position.z - bounds.min.z,
     );
     world.scene.three.add(gltf.scene);
+    addUnitToLevel(gltf.scene, 0);
     const info = analyzeGroup(gltf.scene, url);
     unitInfoMap.set(gltf.scene, info);
     renderSidebar();
@@ -374,6 +409,7 @@ export async function bootstrap() {
     const hAvg = totalHeight / loadedCount;
     grid.config.primarySize = avg;
     verticalSnap = hAvg;
+    floors.forEach(f => (f.height = hAvg));
     if (controls) controls.translationSnap = avg;
     snapInput.value = String(avg);
     snapHeightInput.value = String(hAvg);
@@ -410,6 +446,7 @@ export async function bootstrap() {
       selected.position.z = point.z;
       bbox?.update();
       controls?.updateMatrixWorld(true);
+      showPreview(currentLevel * floors[currentLevel].height);
       return;
     }
     if (controls && (controls as any).dragging) return;
@@ -477,6 +514,7 @@ export async function bootstrap() {
       caster.three.ray.intersectPlane(dragPlane, point);
       dragOffset.copy(point).sub(selected!.position);
       world.camera.controls.enabled = false;
+      showPreview(selected!.position.y);
       return;
     }
 
@@ -494,12 +532,50 @@ export async function bootstrap() {
     if (isDraggingHandle) {
       isDraggingHandle = false;
       world.camera.controls.enabled = true;
+      hidePreview();
+      if (selected) setActiveFloor(Math.round(selected.position.y / floors[currentLevel].height));
     }
   });
 
+  world.renderer.three.domElement.addEventListener(
+    "wheel",
+    ev => {
+      if (!selected || !ev.shiftKey) return;
+      selected.position.y += (ev.deltaY > 0 ? -1 : 1) * floors[currentLevel].height * 0.1;
+      bbox?.update();
+      ev.preventDefault();
+    },
+    { passive: false }
+  );
+
   world.renderer.three.domElement.addEventListener("contextmenu", ev => {
     ev.preventDefault();
+    if (!selected) return;
+    menu.innerHTML = "";
+    floors.forEach((_, i) => {
+      const move = document.createElement("div");
+      move.textContent = `Move to floor ${i}`;
+      move.onclick = () => {
+        moveUnitToLevel(selected!, i);
+        menu.style.display = "none";
+      };
+      const dup = document.createElement("div");
+      dup.textContent = `Duplicate to floor ${i}`;
+      dup.onclick = () => {
+        const clone = selected!.clone(true);
+        world.scene.three.add(clone);
+        addUnitToLevel(clone, i);
+        menu.style.display = "none";
+      };
+      menu.appendChild(move);
+      menu.appendChild(dup);
+    });
+    menu.style.left = `${ev.clientX}px`;
+    menu.style.top = `${ev.clientY}px`;
+    menu.style.display = "block";
   });
+
+  window.addEventListener("click", () => (menu.style.display = "none"));
 
   container.addEventListener("dragover", e => e.preventDefault());
   container.addEventListener("drop", async ev => {
@@ -517,15 +593,20 @@ export async function bootstrap() {
     const size = grid.config.primarySize;
     point.x = Math.round(point.x / size) * size;
     point.z = Math.round(point.z / size) * size;
+    point.y = currentLevel * floors[currentLevel].height;
     const { object } = await addModel(url, point);
     selectObject(object);
   });
 
   window.addEventListener("keydown", e => {
+    if (e.key >= "1" && e.key <= "3") {
+      setActiveFloor(parseInt(e.key) - 1);
+      return;
+    }
     if (!selected) return;
 
     const step = grid.config.primarySize;
-    const vstep = verticalSnap;
+    const vstep = floors[currentLevel].height;
 
     switch (e.key) {
       case "ArrowUp":
@@ -556,6 +637,12 @@ export async function bootstrap() {
       case "E":
         selected.position.y -= vstep;
         break;
+      case "PageUp":
+        setActiveFloor(currentLevel + 1);
+        return;
+      case "PageDown":
+        setActiveFloor(currentLevel - 1);
+        return;
       case "r":
       case "R":
         selected.rotateY(Math.PI / 2);
@@ -567,6 +654,7 @@ export async function bootstrap() {
     selected.position.x = Math.round(selected.position.x / step) * step;
     selected.position.y = Math.round(selected.position.y / vstep) * vstep;
     selected.position.z = Math.round(selected.position.z / step) * step;
+    setActiveFloor(Math.round(selected.position.y / vstep));
 
     selected.updateMatrixWorld();
     controls?.updateMatrixWorld(true);
