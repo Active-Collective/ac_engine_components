@@ -1,40 +1,70 @@
+// Import the minimal modules from Open BIM Components (OBC) and Three.js.
+// OBC provides an opinionated framework around Three.js for BIM viewers.
+// https://github.com/ThatOpen/engine_components
 import * as OBC from "@thatopen/components";
 import * as THREE from "three";
+// We rely on the standard GLTF loader for importing models and the
+// TransformControls helper for translation/rotation gizmos.
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+// Helper modules defined in this package
+//  - sidebar.ts: collects model metadata and renders the info sidebar
+//  - levels.ts: manages floor grids and level switching
+//  - settings.ts: binds UI inputs to runtime options
 import { analyzeGroup, renderSidebar, unitInfoMap } from "./sidebar";
 import { initFloors, addUnitToLevel, moveUnitToLevel, setActiveFloor, currentLevel, floors, grids } from "./levels";
 import { initSettings } from "./settings";
+// Simple styling for the nudge arrows
 import "./nudge.css";
 
+// Currently selected root object and (optionally) sub-mesh. The bounding boxes
+// visualize selection and hover state.
 let selected: THREE.Object3D | null = null;
 let subSelected: THREE.Mesh | null = null;
 let bbox: THREE.BoxHelper | null = null;
 let subBox: THREE.BoxHelper | null = null;
 let hoverBox: THREE.BoxHelper | null = null;
+// One shared TransformControls instance is reused for all objects.
 let controls: TransformControls | null = null;
+// Small red sphere used for mouse dragging
 let dragHandle: THREE.Mesh | null = null;
 let isDraggingHandle = false;
+// Helpers used while dragging via the red sphere
 const dragPlane = new THREE.Plane();
 const dragOffset = new THREE.Vector3();
+// Maps any child mesh to its root model for easy selection lookups
 const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 
+// Group holding the six nudge arrows. nudgeTargets is the list of meshes used
+// for raycasting interaction.
 let nudgeGroup: THREE.Group | null = null;
 let nudgeTargets: THREE.Object3D[] = [];
 let hoveredArrow: THREE.Object3D | null = null;
 let planePreview: THREE.Mesh | null = null;
+// When holding down a nudge arrow we repeatedly apply the movement at this
+// interval, emulating a key-repeat behavior.
 let arrowHold: THREE.ArrowHelper | null = null;
 let holdInterval: number | null = null;
 
+// Public reference to the world so other modules can access scene/camera.
 export let world: OBC.World;
+// BoundingBoxer is used repeatedly to measure objects when placing them or
+// computing handle positions.
 let bboxer: OBC.BoundingBoxer;
+// Variables that track the cumulative size of loaded units to derive snap sizes
+// dynamically from the average unit dimensions.
 let totalWidth = 0;
 let totalHeight = 0;
 let loadedCount = 0;
 let verticalSnap = 1;
+// Temporary objects reused for measurements to avoid garbage collection.
 const tempBox = new THREE.Box3();
 const tempSize = new THREE.Vector3();
 
+/**
+ * Replaces the material of every mesh inside `target` with the given variant.
+ * The original material is stored the first time so it can be restored later.
+ */
 function applyVariant(target: THREE.Object3D, mat: THREE.Material) {
   target.traverse(obj => {
     if (obj instanceof THREE.Mesh) {
@@ -50,6 +80,10 @@ function applyVariant(target: THREE.Object3D, mat: THREE.Material) {
   });
 }
 
+/**
+ * Restores every mesh inside `target` to its originally loaded material.
+ * Disposes any temporary material that might have been applied.
+ */
 function resetMaterial(target: THREE.Object3D) {
   target.traverse(obj => {
     if (obj instanceof THREE.Mesh) {
@@ -63,6 +97,11 @@ function resetMaterial(target: THREE.Object3D) {
   });
 }
 
+/**
+ * Creates or updates the small red sphere used for mouse dragging. The sphere
+ * scales with the size of the selected object and is positioned slightly above
+ * the object's top surface.
+ */
 function attachHandle(root: THREE.Object3D) {
   bboxer.reset();
   root.traverse(o => {
@@ -95,11 +134,18 @@ function attachHandle(root: THREE.Object3D) {
   world.meshes.add(dragHandle);
 }
 
+/**
+ * Removes the drag handle from the scene and raycaster set.
+ */
 function detachHandle() {
   if (dragHandle && dragHandle.parent) dragHandle.parent.remove(dragHandle);
   if (dragHandle) world.meshes.delete(dragHandle);
 }
 
+/**
+ * Fades the opacity of all arrow helpers in the provided group. This is used
+ * when showing or hiding the nudge arrows around the selected model.
+ */
 function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
   const start = performance.now();
   const from = (target.children[0] as THREE.ArrowHelper).cone.material.opacity;
@@ -116,6 +162,11 @@ function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
   step();
 }
 
+/**
+ * Creates six ArrowHelpers around the object. They are positioned at the
+ * center of each face of its bounding box and point outward. Only arrows with a
+ * corresponding floor above/below are created.
+ */
 function createNudgeGizmos(obj: THREE.Object3D) {
   bboxer.reset();
   obj.traverse(o => {
@@ -159,6 +210,11 @@ function createNudgeGizmos(obj: THREE.Object3D) {
   return g;
 }
 
+/**
+ * Generates the arrow helpers for the given object and adds them to the scene.
+ * The arrows are added to the world's raycast set so pointer events can
+ * trigger nudging.
+ */
 function attachNudge(obj: THREE.Object3D) {
   detachNudge();
   nudgeGroup = createNudgeGizmos(obj);
@@ -167,6 +223,9 @@ function attachNudge(obj: THREE.Object3D) {
   fadeNudge(nudgeGroup, 1);
 }
 
+/**
+ * Removes the arrow helpers and cleans up the raycasting references.
+ */
 function detachNudge() {
   if (!nudgeGroup) return;
   const group = nudgeGroup;
@@ -177,6 +236,11 @@ function detachNudge() {
   hoveredArrow = null;
 }
 
+/**
+ * Moves the selected object exactly one grid increment in the direction of the
+ * provided arrow helper and then re-snaps its position. This is called when a
+ * user clicks or drags a nudge arrow.
+ */
 function nudge(arrow: THREE.ArrowHelper) {
   if (!selected) return;
   const n = (arrow as any).userData.normal as THREE.Vector3;
@@ -191,6 +255,10 @@ function nudge(arrow: THREE.ArrowHelper) {
   attachNudge(selected);
 }
 
+/**
+ * Displays a translucent plane at the provided Y level while dragging an
+ * object between floors so the user can see where it will land.
+ */
 function showPreview(y: number) {
   if (!planePreview) {
     planePreview = new THREE.Mesh(
@@ -204,15 +272,22 @@ function showPreview(y: number) {
   planePreview.visible = true;
 }
 
+/** Hide the drop preview plane. */
 function hidePreview() {
   if (planePreview) planePreview.visible = false;
 }
 
+/** Helper wrapper around GLTFLoader that returns a promise. */
 function loadGltf(url: string): Promise<THREE.Group> {
   const loader = new GLTFLoader();
   return loader.loadAsync(url);
 }
 
+/**
+ * Entry point for the viewer. Sets up the world, UI elements and event
+ * listeners, then loads the default models. This function is invoked at the
+ * bottom of the file.
+ */
 export async function bootstrap() {
   const container = document.getElementById("viewer") as HTMLDivElement;
   const fileInput = document.getElementById("fileInput") as HTMLInputElement;
@@ -314,6 +389,7 @@ export async function bootstrap() {
     libItems.appendChild(item);
   });
 
+  /** Remove the yellow hover box from the scene if present. */
   function clearHover() {
     if (hoverBox) {
       world.scene.three.remove(hoverBox);
@@ -321,6 +397,7 @@ export async function bootstrap() {
     }
   }
 
+  /** Draw a yellow box around the hovered object (if not selected). */
   function setHover(obj: THREE.Object3D | null) {
     clearHover();
     if (!obj) return;
@@ -330,6 +407,11 @@ export async function bootstrap() {
     world.scene.three.add(hoverBox);
   }
 
+  /**
+   * Handles selecting a root model. Attaches TransformControls and the drag
+   * handle, creates bounding boxes and nudge arrows. Passing `null` clears the
+   * current selection.
+   */
   function selectObject(obj: THREE.Object3D | null) {
     if (bbox) {
       world.scene.three.remove(bbox);
@@ -386,6 +468,7 @@ export async function bootstrap() {
     attachNudge(root);
   }
 
+  /** Highlight an individual mesh within the selected model. */
   function selectSubObject(mesh: THREE.Mesh | null) {
     if (subBox) {
       world.scene.three.remove(subBox);
@@ -398,6 +481,11 @@ export async function bootstrap() {
     }
   }
 
+  /**
+   * Loads a glTF file and inserts it into the scene. Every mesh is registered
+   * in `world.meshes` for raycasting. The function also updates average snap
+   * sizes based on all loaded models.
+   */
   async function addModel(
     url: string,
     position = new THREE.Vector3(),
@@ -609,8 +697,10 @@ export async function bootstrap() {
     menu.style.display = "block";
   });
 
+  // Hide the custom context menu whenever the user clicks elsewhere
   window.addEventListener("click", () => (menu.style.display = "none"));
 
+  // Allow dropping a library item onto the canvas
   container.addEventListener("dragover", e => e.preventDefault());
   container.addEventListener("drop", async ev => {
     ev.preventDefault();
@@ -632,6 +722,7 @@ export async function bootstrap() {
     selectObject(object);
   });
 
+  // Keyboard shortcuts for floor switching, movement and rotation
   window.addEventListener("keydown", e => {
     if (e.key >= "1" && e.key <= "3") {
       setActiveFloor(parseInt(e.key) - 1);
@@ -744,4 +835,6 @@ export async function bootstrap() {
   });
 }
 
+// Kick everything off. When bundling this package you can import { bootstrap }
+// and call it from your own entry point instead.
 bootstrap();

@@ -1,43 +1,44 @@
 # Viewer Example
 
-This package demonstrates how to load and manipulate glTF models using
-[@thatopen/components](https://www.npmjs.com/package/@thatopen/components).
+This demo showcases the most common features of
+[@thatopen/components](https://www.npmjs.com/package/@thatopen/components) in a
+small but extendable viewer.
 
-## Installation
+## Quick start
 
 1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/).
-2. In the repository root run:
+2. From the repository root run:
    ```bash
    yarn install
-   ```
-3. Start the development server:
-   ```bash
    yarn workspace viewer dev --host
    ```
-4. Open [http://localhost:5173](http://localhost:5173) in your browser.
+3. Open [http://localhost:5173](http://localhost:5173).
 
-If `unit1.glb` … `unit4.glb` exist under `packages/core/assets` they will load
-automatically and appear side by side. You can also load a local `.glb` or
-`.gltf` file via the file input at the bottom of the library sidebar.
-The "Unit grid settings" panel lets you adjust horizontal and vertical snap
-sizes as well as grid and background colors.
+Four demo units (`unit1.glb` … `unit4.glb`) will appear side by side if they are
+present under `packages/core/assets`. You can also drop additional `.glb` files
+onto the canvas or choose one via the file input in the library sidebar.
+
+## Features
+
+| Feature | Description | Where to look |
+| ------- | ----------- | ------------- |
+| **Floor management** | Switch floors with the pill buttons or keys `1`‑`3`. Ghost grids and snapping are configured in **`levels.ts`**. | `levels.ts` |
+| **Drag handle & nudge arrows** | Select a model to display a red drag sphere and six arrows for precise movement. See **`attachHandle`** and **`createNudgeGizmos`** in **`index.ts`**. | `index.ts` |
+| **Keyboard controls** | Move with arrow keys or WASD/QE and rotate with `R`. Handled near the bottom of **`index.ts`**. | `index.ts` |
+| **Material palette** | Right‑click a mesh to recolor it. Material logic lives in **`applyVariant`** and **`resetMaterial`**. | `index.ts` |
+| **Metadata sidebar** | Each loaded model is analyzed in **`sidebar.ts`** to display mesh counts and materials. | `sidebar.ts` |
+
+Most functions in `index.ts` include comments explaining their role and where to
+extend them. Refer to the
+[OBC documentation](https://docs.thatopen.com/intro) for deeper API details.
 
 ## Building
 
-To create a production build run:
 ```bash
 yarn workspace viewer build
 ```
 
-## Usage
+The built files are output to `packages/viewer/dist`.
 
-- Select a model and drag the red handle hovering above its center to reposition
-  it on the grid.
-- Use the **arrow keys** or **W/A/S/D** to move horizontally and **Q/E** to
-  move up/down by the snap sizes. Press **R** to rotate the selected model 90°
-  around the Y axis.
-- Right-click a mesh (for example a door) to select that part only. Use the
-  color palette to apply a material to the selected object. The reset button
-  restores the original material.
 
 
