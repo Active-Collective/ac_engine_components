@@ -28,7 +28,7 @@ export function initFloors(w: OBC.World, plane: THREE.Plane) {
   floors.forEach((cfg, i) => {
     const grid = new OBC.SimpleGrid(world.components, world);
     grid.setup();
-    grid.position.y = i * cfg.height;
+    grid.three.position.y = i * cfg.height;
     grid.material.transparent = true;
     grids.push(grid);
     unitsByLevel[i] = [];
@@ -40,7 +40,7 @@ export function setActiveFloor(level: number) {
   currentLevel = Math.min(Math.max(level, 0), floors.length - 1);
   grids.forEach((g, i) => {
     const f = floors[i];
-    g.position.y = i * f.height;
+    g.three.position.y = i * f.height;
     const op = i === currentLevel ? 1 : f.showGhost ? f.ghostOpacity : 0;
     g.material.opacity = op;
     g.material.transparent = op < 1;
