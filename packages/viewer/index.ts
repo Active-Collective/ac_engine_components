@@ -53,6 +53,7 @@ export async function bootstrap() {
   const fileInput = document.getElementById("fileInput") as HTMLInputElement;
   const palette = document.getElementById("palette") as HTMLDivElement;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
+  const library = document.getElementById("library") as HTMLDivElement;
 
   const components = new OBC.Components();
   const worlds = components.get(OBC.Worlds);
@@ -79,9 +80,28 @@ export async function bootstrap() {
   const grids = components.get(OBC.Grids);
   const grid = grids.create(world);
   grid.config.primarySize = 1;
+  const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
   const casters = components.get(OBC.Raycasters);
   const caster = casters.get(world);
+
+  const libUrls = [
+    new URL("../core/assets/unit1.glb", import.meta.url).href,
+    new URL("../core/assets/unit2.glb", import.meta.url).href,
+    new URL("../core/assets/unit3.glb", import.meta.url).href,
+    new URL("../core/assets/unit4.glb", import.meta.url).href,
+  ];
+
+  libUrls.forEach(u => {
+    const item = document.createElement("div");
+    item.className = "lib-item";
+    item.draggable = true;
+    item.dataset.url = u;
+    item.addEventListener("dragstart", ev => {
+      ev.dataTransfer?.setData("text", u);
+    });
+    library.appendChild(item);
+  });
 
   function clearHover() {
     if (hoverBox) {
@@ -120,13 +140,17 @@ export async function bootstrap() {
         world.renderer.three.domElement,
       );
       controls.setMode("translate");
-      controls.showZ = false;
+      controls.showY = false;
       controls.translationSnap = grid.config.primarySize;
       controls.addEventListener("dragging-changed", ev => {
         world.camera.controls.enabled = !ev.value;
       });
       controls.addEventListener("change", () => {
+        if (!controls) return;
+        const p = controls.object.position;
+        p.set(Math.round(p.x), p.y, Math.round(p.z));
         bbox?.update();
+        subBox?.update();
       });
       world.scene.three.add(controls);
     }
@@ -148,7 +172,7 @@ export async function bootstrap() {
     }
   }
 
-  async function addModel(url: string, offsetX: number) {
+  async function addModel(url: string, position = new THREE.Vector3()) {
     const gltf = await loadGltf(url);
 
     gltf.scene.updateMatrixWorld(true);
@@ -168,7 +192,11 @@ export async function bootstrap() {
     const dims = OBC.BoundingBoxer.getDimensions(bounds);
     bboxer.reset();
 
-    gltf.scene.position.set(offsetX - bounds.min.x, 0, 0);
+    gltf.scene.position.set(
+      position.x - bounds.min.x,
+      position.y - bounds.min.y,
+      position.z - bounds.min.z,
+    );
     world.scene.three.add(gltf.scene);
     const info = analyzeGroup(gltf.scene, url);
     unitInfoMap.set(gltf.scene, info);
@@ -176,15 +204,15 @@ export async function bootstrap() {
     return { object: gltf.scene, width: dims.width };
   }
 
-  const urls = [
+  const loadUrls = [
     new URL("../core/assets/unit1.glb", import.meta.url).href,
     new URL("../core/assets/unit2.glb", import.meta.url).href,
     new URL("../core/assets/unit3.glb", import.meta.url).href,
     new URL("../core/assets/unit4.glb", import.meta.url).href,
   ];
   let offset = 0;
-  for (const url of urls) {
-    const { width } = await addModel(url, offset);
+  for (const url of loadUrls) {
+    const { width } = await addModel(url, new THREE.Vector3(offset, 0, 0));
     offset += width;
   }
 
@@ -218,6 +246,26 @@ export async function bootstrap() {
     ev.preventDefault();
   });
 
+  container.addEventListener("dragover", e => e.preventDefault());
+  container.addEventListener("drop", async ev => {
+    ev.preventDefault();
+    const url = ev.dataTransfer?.getData("text");
+    if (!url) return;
+    const rect = container.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+      -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    caster.three.setFromCamera(ndc, world.camera.three);
+    const point = new THREE.Vector3();
+    caster.three.ray.intersectPlane(gridPlane, point);
+    const size = grid.config.primarySize;
+    point.x = Math.round(point.x / size) * size;
+    point.z = Math.round(point.z / size) * size;
+    const { object } = await addModel(url, point);
+    selectObject(object);
+  });
+
   window.addEventListener("keydown", e => {
     if (!selected) return;
 
@@ -225,10 +273,10 @@ export async function bootstrap() {
 
     switch (e.key) {
       case "ArrowUp":
-        selected.position.y += step;
+        selected.position.z -= step;
         break;
       case "ArrowDown":
-        selected.position.y -= step;
+        selected.position.z += step;
         break;
       case "ArrowLeft":
         selected.position.x -= step;
@@ -259,7 +307,7 @@ export async function bootstrap() {
       return;
     }
     const url = URL.createObjectURL(file);
-    const { object, width } = await addModel(url, offset);
+    const { object, width } = await addModel(url, new THREE.Vector3(offset, 0, 0));
     offset += width;
     selectObject(object);
   });

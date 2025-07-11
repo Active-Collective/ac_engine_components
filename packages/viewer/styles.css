@@ -53,3 +53,23 @@
   border-right:none;
 }
 #sidebarContent{padding:4px;}
+
+#library{
+  position:fixed;
+  right:0;
+  top:0;
+  width:260px;
+  height:100%;
+  background:#eee;
+  overflow:auto;
+  z-index:9;
+  padding:4px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.lib-item{
+  background:#bbb;
+  height:60px;
+  cursor:grab;
+}
