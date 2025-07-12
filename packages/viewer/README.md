@@ -15,18 +15,19 @@ small but extendable viewer.
 3. Open [http://localhost:5173](http://localhost:5173).
 
 Four demo units (`unit1.glb` … `unit4.glb`) will appear side by side if they are
-present under `packages/core/assets`. You can also drop additional `.glb` files
-onto the canvas or choose one via the file input in the library sidebar.
+present under `packages/core/assets`. Drag items from the library sidebar or
+choose a file via the **Choose file** button at the bottom of the sidebar.
 
 ## Features
 
 | Feature | Description | Where to look |
 | ------- | ----------- | ------------- |
-| **Floor management** | Switch floors with the pill buttons or keys `1`‑`3`. Ghost grids and snapping are configured in **`levels.ts`**. | `levels.ts` |
+| **Floor management** | Switch floors with the pill buttons or keys `1`‑`3`. Ghost grid opacity and visibility are adjustable in **`settings.ts`**. | `levels.ts` |
 | **Drag handle & nudge arrows** | Select a model to display a red drag sphere and six arrows for precise movement. See **`attachHandle`** and **`createNudgeGizmos`** in **`index.ts`**. | `index.ts` |
-| **Keyboard controls** | Move with arrow keys or WASD/QE and rotate with `R`. Handled near the bottom of **`index.ts`**. | `index.ts` |
+| **Keyboard controls** | Move with arrow keys or WASD/QE and rotate with `R`. Use Cmd/Ctrl+Z to undo the last move. Handled near the bottom of **`index.ts`**. | `index.ts` |
 | **Material palette** | Right‑click a mesh to recolor it. Material logic lives in **`applyVariant`** and **`resetMaterial`**. | `index.ts` |
 | **Metadata sidebar** | Each loaded model is analyzed in **`sidebar.ts`** to display mesh counts and materials. | `sidebar.ts` |
+| **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. Also hosts the color palette and reset button. | `nav-controls.ts` |
 
 Most functions in `index.ts` include comments explaining their role and where to
 extend them. Refer to the

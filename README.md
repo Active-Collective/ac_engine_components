@@ -108,9 +108,11 @@ Run the glTF viewer example to verify that local models load correctly.
 6. If `unit1.glb` … `unit4.glb` are present in `packages/core/assets` they load automatically. Use the file input to load your own `.glb` or `.gltf` file.
 7. Use the **arrow keys** to move the selected model one meter at a time on X/Y.
 8. Press **R** to rotate the selected model by 90°.
-9. Right-click a mesh (e.g. a door) to select that part and use the palette to
+9. Use the toolbar at the top to orbit, pan, zoom extents or change camera views.
+10. Press **Cmd/Ctrl+Z** to undo the last move or rotation.
+11. Right-click a mesh (e.g. a door) to select that part and use the palette to
    change its material. The **reset** button restores the original look.
-10. Run `yarn test` to execute the placeholder test script.
+12. Run `yarn test` to execute the placeholder test script.
 
 
 [npm]: https://img.shields.io/npm/v/@thatopen/components

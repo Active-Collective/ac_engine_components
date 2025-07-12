@@ -44,8 +44,11 @@ export function setActiveFloor(level: number) {
     const op = i === currentLevel ? 1 : f.showGhost ? f.ghostOpacity : 0;
     g.material.opacity = op;
     g.material.transparent = op < 1;
+    g.material.needsUpdate = true;
     (g.three.material as THREE.Material).opacity = op;
     (g.three.material as THREE.Material).transparent = op < 1;
+    (g.three.material as THREE.Material).needsUpdate = true;
+    g.three.visible = op > 0;
   });
   workingPlane.constant = currentLevel * floors[currentLevel].height;
   document.dispatchEvent(
