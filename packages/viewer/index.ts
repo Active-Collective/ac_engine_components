@@ -21,6 +21,7 @@ import {
 } from "./sidebar";
 import { initFloors, addUnitToLevel, moveUnitToLevel, setActiveFloor, currentLevel, floors, grids } from "./levels";
 import { initSettings } from "./settings";
+import { initNavControls } from "./nav-controls";
 // Simple styling for the nudge arrows
 import "./nudge.css";
 
@@ -368,6 +369,20 @@ export async function bootstrap() {
     world.renderer.three.setClearColor(col);
     world.scene.three.background = col;
   });
+
+  function sceneBounds() {
+    bboxer.reset();
+    world.meshes.forEach(m => {
+      if (m instanceof THREE.Mesh || m instanceof THREE.InstancedMesh) {
+        bboxer.addMesh(m);
+      }
+    });
+    const b = bboxer.get().clone();
+    bboxer.reset();
+    return b;
+  }
+
+  initNavControls(world.camera, sceneBounds);
 
   const casters = components.get(OBC.Raycasters);
   const caster = casters.get(world);
