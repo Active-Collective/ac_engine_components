@@ -881,6 +881,13 @@ export async function bootstrap() {
     if (subSelected) subBox?.update();
     else bbox?.update();
   });
+
+  // Activate Bootstrap tooltips if available
+  if ((window as any).bootstrap) {
+    document
+      .querySelectorAll('[data-bs-toggle="tooltip"]')
+      .forEach(el => new (window as any).bootstrap.Tooltip(el));
+  }
 }
 
 // Kick everything off. When bundling this package you can import { bootstrap }
