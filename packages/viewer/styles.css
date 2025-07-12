@@ -1,8 +1,4 @@
 #palette{
-  position:absolute;
-  top:10px;
-  right:10px;
-  z-index:10;
   display:flex;
   gap:4px;
 }
@@ -106,7 +102,8 @@
 #navBar{
   position:fixed;
   top:10px;
-  left:10px;
+  left:50%;
+  transform:translateX(-50%);
   display:flex;
   gap:4px;
   padding:6px 8px;
@@ -114,6 +111,7 @@
   backdrop-filter:blur(4px);
   border-radius:6px;
   z-index:12;
+  align-items:center;
 }
 #navBar button{
   width:32px;
@@ -127,6 +125,21 @@
 }
 #navBar button.active{outline:2px solid #2196f3;}
 #navBar button:hover{background:#fff;}
+
+#viewMenu{
+  position:absolute;
+  top:100%;
+  left:0;
+  background:rgba(48,48,48,.9);
+  display:none;
+  flex-direction:column;
+  padding:4px;
+  border-radius:4px;
+}
+#viewMenu button{margin:2px 0;}
+#viewMenu.show{display:flex;}
+
+#palette{display:flex;gap:4px;margin-left:8px;}
 
 #navHelp{
   position:fixed;

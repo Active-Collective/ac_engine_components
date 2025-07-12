@@ -50,12 +50,15 @@ export function initNavControls(cam: SimpleCamera, boundsGetter: () => THREE.Box
   getBounds = boundsGetter;
   updateAction('orbit');
   const help = document.getElementById('navHelp') as HTMLElement;
-  document.getElementById('navBar')!.addEventListener('click', ev => {
+  const viewMenu = document.getElementById('viewMenu') as HTMLElement;
+  const bar = document.getElementById('navBar')!;
+  bar.addEventListener('click', ev => {
     const btn = (ev.target as HTMLElement).closest('button');
-    if (!btn) return;
-    if (btn.dataset.view) goView(btn.dataset.view as keyof typeof views);
+    if (!btn) { viewMenu.classList.remove('show'); return; }
+    if (btn.dataset.view) { goView(btn.dataset.view as keyof typeof views); viewMenu.classList.remove('show'); }
     if (btn.dataset.action) handleAction(btn.dataset.action as any);
     if (btn.id === 'helpBtn') help.classList.toggle('show');
+    if (btn.id === 'camBtn') viewMenu.classList.toggle('show');
   });
   window.addEventListener('keydown', ev => {
     if (ev.ctrlKey) {

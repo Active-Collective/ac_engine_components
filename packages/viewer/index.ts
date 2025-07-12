@@ -54,6 +54,32 @@ let planePreview: THREE.Mesh | null = null;
 let arrowHold: THREE.ArrowHelper | null = null;
 let holdInterval: number | null = null;
 
+interface HistoryEntry {
+  obj: THREE.Object3D;
+  pos: THREE.Vector3;
+  quat: THREE.Quaternion;
+}
+const history: HistoryEntry[] = [];
+
+function saveState(obj: THREE.Object3D) {
+  history.push({ obj, pos: obj.position.clone(), quat: obj.quaternion.clone() });
+  if (history.length > 20) history.shift();
+}
+
+function undo() {
+  const h = history.pop();
+  if (!h) return;
+  h.obj.position.copy(h.pos);
+  h.obj.quaternion.copy(h.quat);
+  h.obj.updateMatrixWorld();
+  bbox?.update();
+  subBox?.update();
+  controls?.updateMatrixWorld(true);
+  detachHandle();
+  attachHandle(h.obj);
+  attachNudge(h.obj);
+}
+
 // Public reference to the world so other modules can access scene/camera.
 export let world: OBC.World;
 // BoundingBoxer is used repeatedly to measure objects when placing them or
@@ -253,6 +279,7 @@ function nudge(arrow: THREE.ArrowHelper) {
   if (!selected) return;
   const n = (arrow as any).userData.normal as THREE.Vector3;
   const step = n.y ? verticalSnap : grids[currentLevel].config.primarySize;
+  saveState(selected);
   selected.position.addScaledVector(n, step);
   const h = grids[currentLevel].config.primarySize;
   selected.position.x = Math.round(selected.position.x / h) * h;
@@ -447,6 +474,7 @@ export async function bootstrap() {
       controls.showY = false;
       controls.translationSnap = grid.config.primarySize;
       controls.addEventListener("dragging-changed", ev => {
+        if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
         world.camera.controls.enabled = !ev.value;
         if (nudgeGroup) nudgeGroup.visible = !ev.value;
       });
@@ -732,6 +760,11 @@ export async function bootstrap() {
 
   // Keyboard shortcuts for floor switching, movement and rotation
   window.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+      undo();
+      e.preventDefault();
+      return;
+    }
     if (e.key >= "1" && e.key <= "3") {
       setActiveFloor(parseInt(e.key) - 1);
       return;
@@ -745,29 +778,35 @@ export async function bootstrap() {
       case "ArrowUp":
       case "w":
       case "W":
+        saveState(selected);
         selected.position.z -= step;
         break;
       case "ArrowDown":
       case "s":
       case "S":
+        saveState(selected);
         selected.position.z += step;
         break;
       case "ArrowLeft":
       case "a":
       case "A":
+        saveState(selected);
         selected.position.x -= step;
         break;
       case "ArrowRight":
       case "d":
       case "D":
+        saveState(selected);
         selected.position.x += step;
         break;
       case "q":
       case "Q":
+        saveState(selected);
         selected.position.y += vstep;
         break;
       case "e":
       case "E":
+        saveState(selected);
         selected.position.y -= vstep;
         break;
       case "PageUp":
@@ -778,6 +817,7 @@ export async function bootstrap() {
         return;
       case "r":
       case "R":
+        saveState(selected);
         selected.rotateY(Math.PI / 2);
         break;
       default:

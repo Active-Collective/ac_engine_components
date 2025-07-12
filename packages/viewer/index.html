@@ -12,13 +12,7 @@
   </style>
 </head>
 <body>
-  <div id="palette">
-    <button data-variant="red" style="background:#f33"></button>
-    <button data-variant="blue" style="background:#33f"></button>
-    <button data-variant="wood" style="background:url('/assets/wood.jpg') center/cover"></button>
-    <button id="resetBtn">reset</button>
-  </div>
-  <aside id="sidebar" data-mode="library" class="collapsed">
+  <aside id="sidebar" data-mode="library">
     <header>
       <button id="toggle">&#9776;</button>
       <h1 id="panelTitle">Units</h1>
@@ -61,13 +55,22 @@
     <button data-action="orbit" title="Orbit (O)"><img src="icons/orbit.svg"></button>
     <button data-action="pan" title="Pan (Shift+MMB)"><img src="icons/pan.svg"></button>
     <button data-action="zoomExt" title="Zoom Extents (F)"><img src="icons/zoomext.svg"></button>
-    <button data-view="iso" title="Isometric (Ctrl+1)">ISO</button>
-    <button data-view="top" title="Top (Ctrl+2)">Top</button>
-    <button data-view="front" title="Front (Ctrl+3)">Front</button>
-    <button data-view="right" title="Right (Ctrl+4)">Right</button>
-    <button data-view="back" title="Back (Ctrl+5)">Back</button>
-    <button data-view="left" title="Left (Ctrl+6)">Left</button>
-    <button data-view="bottom" title="Bottom (Ctrl+7)">Bottom</button>
+    <button id="camBtn" title="Views"><img src="icons/camera.svg"></button>
+    <div id="viewMenu">
+      <button data-view="iso" title="Isometric (Ctrl+1)">ISO</button>
+      <button data-view="top" title="Top (Ctrl+2)">Top</button>
+      <button data-view="front" title="Front (Ctrl+3)">Front</button>
+      <button data-view="right" title="Right (Ctrl+4)">Right</button>
+      <button data-view="back" title="Back (Ctrl+5)">Back</button>
+      <button data-view="left" title="Left (Ctrl+6)">Left</button>
+      <button data-view="bottom" title="Bottom (Ctrl+7)">Bottom</button>
+    </div>
+    <div id="palette">
+      <button data-variant="red" style="background:#f33"></button>
+      <button data-variant="blue" style="background:#33f"></button>
+      <button data-variant="wood" style="background:url('/assets/wood.jpg') center/cover"></button>
+      <button id="resetBtn">reset</button>
+    </div>
     <button id="helpBtn" title="Help ?">?</button>
   </div>
   <div id="navHelp">
