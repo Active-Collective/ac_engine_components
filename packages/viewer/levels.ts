@@ -8,9 +8,9 @@ export interface FloorCfg {
 }
 
 export const floors: FloorCfg[] = [
-  { height: 3, ghostOpacity: 0.5, showGhost: true },
-  { height: 3, ghostOpacity: 0.5, showGhost: true },
-  { height: 3, ghostOpacity: 0.5, showGhost: true },
+  { height: 3, ghostOpacity: 0.5, showGhost: false },
+  { height: 3, ghostOpacity: 0.5, showGhost: false },
+  { height: 3, ghostOpacity: 0.5, showGhost: false },
 ];
 
 export let currentLevel = 0;
