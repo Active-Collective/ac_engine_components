@@ -128,4 +128,4 @@ export function renderMeta(group: THREE.Object3D) {
 export function clearInfo() {
   metaTable.innerHTML = "";
 }
-*** End Patch
+
