@@ -568,6 +568,9 @@ export async function bootstrap() {
     if (controls) controls.translationSnap = avg;
     snapInput.value = String(avg);
     snapHeightInput.value = String(hAvg);
+    const sizeSnap = grid.config.primarySize;
+    gltf.scene.position.x = Math.round(gltf.scene.position.x / sizeSnap) * sizeSnap;
+    gltf.scene.position.z = Math.round(gltf.scene.position.z / sizeSnap) * sizeSnap;
     return { object: gltf.scene, width: dims.width };
   }
 
@@ -579,12 +582,15 @@ export async function bootstrap() {
   ];
   let offset = 0;
   for (const url of loadUrls) {
-    const { width } = await addModel(
+    const { object, width } = await addModel(
       url,
       new THREE.Vector3(offset, 0, 0),
       0
     );
-    offset += width;
+    // Snap the loaded object and compute the next offset based on current grid size
+    const step = grid.config.primarySize;
+    object.position.x = Math.round(object.position.x / step) * step;
+    offset = object.position.x + Math.round(width / step) * step;
   }
 
   world.renderer.three.domElement.addEventListener("pointermove", ev => {
