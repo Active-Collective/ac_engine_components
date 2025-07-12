@@ -57,6 +57,28 @@
     <button data-level="2">2</button>
     <button data-level="3">3</button>
   </div>
+  <div id="navBar">
+    <button data-action="orbit" title="Orbit (O)"><img src="icons/orbit.svg"></button>
+    <button data-action="pan" title="Pan (Shift+MMB)"><img src="icons/pan.svg"></button>
+    <button data-action="zoomExt" title="Zoom Extents (F)"><img src="icons/zoomext.svg"></button>
+    <button data-view="iso" title="Isometric (Ctrl+1)">ISO</button>
+    <button data-view="top" title="Top (Ctrl+2)">Top</button>
+    <button data-view="front" title="Front (Ctrl+3)">Front</button>
+    <button data-view="right" title="Right (Ctrl+4)">Right</button>
+    <button data-view="back" title="Back (Ctrl+5)">Back</button>
+    <button data-view="left" title="Left (Ctrl+6)">Left</button>
+    <button data-view="bottom" title="Bottom (Ctrl+7)">Bottom</button>
+    <button id="helpBtn" title="Help ?">?</button>
+  </div>
+  <div id="navHelp">
+    <p><strong>Navigation</strong></p>
+    <ul>
+      <li>O: Orbit mode</li>
+      <li>Shift+MMB: Pan mode</li>
+      <li>F: Zoom extents</li>
+      <li>Ctrl+1–7: View presets</li>
+    </ul>
+  </div>
   <div id="viewer"></div>
   <script type="module" src="./index.ts"></script>
 </body>
