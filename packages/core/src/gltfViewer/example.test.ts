@@ -3,7 +3,7 @@ const path = require('path');
 
 describe('unit1.glb validation', () => {
   const io = new NodeIO();
-  const glbPath = path.resolve(__dirname, '../../../../assets/unit1.glb');
+  const glbPath = path.resolve(__dirname, '../../assets/unit1.glb');
 
   test('loads without errors', async () => {
     const doc = await io.read(glbPath);

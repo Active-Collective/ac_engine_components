@@ -140,5 +140,5 @@ resources/asdf2.frag
 resources/asdf2.json
 resources/umdasch/
 
-app
-node-app
+app# Ignore 3D assets
+*.glb
