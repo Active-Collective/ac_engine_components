@@ -13,6 +13,7 @@ small but extendable viewer.
    yarn workspace viewer dev --host
    ```
 3. Open [http://localhost:5173](http://localhost:5173).
+   The viewer now uses [Bootstrap](https://getbootstrap.com/) and a fixed 1920×1080 canvas so you can place additional elements around it.
 
 Four demo units (`unit1.glb` … `unit4.glb`) will appear side by side if they are
 present under `packages/core/assets`. Drag items from the library sidebar or
@@ -28,6 +29,7 @@ choose a file via the **Choose file** button at the bottom of the sidebar.
 | **Material palette** | Right‑click a mesh to recolor it. Material logic lives in **`applyVariant`** and **`resetMaterial`**. | `index.ts` |
 | **Metadata sidebar** | Each loaded model is analyzed in **`sidebar.ts`** to display mesh counts and materials. | `sidebar.ts` |
 | **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. Also hosts the color palette and reset button. | `nav-controls.ts` |
+| **Bootstrap UI** | Modern components and tooltips styled with Bootstrap 5. | `index.html` |
 
 Most functions in `index.ts` include comments explaining their role and where to
 extend them. Refer to the
