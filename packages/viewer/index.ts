@@ -15,6 +15,8 @@ import {
   initSidebar,
   addUnitItem,
   removeUnitItem,
+  addCartItem,
+  removeCartItem,
   analyzeUnit,
   metaCache,
   renderMeta,
@@ -125,6 +127,7 @@ function removeSelected() {
     boxMap.delete(obj);
     layoutMap.delete(obj.userData.id);
     removeUnitItem(obj);
+    removeCartItem(obj);
   });
   selection.clear();
   selected = null;
@@ -624,6 +627,7 @@ export async function bootstrap() {
     const info = analyzeUnit(gltf.scene, url);
     metaCache.set(gltf.scene, info);
     addUnitItem(gltf.scene, url);
+    addCartItem(gltf.scene);
     totalWidth += dims.width;
     totalHeight += dims.height;
     loadedCount++;
@@ -821,7 +825,7 @@ export async function bootstrap() {
   });
 
   // Keyboard shortcuts for floor switching, movement and rotation
-  window.addEventListener("keydown", e => {
+  const keyHandler = (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
       undo();
       e.preventDefault();
@@ -925,7 +929,9 @@ export async function bootstrap() {
     updateBoxes();
     if (selection.size === 1 && selected) attachNudge(selected);
     e.preventDefault();
-  });
+  };
+  window.addEventListener("keydown", keyHandler);
+  document.addEventListener("keydown", keyHandler);
 
   fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
