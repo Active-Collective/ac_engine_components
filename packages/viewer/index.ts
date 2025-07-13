@@ -28,8 +28,9 @@ import "./nudge.css";
 // Currently selected root object and (optionally) sub-mesh. The bounding boxes
 // visualize selection and hover state.
 let selected: THREE.Object3D | null = null;
+const selection = new Set<THREE.Object3D>();
+const boxMap = new Map<THREE.Object3D, THREE.BoxHelper>();
 let subSelected: THREE.Mesh | null = null;
-let bbox: THREE.BoxHelper | null = null;
 let subBox: THREE.BoxHelper | null = null;
 let hoverBox: THREE.BoxHelper | null = null;
 // One shared TransformControls instance is reused for all objects.
@@ -80,6 +81,12 @@ function updateLayout(obj: THREE.Object3D) {
   saveLayout();
 }
 
+function updateBoxes() {
+  for (const obj of selection) {
+    boxMap.get(obj)?.update();
+  }
+}
+
 function saveState(obj: THREE.Object3D) {
   history.push({ obj, pos: obj.position.clone(), quat: obj.quaternion.clone() });
   if (history.length > 20) history.shift();
@@ -91,7 +98,7 @@ function undo() {
   h.obj.position.copy(h.pos);
   h.obj.quaternion.copy(h.quat);
   h.obj.updateMatrixWorld();
-  bbox?.update();
+  updateBoxes();
   subBox?.update();
   controls?.updateMatrixWorld(true);
   // handle removed
@@ -131,6 +138,13 @@ function applyVariant(target: THREE.Object3D, mat: THREE.Material) {
       mesh.material.needsUpdate = true;
     }
   });
+}
+
+function createMat(type: string): THREE.Material {
+  if (type === "red") return new THREE.MeshStandardMaterial({ color: "red" });
+  if (type === "blue") return new THREE.MeshStandardMaterial({ color: "blue" });
+  const tex = new THREE.TextureLoader().load("/assets/wood.jpg");
+  return new THREE.MeshStandardMaterial({ map: tex });
 }
 
 /**
@@ -269,16 +283,18 @@ function nudge(arrow: THREE.ArrowHelper) {
   if (!selected) return;
   const n = (arrow as any).userData.normal as THREE.Vector3;
   const step = n.y ? verticalSnap : grids[currentLevel].config.primarySize;
-  saveState(selected);
-  selected.position.addScaledVector(n, step);
-  const h = grids[currentLevel].config.primarySize;
-  selected.position.x = Math.round(selected.position.x / h) * h;
-  selected.position.y = Math.round(selected.position.y / verticalSnap) * verticalSnap;
-  selected.position.z = Math.round(selected.position.z / h) * h;
-  bbox?.update();
+  selection.forEach(obj => {
+    saveState(obj);
+    obj.position.addScaledVector(n, step);
+    const h = grids[currentLevel].config.primarySize;
+    obj.position.x = Math.round(obj.position.x / h) * h;
+    obj.position.y = Math.round(obj.position.y / verticalSnap) * verticalSnap;
+    obj.position.z = Math.round(obj.position.z / h) * h;
+    updateLayout(obj);
+  });
+  updateBoxes();
   controls?.updateMatrixWorld(true);
-  attachNudge(selected);
-  updateLayout(selected);
+  if (selection.size === 1) attachNudge(selected); else detachNudge();
 }
 
 /**
@@ -415,7 +431,7 @@ export async function bootstrap() {
     clearHover();
     if (!obj) return;
     const root = rootMap.get(obj) ?? obj;
-    if (root === selected) return;
+    if (selection.has(root)) return;
     hoverBox = new THREE.BoxHelper(root, 0xffff00);
     world.scene.three.add(hoverBox);
   }
@@ -425,61 +441,86 @@ export async function bootstrap() {
    * handle, creates bounding boxes and nudge arrows. Passing `null` clears the
    * current selection.
    */
-  function selectObject(obj: THREE.Object3D | null) {
-    if (bbox) {
-      world.scene.three.remove(bbox);
-      bbox = null;
+  function selectObject(obj: THREE.Object3D | null, additive = false) {
+    if (!additive) {
+      selection.forEach(o => {
+        world.scene.three.remove(boxMap.get(o)!);
+      });
+      selection.clear();
+      boxMap.clear();
     }
-    detachNudge();
 
     if (!obj) {
-      controls?.detach();
-      detachNudge();
-      selected = null;
-      if (sidebarEl.dataset.mode === "info") clearInfo();
+      if (selection.size === 0) {
+        controls?.detach();
+        detachNudge();
+        selected = null;
+        if (sidebarEl.dataset.mode === "info") clearInfo();
+      }
+      updateBoxes();
       return;
     }
 
     const root = rootMap.get(obj) ?? obj;
-    selected = root;
 
-    if (!controls) {
-      controls = new TransformControls(
-        world.camera.three,
-        world.renderer.three.domElement,
-      );
-      controls.setMode("translate");
-      controls.showY = false;
-      controls.translationSnap = grid.config.primarySize;
-      controls.addEventListener("dragging-changed", ev => {
-        if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
-        world.camera.controls.enabled = !ev.value;
-        if (nudgeGroup) nudgeGroup.visible = !ev.value;
-      });
-      controls.addEventListener("change", () => {
-        if (!controls || !controls.object) return;
-        const p = controls.object.position;
-        const size = grid.config.primarySize;
-        p.set(
-          Math.round(p.x / size) * size,
-          p.y,
-          Math.round(p.z / size) * size,
+    if (additive && selection.has(root)) {
+      world.scene.three.remove(boxMap.get(root)!);
+      boxMap.delete(root);
+      selection.delete(root);
+      if (selected === root) selected = selection.size ? Array.from(selection).pop()! : null;
+    } else {
+      selection.add(root);
+      selected = root;
+      if (!boxMap.has(root)) {
+        const b = new THREE.BoxHelper(root, 0x00ff00);
+        boxMap.set(root, b);
+        world.scene.three.add(b);
+      }
+    }
+
+    updateBoxes();
+
+    if (selection.size === 1 && selected) {
+      if (!controls) {
+        controls = new TransformControls(
+          world.camera.three,
+          world.renderer.three.domElement,
         );
-        bbox?.update();
-        subBox?.update();
-        attachNudge(controls.object as THREE.Object3D);
-        updateLayout(controls.object as THREE.Object3D);
-      });
+        controls.setMode("translate");
+        controls.showY = false;
+        controls.translationSnap = grid.config.primarySize;
+        controls.addEventListener("dragging-changed", ev => {
+          if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
+          world.camera.controls.enabled = !ev.value;
+          if (nudgeGroup) nudgeGroup.visible = !ev.value;
+        });
+        controls.addEventListener("change", () => {
+          if (!controls || !controls.object) return;
+          const p = controls.object.position;
+          const size = grid.config.primarySize;
+          p.set(
+            Math.round(p.x / size) * size,
+            p.y,
+            Math.round(p.z / size) * size,
+          );
+          updateBoxes();
+          subBox?.update();
+          attachNudge(controls.object as THREE.Object3D);
+          updateLayout(controls.object as THREE.Object3D);
+        });
         world.scene.three.add(controls);
       } else if (!controls.parent) {
         world.scene.three.add(controls);
       }
 
-    controls.attach(root);
-    bbox = new THREE.BoxHelper(root, 0x00ff00);
-    world.scene.three.add(bbox);
-    attachNudge(root);
-    if (sidebarEl.dataset.mode === "info") renderMeta(root);
+      controls.attach(selected);
+      attachNudge(selected);
+      if (sidebarEl.dataset.mode === "info") renderMeta(selected);
+    } else {
+      controls?.detach();
+      detachNudge();
+      if (sidebarEl.dataset.mode === "info") clearInfo();
+    }
   }
 
   /** Highlight an individual mesh within the selected model. */
@@ -647,8 +688,8 @@ export async function bootstrap() {
         selectSubObject(result.object as THREE.Mesh);
       }
     } else {
-      selectObject(result.object as THREE.Object3D);
-      selectSubObject(null);
+      selectObject(result.object as THREE.Object3D, ev.shiftKey);
+      if (!ev.shiftKey) selectSubObject(null);
     }
   });
 
@@ -663,10 +704,12 @@ export async function bootstrap() {
   world.renderer.three.domElement.addEventListener(
     "wheel",
     ev => {
-      if (!selected || !ev.shiftKey) return;
-      selected.position.y += (ev.deltaY > 0 ? -1 : 1) * floors[currentLevel].height * 0.1;
-      bbox?.update();
-      updateLayout(selected);
+      if (selection.size === 0 || !ev.shiftKey) return;
+      selection.forEach(o => {
+        o.position.y += (ev.deltaY > 0 ? -1 : 1) * floors[currentLevel].height * 0.1;
+        updateLayout(o);
+      });
+      updateBoxes();
       ev.preventDefault();
     },
     { passive: false }
@@ -674,25 +717,29 @@ export async function bootstrap() {
 
   world.renderer.three.domElement.addEventListener("contextmenu", ev => {
     ev.preventDefault();
-    if (!selected) return;
+    if (selection.size === 0) return;
     menu.innerHTML = "";
     floors.forEach((_, i) => {
       const move = document.createElement("div");
       move.textContent = `Move to floor ${i}`;
       move.onclick = () => {
-        moveUnitToLevel(selected!, i);
-        updateLayout(selected!);
+        selection.forEach(o => {
+          moveUnitToLevel(o, i);
+          updateLayout(o);
+        });
         menu.style.display = "none";
       };
       const dup = document.createElement("div");
       dup.textContent = `Duplicate to floor ${i}`;
       dup.onclick = () => {
-        const clone = selected!.clone(true);
-        world.scene.three.add(clone);
-        addUnitToLevel(clone, i);
-        const cid = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
-        clone.userData.id = cid;
-        layoutMap.set(cid, { id: cid, url: selected!.userData.url || "", pos: [clone.position.x, clone.position.y, clone.position.z], rot: clone.rotation.y, level: i });
+        selection.forEach(sel => {
+          const clone = sel.clone(true);
+          world.scene.three.add(clone);
+          addUnitToLevel(clone, i);
+          const cid = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
+          clone.userData.id = cid;
+          layoutMap.set(cid, { id: cid, url: sel.userData.url || "", pos: [clone.position.x, clone.position.y, clone.position.z], rot: clone.rotation.y, level: i });
+        });
         saveLayout();
         menu.style.display = "none";
       };
@@ -740,7 +787,7 @@ export async function bootstrap() {
       setActiveFloor(parseInt(e.key) - 1);
       return;
     }
-    if (!selected) return;
+    if (selection.size === 0) return;
 
     const step = grid.config.primarySize;
     const vstep = floors[currentLevel].height;
@@ -749,36 +796,54 @@ export async function bootstrap() {
       case "ArrowUp":
       case "w":
       case "W":
-        saveState(selected);
-        selected.position.z -= step;
+        selection.forEach(o => {
+          saveState(o);
+          o.position.z -= step;
+          updateLayout(o);
+        });
         break;
       case "ArrowDown":
       case "s":
       case "S":
-        saveState(selected);
-        selected.position.z += step;
+        selection.forEach(o => {
+          saveState(o);
+          o.position.z += step;
+          updateLayout(o);
+        });
         break;
       case "ArrowLeft":
       case "a":
       case "A":
-        saveState(selected);
-        selected.position.x -= step;
+        selection.forEach(o => {
+          saveState(o);
+          o.position.x -= step;
+          updateLayout(o);
+        });
         break;
       case "ArrowRight":
       case "d":
       case "D":
-        saveState(selected);
-        selected.position.x += step;
+        selection.forEach(o => {
+          saveState(o);
+          o.position.x += step;
+          updateLayout(o);
+        });
         break;
       case "q":
       case "Q":
-        saveState(selected);
-        selected.position.y += vstep;
+        selection.forEach(o => {
+          saveState(o);
+          o.position.y += vstep;
+          updateLayout(o);
+        });
         break;
       case "e":
       case "E":
-        saveState(selected);
-        selected.position.y -= vstep;
+        selection.forEach(o => {
+          saveState(o);
+          o.position.y -= vstep;
+          updateLayout(o);
+        });
         break;
       case "PageUp":
         setActiveFloor(currentLevel + 1);
@@ -788,24 +853,27 @@ export async function bootstrap() {
         return;
       case "r":
       case "R":
-        saveState(selected);
-        selected.rotateY(Math.PI / 2);
+        selection.forEach(o => {
+          saveState(o);
+          o.rotateY(Math.PI / 2);
+          updateLayout(o);
+        });
         break;
       default:
         return;
     }
 
-    selected.position.x = Math.round(selected.position.x / step) * step;
-    selected.position.y = Math.round(selected.position.y / vstep) * vstep;
-    selected.position.z = Math.round(selected.position.z / step) * step;
-    setActiveFloor(Math.round(selected.position.y / vstep));
-
-    selected.updateMatrixWorld();
+    selection.forEach(o => {
+      o.position.x = Math.round(o.position.x / step) * step;
+      o.position.y = Math.round(o.position.y / vstep) * vstep;
+      o.position.z = Math.round(o.position.z / step) * step;
+      setActiveFloor(Math.round(o.position.y / vstep));
+      o.updateMatrixWorld();
+      updateLayout(o);
+    });
     controls?.updateMatrixWorld(true);
-    bbox?.update();
-    subBox?.update();
-    attachNudge(selected);
-    updateLayout(selected);
+    updateBoxes();
+    if (selection.size === 1 && selected) attachNudge(selected);
     e.preventDefault();
   });
 
@@ -830,29 +898,34 @@ export async function bootstrap() {
   paintBtn.onclick = () => paintMenu.classList.toggle("show");
   paintMenu.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const target = subSelected ?? selected;
-      if (!target) return;
-      const type = btn.dataset.variant!;
-      let mat: THREE.Material;
-      if (type === "red") mat = new THREE.MeshStandardMaterial({ color: "red" });
-      else if (type === "blue") mat = new THREE.MeshStandardMaterial({ color: "blue" });
-      else {
-        const tex = new THREE.TextureLoader().load("/assets/wood.jpg");
-        mat = new THREE.MeshStandardMaterial({ map: tex });
+      if (subSelected) {
+        applyVariant(subSelected, createMat(btn.dataset.variant!));
+        subBox?.update();
+        paintMenu.classList.remove("show");
+        return;
       }
-      applyVariant(target, mat);
-      if (subSelected) subBox?.update();
-      else bbox?.update();
+      if (selection.size === 0) return;
+      const mat = createMat(btn.dataset.variant!);
+      selection.forEach(o => {
+        applyVariant(o, mat);
+        updateLayout(o);
+      });
+      updateBoxes();
       paintMenu.classList.remove("show");
     });
   });
 
   resetBtn.addEventListener("click", () => {
-    const target = subSelected ?? selected;
-    if (!target) return;
-    resetMaterial(target);
-    if (subSelected) subBox?.update();
-    else bbox?.update();
+    if (subSelected) {
+      resetMaterial(subSelected);
+      subBox?.update();
+      return;
+    }
+    selection.forEach(o => {
+      resetMaterial(o);
+      updateLayout(o);
+    });
+    updateBoxes();
   });
 
   // Activate Bootstrap tooltips if available
