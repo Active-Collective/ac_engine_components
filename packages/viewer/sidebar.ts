@@ -61,8 +61,10 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   li.className = "lib-item";
   li.draggable = true;
   li.dataset.url = url;
-  const canvas = document.createElement("canvas");
-  li.appendChild(canvas);
+  const img = document.createElement("img");
+  img.width = 80;
+  img.height = 60;
+  li.appendChild(img);
   const row = document.createElement("div");
   row.className = "row";
   const span = document.createElement("span");
@@ -79,7 +81,7 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   });
   unitList.appendChild(li);
 
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
   renderer.setSize(80, 60, false);
   const scene = new THREE.Scene();
   const cam = new THREE.PerspectiveCamera(35, 80 / 60, 0.1, 10);
@@ -93,6 +95,7 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   cam.position.copy(center).addScalar(size);
   cam.lookAt(center);
   renderer.render(scene, cam);
+  img.src = renderer.domElement.toDataURL();
   renderer.dispose();
 }
 

@@ -348,7 +348,7 @@ export async function bootstrap() {
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   initFloors(world, gridPlane);
   const grid = grids[0];
-  grid.config.color = new THREE.Color(0xafafaf);
+  grid.config.color = new THREE.Color(0x555555);
   grid.config.secondarySize = grid.config.primarySize;
   verticalSnap = floors[0].height;
   initSettings();
@@ -470,8 +470,10 @@ export async function bootstrap() {
         attachNudge(controls.object as THREE.Object3D);
         updateLayout(controls.object as THREE.Object3D);
       });
-      world.scene.three.add(controls);
-    }
+        world.scene.three.add(controls);
+      } else if (!controls.parent) {
+        world.scene.three.add(controls);
+      }
 
     controls.attach(root);
     bbox = new THREE.BoxHelper(root, 0x00ff00);
