@@ -12,7 +12,10 @@ export const metaCache = new WeakMap<THREE.Object3D, UnitMeta>();
 
 let sidebar: HTMLElement;
 let unitList: HTMLUListElement;
+let cartList: HTMLUListElement;
 const itemMap = new WeakMap<THREE.Object3D, HTMLLIElement>();
+const cartMap = new WeakMap<THREE.Object3D, HTMLLIElement>();
+const libUrls = new Set<string>();
 let metaTable: HTMLTableElement;
 let panelLibrary: HTMLElement;
 let panelInfo: HTMLElement;
@@ -24,6 +27,7 @@ let tabBtn: HTMLElement;
 export function initSidebar() {
   sidebar = document.getElementById("sidebar") as HTMLElement;
   unitList = document.getElementById("unitList") as HTMLUListElement;
+  cartList = document.getElementById("placedList") as HTMLUListElement;
   metaTable = document.getElementById("metaTable") as HTMLTableElement;
   panelLibrary = document.getElementById("panelLibrary") as HTMLElement;
   panelInfo = document.getElementById("panelInfo") as HTMLElement;
@@ -58,6 +62,8 @@ function showInfo(group: THREE.Object3D) {
 }
 
 export function addUnitItem(group: THREE.Object3D, url: string) {
+  if (libUrls.has(url)) return;
+  libUrls.add(url);
   const li = document.createElement("li");
   li.className = "lib-item";
   li.draggable = true;
@@ -106,6 +112,20 @@ export function removeUnitItem(group: THREE.Object3D) {
   if (li && li.parentElement) li.parentElement.removeChild(li);
   itemMap.delete(group);
   metaCache.delete(group);
+}
+
+export function addCartItem(group: THREE.Object3D) {
+  const li = document.createElement("li");
+  li.className = "cart-item";
+  li.textContent = group.userData.url?.split("/").pop() || group.name || "unit";
+  cartList.appendChild(li);
+  cartMap.set(group, li);
+}
+
+export function removeCartItem(group: THREE.Object3D) {
+  const li = cartMap.get(group);
+  if (li && li.parentElement) li.parentElement.removeChild(li);
+  cartMap.delete(group);
 }
 
 export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
