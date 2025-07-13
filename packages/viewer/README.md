@@ -24,11 +24,12 @@ choose a file via the **Choose file** button at the bottom of the sidebar.
 | Feature | Description | Where to look |
 | ------- | ----------- | ------------- |
 | **Floor management** | Switch floors with the pill buttons or keys `1`‑`3`. Ghost grid opacity and visibility are adjustable in **`settings.ts`**. | `levels.ts` |
-| **Drag handle & nudge arrows** | Select a model to display a red drag sphere and six arrows for precise movement. See **`attachHandle`** and **`createNudgeGizmos`** in **`index.ts`**. | `index.ts` |
+| **Nudge arrows** | Select a model to display six arrows for precise movement. See **`createNudgeGizmos`** in **`index.ts`**. | `index.ts` |
 | **Keyboard controls** | Move with arrow keys or WASD/QE and rotate with `R`. Use Cmd/Ctrl+Z to undo the last move. Handled near the bottom of **`index.ts`**. | `index.ts` |
 | **Material palette** | Right‑click a mesh to recolor it. Material logic lives in **`applyVariant`** and **`resetMaterial`**. | `index.ts` |
 | **Metadata sidebar** | Each loaded model is analyzed in **`sidebar.ts`** to display mesh counts and materials. | `sidebar.ts` |
-| **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. Also hosts the color palette and reset button. | `nav-controls.ts` |
+| **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. The paint brush reveals a palette for textures and colors. | `nav-controls.ts` |
+| **Layout persistence** | Added/placed units restore after reload using `localStorage`. | `index.ts` |
 | **Bootstrap UI** | Modern components and tooltips styled with Bootstrap 5. | `index.html` |
 
 Most functions in `index.ts` include comments explaining their role and where to

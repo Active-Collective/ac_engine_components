@@ -35,11 +35,7 @@ let hoverBox: THREE.BoxHelper | null = null;
 // One shared TransformControls instance is reused for all objects.
 let controls: TransformControls | null = null;
 // Small red sphere used for mouse dragging
-let dragHandle: THREE.Mesh | null = null;
-let isDraggingHandle = false;
-// Helpers used while dragging via the red sphere
-const dragPlane = new THREE.Plane();
-const dragOffset = new THREE.Vector3();
+// Drag handle removed per UX update
 // Maps any child mesh to its root model for easy selection lookups
 const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 
@@ -48,7 +44,6 @@ const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 let nudgeGroup: THREE.Group | null = null;
 let nudgeTargets: THREE.Object3D[] = [];
 let hoveredArrow: THREE.Object3D | null = null;
-let planePreview: THREE.Mesh | null = null;
 // When holding down a nudge arrow we repeatedly apply the movement at this
 // interval, emulating a key-repeat behavior.
 let arrowHold: THREE.ArrowHelper | null = null;
@@ -60,6 +55,30 @@ interface HistoryEntry {
   quat: THREE.Quaternion;
 }
 const history: HistoryEntry[] = [];
+
+interface LayoutItem {
+  id: string;
+  url: string;
+  pos: [number, number, number];
+  rot: number;
+  level: number;
+}
+const layoutMap = new Map<string, LayoutItem>();
+
+function saveLayout() {
+  localStorage.setItem("layout", JSON.stringify(Array.from(layoutMap.values())));
+}
+
+function updateLayout(obj: THREE.Object3D) {
+  const id = obj.userData.id as string | undefined;
+  if (!id) return;
+  const item = layoutMap.get(id);
+  if (!item) return;
+  item.pos = [obj.position.x, obj.position.y, obj.position.z];
+  item.rot = obj.rotation.y;
+  item.level = obj.userData.level ?? 0;
+  saveLayout();
+}
 
 function saveState(obj: THREE.Object3D) {
   history.push({ obj, pos: obj.position.clone(), quat: obj.quaternion.clone() });
@@ -75,9 +94,9 @@ function undo() {
   bbox?.update();
   subBox?.update();
   controls?.updateMatrixWorld(true);
-  detachHandle();
-  attachHandle(h.obj);
+  // handle removed
   attachNudge(h.obj);
+  updateLayout(h.obj);
 }
 
 // Public reference to the world so other modules can access scene/camera.
@@ -136,44 +155,15 @@ function resetMaterial(target: THREE.Object3D) {
  * scales with the size of the selected object and is positioned slightly above
  * the object's top surface.
  */
-function attachHandle(root: THREE.Object3D) {
-  bboxer.reset();
-  root.traverse(o => {
-    if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) bboxer.addMesh(o);
-  });
-  const b = bboxer.get();
-  const dims = OBC.BoundingBoxer.getDimensions(b);
-  bboxer.reset();
-
-  let size = Math.max(dims.width, dims.depth, dims.height) * 0.05;
-  if (size <= 0) size = 0.1;
-  if (!dragHandle) {
-    dragHandle = new THREE.Mesh(
-      new THREE.SphereGeometry(size, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0xff0000 })
-    );
-  } else {
-    dragHandle.geometry.dispose();
-    dragHandle.geometry = new THREE.SphereGeometry(size, 16, 16);
-  }
-
-  const center = b.getCenter(new THREE.Vector3());
-  const top = b.max.y + dims.height * 0.1;
-  center.y = top;
-  root.worldToLocal(center);
-
-  dragHandle.position.copy(center);
-  dragHandle.visible = true;
-  root.add(dragHandle);
-  world.meshes.add(dragHandle);
+function attachHandle(_root: THREE.Object3D) {
+  /* handle removed */
 }
 
 /**
  * Removes the drag handle from the scene and raycaster set.
  */
 function detachHandle() {
-  if (dragHandle && dragHandle.parent) dragHandle.parent.remove(dragHandle);
-  if (dragHandle) world.meshes.delete(dragHandle);
+  /* handle removed */
 }
 
 /**
@@ -235,8 +225,8 @@ function createNudgeGizmos(obj: THREE.Object3D) {
     arrow.line.material.transparent = true;
     (arrow.cone.material as THREE.Material & { opacity: number }).opacity = 0;
     (arrow.line.material as THREE.Material & { opacity: number }).opacity = 0;
-    arrow.cone.scale.multiplyScalar(1.2);
-    (arrow.line.material as THREE.LineBasicMaterial).linewidth = 3;
+    arrow.cone.scale.multiplyScalar(1.6);
+    (arrow.line.material as THREE.LineBasicMaterial).linewidth = 5;
     (arrow as any).userData.normal = info.n.clone();
     g.add(arrow);
     nudgeTargets.push(arrow.cone, arrow.line);
@@ -288,29 +278,13 @@ function nudge(arrow: THREE.ArrowHelper) {
   bbox?.update();
   controls?.updateMatrixWorld(true);
   attachNudge(selected);
+  updateLayout(selected);
 }
 
 /**
  * Displays a translucent plane at the provided Y level while dragging an
  * object between floors so the user can see where it will land.
  */
-function showPreview(y: number) {
-  if (!planePreview) {
-    planePreview = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ color: 0x0078ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide })
-    );
-    planePreview.rotation.x = -Math.PI / 2;
-    world.scene.three.add(planePreview);
-  }
-  planePreview.position.y = y;
-  planePreview.visible = true;
-}
-
-/** Hide the drop preview plane. */
-function hidePreview() {
-  if (planePreview) planePreview.visible = false;
-}
 
 /** Helper wrapper around GLTFLoader that returns a promise. */
 function loadGltf(url: string): Promise<THREE.Group> {
@@ -326,7 +300,8 @@ function loadGltf(url: string): Promise<THREE.Group> {
 export async function bootstrap() {
   const container = document.getElementById("viewer") as HTMLDivElement;
   const fileInput = document.getElementById("fileInput") as HTMLInputElement;
-  const palette = document.getElementById("palette") as HTMLDivElement;
+  const paintMenu = document.getElementById("paintMenu") as HTMLDivElement;
+  const paintBtn = document.getElementById("paintBtn") as HTMLButtonElement;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
   initSidebar();
   const sidebarEl = document.getElementById("sidebar") as HTMLElement;
@@ -355,6 +330,8 @@ export async function bootstrap() {
 
   components.init();
   world.scene.setup();
+  world.renderer.three.setClearColor(0xf0f0f0);
+  world.scene.three.background = new THREE.Color(0xf0f0f0);
   world.camera.controls.setLookAt(5, 5, 5, 0, 0, 0);
 
   world.renderer.three.outputEncoding = THREE.sRGBEncoding;
@@ -371,15 +348,18 @@ export async function bootstrap() {
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   initFloors(world, gridPlane);
   const grid = grids[0];
+  grid.config.color = new THREE.Color(0xafafaf);
+  grid.config.secondarySize = grid.config.primarySize;
   verticalSnap = floors[0].height;
   initSettings();
   snapInput.value = String(grid.config.primarySize);
   snapHeightInput.value = String(floors[0].height);
   gridColorInput.value = `#${grid.config.color.getHexString()}`;
-  bgInput.value = "#000000";
+  bgInput.value = "#f0f0f0";
   snapInput.addEventListener("change", () => {
     const v = parseFloat(snapInput.value) || 1;
     grid.config.primarySize = v;
+    grid.config.secondarySize = v;
     if (controls) controls.translationSnap = v;
   });
   snapHeightInput.addEventListener("change", () => {
@@ -450,12 +430,10 @@ export async function bootstrap() {
       world.scene.three.remove(bbox);
       bbox = null;
     }
-    detachHandle();
     detachNudge();
 
     if (!obj) {
       controls?.detach();
-      detachHandle();
       detachNudge();
       selected = null;
       if (sidebarEl.dataset.mode === "info") clearInfo();
@@ -489,9 +467,8 @@ export async function bootstrap() {
         );
         bbox?.update();
         subBox?.update();
-        detachHandle();
-        attachHandle(controls.object as THREE.Object3D);
         attachNudge(controls.object as THREE.Object3D);
+        updateLayout(controls.object as THREE.Object3D);
       });
       world.scene.three.add(controls);
     }
@@ -499,7 +476,6 @@ export async function bootstrap() {
     controls.attach(root);
     bbox = new THREE.BoxHelper(root, 0x00ff00);
     world.scene.three.add(bbox);
-    attachHandle(root);
     attachNudge(root);
     if (sidebarEl.dataset.mode === "info") renderMeta(root);
   }
@@ -553,6 +529,11 @@ export async function bootstrap() {
     );
     world.scene.three.add(gltf.scene);
     addUnitToLevel(gltf.scene, level);
+    const id = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
+    gltf.scene.userData.id = id;
+    gltf.scene.userData.url = url;
+    layoutMap.set(id, { id, url, pos: [gltf.scene.position.x, gltf.scene.position.y, gltf.scene.position.z], rot: gltf.scene.rotation.y, level });
+    saveLayout();
     const info = analyzeUnit(gltf.scene, url);
     metaCache.set(gltf.scene, info);
     addUnitItem(gltf.scene, url);
@@ -562,6 +543,7 @@ export async function bootstrap() {
     const avg = totalWidth / loadedCount;
     const hAvg = totalHeight / loadedCount;
     grid.config.primarySize = avg;
+    grid.config.secondarySize = avg;
     verticalSnap = hAvg;
     floors.forEach(f => (f.height = hAvg));
     setActiveFloor(currentLevel);
@@ -574,46 +556,37 @@ export async function bootstrap() {
     return { object: gltf.scene, width: dims.width };
   }
 
-  const loadUrls = [
-    new URL("../core/assets/unit1.glb", import.meta.url).href,
-    new URL("../core/assets/unit2.glb", import.meta.url).href,
-    new URL("../core/assets/unit3.glb", import.meta.url).href,
-    new URL("../core/assets/unit4.glb", import.meta.url).href,
-  ];
   let offset = 0;
-  for (const url of loadUrls) {
-    const { object, width } = await addModel(
-      url,
-      new THREE.Vector3(offset, 0, 0),
-      0
-    );
-    // Snap the loaded object and compute the next offset based on current grid size
-    const step = grid.config.primarySize;
-    object.position.x = Math.round(object.position.x / step) * step;
-    offset = object.position.x + Math.round(width / step) * step;
+  const saved = localStorage.getItem("layout");
+  if (saved) {
+    try {
+      const items = JSON.parse(saved) as LayoutItem[];
+      for (const it of items) {
+        const { object, width } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level);
+        object.rotation.y = it.rot;
+        offset = Math.max(offset, object.position.x + width);
+      }
+    } catch {}
+  } else {
+    const loadUrls = [
+      new URL("../core/assets/unit1.glb", import.meta.url).href,
+      new URL("../core/assets/unit2.glb", import.meta.url).href,
+      new URL("../core/assets/unit3.glb", import.meta.url).href,
+      new URL("../core/assets/unit4.glb", import.meta.url).href,
+    ];
+    for (const url of loadUrls) {
+      const { object, width } = await addModel(
+        url,
+        new THREE.Vector3(offset, 0, 0),
+        0
+      );
+      const step = grid.config.primarySize;
+      object.position.x = Math.round(object.position.x / step) * step;
+      offset = object.position.x + Math.round(width / step) * step;
+    }
   }
 
   world.renderer.three.domElement.addEventListener("pointermove", ev => {
-    if (isDraggingHandle && selected) {
-      const rect = container.getBoundingClientRect();
-      const ndc = new THREE.Vector2(
-        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
-        -((ev.clientY - rect.top) / rect.height) * 2 + 1,
-      );
-      caster.three.setFromCamera(ndc, world.camera.three);
-      const point = new THREE.Vector3();
-      caster.three.ray.intersectPlane(dragPlane, point);
-      point.sub(dragOffset);
-      const size = grid.config.primarySize;
-      point.x = Math.round(point.x / size) * size;
-      point.z = Math.round(point.z / size) * size;
-      selected.position.x = point.x;
-      selected.position.z = point.z;
-      bbox?.update();
-      controls?.updateMatrixWorld(true);
-      showPreview(currentLevel * floors[currentLevel].height);
-      return;
-    }
     if (controls && (controls as any).dragging) return;
     const rect = container.getBoundingClientRect();
     const ndc = new THREE.Vector2(
@@ -666,16 +639,6 @@ export async function bootstrap() {
       return;
     }
 
-    if (result.object === dragHandle) {
-      isDraggingHandle = true;
-      const point = new THREE.Vector3();
-      dragPlane.set(new THREE.Vector3(0, 1, 0), -selected!.position.y);
-      caster.three.ray.intersectPlane(dragPlane, point);
-      dragOffset.copy(point).sub(selected!.position);
-      world.camera.controls.enabled = false;
-      showPreview(selected!.position.y);
-      return;
-    }
 
     if (ev.button === 2) {
       if (result.object instanceof THREE.Mesh) {
@@ -693,12 +656,6 @@ export async function bootstrap() {
       holdInterval = null;
       arrowHold = null;
     }
-    if (isDraggingHandle) {
-      isDraggingHandle = false;
-      world.camera.controls.enabled = true;
-      hidePreview();
-      if (selected) setActiveFloor(Math.round(selected.position.y / floors[currentLevel].height));
-    }
   });
 
   world.renderer.three.domElement.addEventListener(
@@ -707,6 +664,7 @@ export async function bootstrap() {
       if (!selected || !ev.shiftKey) return;
       selected.position.y += (ev.deltaY > 0 ? -1 : 1) * floors[currentLevel].height * 0.1;
       bbox?.update();
+      updateLayout(selected);
       ev.preventDefault();
     },
     { passive: false }
@@ -721,6 +679,7 @@ export async function bootstrap() {
       move.textContent = `Move to floor ${i}`;
       move.onclick = () => {
         moveUnitToLevel(selected!, i);
+        updateLayout(selected!);
         menu.style.display = "none";
       };
       const dup = document.createElement("div");
@@ -729,6 +688,10 @@ export async function bootstrap() {
         const clone = selected!.clone(true);
         world.scene.three.add(clone);
         addUnitToLevel(clone, i);
+        const cid = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
+        clone.userData.id = cid;
+        layoutMap.set(cid, { id: cid, url: selected!.userData.url || "", pos: [clone.position.x, clone.position.y, clone.position.z], rot: clone.rotation.y, level: i });
+        saveLayout();
         menu.style.display = "none";
       };
       menu.appendChild(move);
@@ -839,9 +802,8 @@ export async function bootstrap() {
     controls?.updateMatrixWorld(true);
     bbox?.update();
     subBox?.update();
-    detachHandle();
-    attachHandle(selected);
     attachNudge(selected);
+    updateLayout(selected);
     e.preventDefault();
   });
 
@@ -860,9 +822,11 @@ export async function bootstrap() {
     );
     offset += width;
     selectObject(object);
+    updateLayout(object);
   });
 
-  palette.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
+  paintBtn.onclick = () => paintMenu.classList.toggle("show");
+  paintMenu.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
     btn.addEventListener("click", () => {
       const target = subSelected ?? selected;
       if (!target) return;
@@ -877,6 +841,7 @@ export async function bootstrap() {
       applyVariant(target, mat);
       if (subSelected) subBox?.update();
       else bbox?.update();
+      paintMenu.classList.remove("show");
     });
   });
 

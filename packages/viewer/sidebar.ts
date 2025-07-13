@@ -18,6 +18,7 @@ let panelInfo: HTMLElement;
 let panelTitle: HTMLElement;
 let backBtn: HTMLButtonElement;
 let toggleBtn: HTMLButtonElement;
+let tabBtn: HTMLElement;
 
 export function initSidebar() {
   sidebar = document.getElementById("sidebar") as HTMLElement;
@@ -28,8 +29,11 @@ export function initSidebar() {
   panelTitle = document.getElementById("panelTitle") as HTMLElement;
   backBtn = document.getElementById("back") as HTMLButtonElement;
   toggleBtn = document.getElementById("toggle") as HTMLButtonElement;
+  tabBtn = document.getElementById("sidebarTab") as HTMLElement;
 
-  toggleBtn.onclick = () => sidebar.classList.toggle("collapsed");
+  const toggle = () => sidebar.classList.toggle("collapsed");
+  toggleBtn.onclick = toggle;
+  tabBtn.onclick = toggle;
   backBtn.onclick = () => showLibrary();
 
   showLibrary();
@@ -57,6 +61,10 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   li.className = "lib-item";
   li.draggable = true;
   li.dataset.url = url;
+  const canvas = document.createElement("canvas");
+  li.appendChild(canvas);
+  const row = document.createElement("div");
+  row.className = "row";
   const span = document.createElement("span");
   span.className = "name";
   span.textContent = url.split("/").pop() || url;
@@ -64,11 +72,28 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   infoBtn.className = "info";
   infoBtn.textContent = "i";
   infoBtn.onclick = () => showInfo(group);
-  li.append(span, infoBtn);
+  row.append(span, infoBtn);
+  li.appendChild(row);
   li.addEventListener("dragstart", ev => {
     ev.dataTransfer?.setData("text", url);
   });
   unitList.appendChild(li);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setSize(80, 60, false);
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(35, 80 / 60, 0.1, 10);
+  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+  scene.add(light);
+  const clone = group.clone(true);
+  scene.add(clone);
+  const box = new THREE.Box3().setFromObject(clone);
+  const size = box.getSize(new THREE.Vector3()).length();
+  const center = box.getCenter(new THREE.Vector3());
+  cam.position.copy(center).addScalar(size);
+  cam.lookAt(center);
+  renderer.render(scene, cam);
+  renderer.dispose();
 }
 
 export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {

@@ -19,8 +19,8 @@
       padding:20px;
     }
     #viewer{
-      width:1200px;
-      height:900px;
+      width:1000px;
+      height:700px;
       border:1px solid #ccc;
     }
   </style>
@@ -33,13 +33,14 @@
       <button id="back" hidden>&larr;</button>
     </header>
     <section id="panelLibrary" class="panel active">
-      <input id="fileInput" type="file" accept=".glb,.gltf" />
       <ul id="unitList"></ul>
+      <div class="file-wrap"><input id="fileInput" type="file" accept=".glb,.gltf" /></div>
     </section>
     <section id="panelInfo" class="panel">
       <table id="metaTable"></table>
     </section>
   </aside>
+  <div id="sidebarTab">&#9776;</div>
   <div id="settings">
     <h3>Unit grid settings</h3>
     <label>Horizontal <input id="snapSize" type="number" step="0.1" /></label>
@@ -49,7 +50,6 @@
     <div id="controlsInfo">
       <p><strong>Controls</strong></p>
       <ul>
-        <li>Drag red handle to move</li>
         <li>Arrow keys / WASD move on XZ</li>
         <li>Q/E move up/down</li>
         <li>R rotate 90°</li>
@@ -79,10 +79,13 @@
       <button data-view="left" class="btn btn-light" data-bs-toggle="tooltip" title="Left (Ctrl+6)">Left</button>
       <button data-view="bottom" class="btn btn-light" data-bs-toggle="tooltip" title="Bottom (Ctrl+7)">Bottom</button>
     </div>
-    <div id="palette">
-      <button data-variant="red" class="btn btn-danger" data-bs-toggle="tooltip" title="Red"></button>
-      <button data-variant="blue" class="btn btn-primary" data-bs-toggle="tooltip" title="Blue"></button>
-      <button data-variant="wood" class="btn btn-light" style="background:url('/assets/wood.jpg') center/cover" data-bs-toggle="tooltip" title="Wood"></button>
+    <div id="paintWrap">
+      <button id="paintBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Paint"><img src="icons/paint.svg"></button>
+      <div id="paintMenu" class="btn-group-vertical">
+        <button data-variant="red" class="btn btn-danger" title="Red"></button>
+        <button data-variant="blue" class="btn btn-primary" title="Blue"></button>
+        <button data-variant="wood" class="btn btn-light" style="background:url('/assets/wood.jpg') center/cover" title="Wood"></button>
+      </div>
       <button id="resetBtn" class="btn btn-outline-secondary btn-sm">reset</button>
     </div>
     <button id="helpBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Help ?">?</button>

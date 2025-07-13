@@ -1,14 +1,10 @@
-#palette{
-  display:flex;
-  gap:4px;
-}
-#palette button{
+#paintWrap button{
   width:24px;
   height:24px;
   border:none;
   cursor:pointer;
 }
-#palette #resetBtn{
+#paintWrap #resetBtn{
   width:auto;
   padding:0 6px;
   background:#fff;
@@ -27,7 +23,22 @@
   transform:translateX(0);
   transition:transform .2s;
 }
-#sidebar.collapsed{transform:translateX(300px);}
+#sidebar.collapsed{transform:translateX(280px);}
+#sidebarTab{
+  position:fixed;
+  right:300px;
+  top:50%;
+  width:20px;
+  height:40px;
+  background:red;
+  line-height:40px;
+  text-align:center;
+  cursor:pointer;
+  border:1px solid #ccc;
+  border-right:none;
+  z-index:11;
+}
+#sidebar.collapsed + #sidebarTab{right:0;}
 #sidebar header{
   display:flex;
   align-items:center;
@@ -47,9 +58,12 @@
 .panel{display:none;height:calc(100% - 32px);overflow:auto;padding:4px;}
 .panel.active{display:block;}
 #unitList{list-style:none;margin:0;padding:0;}
-.lib-item{display:flex;align-items:center;margin-bottom:4px;cursor:grab;}
-.lib-item .name{flex:1;padding-right:4px;}
-.lib-item .info{border:none;background:#ccc;cursor:pointer;}
+.lib-item{display:flex;flex-direction:column;align-items:center;margin-bottom:6px;cursor:grab;}
+.lib-item canvas{width:80px;height:60px;background:#ddd;margin-bottom:2px;}
+.lib-item .row{display:flex;width:100%;align-items:center;}
+.lib-item .name{flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;}
+.lib-item .info{border:none;background:#ccc;cursor:pointer;padding:0 4px;}
+#panelLibrary .file-wrap{margin-top:8px;text-align:center;}
 
 #settings{
   position:absolute;
@@ -139,7 +153,10 @@
 #viewMenu button{margin:2px 0;}
 #viewMenu.show{display:flex;}
 
-#palette{display:flex;gap:4px;margin-left:8px;}
+#paintWrap{display:flex;gap:4px;margin-left:8px;position:relative;}
+#paintMenu{display:none;position:absolute;top:100%;left:0;background:rgba(48,48,48,.9);padding:4px;border-radius:4px;flex-direction:column;}
+#paintMenu button{margin:2px 0;}
+#paintMenu.show{display:flex;}
 
 #navHelp{
   position:fixed;
