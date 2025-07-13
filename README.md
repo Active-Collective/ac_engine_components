@@ -111,8 +111,17 @@ Run the glTF viewer example to verify that local models load correctly.
 9. Use the toolbar at the top to orbit, pan, zoom extents or change camera views.
 10. Press **Cmd/Ctrl+Z** to undo the last move or rotation.
 11. Right-click a mesh (e.g. a door) to select that part and use the palette to
-   change its material. The **reset** button restores the original look.
+    change its material. The **reset** button restores the original look.
 12. Run `yarn test` to execute the placeholder test script.
+
+### Viewer features
+
+* **Sidebar library** – draggable unit thumbnails with filenames. Upload custom models via the *Choose file* button.
+* **Navigation toolbar** – orbit, pan and camera view buttons with a paintbrush palette for textures and colors.
+* **Multi-floor scenes** – switch floors using the pill buttons or keys `1`‑`3`; inactive floors show ghost grids.
+* **Move/rotate controls** – Shift‑click to multi-select, drag the red handle or use WASD/QE and the arrow keys. Press `R` to rotate.
+* **Nudge arrows** – six arrows appear when selecting a model and nudge it by one grid unit.
+* **Metadata sidebar** – lists mesh counts, triangle counts and material names for each loaded model.
 
 
 [npm]: https://img.shields.io/npm/v/@thatopen/components
