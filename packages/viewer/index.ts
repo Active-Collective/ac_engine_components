@@ -100,7 +100,9 @@ function undo() {
   h.obj.updateMatrixWorld();
   updateBoxes();
   subBox?.update();
-  controls?.updateMatrixWorld(true);
+  if (controls && typeof (controls as any).updateMatrixWorld === "function") {
+    controls.updateMatrixWorld(true);
+  }
   // handle removed
   attachNudge(h.obj);
   updateLayout(h.obj);
@@ -293,7 +295,9 @@ function nudge(arrow: THREE.ArrowHelper) {
     updateLayout(obj);
   });
   updateBoxes();
-  controls?.updateMatrixWorld(true);
+  if (controls && typeof (controls as any).updateMatrixWorld === "function") {
+    controls.updateMatrixWorld(true);
+  }
   if (selection.size === 1) attachNudge(selected); else detachNudge();
 }
 
@@ -510,7 +514,12 @@ export async function bootstrap() {
         });
         world.scene.three.add(controls);
       } else if (!controls.parent) {
-        world.scene.three.add(controls);
+        // Ensure the TransformControls instance comes from the same THREE build
+        // before adding. This avoids "object not an instance" errors when
+        // multiple Three.js copies slip into the bundle.
+        if (controls instanceof THREE.Object3D) {
+          world.scene.three.add(controls);
+        }
       }
 
       controls.attach(selected);
@@ -871,7 +880,9 @@ export async function bootstrap() {
       o.updateMatrixWorld();
       updateLayout(o);
     });
-    controls?.updateMatrixWorld(true);
+    if (controls && typeof (controls as any).updateMatrixWorld === "function") {
+      controls.updateMatrixWorld(true);
+    }
     updateBoxes();
     if (selection.size === 1 && selected) attachNudge(selected);
     e.preventDefault();

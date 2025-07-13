@@ -48,6 +48,17 @@ This library contains 2 packages:
 
 `@thatopen/components-front` - Features exclusive for browser environments.
 
+## Quick start
+
+1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/).
+2. From the repository root run:
+   ```bash
+   yarn install
+   yarn workspace viewer dev --host
+   ```
+3. Open <http://localhost:5173> to launch the viewer example.
+
+
 ## Usage
 
 You need to be familiar with [Three.js API](https://github.com/mrdoob/three.js/) to be able to use this library effectively. In the following example, we will create a cube in a 3D scene that can be navigated with the mouse or touch events. You can see the full example [here](https://github.com/ThatOpen/engine_components/blob/main/packages/core/src/core/Worlds/example.ts) and the deployed app [here](https://thatopen.github.io/engine_components/examples/Worlds/index.html).
