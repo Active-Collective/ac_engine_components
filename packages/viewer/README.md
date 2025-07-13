@@ -26,7 +26,7 @@ choose a file via the **Choose file** button at the bottom of the sidebar.
 | **Floor management** | Switch floors with the pill buttons or keys `1`‑`3`. Ghost grid opacity and visibility are adjustable in **`settings.ts`**. | `levels.ts` |
 | **Nudge arrows** | Select a model to display six arrows for precise movement. See **`createNudgeGizmos`** in **`index.ts`**. | `index.ts` |
 | **Multi-selection** | Hold Shift while clicking to select several models at once for rotation or recoloring. | `index.ts` |
-| **Keyboard controls** | Move with arrow keys or WASD/QE and rotate with `R`. Use Cmd/Ctrl+Z to undo the last move. Shift+click allows selecting multiple models. | `index.ts` |
+| **Keyboard controls** | Move with arrow keys or WASD/QE, rotate with `R` and delete with Backspace/Delete. Use Cmd/Ctrl+Z to undo the last move. Shift+click allows selecting multiple models. | `index.ts` |
 | **Material palette** | Right‑click a mesh to recolor it. Material logic lives in **`applyVariant`** and **`resetMaterial`**. | `index.ts` |
 | **Metadata sidebar** | Each loaded model is analyzed in **`sidebar.ts`** to display mesh counts and materials. | `sidebar.ts` |
 | **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. The paint brush reveals a palette for textures and colors. | `nav-controls.ts` |

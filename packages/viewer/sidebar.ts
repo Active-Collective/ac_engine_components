@@ -12,6 +12,7 @@ export const metaCache = new WeakMap<THREE.Object3D, UnitMeta>();
 
 let sidebar: HTMLElement;
 let unitList: HTMLUListElement;
+const itemMap = new WeakMap<THREE.Object3D, HTMLLIElement>();
 let metaTable: HTMLTableElement;
 let panelLibrary: HTMLElement;
 let panelInfo: HTMLElement;
@@ -80,6 +81,7 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
     ev.dataTransfer?.setData("text", url);
   });
   unitList.appendChild(li);
+  itemMap.set(group, li);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
   renderer.setSize(80, 60, false);
@@ -97,6 +99,13 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   renderer.render(scene, cam);
   img.src = renderer.domElement.toDataURL();
   renderer.dispose();
+}
+
+export function removeUnitItem(group: THREE.Object3D) {
+  const li = itemMap.get(group);
+  if (li && li.parentElement) li.parentElement.removeChild(li);
+  itemMap.delete(group);
+  metaCache.delete(group);
 }
 
 export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {

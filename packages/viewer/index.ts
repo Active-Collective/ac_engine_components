@@ -14,6 +14,7 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 import {
   initSidebar,
   addUnitItem,
+  removeUnitItem,
   analyzeUnit,
   metaCache,
   renderMeta,
@@ -106,6 +107,40 @@ function undo() {
   // handle removed
   attachNudge(h.obj);
   updateLayout(h.obj);
+}
+
+function removeSelected() {
+  selection.forEach(obj => {
+    const level = obj.userData.level ?? 0;
+    unitsByLevel[level] = unitsByLevel[level].filter(o => o !== obj);
+    obj.traverse(o => {
+      rootMap.delete(o);
+      if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) {
+        world.meshes.delete(o);
+      }
+    });
+    world.scene.three.remove(obj);
+    const box = boxMap.get(obj);
+    if (box) world.scene.three.remove(box);
+    boxMap.delete(obj);
+    layoutMap.delete(obj.userData.id);
+    removeUnitItem(obj);
+  });
+  selection.clear();
+  selected = null;
+  subSelected = null;
+  if (subBox) {
+    world.scene.three.remove(subBox);
+    subBox = null;
+  }
+  controls?.detach();
+  detachNudge();
+  if (hoverBox) {
+    world.scene.three.remove(hoverBox);
+    hoverBox = null;
+  }
+  clearInfo();
+  saveLayout();
 }
 
 // Public reference to the world so other modules can access scene/camera.
@@ -867,6 +902,10 @@ export async function bootstrap() {
           o.rotateY(Math.PI / 2);
           updateLayout(o);
         });
+        break;
+      case "Delete":
+      case "Backspace":
+        removeSelected();
         break;
       default:
         return;
