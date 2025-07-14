@@ -4,15 +4,105 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Unit Viewer</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
   <style>
-    body,html{margin:0;height:100%;overflow:hidden}
-    #viewer{width:100%;height:100%;}
-    #fileInput{position:absolute;top:10px;left:10px;z-index:10}
+    body,html{
+      margin:0;
+      height:100%;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      min-height:100vh;
+      background:#fff;
+      padding:20px;
+    }
+    #viewer{
+      width:1000px;
+      height:700px;
+      border:1px solid #ccc;
+    }
   </style>
 </head>
 <body>
-  <input id="fileInput" type="file" accept=".glb,.gltf" />
+  <aside id="sidebar" data-mode="library">
+    <header>
+      <button id="toggle">&#9776;</button>
+      <h1 id="panelTitle">Units</h1>
+      <button id="back" hidden>&larr;</button>
+    </header>
+    <section id="panelLibrary" class="panel active">
+      <ul id="unitList"></ul>
+      <h4>Placed units</h4>
+      <ul id="placedList"></ul>
+      <div class="file-wrap"><input id="fileInput" type="file" accept=".glb,.gltf" /></div>
+    </section>
+    <section id="panelInfo" class="panel">
+      <table id="metaTable"></table>
+    </section>
+  </aside>
+  <div id="sidebarTab">&#9776;</div>
+  <div id="settings">
+    <h3>Unit grid settings</h3>
+    <label>Horizontal <input id="snapSize" type="number" step="0.1" /></label>
+    <label>Vertical <input id="snapHeight" type="number" step="0.1" /></label>
+    <label>Grid <input id="gridColor" type="color" /></label>
+    <label>Background <input id="bgColor" type="color" /></label>
+    <div id="controlsInfo">
+      <p><strong>Controls</strong></p>
+      <ul>
+        <li>Arrow keys / WASD move on XZ</li>
+        <li>Q/E move up/down</li>
+        <li>R rotate 90°</li>
+      </ul>
+    </div>
+    <h3>Floors</h3>
+    <label>Floor height <input id="floorHeight" type="number" step="0.1" /></label>
+    <label>Ghost opacity <input id="ghostOpacity" type="range" min="0" max="1" step="0.01" /></label>
+    <label><input id="hideGhost" type="checkbox" /> Hide ghost grids</label>
+  </div>
+  <div id="levelBar" class="btn-group">
+    <button data-level="1" class="active btn btn-secondary btn-sm" data-bs-toggle="tooltip" title="Floor 1">1</button>
+    <button data-level="2" class="btn btn-secondary btn-sm" data-bs-toggle="tooltip" title="Floor 2">2</button>
+    <button data-level="3" class="btn btn-secondary btn-sm" data-bs-toggle="tooltip" title="Floor 3">3</button>
+  </div>
+  <div id="navBar">
+    <button data-action="orbit" class="btn btn-light" data-bs-toggle="tooltip" title="Orbit (O)"><img src="icons/orbit.svg"></button>
+    <button data-action="pan" class="btn btn-light" data-bs-toggle="tooltip" title="Pan (Shift+MMB)"><img src="icons/pan.svg"></button>
+    <button data-action="zoomExt" class="btn btn-light" data-bs-toggle="tooltip" title="Zoom Extents (F)"><img src="icons/zoomext.svg"></button>
+    <button id="camBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Views"><img src="icons/camera.svg"></button>
+    <div id="viewMenu" class="btn-group-vertical">
+      <button data-view="iso" class="btn btn-light" data-bs-toggle="tooltip" title="Isometric (Ctrl+1)">ISO</button>
+      <button data-view="top" class="btn btn-light" data-bs-toggle="tooltip" title="Top (Ctrl+2)">Top</button>
+      <button data-view="front" class="btn btn-light" data-bs-toggle="tooltip" title="Front (Ctrl+3)">Front</button>
+      <button data-view="right" class="btn btn-light" data-bs-toggle="tooltip" title="Right (Ctrl+4)">Right</button>
+      <button data-view="back" class="btn btn-light" data-bs-toggle="tooltip" title="Back (Ctrl+5)">Back</button>
+      <button data-view="left" class="btn btn-light" data-bs-toggle="tooltip" title="Left (Ctrl+6)">Left</button>
+      <button data-view="bottom" class="btn btn-light" data-bs-toggle="tooltip" title="Bottom (Ctrl+7)">Bottom</button>
+    </div>
+    <div id="paintWrap">
+      <button id="paintBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Paint"><img src="icons/paint.svg"></button>
+      <div id="paintMenu" class="btn-group-vertical">
+        <button data-variant="red" class="btn btn-danger" title="Red"></button>
+        <button data-variant="blue" class="btn btn-primary" title="Blue"></button>
+        <button data-variant="wood" class="btn btn-light" style="background:url('/assets/wood.jpg') center/cover" title="Wood"></button>
+      </div>
+      <button id="resetBtn" class="btn btn-outline-secondary btn-sm">reset</button>
+    </div>
+    <button id="helpBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Help ?">?</button>
+  </div>
+  <div id="navHelp">
+    <p><strong>Navigation</strong></p>
+    <ul>
+      <li>O: Orbit mode</li>
+      <li>Shift+MMB: Pan mode</li>
+      <li>F: Zoom extents</li>
+      <li>Ctrl+1–7: View presets</li>
+    </ul>
+  </div>
   <div id="viewer"></div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
   <script type="module" src="./index.ts"></script>
 </body>
 </html>

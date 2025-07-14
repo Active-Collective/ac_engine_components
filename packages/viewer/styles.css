@@ -1,0 +1,176 @@
+#paintWrap button{
+  width:24px;
+  height:24px;
+  border:none;
+  cursor:pointer;
+}
+#paintWrap #resetBtn{
+  width:auto;
+  padding:0 6px;
+  background:#fff;
+  border:1px solid #ccc;
+  font-size:12px;
+}
+#sidebar{
+  position:fixed;
+  top:0;
+  right:0;
+  width:300px;
+  height:100%;
+  background:rgba(255,255,255,.9);
+  font:12px/14px sans-serif;
+  z-index:10;
+  transform:translateX(0);
+  transition:transform .2s;
+}
+#sidebar.collapsed{transform:translateX(280px);}
+#sidebarTab{
+  position:fixed;
+  right:300px;
+  top:50%;
+  width:20px;
+  height:40px;
+  background:red;
+  line-height:40px;
+  text-align:center;
+  cursor:pointer;
+  border:1px solid #ccc;
+  border-right:none;
+  z-index:11;
+}
+#sidebar.collapsed + #sidebarTab{right:0;}
+#sidebar header{
+  display:flex;
+  align-items:center;
+  background:#f1f1f1;
+  padding:4px;
+}
+#toggle{
+  width:24px;
+  height:24px;
+  background:#eee;
+  border:none;
+  cursor:pointer;
+}
+#panelTitle{flex:1;margin:0 4px;font-size:14px;}
+#back{display:none;}
+#sidebar[data-mode="info"] #back{display:block;}
+.panel{display:none;height:calc(100% - 32px);overflow:auto;padding:4px;}
+.panel.active{display:block;}
+#unitList{list-style:none;margin:0;padding:0;}
+.lib-item{display:flex;flex-direction:column;align-items:center;margin-bottom:6px;cursor:grab;}
+.lib-item img{width:80px;height:60px;background:#ddd;margin-bottom:2px;}
+.lib-item .row{display:flex;width:100%;align-items:center;}
+.lib-item .name{flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;}
+.lib-item .info{border:none;background:#ccc;cursor:pointer;padding:0 4px;}
+#panelLibrary .file-wrap{margin-top:8px;text-align:center;}
+#placedList{list-style:none;margin:0;padding:0;margin-top:4px;font-size:11px;}
+#placedList li{margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
+#placedList button.remove{border:none;background:#f88;color:#fff;cursor:pointer;padding:0 4px;line-height:12px;border-radius:2px;}
+
+#settings{
+  position:absolute;
+  bottom:10px;
+  left:10px;
+  background:rgba(255,255,255,.8);
+  padding:6px;
+  z-index:10;
+  font-size:12px;
+}
+#settings h3{margin:0 0 4px;font-size:14px;}
+#settings label{
+  display:block;
+  margin-bottom:4px;
+}
+#controlsInfo{
+  margin-top:6px;
+  font-size:11px;
+}
+#controlsInfo ul{margin:0;padding-left:16px;}
+#controlsInfo li{margin:2px 0;}
+
+#levelBar{
+  position:absolute;
+  top:10px;
+  left:10px;
+  z-index:11;
+  display:flex;
+  gap:4px;
+}
+#levelBar button{
+  border:1px solid #ccc;
+  border-radius:12px;
+  padding:2px 8px;
+  cursor:pointer;
+  background:#fff;
+}
+#levelBar button.active{background:#0078ff;color:#fff;}
+
+#contextMenu{
+  position:absolute;
+  background:#fff;
+  border:1px solid #ccc;
+  font-size:12px;
+  z-index:12;
+}
+#contextMenu div{padding:2px 6px;cursor:pointer;}
+#contextMenu div:hover{background:#eee;}
+
+#navBar{
+  position:fixed;
+  top:50px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:4px;
+  padding:6px 8px;
+  background:rgba(48,48,48,.75);
+  backdrop-filter:blur(4px);
+  border-radius:6px;
+  z-index:12;
+  align-items:center;
+}
+#navBar button{
+  width:32px;
+  height:32px;
+  border:none;
+  border-radius:4px;
+  background:#eee8;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+#navBar button.active{outline:2px solid #2196f3;}
+#navBar button:hover{background:#fff;}
+
+#viewMenu{
+  position:absolute;
+  top:100%;
+  left:0;
+  background:rgba(48,48,48,.9);
+  display:none;
+  flex-direction:column;
+  padding:4px;
+  border-radius:4px;
+}
+#viewMenu button{margin:2px 0;}
+#viewMenu.show{display:flex;}
+
+#paintWrap{display:flex;gap:4px;margin-left:8px;position:relative;}
+#paintMenu{display:none;position:absolute;top:100%;left:0;background:rgba(48,48,48,.9);padding:4px;border-radius:4px;flex-direction:column;}
+#paintMenu button{margin:2px 0;}
+#paintMenu.show{display:flex;}
+
+#navHelp{
+  position:fixed;
+  top:50px;
+  left:10px;
+  background:rgba(0,0,0,.75);
+  color:#fff;
+  padding:6px 8px;
+  font-size:12px;
+  border-radius:4px;
+  display:none;
+  z-index:12;
+}
+#navHelp.show{display:block;}
