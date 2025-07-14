@@ -117,7 +117,15 @@ export function removeUnitItem(group: THREE.Object3D) {
 export function addCartItem(group: THREE.Object3D) {
   const li = document.createElement("li");
   li.className = "cart-item";
-  li.textContent = group.userData.url?.split("/").pop() || group.name || "unit";
+  const span = document.createElement("span");
+  span.textContent = group.userData.url?.split("/").pop() || group.name || "unit";
+  const btn = document.createElement("button");
+  btn.className = "remove";
+  btn.textContent = "×";
+  btn.onclick = () => {
+    li.dispatchEvent(new CustomEvent("remove-unit", { detail: group, bubbles: true }));
+  };
+  li.append(span, btn);
   cartList.appendChild(li);
   cartMap.set(group, li);
 }

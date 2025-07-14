@@ -111,23 +111,27 @@ function undo() {
   updateLayout(h.obj);
 }
 
+function deleteUnit(obj: THREE.Object3D) {
+  const level = obj.userData.level ?? 0;
+  unitsByLevel[level] = unitsByLevel[level].filter(o => o !== obj);
+  obj.traverse(o => {
+    rootMap.delete(o);
+    if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) {
+      world.meshes.delete(o);
+    }
+  });
+  world.scene.three.remove(obj);
+  const box = boxMap.get(obj);
+  if (box) world.scene.three.remove(box);
+  boxMap.delete(obj);
+  layoutMap.delete(obj.userData.id);
+  removeUnitItem(obj);
+  removeCartItem(obj);
+}
+
 function removeSelected() {
   selection.forEach(obj => {
-    const level = obj.userData.level ?? 0;
-    unitsByLevel[level] = unitsByLevel[level].filter(o => o !== obj);
-    obj.traverse(o => {
-      rootMap.delete(o);
-      if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) {
-        world.meshes.delete(o);
-      }
-    });
-    world.scene.three.remove(obj);
-    const box = boxMap.get(obj);
-    if (box) world.scene.three.remove(box);
-    boxMap.delete(obj);
-    layoutMap.delete(obj.userData.id);
-    removeUnitItem(obj);
-    removeCartItem(obj);
+    deleteUnit(obj);
   });
   selection.clear();
   selected = null;
@@ -363,6 +367,7 @@ export async function bootstrap() {
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
   initSidebar();
   const sidebarEl = document.getElementById("sidebar") as HTMLElement;
+  const placedList = document.getElementById("placedList") as HTMLUListElement;
   const menu = document.createElement("div");
   menu.id = "contextMenu";
   Object.assign(menu.style, {
@@ -374,6 +379,18 @@ export async function bootstrap() {
     display: "none",
   });
   document.body.appendChild(menu);
+  placedList.addEventListener("remove-unit", ev => {
+    const group = (ev as CustomEvent).detail as THREE.Object3D;
+    deleteUnit(group);
+    selection.delete(group);
+    if (selected === group) selected = null;
+    subSelected = null;
+    controls?.detach();
+    detachNudge();
+    updateBoxes();
+    clearInfo();
+    saveLayout();
+  });
   const snapInput = document.getElementById("snapSize") as HTMLInputElement;
   const snapHeightInput = document.getElementById("snapHeight") as HTMLInputElement;
   const gridColorInput = document.getElementById("gridColor") as HTMLInputElement;
@@ -767,6 +784,13 @@ export async function bootstrap() {
     ev.preventDefault();
     if (selection.size === 0) return;
     menu.innerHTML = "";
+    const del = document.createElement("div");
+    del.textContent = "Delete";
+    del.onclick = () => {
+      removeSelected();
+      menu.style.display = "none";
+    };
+    menu.appendChild(del);
     floors.forEach((_, i) => {
       const move = document.createElement("div");
       move.textContent = `Move to floor ${i}`;
