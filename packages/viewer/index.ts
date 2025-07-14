@@ -134,7 +134,6 @@ function deleteUnit(obj: THREE.Object3D) {
   if (box) world.scene.three.remove(box);
   boxMap.delete(obj);
   layoutMap.delete(obj.userData.id);
-  removeUnitItem(obj);
   removeCartItem(obj);
 }
 
