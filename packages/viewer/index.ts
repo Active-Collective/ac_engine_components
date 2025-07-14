@@ -22,7 +22,16 @@ import {
   renderMeta,
   clearInfo,
 } from "./sidebar";
-import { initFloors, addUnitToLevel, moveUnitToLevel, setActiveFloor, currentLevel, floors, grids } from "./levels";
+import {
+  initFloors,
+  addUnitToLevel,
+  moveUnitToLevel,
+  setActiveFloor,
+  currentLevel,
+  floors,
+  grids,
+  unitsByLevel,
+} from "./levels";
 import { initSettings } from "./settings";
 import { initNavControls } from "./nav-controls";
 // Simple styling for the nudge arrows
