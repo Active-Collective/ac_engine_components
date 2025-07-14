@@ -826,6 +826,18 @@ export async function bootstrap() {
 
   // Keyboard shortcuts for floor switching, movement and rotation
   const keyHandler = (e: KeyboardEvent) => {
+    if (
+      e.key === "Delete" ||
+      e.key === "Backspace" ||
+      (e as any).code === "Delete" ||
+      (e as any).code === "Backspace" ||
+      (e as any).keyCode === 8 ||
+      (e as any).keyCode === 46
+    ) {
+      removeSelected();
+      e.preventDefault();
+      return;
+    }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
       undo();
       e.preventDefault();
@@ -907,10 +919,6 @@ export async function bootstrap() {
           updateLayout(o);
         });
         break;
-      case "Delete":
-      case "Backspace":
-        removeSelected();
-        break;
       default:
         return;
     }
@@ -930,8 +938,8 @@ export async function bootstrap() {
     if (selection.size === 1 && selected) attachNudge(selected);
     e.preventDefault();
   };
-  window.addEventListener("keydown", keyHandler);
-  document.addEventListener("keydown", keyHandler);
+  window.addEventListener("keydown", keyHandler, true);
+  document.addEventListener("keydown", keyHandler, true);
 
   fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
