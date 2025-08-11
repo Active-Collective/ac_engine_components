@@ -70,3 +70,22 @@ export function initSettings() {
     refreshInputs();
   });
 }
+
+const settingsContainer = qs("settings");
+const settingsOpen = qs("settingsOpen");
+const settingsClosed = qs("settingsClosed");
+
+const openButton = qs("openButton");
+const closeButton = qs("closeButton");
+
+openButton?.addEventListener("click", () => {
+  settingsOpen.style.display = "block";
+  settingsClosed.style.display = "none";
+  settings.style.padding = "10px";
+});
+
+closeButton?.addEventListener("click", () => {
+  settingsOpen.style.display = "none";
+  settingsClosed.style.display = "block";
+  settings.style.padding = "0px";
+});

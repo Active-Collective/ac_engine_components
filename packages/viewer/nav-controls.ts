@@ -47,6 +47,16 @@ export function handleAction(action: 'orbit' | 'pan' | 'zoomExt') {
 
 export function initNavControls(cam: SimpleCamera, boundsGetter: () => THREE.Box3) {
   camera = cam;
+  const boundaryBox = new THREE.Box3(
+    new THREE.Vector3(-300, 0, -300),
+    new THREE.Vector3(300, 75, 300)
+  );
+  camera.controls.setBoundary(boundaryBox);
+  camera.controls.boundaryFriction = 0.2;
+
+  camera.controls.minDistance = 5;
+  camera.controls.maxDistance = 80;
+
   getBounds = boundsGetter;
   updateAction('orbit');
   const help = document.getElementById('navHelp') as HTMLElement;

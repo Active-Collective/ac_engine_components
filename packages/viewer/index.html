@@ -28,15 +28,25 @@
 <body>
   <aside id="sidebar" data-mode="library">
     <header>
-      <button id="toggle">&#9776;</button>
-      <h1 id="panelTitle">Units</h1>
+      <button id="toggle">&#10005;</button>
+      <h1 id="panelTitle">Bouwmenu</h1>
       <button id="back" hidden>&larr;</button>
     </header>
+    <h2>Bouw units</h2>
     <section id="panelLibrary" class="panel active">
       <ul id="unitList"></ul>
-      <h4>Placed units</h4>
+      <h3>Geplaatste units</h3>
       <ul id="placedList"></ul>
       <div class="file-wrap"><input id="fileInput" type="file" accept=".glb,.gltf" /></div>
+      <div id="exportOptions">
+        <h3>Bestandsopties:</h3>
+        <div id="pdfOptions">
+          <h4>PDF</h4>
+        </div>
+        <div id="jsonOptions">
+          <h4>JSON</h4>
+        </div>
+      </div>
     </section>
     <section id="panelInfo" class="panel">
       <table id="metaTable"></table>
@@ -44,23 +54,35 @@
   </aside>
   <div id="sidebarTab">&#9776;</div>
   <div id="settings">
-    <h3>Unit grid settings</h3>
-    <label>Horizontal <input id="snapSize" type="number" step="0.1" /></label>
-    <label>Vertical <input id="snapHeight" type="number" step="0.1" /></label>
-    <label>Grid <input id="gridColor" type="color" /></label>
-    <label>Background <input id="bgColor" type="color" /></label>
-    <div id="controlsInfo">
-      <p><strong>Controls</strong></p>
-      <ul>
-        <li>Arrow keys / WASD move on XZ</li>
-        <li>Q/E move up/down</li>
-        <li>R rotate 90°</li>
-      </ul>
+    <div id="settingsClosed">
+      <button id="openButton" aria-label="Open settings" title="Open settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
     </div>
-    <h3>Floors</h3>
-    <label>Floor height <input id="floorHeight" type="number" step="0.1" /></label>
-    <label>Ghost opacity <input id="ghostOpacity" type="range" min="0" max="1" step="0.01" /></label>
-    <label><input id="hideGhost" type="checkbox" /> Hide ghost grids</label>
+    <div id="settingsOpen">
+      <button id="closeButton">X</button>
+      <h3>Settings</h3>
+      <h4>Unit grid settings</h4>
+      <label>Horizontal <input id="snapSize" type="number" step="0.1" /></label>
+      <label>Vertical <input id="snapHeight" type="number" step="0.1" /></label>
+      <label>Grid <input id="gridColor" type="color" /></label>
+      <label>Background <input id="bgColor" type="color" /></label>
+      <div id="controlsInfo">
+        <h4>Controls</h4>
+        <ul>
+          <li>Arrow keys / WASD move on XZ</li>
+          <li>Q/E move up/down</li>
+          <li>R rotate 90°</li>
+        </ul>
+      </div>
+      <h4>Floors</h4>
+      <label>Floor height <input id="floorHeight" type="number" step="0.1" /></label>
+      <label>Ghost opacity <input id="ghostOpacity" type="range" min="0" max="1" step="0.01" /></label>
+      <label><input id="hideGhost" type="checkbox" /> Hide ghost grids</label>
+    </div>
   </div>
   <div id="levelBar" class="btn-group">
     <button data-level="1" class="active btn btn-secondary btn-sm" data-bs-toggle="tooltip" title="Floor 1">1</button>
@@ -72,6 +94,7 @@
     <button data-action="pan" class="btn btn-light" data-bs-toggle="tooltip" title="Pan (Shift+MMB)"><img src="icons/pan.svg"></button>
     <button data-action="zoomExt" class="btn btn-light" data-bs-toggle="tooltip" title="Zoom Extents (F)"><img src="icons/zoomext.svg"></button>
     <button id="camBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Views"><img src="icons/camera.svg"></button>
+    <button id="rotate-object">↻</button>
     <div id="viewMenu" class="btn-group-vertical">
       <button data-view="iso" class="btn btn-light" data-bs-toggle="tooltip" title="Isometric (Ctrl+1)">ISO</button>
       <button data-view="top" class="btn btn-light" data-bs-toggle="tooltip" title="Top (Ctrl+2)">Top</button>
