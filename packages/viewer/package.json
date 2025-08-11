@@ -9,6 +9,10 @@
   },
   "dependencies": {
     "@thatopen/components": "workspace:*",
+    "jspdf": "^3.0.1",
     "three": "^0.175.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.4"
   }
 }

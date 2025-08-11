@@ -8,9 +8,9 @@ export interface FloorCfg {
 }
 
 export const floors: FloorCfg[] = [
-  { height: 3, ghostOpacity: 0.5, showGhost: true },
-  { height: 3, ghostOpacity: 0.5, showGhost: true },
-  { height: 3, ghostOpacity: 0.5, showGhost: true },
+  { height: 3, ghostOpacity: 0.2, showGhost: true },
+  { height: 3, ghostOpacity: 0.2, showGhost: true },
+  { height: 3, ghostOpacity: 0.2, showGhost: true },
 ];
 
 export let currentLevel = 0;
@@ -50,7 +50,31 @@ export function setActiveFloor(level: number) {
     (g.three.material as THREE.Material).needsUpdate = true;
     g.three.visible = op > 0;
   });
-  workingPlane.constant = currentLevel * floors[currentLevel].height;
+  unitsByLevel.forEach((units, i) => {
+    const f = floors[i];
+    const op = i === currentLevel ? 1 : f.showGhost ? f.ghostOpacity : 0;
+
+    units.forEach(unit => {
+      unit.traverse(child => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          const material = Array.isArray(mesh.material)
+            ? mesh.material
+            : [mesh.material];
+
+          material.forEach(mat => {
+            mat.transparent = op < 1;
+            mat.opacity = op;
+            mat.depthWrite = op === 1; // voorkom dat ghost units over zichtbare units tekenen
+            mat.needsUpdate = true;
+          });
+        }
+      });
+    });
+  });
+
+  // workingPlane.constant = currentLevel * floors[currentLevel].height;
+  workingPlane.constant = -currentLevel * floors[currentLevel].height;
   document.dispatchEvent(
     new CustomEvent("floorchange", { detail: { level: currentLevel } })
   );

@@ -1,5 +1,8 @@
 import * as THREE from "three";
 
+import { selectObject, downloadLayoutJson, importLayoutFromFile } from "./index";
+import { exportToPdf } from "./utils/exportPdf";
+
 export interface UnitMeta {
   file: string;
   meshes: number;
@@ -14,7 +17,8 @@ let sidebar: HTMLElement;
 let unitList: HTMLUListElement;
 let cartList: HTMLUListElement;
 const itemMap = new WeakMap<THREE.Object3D, HTMLLIElement>();
-const cartMap = new WeakMap<THREE.Object3D, HTMLLIElement>();
+export const cartMap = new WeakMap<THREE.Object3D, HTMLLIElement>();
+export const cartListItems: HTMLLIElement[] = [];
 const libUrls = new Set<string>();
 let metaTable: HTMLTableElement;
 let panelLibrary: HTMLElement;
@@ -23,6 +27,8 @@ let panelTitle: HTMLElement;
 let backBtn: HTMLButtonElement;
 let toggleBtn: HTMLButtonElement;
 let tabBtn: HTMLElement;
+let pdfOptions: HTMLElement;
+let jsonOptions: HTMLElement;
 
 export function initSidebar() {
   sidebar = document.getElementById("sidebar") as HTMLElement;
@@ -35,6 +41,8 @@ export function initSidebar() {
   backBtn = document.getElementById("back") as HTMLButtonElement;
   toggleBtn = document.getElementById("toggle") as HTMLButtonElement;
   tabBtn = document.getElementById("sidebarTab") as HTMLElement;
+  pdfOptions = document.getElementById("pdfOptions") as HTMLElement;
+  jsonOptions = document.getElementById("jsonOptions") as HTMLElement;
 
   const toggle = () => sidebar.classList.toggle("collapsed");
   toggleBtn.onclick = toggle;
@@ -42,6 +50,43 @@ export function initSidebar() {
   backBtn.onclick = () => showLibrary();
 
   showLibrary();
+
+  // PDF export
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = 'Export als PDF';
+  exportBtn.className   = 'export-pdf';
+  pdfOptions.appendChild(exportBtn);
+  exportBtn.addEventListener('click', () => {
+    exportToPdf();
+  });
+
+  // Export layout (JSON)
+  const exportJsonBtn = document.createElement("button");
+  exportJsonBtn.textContent = "Export layout (JSON)";
+  exportJsonBtn.className = "export-json";
+  exportJsonBtn.onclick = () => downloadLayoutJson();
+  jsonOptions.appendChild(exportJsonBtn);
+
+  // Import layout (JSON)
+  const importJsonBtn = document.createElement("button");
+  importJsonBtn.textContent = "Import layout (JSON)";
+  importJsonBtn.className = "import-json";
+  jsonOptions.appendChild(importJsonBtn);
+
+  // Hidden file input voor import
+  const importInput = document.createElement("input");
+  importInput.type = "file";
+  importInput.accept = "application/json";
+  importInput.style.display = "none";
+  panelLibrary.appendChild(importInput);
+
+  importJsonBtn.onclick = () => importInput.click();
+  importInput.onchange = () => {
+    const file = importInput.files?.[0];
+    if (!file) return;
+    importLayoutFromFile(file);
+    importInput.value = ""; // reset input voor volgende keer
+  };
 }
 
 function showLibrary() {
@@ -86,7 +131,8 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   li.addEventListener("dragstart", ev => {
     ev.dataTransfer?.setData("text", url);
   });
-  unitList.appendChild(li);
+  // Onderstaande line lijkt onbedoeld units te dupliceren in de unitList (de unit library)
+  // unitList.appendChild(li);
   itemMap.set(group, li);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
@@ -115,6 +161,8 @@ export function removeUnitItem(group: THREE.Object3D) {
 }
 
 export function addCartItem(group: THREE.Object3D) {
+  if (cartMap.has(group)) return; // voorkom dubbel toevoegen
+
   const li = document.createElement("li");
   li.className = "cart-item";
   const span = document.createElement("span");
@@ -122,10 +170,15 @@ export function addCartItem(group: THREE.Object3D) {
   const btn = document.createElement("button");
   btn.className = "remove";
   btn.textContent = "×";
-  btn.onclick = () => {
+  btn.onclick = (event) => {
+    event.stopPropagation();
     li.dispatchEvent(new CustomEvent("remove-unit", { detail: group, bubbles: true }));
   };
+  li.onclick = () => {
+    selectObject(group);
+  };
   li.append(span, btn);
+  cartListItems.push(li);
   cartList.appendChild(li);
   cartMap.set(group, li);
 }
