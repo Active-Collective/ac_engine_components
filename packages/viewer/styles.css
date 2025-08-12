@@ -146,6 +146,38 @@ body {
   background-color: #c7deea;
   cursor: pointer;
 }
+
+#exportOptions {
+  margin-top: 2em;
+}
+
+#exportOptions h4 {
+  font-size: 18px;
+}
+
+#exportOptions button {
+  padding: 8px 12px;
+  border: 2px solid black;
+  border-radius: 6px;
+  background-color: unset;
+  font-weight: 500;
+}
+
+#exportOptions button:hover {
+  background-color: #88ff88;
+  box-shadow: inset 0px 0px 5px 0px #333;
+}
+
+#exportOptions #pdfOptions,
+#exportOptions #jsonOptions {
+  margin-bottom: 1em;
+}
+
+#exportOptions #jsonButtons {
+  display: flex;
+  gap: 10px;
+}
+
 #settings{
   position:absolute;
   bottom:16px;

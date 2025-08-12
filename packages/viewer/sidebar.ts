@@ -28,7 +28,7 @@ let backBtn: HTMLButtonElement;
 let toggleBtn: HTMLButtonElement;
 let tabBtn: HTMLElement;
 let pdfOptions: HTMLElement;
-let jsonOptions: HTMLElement;
+let jsonButtons: HTMLElement;
 
 export function initSidebar() {
   sidebar = document.getElementById("sidebar") as HTMLElement;
@@ -42,7 +42,7 @@ export function initSidebar() {
   toggleBtn = document.getElementById("toggle") as HTMLButtonElement;
   tabBtn = document.getElementById("sidebarTab") as HTMLElement;
   pdfOptions = document.getElementById("pdfOptions") as HTMLElement;
-  jsonOptions = document.getElementById("jsonOptions") as HTMLElement;
+  jsonButtons = document.getElementById("jsonButtons") as HTMLElement;
 
   const toggle = () => sidebar.classList.toggle("collapsed");
   toggleBtn.onclick = toggle;
@@ -62,16 +62,16 @@ export function initSidebar() {
 
   // Export layout (JSON)
   const exportJsonBtn = document.createElement("button");
-  exportJsonBtn.textContent = "Export layout (JSON)";
+  exportJsonBtn.textContent = "Export JSON";
   exportJsonBtn.className = "export-json";
   exportJsonBtn.onclick = () => downloadLayoutJson();
-  jsonOptions.appendChild(exportJsonBtn);
+  jsonButtons.appendChild(exportJsonBtn);
 
   // Import layout (JSON)
   const importJsonBtn = document.createElement("button");
-  importJsonBtn.textContent = "Import layout (JSON)";
+  importJsonBtn.textContent = "Import JSON";
   importJsonBtn.className = "import-json";
-  jsonOptions.appendChild(importJsonBtn);
+  jsonButtons.appendChild(importJsonBtn);
 
   // Hidden file input voor import
   const importInput = document.createElement("input");
