@@ -73,7 +73,9 @@ interface HistoryEntry {
   pos: THREE.Vector3;
   quat: THREE.Quaternion;
 }
+
 const history: HistoryEntry[] = [];
+const redoStack: HistoryEntry[] = [];
 
 interface LayoutItem {
   id: string;
@@ -196,6 +198,15 @@ function checkOverlaps() {
 function undo() {
   const h = history.pop();
   if (!h) return;
+
+  // Huidige staat opslaan voor redo
+  redoStack.push({
+    obj: h.obj,
+    pos: h.obj.position.clone(),
+    quat: h.obj.quaternion.clone()
+  });
+
+  // Oude staat herstellen
   h.obj.position.copy(h.pos);
   h.obj.quaternion.copy(h.quat);
   h.obj.updateMatrixWorld();
@@ -204,9 +215,34 @@ function undo() {
   if (controls && typeof (controls as any).updateMatrixWorld === "function") {
     controls.updateMatrixWorld(true);
   }
-  // handle removed
   attachNudge(h.obj);
   updateLayout(h.obj);
+  checkOverlaps();
+}
+
+function redo() {
+  const h = redoStack.pop();
+  if (!h) return;
+
+  // Huidige staat opslaan voor undo
+  history.push({
+    obj: h.obj,
+    pos: h.obj.position.clone(),
+    quat: h.obj.quaternion.clone()
+  });
+
+  // Redo staat toepassen
+  h.obj.position.copy(h.pos);
+  h.obj.quaternion.copy(h.quat);
+  h.obj.updateMatrixWorld();
+  updateBoxes();
+  subBox?.update();
+  if (controls && typeof (controls as any).updateMatrixWorld === "function") {
+    controls.updateMatrixWorld(true);
+  }
+  attachNudge(h.obj);
+  updateLayout(h.obj);
+  checkOverlaps();
 }
 
 function deleteUnit(obj: THREE.Object3D) {
@@ -570,6 +606,41 @@ function setupRotateButton() {
   });
 }
 
+// Move up / down
+function setupMoveFloorButtons() {
+  const btnUp   = document.getElementById("move-object-up");
+  const btnDown = document.getElementById("move-object-down");
+  if (!btnUp && !btnDown) return;
+
+  // Bepaal de huidige floor van een unit (voorkeur: userData.level)
+  const getLevel = (o: THREE.Object3D) => {
+    if (typeof o.userData.level === "number") return o.userData.level;
+    const h = floors[0]?.height || 1;
+    return Math.max(0, Math.min(floors.length - 1, Math.round(o.position.y / h)));
+  };
+
+  const moveBy = (delta: number) => {
+    if (selection.size === 0) return;
+
+    selection.forEach(o => {
+      const from = getLevel(o);
+      const to   = Math.min(Math.max(from + delta, 0), floors.length - 1);
+      if (to === from) return;
+      saveState(o);
+      moveUnitToLevel(o, to);
+      updateLayout(o);
+    });
+
+    updateBoxes();
+    if (controls && typeof (controls as any).updateMatrixWorld === "function") {
+      controls.updateMatrixWorld(true);
+    }
+  };
+
+  btnUp?.addEventListener("click",   () => moveBy(1));
+  btnDown?.addEventListener("click", () => moveBy(-1));
+}
+
 /**
  * Displays a translucent plane at the provided Y level while dragging an
  * object between floors so the user can see where it will land.
@@ -841,6 +912,7 @@ export async function bootstrap() {
 
   initNavControls(world.camera, sceneBounds);
   setupRotateButton();
+  setupMoveFloorButtons();
 
   const casters = components.get(OBC.Raycasters);
   const caster = casters.get(world);
@@ -1365,8 +1437,14 @@ export async function bootstrap() {
       e.preventDefault();
       return;
     }
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
       undo();
+      e.preventDefault();
+      return;
+    }
+    // REDO → Ctrl/Cmd+Shift+Z
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && e.shiftKey) {
+      redo();
       e.preventDefault();
       return;
     }

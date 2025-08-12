@@ -91,26 +91,10 @@
     <button data-level="3" class="btn btn-secondary btn-sm" data-bs-toggle="tooltip" title="Floor 3">3</button>
   </div>
   <div id="navBar">
-    <!-- <button data-action="orbit" class="btn btn-light" data-bs-toggle="tooltip" title="Orbit (O)"><img src="icons/orbit.svg"></button> -->
-    <button data-action="orbit" class="btn btn-light" data-bs-toggle="tooltip" title="Orbit (O)"><img src="icons/orbit.svg"></button>
-    <button data-action="pan" class="btn btn-light" data-bs-toggle="tooltip" title="Pan (Shift+MMB)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-     xmlns="http://www.w3.org/2000/svg" stroke="#000" stroke-width="1.75"
-     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <!-- sphere -->
-  <circle cx="12" cy="12" r="3"/>
-  <!-- orbit arc 1 + arrowhead -->
-  <path d="M4 12a8 5 0 0 1 16 0"/>
-  <path d="M20 12l-1.8-1.2"/>
-  <path d="M20 12l-1.8 1.2"/>
-  <!-- orbit arc 2 + arrowhead -->
-  <path d="M4 12a8 5 0 0 0 16 0"/>
-  <path d="M4 12l1.8-1.2"/>
-  <path d="M4 12l1.8 1.2"/>
-</svg>
-</button>
-    <button data-action="zoomExt" class="btn btn-light" data-bs-toggle="tooltip" title="Zoom Extents (F)"><img src="icons/zoomext.svg"></button>
-    <button id="camBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Views"><img src="icons/camera.svg"></button>
-    <button id="rotate-object">↻</button>
+    <button data-action="orbit" class="btn btn-light" data-bs-toggle="tooltip" title="Orbit (O)"><img src="icons/orbit-icon.svg"></button>
+    <button data-action="pan" class="btn btn-light" data-bs-toggle="tooltip" title="Pan (Shift+MMB)"><img src="icons/pan-icon.svg"></button>
+    <button data-action="zoomExt" class="btn btn-light" data-bs-toggle="tooltip" title="Zoom Extents (F)"><img src="icons/zoom-icon.svg"></button>
+    <button id="camBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Views"><img src="icons/view-icon.svg"></button>
     <div id="viewMenu" class="btn-group-vertical">
       <button data-view="iso" class="btn btn-light" data-bs-toggle="tooltip" title="Isometric (Ctrl+1)">ISO</button>
       <button data-view="top" class="btn btn-light" data-bs-toggle="tooltip" title="Top (Ctrl+2)">Top</button>
@@ -120,7 +104,14 @@
       <button data-view="left" class="btn btn-light" data-bs-toggle="tooltip" title="Left (Ctrl+6)">Left</button>
       <button data-view="bottom" class="btn btn-light" data-bs-toggle="tooltip" title="Bottom (Ctrl+7)">Bottom</button>
     </div>
-    <div id="paintWrap">
+    <span class="vert-divider">|</span>
+    <button id="rotate-object" class="btn btn-light" data-bs-toggle="tooltip" title="Rotate unit (R)"><img src="icons/rotate-icon.svg"></button>
+    <button id="move-object-up" class="btn btn-light" data-bs-toggle="tooltip" title="Move up"><img src="icons/moveup-icon.svg"></button>
+    <button id="move-object-down" class="btn btn-light" data-bs-toggle="tooltip" title="Move down"><img src="icons/movedown-icon.svg"></button>
+    <span class="vert-divider">|</span>
+    <button id="undo" class="btn btn-light" data-bs-toggle="tooltip" title="Undo (Ctrl + Z)"><img src="icons/undo-icon.svg"></button>
+    <button id="redo" class="btn btn-light" data-bs-toggle="tooltip" title="Redo (Ctrl + Y)"><img src="icons/redo-icon.svg"></button>
+    <!-- <div id="paintWrap">
       <button id="paintBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Paint"><img src="icons/paint.svg"></button>
       <div id="paintMenu" class="btn-group-vertical">
         <button data-variant="red" class="btn btn-danger" title="Red"></button>
@@ -128,8 +119,8 @@
         <button data-variant="wood" class="btn btn-light" style="background:url('/assets/wood.jpg') center/cover" title="Wood"></button>
       </div>
       <button id="resetBtn" class="btn btn-outline-secondary btn-sm">reset</button>
-    </div>
-    <button id="helpBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Help ?">?</button>
+    </div> -->
+    <!-- <button id="helpBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Help ?">?</button> -->
   </div>
   <div id="navHelp">
     <p><strong>Navigation</strong></p>
