@@ -45,6 +45,7 @@
         </div>
         <div id="jsonOptions">
           <h4>JSON</h4>
+          <div id="jsonButtons"></div>
         </div>
       </div>
     </section>
@@ -90,8 +91,23 @@
     <button data-level="3" class="btn btn-secondary btn-sm" data-bs-toggle="tooltip" title="Floor 3">3</button>
   </div>
   <div id="navBar">
+    <!-- <button data-action="orbit" class="btn btn-light" data-bs-toggle="tooltip" title="Orbit (O)"><img src="icons/orbit.svg"></button> -->
     <button data-action="orbit" class="btn btn-light" data-bs-toggle="tooltip" title="Orbit (O)"><img src="icons/orbit.svg"></button>
-    <button data-action="pan" class="btn btn-light" data-bs-toggle="tooltip" title="Pan (Shift+MMB)"><img src="icons/pan.svg"></button>
+    <button data-action="pan" class="btn btn-light" data-bs-toggle="tooltip" title="Pan (Shift+MMB)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+     xmlns="http://www.w3.org/2000/svg" stroke="#000" stroke-width="1.75"
+     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <!-- sphere -->
+  <circle cx="12" cy="12" r="3"/>
+  <!-- orbit arc 1 + arrowhead -->
+  <path d="M4 12a8 5 0 0 1 16 0"/>
+  <path d="M20 12l-1.8-1.2"/>
+  <path d="M20 12l-1.8 1.2"/>
+  <!-- orbit arc 2 + arrowhead -->
+  <path d="M4 12a8 5 0 0 0 16 0"/>
+  <path d="M4 12l1.8-1.2"/>
+  <path d="M4 12l1.8 1.2"/>
+</svg>
+</button>
     <button data-action="zoomExt" class="btn btn-light" data-bs-toggle="tooltip" title="Zoom Extents (F)"><img src="icons/zoomext.svg"></button>
     <button id="camBtn" class="btn btn-light" data-bs-toggle="tooltip" title="Views"><img src="icons/camera.svg"></button>
     <button id="rotate-object">↻</button>
