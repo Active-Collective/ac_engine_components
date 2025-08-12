@@ -28,6 +28,7 @@ export function initFloors(w: OBC.World, plane: THREE.Plane) {
   floors.forEach((cfg, i) => {
     const grid = new OBC.SimpleGrid(world.components, world);
     grid.setup();
+    grid.config.color = new THREE.Color(0x555555);
     grid.three.position.y = i * cfg.height;
     grid.material.transparent = true;
     grids.push(grid);
@@ -41,14 +42,15 @@ export function setActiveFloor(level: number) {
   grids.forEach((g, i) => {
     const f = floors[i];
     g.three.position.y = i * f.height;
-    const op = i === currentLevel ? 1 : f.showGhost ? f.ghostOpacity : 0;
-    g.material.opacity = op;
-    g.material.transparent = op < 1;
+
+    // Alleen actieve floor zichtbaar
+    const isActive = i === currentLevel;
+    g.three.visible = isActive;
+
+    // (optioneel schoon houden)
+    g.material.opacity = 1;
+    g.material.transparent = false;
     g.material.needsUpdate = true;
-    (g.three.material as THREE.Material).opacity = op;
-    (g.three.material as THREE.Material).transparent = op < 1;
-    (g.three.material as THREE.Material).needsUpdate = true;
-    g.three.visible = op > 0;
   });
   unitsByLevel.forEach((units, i) => {
     const f = floors[i];
