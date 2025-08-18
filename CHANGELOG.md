@@ -6,6 +6,10 @@
 * Added IFC4 Reference View support via OBC and web-ifc. The viewer now accepts both `.glb` and `.ifc` files.
 * Multi-model loading with basic storey navigation.
 
+### Miscellaneous Chores
+* **viewer:** drop `@thatopen/components-front` dependency to streamline example setup.
+* **viewer:** copy `web-ifc.wasm` during install instead of committing the binary.
+
 
 ## [2.4.0](https://github.com/ThatOpen/engine_components/compare/v2.3.0...v2.4.0) (2024-11-28)
 

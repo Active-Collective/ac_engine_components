@@ -16,7 +16,8 @@
     "copy-readme": "node resources/readme-copier.mjs",
     "test": "yarn workspace @thatopen/components test",
     "publish-repo": "yarn workspace @thatopen/components publish-repo && yarn workspace @thatopen/components-front publish-repo",
-    "reset-release-please": "git commit --allow-empty -m \"chore: release 2.0.0\" -m \"Release-As: 2.0.0\""
+    "reset-release-please": "git commit --allow-empty -m \"chore: release 2.0.0\" -m \"Release-As: 2.0.0\"",
+    "postinstall": "node resources/copy-web-ifc-wasm.mjs"
   },
   "license": "MIT",
   "homepage": "https://github.com/ThatOpen/engine_components#readme",
@@ -52,6 +53,7 @@
   "version": "2.4.0",
   "dependencies": {
     "@gltf-transform/core": "^4.2.0",
-    "camera-controls": "^2.9.0"
+    "camera-controls": "^2.9.0",
+    "three": "^0.175.0"
   }
 }

@@ -48,20 +48,21 @@ This library contains 2 packages:
 
 `@thatopen/components-front` - Features exclusive for browser environments.
 
+The bundled viewer example now relies solely on `@thatopen/components`; the browser-only `@thatopen/components-front` package is no longer required.
+
 ## Quick start
 
 1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/).
 2. From the repository root run:
    ```bash
    yarn install
-   cd packages/viewer
-   yarn dev --host
+   yarn workspace @thatopen/viewer-example dev --host
    ```
 3. Open <http://localhost:5173> to launch the viewer example.
 
 ### IFC and glTF models
 
-Place `.ifc` files inside `packages/core/assets/` next to the sample `.glb` units and reference them by URL. The viewer supports loading both `.glb` and `.ifc` files. For IFC loading the `web-ifc.wasm` file must be located under `packages/viewer/public/wasm/`.
+Place `.ifc` files inside `packages/core/assets/` next to the sample `.glb` units and reference them by URL. The viewer supports loading both `.glb` and `.ifc` files. During `yarn install` the required `web-ifc.wasm` file is copied to `packages/viewer/public/wasm/`.
 
 ## Usage
 
@@ -116,8 +117,7 @@ Run the glTF viewer example to verify that local models load correctly.
    ```
 4. Start the viewer example
    ```bash
-   cd packages/viewer
-   yarn dev --host
+   yarn workspace @thatopen/viewer-example dev --host
    ```
 5. Open [`http://localhost:5173`](http://localhost:5173) in your browser.
 6. If `unit1.glb` … `unit4.glb` are present in `packages/core/assets` they load automatically. Use the file input to load your own `.glb` or `.gltf` file.
