@@ -11,8 +11,7 @@
     "@thatopen/components": "workspace:*",
     "jspdf": "^3.0.1",
     "three": "^0.175.0",
-    "@thatopen/components-front": "workspace:*",
-    "web-ifc": "^0.0.0"
+    "web-ifc": "0.0.68"
   },
   "devDependencies": {
     "vite": "^7.0.4"
