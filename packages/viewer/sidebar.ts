@@ -98,6 +98,7 @@ function showLibrary() {
 }
 
 function showInfo(group: THREE.Object3D) {
+  console.log("infobutton clicked");
   sidebar.dataset.mode = "info";
   panelLibrary.classList.remove("active");
   panelInfo.classList.add("active");
@@ -246,4 +247,3 @@ export function renderMeta(group: THREE.Object3D) {
 export function clearInfo() {
   metaTable.innerHTML = "";
 }
-
