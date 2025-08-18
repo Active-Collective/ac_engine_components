@@ -1003,12 +1003,16 @@ export async function bootstrap() {
   const casters = components.get(OBC.Raycasters);
   const caster = casters.get(world);
 
-  const libUrls = [
-    new URL("../core/assets/unit1.ifc", import.meta.url).href,
-    new URL("../core/assets/unit2.ifc", import.meta.url).href,
-    new URL("../core/assets/unit3.ifc", import.meta.url).href,
-    new URL("../core/assets/unit4.ifc", import.meta.url).href,
+  const assetFiles = [
+    "unit1.glb",
+    "unit2.glb",
+    "unit3.glb",
+    "unit4.glb",
+    "unit_test.ifc",
   ];
+  const libUrls = assetFiles.map(name =>
+    new URL(`../core/assets/${name}`, import.meta.url).href
+  );
 
   // async function populateUnitList(urls: string[]) {
   //   const list = document.getElementById("unitList");
@@ -1298,13 +1302,7 @@ export async function bootstrap() {
       }
     } catch {}
   } else {
-    const loadUrls = [
-      new URL("../core/assets/unit1.ifc", import.meta.url).href,
-      new URL("../core/assets/unit2.ifc", import.meta.url).href,
-      new URL("../core/assets/unit3.ifc", import.meta.url).href,
-      new URL("../core/assets/unit4.ifc", import.meta.url).href,
-    ];
-    for (const url of loadUrls) {
+    for (const url of libUrls) {
       const { object, width } = await addModel(
         url,
         new THREE.Vector3(offset, 0, 0),
