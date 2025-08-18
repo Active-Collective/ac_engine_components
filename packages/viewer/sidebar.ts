@@ -98,7 +98,6 @@ function showLibrary() {
 }
 
 export function showInfo(group: THREE.Object3D) {
-  console.log("infobutton clicked");
   sidebar.dataset.mode = "info";
   panelLibrary.classList.remove("active");
   panelInfo.classList.add("active");
