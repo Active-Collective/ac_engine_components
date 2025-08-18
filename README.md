@@ -54,7 +54,8 @@ This library contains 2 packages:
 2. From the repository root run:
    ```bash
    yarn install
-   yarn workspace viewer dev --host
+   cd packages/viewer
+   yarn dev --host
    ```
 3. Open <http://localhost:5173> to launch the viewer example.
 
