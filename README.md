@@ -48,6 +48,17 @@ This library contains 2 packages:
 
 `@thatopen/components-front` - Features exclusive for browser environments.
 
+## Quick start
+
+1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/).
+2. From the repository root run:
+   ```bash
+   yarn install
+   yarn workspace viewer dev --host
+   ```
+3. Open <http://localhost:5173> to launch the viewer example.
+
+
 ## Usage
 
 You need to be familiar with [Three.js API](https://github.com/mrdoob/three.js/) to be able to use this library effectively. In the following example, we will create a cube in a 3D scene that can be navigated with the mouse or touch events. You can see the full example [here](https://github.com/ThatOpen/engine_components/blob/main/packages/core/src/core/Worlds/example.ts) and the deployed app [here](https://thatopen.github.io/engine_components/examples/Worlds/index.html).
@@ -90,23 +101,39 @@ world.camera.controls.setLookAt(3, 3, 3, 0, 0, 0);
 
 Run the glTF viewer example to verify that local models load correctly.
 
-1. Install dependencies
+1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/) (v3).
+2. Install dependencies from the repository root
    ```bash
-   yarn
+   yarn install
    ```
-2. Build the core library so Vite can resolve its modules
+3. Build the core library so Vite can resolve its modules
    ```bash
    yarn build-core
    ```
-3. Start the development server from the package folder
+4. Start the viewer example
    ```bash
-   cd packages/core
-   npx vite --host
+   cd packages/viewer
+   yarn dev --host
    ```
-4. Open [`http://localhost:5173/src/gltfViewer/example.html`](http://localhost:5173/src/gltfViewer/example.html) in your browser.
-5. If an `assets/unit1.glb` file exists it will load automatically. Use the file input in the top left to upload your own `.glb` or `.gltf` file.
-6. Press **R** to rotate the selected model by 90°.
-7. `yarn test` runs the placeholder test script.
+5. Open [`http://localhost:5173`](http://localhost:5173) in your browser.
+6. If `unit1.glb` … `unit4.glb` are present in `packages/core/assets` they load automatically. Use the file input to load your own `.glb` or `.gltf` file.
+7. Use the **arrow keys** to move the selected model one meter at a time on X/Y.
+8. Press **R** to rotate the selected model by 90°.
+9. Hit **Delete** or **Backspace** to remove the selected model(s).
+10. Use the toolbar at the top to orbit, pan, zoom extents or change camera views.
+11. Press **Cmd/Ctrl+Z** to undo the last move or rotation.
+12. Right-click a mesh (e.g. a door) to select that part and use the palette to
+    change its material. The **reset** button restores the original look.
+13. Run `yarn test` to execute the placeholder test script.
+
+### Viewer features
+
+* **Sidebar library** – draggable unit thumbnails with filenames. Upload custom models via the *Choose file* button.
+* **Navigation toolbar** – orbit, pan and camera view buttons with a paintbrush palette for textures and colors.
+* **Multi-floor scenes** – switch floors using the pill buttons or keys `1`‑`3`; inactive floors show ghost grids.
+* **Move/rotate controls** – Shift‑click to multi-select, drag the red handle or use WASD/QE and the arrow keys. Press `R` to rotate. Hit Delete/Backspace to remove models.
+* **Nudge arrows** – six arrows appear when selecting a model and nudge it by one grid unit.
+* **Metadata sidebar** – lists mesh counts, triangle counts and material names for each loaded model.
 
 
 [npm]: https://img.shields.io/npm/v/@thatopen/components

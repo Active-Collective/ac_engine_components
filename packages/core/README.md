@@ -86,6 +86,32 @@ world.scene.setup();
 world.camera.controls.setLookAt(3, 3, 3, 0, 0, 0);
 ```
 
+## 🧪 Viewer test
+
+Run the glTF viewer example to verify that local models load correctly.
+
+1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/) (v3).
+2. Install dependencies from the repository root
+   ```bash
+   yarn install
+   ```
+3. Build the core library so Vite can resolve its modules
+   ```bash
+   yarn build-core
+   ```
+4. Start the viewer example
+   ```bash
+   cd packages/viewer
+   yarn dev --host
+   ```
+5. Open [`http://localhost:5173`](http://localhost:5173) in your browser.
+6. If `unit1.glb` … `unit4.glb` are present in `packages/core/assets` they load automatically. Use the file input to load your own `.glb` or `.gltf` file.
+7. Use the **arrow keys** to move the selected model one meter at a time on X/Y.
+8. Press **R** to rotate the selected model by 90°.
+9. Right-click a mesh (e.g. a door) to select that part and use the palette to
+   change its material. The **reset** button restores the original look.
+10. Run `yarn test` to execute the placeholder test script.
+
 
 [npm]: https://img.shields.io/npm/v/@thatopen/components
 [npm-url]: https://www.npmjs.com/package/@thatopen/components
