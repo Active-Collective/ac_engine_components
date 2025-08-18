@@ -54,10 +54,14 @@ This library contains 2 packages:
 2. From the repository root run:
    ```bash
    yarn install
-   yarn workspace viewer dev --host
+   cd packages/viewer
+   yarn dev --host
    ```
 3. Open <http://localhost:5173> to launch the viewer example.
 
+### IFC and glTF models
+
+Place `.ifc` files inside `packages/core/assets/` next to the sample `.glb` units and reference them by URL. The viewer supports loading both `.glb` and `.ifc` files. For IFC loading the `web-ifc.wasm` file must be located under `packages/viewer/public/wasm/`.
 
 ## Usage
 

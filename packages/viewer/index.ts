@@ -8,6 +8,9 @@ import * as THREE from "three";
 // TransformControls helper for translation/rotation gizmos.
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import { setupIfc, loadIfc } from "./src/ifc/loader";
+import { buildIndex, picked, byStorey } from "./src/ifc";
+import { setStoreys } from "./src/ifc/storeys";
 import { generateThumbnail } from "./utils/thumbnail";
 // Helper modules defined in this package
 //  - sidebar.ts: collects model metadata and renders the info sidebar
@@ -912,6 +915,7 @@ export async function bootstrap() {
   });
 
   bboxer = components.get(OBC.BoundingBoxer);
+  await setupIfc(world);
 
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   initFloors(world, gridPlane);
@@ -1000,12 +1004,10 @@ export async function bootstrap() {
   const caster = casters.get(world);
 
   const libUrls = [
-    new URL("../core/assets/unit1.glb", import.meta.url).href,
-    new URL("../core/assets/unit2.glb", import.meta.url).href,
-    new URL("../core/assets/unit3.glb", import.meta.url).href,
-    new URL("../core/assets/unit4.glb", import.meta.url).href,
-    new URL("../core/assets/Materiaal-test-V2.glb", import.meta.url).href,
-    new URL("../core/assets/simplified.glb", import.meta.url).href,
+    new URL("../core/assets/unit1.ifc", import.meta.url).href,
+    new URL("../core/assets/unit2.ifc", import.meta.url).href,
+    new URL("../core/assets/unit3.ifc", import.meta.url).href,
+    new URL("../core/assets/unit4.ifc", import.meta.url).href,
   ];
 
   // async function populateUnitList(urls: string[]) {
@@ -1124,75 +1126,98 @@ export async function bootstrap() {
    * sizes based on all loaded models.
    */
   async function addModel(
-    url: string,
+    urlOrFile: string | File,
     position = new THREE.Vector3(),
     level = currentLevel
   ) {
-    const gltf = await loadGltf(url);
+    let modelID = -1;
+    let root: THREE.Object3D;
+    const url = typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name;
 
-    gltf.scene.updateMatrixWorld(true);
+    if (typeof urlOrFile === 'string') {
+      if (/\.ifc(zip)?$/i.test(urlOrFile)) {
+        const res = await loadIfc(urlOrFile);
+        modelID = res.modelID;
+        root = res.root;
+      } else {
+        const gltf = await loadGltf(urlOrFile);
+        root = gltf.scene;
+      }
+    } else {
+      const res = await loadIfc(urlOrFile);
+      modelID = res.modelID;
+      root = res.root;
+    }
+
+    root.updateMatrixWorld(true);
     bboxer.reset();
-    gltf.scene.traverse(obj => {
-      rootMap.set(obj, gltf.scene);
+    root.traverse(obj => {
+      rootMap.set(obj, root);
       if (obj instanceof THREE.Mesh || obj instanceof THREE.InstancedMesh) {
         bboxer.addMesh(obj);
         world.meshes.add(obj);
         if (!obj.userData.originalMaterial) {
           obj.userData.originalMaterial = obj.material;
         }
+        picked.set(obj, {
+          modelID,
+          expressID: obj.userData.expressID || obj.id,
+          globalId: obj.userData.globalId,
+          ifcClass: obj.userData.ifcClass,
+        });
       }
-      if (obj instanceof THREE.Object3D) obj.name ||= "unit";
+      if (obj instanceof THREE.Object3D) obj.name ||= 'unit';
     });
     const bounds = bboxer.get();
     const dims = OBC.BoundingBoxer.getDimensions(bounds);
     footprintByUrl.set(url, { w: dims.width, d: dims.depth });
     bboxer.reset();
 
-    gltf.scene.position.set(
+    root.position.set(
       position.x - bounds.min.x,
       position.y - bounds.min.y,
       position.z - bounds.min.z,
     );
 
-    world.scene.three.add(gltf.scene);
-    addUnitToLevel(gltf.scene, level);
+    world.scene.three.add(root);
+    addUnitToLevel(root, level);
     checkOverlaps();
     const id = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
-    gltf.scene.userData.id = id;
-    gltf.scene.userData.url = url;
-    layoutMap.set(id, { id, url, pos: [position.x, position.y, position.z], rot: gltf.scene.rotation.y, level });
+    root.userData.id = id;
+    root.userData.url = url;
+    layoutMap.set(id, { id, url, pos: [position.x, position.y, position.z], rot: root.rotation.y, level });
     saveLayout();
-    const info = analyzeUnit(gltf.scene, url);
-    metaCache.set(gltf.scene, info);
-    addUnitItem(gltf.scene, url);
-    addCartItem(gltf.scene);
+    const info = analyzeUnit(root, url);
+    metaCache.set(root, info);
+    addUnitItem(root, url);
+    addCartItem(root);
+    await buildIndex({ modelID, root });
+    setStoreys(byStorey);
+
     totalWidth += dims.width;
     totalHeight += dims.height;
     loadedCount++;
     const avg = totalWidth / loadedCount;
     const hAvg = totalHeight / loadedCount;
-    // update alle grids
     grids.forEach(g => {
-      g.config.primarySize   = avg;
+      g.config.primarySize = avg;
       g.config.secondarySize = avg;
     });
     verticalSnap = hAvg;
     floors.forEach(f => (f.height = hAvg));
 
-    // actieve floor herpositioneren (grids krijgen nieuwe y)
     setActiveFloor(currentLevel);
 
-    // controls snap mee laten lopen
     if (controls) controls.translationSnap = avg;
 
     snapInput.value = String(avg);
     snapHeightInput.value = String(hAvg);
     const sizeSnap = grids[currentLevel].config.primarySize;
-    gltf.scene.position.x = Math.round(gltf.scene.position.x / sizeSnap) * sizeSnap;
-    gltf.scene.position.z = Math.round(gltf.scene.position.z / sizeSnap) * sizeSnap;
+    root.position.x = Math.round(root.position.x / sizeSnap) * sizeSnap;
+    root.position.z = Math.round(root.position.z / sizeSnap) * sizeSnap;
 
-    // gltf.scene.scale.setScalar(10);
-    return { object: gltf.scene, width: dims.width };
+    return { object: root, width: dims.width };
+  
   }
 
   // Export / Import JSON helpers
@@ -1274,12 +1299,10 @@ export async function bootstrap() {
     } catch {}
   } else {
     const loadUrls = [
-      new URL("../core/assets/unit1.glb", import.meta.url).href,
-      new URL("../core/assets/unit2.glb", import.meta.url).href,
-      new URL("../core/assets/unit3.glb", import.meta.url).href,
-      new URL("../core/assets/unit4.glb", import.meta.url).href,
-      new URL("../core/assets/Materiaal-test-V2.glb", import.meta.url).href,
-      new URL("../core/assets/simplified.glb", import.meta.url).href,
+      new URL("../core/assets/unit1.ifc", import.meta.url).href,
+      new URL("../core/assets/unit2.ifc", import.meta.url).href,
+      new URL("../core/assets/unit3.ifc", import.meta.url).href,
+      new URL("../core/assets/unit4.ifc", import.meta.url).href,
     ];
     for (const url of loadUrls) {
       const { object, width } = await addModel(

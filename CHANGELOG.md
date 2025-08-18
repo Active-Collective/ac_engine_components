@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Features
+* Added IFC4 Reference View support via OBC and web-ifc. The viewer now accepts both `.glb` and `.ifc` files.
+* Multi-model loading with basic storey navigation.
+
+
 ## [2.4.0](https://github.com/ThatOpen/engine_components/compare/v2.3.0...v2.4.0) (2024-11-28)
 
 
