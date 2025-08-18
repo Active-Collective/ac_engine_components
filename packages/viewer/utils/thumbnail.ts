@@ -12,16 +12,21 @@ const gltfLoader = new GLTFLoader();
 export async function generateThumbnail(source: string | THREE.Object3D): Promise<string> {
   let root: THREE.Object3D;
 
-  if (typeof source === 'string') {
-    if (/\.ifc(zip)?$/i.test(source)) {
-      const { root: r } = await loadIfc(source);
-      root = r;
+  try {
+    if (typeof source === 'string') {
+      if (/\.ifc(zip)?$/i.test(source)) {
+        const { root: r } = await loadIfc(source);
+        root = r;
+      } else {
+        const gltf = await gltfLoader.loadAsync(source);
+        root = gltf.scene;
+      }
     } else {
-      const gltf = await gltfLoader.loadAsync(source);
-      root = gltf.scene;
+      root = source;
     }
-  } else {
-    root = source;
+  } catch (error) {
+    console.warn(`Thumbnail failed for ${source}`, error);
+    return '';
   }
 
   const scene = new THREE.Scene();

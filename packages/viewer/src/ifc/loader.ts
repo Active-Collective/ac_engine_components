@@ -11,15 +11,32 @@ export async function setupIfc(world: any) {
   }
   if (ifcLoader && ifcLoader.settings) {
     ifcLoader.settings.wasm = { path: '/wasm/', absolute: true };
+    const wasmUrl = '/wasm/web-ifc.wasm';
+    try {
+      const res = await fetch(wasmUrl, { method: 'HEAD' });
+      if (!res.ok) {
+        console.warn(`web-ifc.wasm not found at ${wasmUrl}`);
+      }
+    } catch {
+      console.warn(`Could not access ${wasmUrl}. Ensure the file exists and has the correct MIME type.`);
+    }
   }
 }
 
 export async function loadIfc(urlOrFile: string | File): Promise<{ modelID: number; root: THREE.Object3D }> {
   if (!ifcLoader) throw new Error('IFC loader not initialized');
-  const model: any = await ifcLoader.load(urlOrFile as any);
-  const root: any = model?.mesh || model?.root || model?.object || model;
-  const modelID: number = model?.modelID || root?.modelID || 0;
-  return { modelID, root };
+  try {
+    const model: any = await ifcLoader.load(urlOrFile as any);
+    const root: any = model?.mesh || model?.root || model?.object || model;
+    const modelID: number = model?.modelID || root?.modelID || 0;
+    return { modelID, root };
+  } catch (error: any) {
+    const msg = String(error?.message || error);
+    if (msg.includes('magic word')) {
+      console.warn('Failed to initialize web-ifc WASM. Check that web-ifc.wasm is served from /public/wasm/ with application/wasm MIME type.');
+    }
+    throw error;
+  }
 }
 
 export function disposeIfc(modelID: number): void {

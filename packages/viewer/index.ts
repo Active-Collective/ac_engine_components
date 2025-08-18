@@ -1690,25 +1690,27 @@ export async function bootstrap() {
     updateLayout(object);
   });
 
-  paintBtn.onclick = () => paintMenu.classList.toggle("show");
-  paintMenu.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (subSelected) {
-        applyVariant(subSelected, createMat(btn.dataset.variant!));
-        subBox?.update();
+  if (paintBtn && paintMenu) {
+    paintBtn.onclick = () => paintMenu.classList.toggle("show");
+    paintMenu.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (subSelected) {
+          applyVariant(subSelected, createMat(btn.dataset.variant!));
+          subBox?.update();
+          paintMenu.classList.remove("show");
+          return;
+        }
+        if (selection.size === 0) return;
+        const mat = createMat(btn.dataset.variant!);
+        selection.forEach(o => {
+          applyVariant(o, mat);
+          updateLayout(o);
+        });
+        updateBoxes();
         paintMenu.classList.remove("show");
-        return;
-      }
-      if (selection.size === 0) return;
-      const mat = createMat(btn.dataset.variant!);
-      selection.forEach(o => {
-        applyVariant(o, mat);
-        updateLayout(o);
       });
-      updateBoxes();
-      paintMenu.classList.remove("show");
     });
-  });
+  }
 
   resetBtn.addEventListener("click", () => {
     if (subSelected) {
