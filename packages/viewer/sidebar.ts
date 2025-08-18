@@ -97,7 +97,7 @@ function showLibrary() {
   backBtn.hidden = true;
 }
 
-function showInfo(group: THREE.Object3D) {
+export function showInfo(group: THREE.Object3D) {
   console.log("infobutton clicked");
   sidebar.dataset.mode = "info";
   panelLibrary.classList.remove("active");
@@ -110,27 +110,55 @@ function showInfo(group: THREE.Object3D) {
 export function addUnitItem(group: THREE.Object3D, url: string) {
   if (libUrls.has(url)) return;
   libUrls.add(url);
+
   const li = document.createElement("li");
   li.className = "lib-item";
-  li.draggable = true;
+  li.setAttribute("draggable", "true");
   li.dataset.url = url;
+
   const img = document.createElement("img");
   img.width = 80;
   img.height = 60;
+  // img.draggable = false; // optioneel: zodat je alleen via li sleept
   li.appendChild(img);
+
   const row = document.createElement("div");
   row.className = "row";
+
   const span = document.createElement("span");
   span.className = "name";
   span.textContent = url.split("/").pop() || url;
+
   const infoBtn = document.createElement("button");
   infoBtn.className = "info";
+  infoBtn.type = "button";
   infoBtn.textContent = "i";
-  infoBtn.onclick = () => showInfo(group);
+  infoBtn.draggable = false;
+
+  // ⬇️ Kritiek: klik mag NIET veranderen in drag, en bubbelen blokkeren
+  infoBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    showInfo(group);
+  });
+  infoBtn.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+  });
+  infoBtn.addEventListener("dragstart", (e) => {
+    e.preventDefault();
+  });
+
   row.append(span, infoBtn);
   li.appendChild(row);
-  li.addEventListener("dragstart", ev => {
-    ev.dataTransfer?.setData("text", url);
+
+  // Alleen slepen als de oorsprong NIET de info-button is
+  li.addEventListener("dragstart", (ev) => {
+    const target = ev.target as HTMLElement;
+    if (target && target.closest("button.info")) {
+      ev.preventDefault(); // geen drag vanaf de info-button
+      return;
+    }
+    ev.dataTransfer?.setData("text/plain", url);
   });
   // Onderstaande line lijkt onbedoeld units te dupliceren in de unitList (de unit library)
   // unitList.appendChild(li);

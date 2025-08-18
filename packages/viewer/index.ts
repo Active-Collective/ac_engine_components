@@ -24,6 +24,7 @@ import {
   cartListItems,
   analyzeUnit,
   metaCache,
+  showInfo,
   renderMeta,
   clearInfo,
 } from "./sidebar";
@@ -764,6 +765,87 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
   }
 }
 
+// laad GLB offscreen en toon Info-paneel
+async function openInfoForUrl(url: string) {
+  try {
+    const gltf = await loadGltf(url);         // je bestaande loader
+    const temp = gltf.scene;                   // NIET aan world toevoegen
+    const info = analyzeUnit(temp, url);
+    metaCache.set(temp, info);
+    showInfo(temp);
+  } catch (e) {
+    console.warn("Info load failed for", url, e);
+  }
+}
+
+async function createLibraryItem(url: string): Promise<HTMLLIElement> {
+  const li = document.createElement("li");
+  li.className = "lib-item";
+  li.draggable = true;
+  li.dataset.url = url;
+
+  const img = document.createElement("img");
+  img.width = 80; img.height = 60;
+  img.src = "/path/to/placeholder.png"; // evt. eigen placeholder
+  img.draggable = false;
+  li.appendChild(img);
+
+  const row = document.createElement("div");
+  row.className = "row";
+
+  const span = document.createElement("span");
+  span.className = "name";
+  span.textContent = url.split("/").pop() || url;
+
+  const infoBtn = document.createElement("button");
+  infoBtn.className = "info";
+  infoBtn.type = "button";
+  infoBtn.textContent = "i";
+  infoBtn.draggable = false;
+
+  // klik betrouwbaar maken i.c.m. draggable li:
+  infoBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    openInfoForUrl(url);
+  });
+  infoBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+  infoBtn.addEventListener("dragstart", (e) => e.preventDefault());
+
+  row.append(span, infoBtn);
+  li.appendChild(row);
+
+  // dragstart alleen als niet vanaf de info-knop
+  li.addEventListener("dragstart", (ev) => {
+    const t = ev.target as HTMLElement;
+    if (t && t.closest("button.info")) {
+      ev.preventDefault();
+      return;
+    }
+    ev.dataTransfer?.setData("text/plain", url);
+  });
+
+  // thumbnail genereren (asynchroon)
+  try {
+    const thumb = await generateThumbnail(url);
+    img.src = thumb;
+  } catch (err) {
+    console.warn(`Thumbnail failed for ${url}`, err);
+  }
+
+  return li;
+}
+
+async function buildLibrary(urls: string[]) {
+  const list = document.getElementById("unitList") as HTMLUListElement | null;
+  if (!list) return;
+  list.innerHTML = "";
+  for (const url of urls) {
+    const li = await createLibraryItem(url); // serieel => minder GPU piek
+    list.appendChild(li);
+  }
+}
+
 /**
  * Entry point for the viewer. Sets up the world, UI elements and event
  * listeners, then loads the default models. This function is invoked at the
@@ -926,59 +1008,77 @@ export async function bootstrap() {
     new URL("../core/assets/simplified.glb", import.meta.url).href,
   ];
 
-  async function populateUnitList(urls: string[]) {
-    const list = document.getElementById("unitList");
-    if (!list) return;
-    list.innerHTML = "";
+  // async function populateUnitList(urls: string[]) {
+  //   const list = document.getElementById("unitList");
+  //   if (!list) return;
+  //   list.innerHTML = "";
 
-    // 1) loop serieel, zodat je netjes kunt await-en
-    for (const url of urls) {
-      const fileName = url.split("/").pop() || url;
+  //   // 1) loop serieel, zodat je netjes kunt await-en
+  //   for (const url of urls) {
+  //     const fileName = url.split("/").pop() || url;
 
-      // 2) li én img aanmaken
-      const li = document.createElement("li");
-      li.className = "lib-item";
-      li.setAttribute("draggable", "true");
-      li.dataset.url = url;
+  //     // 2) li én img aanmaken
+  //     const li = document.createElement("li");
+  //     li.className = "lib-item";
+  //     li.setAttribute("draggable", "true");
+  //     li.dataset.url = url;
 
-      const img = document.createElement("img");
-      img.width  = 80;
-      img.height = 60;
-      img.src    = "/path/to/placeholder.png";
-      li.appendChild(img);
+  //     const img = document.createElement("img");
+  //     img.width = 80;
+  //     img.height = 60;
+  //     img.src = "/path/to/placeholder.png";
+  //     li.appendChild(img);
 
-      // 3) thumbnail genereren en src aanpassen
-      try {
-        const thumb = await generateThumbnail(url);
-        img.src = thumb;
-      } catch (err) {
-        console.warn(`Thumbnail failed for ${url}`, err);
-      }
+  //     // 3) thumbnail genereren en src aanpassen
+  //     try {
+  //       const thumb = await generateThumbnail(url);
+  //       img.src = thumb;
+  //     } catch (err) {
+  //       console.warn(`Thumbnail failed for ${url}`, err);
+  //     }
 
-      // 4) de rest van je item maar wél in dezelfde scope
-      const divRow   = document.createElement("div");
-      divRow.className = "row";
+  //     // 4) de rest van je item maar wél in dezelfde scope
+  //     const divRow   = document.createElement("div");
+  //     divRow.className = "row";
 
-      const spanName = document.createElement("span");
-      spanName.className  = "name";
-      spanName.textContent = fileName;
+  //     const spanName = document.createElement("span");
+  //     spanName.className  = "name";
+  //     spanName.textContent = fileName;
 
-      const btnInfo = document.createElement("button");
-      btnInfo.className    = "info";
-      btnInfo.textContent  = "i";
+  //     const btnInfo = document.createElement("button");
+  //     btnInfo.className = "info";
+  //     btnInfo.type = "button";
+  //     btnInfo.textContent = "i";
+  //     btnInfo.draggable = false;
 
-      divRow.append(spanName, btnInfo);
-      li.append(divRow);
-      list.append(li);
+  //     // ⬇ click naar showInfo (offscreen)
+  //     btnInfo.addEventListener("click", (e) => {
+  //       e.stopPropagation();
+  //       e.preventDefault();
+  //       openInfoForUrl(url);
+  //     });
+  //     // ⬇ voorkom dat drag de click opslurpt
+  //     btnInfo.addEventListener("pointerdown", (e) => e.stopPropagation());
+  //     btnInfo.addEventListener("dragstart", (e) => e.preventDefault());
 
-      li.addEventListener("dragstart", e => {
-        e.dataTransfer!.setData("text/plain", url);
-      });
-    }
-  }
+  //     row.append(spanName, btnInfo);
+  //     li.append(divRow);
+  //     list.append(li);
+
+  //     // Alleen slepen als de oorsprong niet de info-button is
+  //     li.addEventListener("dragstart", (ev) => {
+  //       const t = ev.target as HTMLElement;
+  //       if (t && t.closest("button.info")) {
+  //         ev.preventDefault();
+  //         return;
+  //       }
+  //       ev.dataTransfer!.setData("text/plain", url);
+  //     });
+  //   }
+  // }
 
   // Dan roep je in bootstrap() na het definiëren van libUrls:
-  populateUnitList(libUrls);
+  await buildLibrary(libUrls);
 
   /** Remove the yellow hover box from the scene if present. */
   function clearHover() {

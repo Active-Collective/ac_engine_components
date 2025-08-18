@@ -178,6 +178,9 @@ body {
   gap: 10px;
 }
 
+.lib-item { user-select: none; }
+.lib-item .info { pointer-events: auto; }
+
 #settings{
   position:absolute;
   bottom:20px;
