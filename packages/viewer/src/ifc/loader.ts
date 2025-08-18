@@ -6,9 +6,6 @@ let ifcLoader: any;
 export async function setupIfc(world: any) {
   const components = (world && (world.components || world._components)) || new OBC.Components();
   ifcLoader = components.get(OBC.IfcLoader as any);
-  if (ifcLoader && ifcLoader.setup) {
-    await ifcLoader.setup();
-  }
   if (ifcLoader && ifcLoader.settings) {
     ifcLoader.settings.wasm = { path: '/wasm/', absolute: true };
     const wasmUrl = '/wasm/web-ifc.wasm';
@@ -21,12 +18,20 @@ export async function setupIfc(world: any) {
       console.warn(`Could not access ${wasmUrl}. Ensure the file exists and has the correct MIME type.`);
     }
   }
+  if (ifcLoader && ifcLoader.setup) {
+    await ifcLoader.setup();
+  }
 }
 
 export async function loadIfc(urlOrFile: string | File): Promise<{ modelID: number; root: THREE.Object3D }> {
   if (!ifcLoader) throw new Error('IFC loader not initialized');
   try {
-    const model: any = await ifcLoader.load(urlOrFile as any);
+    let data: any = urlOrFile;
+    if (typeof File !== 'undefined' && urlOrFile instanceof File) {
+      const buffer = await urlOrFile.arrayBuffer();
+      data = new Uint8Array(buffer);
+    }
+    const model: any = await ifcLoader.load(data as any);
     const root: any = model?.mesh || model?.root || model?.object || model;
     const modelID: number = model?.modelID || root?.modelID || 0;
     return { modelID, root };
