@@ -39,7 +39,10 @@ export function goView(name: keyof typeof views) {
 
 export function handleAction(action: 'orbit' | 'pan' | 'zoomExt') {
   if (action === 'zoomExt') {
-    camera.controls.fitToBox(getBounds(), true);
+    const box = getBounds();
+    if (!box.isEmpty()) {
+      camera.controls.fitToBox(box, true);
+    }
     return;
   }
   updateAction(action);

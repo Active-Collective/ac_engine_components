@@ -1474,10 +1474,10 @@ export async function bootstrap() {
       dup.onclick = () => {
         selection.forEach(sel => {
           let clone: THREE.Object3D;
-          const cg = (FRAGS as any)?.FragmentsGroup?.cloneGroup;
+          const cg = (sel as any)?.cloneGroup;
           if (typeof cg === "function") {
             try {
-              clone = cg(sel);
+              clone = cg.call(sel);
             } catch {
               clone = sel.clone(true);
             }

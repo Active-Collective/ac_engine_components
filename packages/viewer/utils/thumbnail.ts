@@ -38,9 +38,12 @@ export async function generateThumbnail(source: string | THREE.Object3D): Promis
   renderer.setClearColor(0x000000, 0);
 
   let clone: THREE.Object3D;
-  if (root instanceof FragmentsGroup) {
-    const cg = (FragmentsGroup as any).cloneGroup;
-    clone = typeof cg === 'function' ? cg(root as FragmentsGroup) : root;
+  if (root instanceof FragmentsGroup && typeof (root as any).cloneGroup === 'function') {
+    try {
+      clone = (root as any).cloneGroup();
+    } catch {
+      clone = root.clone(true);
+    }
   } else {
     clone = root.clone(true);
   }

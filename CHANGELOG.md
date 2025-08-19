@@ -12,6 +12,7 @@
 * IFC hardening: single IfcLoader, Uint8Array everywhere, port-agnostic assets, UI guards; GLB unaffected.
 * guard TransformControls attach to prevent null errors during selection.
 * fix FragmentsGroup cloning for duplication and library previews; use isObject3D to avoid TransformControls warnings.
+* clone fragment groups via instance method, restore unit list entries, and guard zoom extents on empty scenes.
 
 
 ## [2.4.0](https://github.com/ThatOpen/engine_components/compare/v2.3.0...v2.4.0) (2024-11-28)

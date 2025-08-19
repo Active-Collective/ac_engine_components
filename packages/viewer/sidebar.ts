@@ -160,8 +160,7 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
     }
     ev.dataTransfer?.setData("text/plain", url);
   });
-  // Onderstaande line lijkt onbedoeld units te dupliceren in de unitList (de unit library)
-  // unitList.appendChild(li);
+  unitList.appendChild(li);
   itemMap.set(group, li);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
@@ -171,10 +170,10 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   scene.add(light);
   let clone: THREE.Object3D;
-  const cg = (FRAGS as any)?.FragmentsGroup?.cloneGroup;
+  const cg = (group as any)?.cloneGroup;
   if (typeof cg === "function") {
     try {
-      clone = cg(group);
+      clone = cg.call(group);
     } catch {
       clone = group.clone(true);
     }
