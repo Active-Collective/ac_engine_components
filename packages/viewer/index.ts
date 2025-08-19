@@ -692,8 +692,6 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       if (li) {
         li.classList.add("active");
       }
-    } else {
-      console.warn("Geen cart-item gevonden voor object:", obj);
     }
   }
 
@@ -733,7 +731,7 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
         world.camera.three,
         world.renderer.three.domElement,
       );
-      if (c instanceof THREE.Object3D) {
+      if ((c as any)?.isObject3D) {
         controls = c;
         controls.setMode("translate");
         controls.showY = false;
@@ -766,7 +764,7 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       // Ensure the TransformControls instance comes from the same THREE build
       // before adding. This avoids "object not an instance" errors when
       // multiple Three.js copies slip into the bundle.
-      if (controls instanceof THREE.Object3D) {
+      if ((controls as any)?.isObject3D) {
         world.scene.three.add(controls);
       } else {
         console.warn("[IFC] incompatible TransformControls instance");
@@ -1476,8 +1474,13 @@ export async function bootstrap() {
       dup.onclick = () => {
         selection.forEach(sel => {
           let clone: THREE.Object3D;
-          if (sel instanceof FRAGS.FragmentsGroup && typeof (FRAGS.FragmentsGroup as any).cloneGroup === 'function') {
-            clone = (FRAGS.FragmentsGroup as any).cloneGroup(sel);
+          const cg = (FRAGS as any)?.FragmentsGroup?.cloneGroup;
+          if (typeof cg === "function") {
+            try {
+              clone = cg(sel);
+            } catch {
+              clone = sel.clone(true);
+            }
           } else {
             clone = sel.clone(true);
           }

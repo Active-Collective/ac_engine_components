@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import * as FRAGS from "@thatopen/fragments";
 
 import { selectObject, downloadLayoutJson, importLayoutFromFile } from "./index";
 import { exportToPdf } from "./utils/exportPdf";
@@ -169,7 +170,17 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   const cam = new THREE.PerspectiveCamera(35, 80 / 60, 0.1, 10);
   const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   scene.add(light);
-  const clone = group.clone(true);
+  let clone: THREE.Object3D;
+  const cg = (FRAGS as any)?.FragmentsGroup?.cloneGroup;
+  if (typeof cg === "function") {
+    try {
+      clone = cg(group);
+    } catch {
+      clone = group.clone(true);
+    }
+  } else {
+    clone = group.clone(true);
+  }
   scene.add(clone);
   const box = new THREE.Box3().setFromObject(clone);
   const size = box.getSize(new THREE.Vector3()).length();
