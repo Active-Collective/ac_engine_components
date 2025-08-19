@@ -760,6 +760,7 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
         world.scene.three.add(controls);
       } else {
         console.warn("[IFC] incompatible TransformControls instance");
+        return;
       }
     } else if (!controls.parent) {
       // Ensure the TransformControls instance comes from the same THREE build
@@ -767,12 +768,20 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       // multiple Three.js copies slip into the bundle.
       if (controls instanceof THREE.Object3D) {
         world.scene.three.add(controls);
+      } else {
+        console.warn("[IFC] incompatible TransformControls instance");
+        controls = null;
+        return;
       }
     }
 
-    controls.attach(selected);
-    attachNudge(selected);
-    if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
+    if (controls) {
+      controls.attach(selected);
+      attachNudge(selected);
+      if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
+    } else {
+      console.warn("[IFC] TransformControls unavailable, skipping attach");
+    }
   } else {
     controls?.detach();
     detachNudge();
