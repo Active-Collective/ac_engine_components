@@ -34,7 +34,7 @@ export async function loadIfc(source: string | File | Uint8Array): Promise<{ mod
   const type = source instanceof Uint8Array ? 'bytes' : typeof source === 'string' ? 'url' : 'file';
   console.log(`[IFC] loading ${name} (${type})`);
   try {
-    const model: any = await ifcLoader.load(bytes as any);
+    const model: any = await ifcLoader.load(bytes.slice() as any);
     const root: any = model?.mesh || model?.root || model?.object || model;
     const modelID: number = model?.modelID || root?.modelID || 0;
     console.log(`[IFC] loaded ${name} bytes=${bytes.byteLength}`);

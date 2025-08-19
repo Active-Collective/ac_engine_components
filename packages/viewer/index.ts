@@ -373,16 +373,21 @@ function detachHandle() {
  * when showing or hiding the nudge arrows around the selected model.
  */
 function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
-  if (!target.children.length) return;
+  const meshes: THREE.Mesh[] = [];
+  target.traverse(obj => {
+    const mesh = obj as THREE.Mesh & { material?: any };
+    if ((mesh as any).isMesh && mesh.material && typeof mesh.material.opacity === "number") {
+      meshes.push(mesh);
+    }
+  });
+  if (!meshes.length) return;
   const start = performance.now();
-  const first = target.children[0] as THREE.Mesh;
-  const from = (first.material as THREE.Material & { opacity: number }).opacity;
+  const from = (meshes[0].material as any).opacity;
   function step() {
     const t = Math.min(1, (performance.now() - start) / 200);
     const val = from + (to - from) * t;
-    target.children.forEach(c => {
-      const mat = (c as THREE.Mesh).material as THREE.Material & { opacity: number };
-      mat.opacity = val;
+    meshes.forEach(m => {
+      (m.material as any).opacity = val;
     });
     if (t < 1) requestAnimationFrame(step); else done && done();
   }
@@ -731,43 +736,40 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
         world.camera.three,
         world.renderer.three.domElement,
       );
-      if ((c as any)?.isObject3D) {
-        controls = c;
-        controls.setMode("translate");
-        controls.showY = false;
-        controls.translationSnap = grid.config.primarySize;
-        controls.addEventListener("dragging-changed", ev => {
-          if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
-          world.camera.controls.enabled = !ev.value;
-          if (nudgeGroup) nudgeGroup.visible = !ev.value;
-        });
-        controls.addEventListener("change", () => {
-          if (!controls || !controls.object) return;
-          const p = controls.object.position;
-          const size = grid.config.primarySize;
-          p.set(
-            Math.round(p.x / size) * size,
-            p.y,
-            Math.round(p.z / size) * size,
-          );
-          updateBoxes();
-          subBox?.update();
-          attachNudge(controls.object as THREE.Object3D);
-          updateLayout(controls.object as THREE.Object3D);
-        });
-        world.scene.three.add(controls);
-      } else {
-        console.warn("[IFC] incompatible TransformControls instance");
+      try {
+        world.scene.three.add(c);
+      } catch (err) {
+        console.warn("[IFC] TransformControls unavailable", err);
         return;
       }
+      controls = c;
+      controls.setMode("translate");
+      controls.showY = false;
+      controls.translationSnap = grid.config.primarySize;
+      controls.addEventListener("dragging-changed", ev => {
+        if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
+        world.camera.controls.enabled = !ev.value;
+        if (nudgeGroup) nudgeGroup.visible = !ev.value;
+      });
+      controls.addEventListener("change", () => {
+        if (!controls || !controls.object) return;
+        const p = controls.object.position;
+        const size = grid.config.primarySize;
+        p.set(
+          Math.round(p.x / size) * size,
+          p.y,
+          Math.round(p.z / size) * size,
+        );
+        updateBoxes();
+        subBox?.update();
+        attachNudge(controls.object as THREE.Object3D);
+        updateLayout(controls.object as THREE.Object3D);
+      });
     } else if (!controls.parent) {
-      // Ensure the TransformControls instance comes from the same THREE build
-      // before adding. This avoids "object not an instance" errors when
-      // multiple Three.js copies slip into the bundle.
-      if ((controls as any)?.isObject3D) {
+      try {
         world.scene.three.add(controls);
-      } else {
-        console.warn("[IFC] incompatible TransformControls instance");
+      } catch (err) {
+        console.warn("[IFC] TransformControls unavailable", err);
         controls = null;
         return;
       }

@@ -186,8 +186,14 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   const center = box.getCenter(new THREE.Vector3());
   cam.position.copy(center).addScalar(size);
   cam.lookAt(center);
-  renderer.render(scene, cam);
-  img.src = renderer.domElement.toDataURL();
+  let snapshot: string | null = null;
+  try {
+    renderer.render(scene, cam);
+    snapshot = renderer.domElement.toDataURL();
+  } catch (err) {
+    console.warn("[IFC] thumbnail render failed", err);
+  }
+  img.src = snapshot || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
   renderer.dispose();
 }
 
