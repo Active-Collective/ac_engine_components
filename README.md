@@ -56,13 +56,14 @@ The bundled viewer example now relies solely on `@thatopen/components`; the brow
 2. From the repository root run:
    ```bash
    yarn install
-   yarn workspace @thatopen/viewer-example dev --host
+   cd packages/viewer
+   yarn dev --host
    ```
 3. Open <http://localhost:5173> to launch the viewer example.
 
 ### IFC and glTF models
 
-Place `.ifc` files inside `packages/core/assets/` next to the sample `.glb` units and reference them by URL. The viewer supports loading both `.glb` and `.ifc` files. During `yarn install` the required `web-ifc.wasm` file is copied to `packages/viewer/public/wasm/`.
+Place `.ifc` files inside `packages/core/assets/` next to the sample `.glb` units and reference them by pathname. The viewer supports loading both `.glb` and `.ifc` files. The WebAssembly module is expected at `/wasm/web-ifc.wasm`.
 
 ## Usage
 

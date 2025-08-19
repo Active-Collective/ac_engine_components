@@ -695,7 +695,7 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       controls?.detach();
       detachNudge();
       selected = null;
-      if (sidebarEl.dataset.mode === "info") clearInfo();
+      if (sidebarEl?.dataset.mode === "info") clearInfo();
     }
     updateBoxes();
     return;
@@ -760,24 +760,30 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
 
     controls.attach(selected);
     attachNudge(selected);
-    if (sidebarEl.dataset.mode === "info") renderMeta(selected);
+    if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
   } else {
     controls?.detach();
     detachNudge();
-    if (sidebarEl.dataset.mode === "info") clearInfo();
+    if (sidebarEl?.dataset.mode === "info") clearInfo();
   }
 }
 
 // laad GLB offscreen en toon Info-paneel
 async function openInfoForUrl(url: string) {
   try {
-    const gltf = await loadGltf(url);         // je bestaande loader
-    const temp = gltf.scene;                   // NIET aan world toevoegen
-    const info = analyzeUnit(temp, url);
-    metaCache.set(temp, info);
-    showInfo(temp);
+    let root: THREE.Object3D;
+    if (/\.ifc(zip)?$/i.test(url)) {
+      const { root: r } = await loadIfc(url);
+      root = r;
+    } else {
+      const gltf = await loadGltf(url);
+      root = gltf.scene;
+    }
+    const info = analyzeUnit(root, url);
+    metaCache.set(root, info);
+    showInfo(root);
   } catch (e) {
-    console.warn("Info load failed for", url, e);
+    console.warn('[IFC] info load failed for', url, e);
   }
 }
 
@@ -789,7 +795,7 @@ async function createLibraryItem(url: string): Promise<HTMLLIElement> {
 
   const img = document.createElement("img");
   img.width = 80; img.height = 60;
-  img.src = "/path/to/placeholder.png"; // evt. eigen placeholder
+  img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAGgwJ/lqY5WQAAAABJRU5ErkJggg==';
   img.draggable = false;
   li.appendChild(img);
 
@@ -833,7 +839,7 @@ async function createLibraryItem(url: string): Promise<HTMLLIElement> {
     const thumb = await generateThumbnail(url);
     img.src = thumb;
   } catch (err) {
-    console.warn(`Thumbnail failed for ${url}`, err);
+    console.warn(`[IFC] thumbnail failed for ${url}`, err);
   }
 
   return li;
@@ -855,15 +861,19 @@ async function buildLibrary(urls: string[]) {
  * bottom of the file.
  */
 export async function bootstrap() {
-  const container = document.getElementById("viewer") as HTMLDivElement;
-  const fileInput = document.getElementById("fileInput") as HTMLInputElement;
-  const paintMenu = document.getElementById("paintMenu") as HTMLDivElement;
-  const paintBtn = document.getElementById("paintBtn") as HTMLButtonElement;
-  const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
+  const container = document.getElementById("viewer") as HTMLDivElement | null;
+  const fileInput = document.getElementById("fileInput") as HTMLInputElement | null;
+  const paintMenu = document.getElementById("paintMenu") as HTMLDivElement | null;
+  const paintBtn = document.getElementById("paintBtn") as HTMLButtonElement | null;
+  const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement | null;
   initSidebar();
-  const sidebarEl = document.getElementById("sidebar") as HTMLElement;
-  const placedList = document.getElementById("placedList") as HTMLUListElement;
+  const sidebarEl = document.getElementById("sidebar") as HTMLElement | null;
+  const placedList = document.getElementById("placedList") as HTMLUListElement | null;
   const placedListItem = document.querySelectorAll("#placedList .cart-item");
+  if (!container) {
+    console.warn('[IFC] viewer container missing');
+    return;
+  }
   const menu = document.createElement("div");
   menu.id = "contextMenu";
   Object.assign(menu.style, {
@@ -875,7 +885,7 @@ export async function bootstrap() {
     display: "none",
   });
   document.body.appendChild(menu);
-  placedList.addEventListener("remove-unit", ev => {
+  placedList?.addEventListener("remove-unit", ev => {
     const group = (ev as CustomEvent).detail as THREE.Object3D;
     deleteUnit(group);
     selection.delete(group);
@@ -924,29 +934,29 @@ export async function bootstrap() {
   grid.config.secondarySize = grid.config.primarySize;
   verticalSnap = floors[0].height;
   initSettings();
-  snapInput.value = String(grid.config.primarySize);
-  snapHeightInput.value = String(floors[0].height);
-  gridColorInput.value = `#${grid.config.color.getHexString()}`;
-  bgInput.value = "#f0f0f0";
-  snapInput.addEventListener("change", () => {
-    const v = parseFloat(snapInput.value) || 1;
+  snapInput && (snapInput.value = String(grid.config.primarySize));
+  snapHeightInput && (snapHeightInput.value = String(floors[0].height));
+  gridColorInput && (gridColorInput.value = `#${grid.config.color.getHexString()}`);
+  bgInput && (bgInput.value = "#f0f0f0");
+  snapInput?.addEventListener("change", () => {
+    const v = parseFloat(snapInput!.value) || 1;
     grids.forEach(g => {
       g.config.primarySize = v;
       g.config.secondarySize = v;
     });
     if (controls) controls.translationSnap = v;
   });
-  snapHeightInput.addEventListener("change", () => {
-    const v = parseFloat(snapHeightInput.value) || 1;
+  snapHeightInput?.addEventListener("change", () => {
+    const v = parseFloat(snapHeightInput!.value) || 1;
     verticalSnap = v;
     floors.forEach(f => (f.height = v));
     setActiveFloor(currentLevel);
   });
-  gridColorInput.addEventListener("change", () => {
-    grid.config.color = new THREE.Color(gridColorInput.value);
+  gridColorInput?.addEventListener("change", () => {
+    grid.config.color = new THREE.Color(gridColorInput!.value);
   });
-  bgInput.addEventListener("change", () => {
-    const col = new THREE.Color(bgInput.value);
+  bgInput?.addEventListener("change", () => {
+    const col = new THREE.Color(bgInput!.value);
     world.renderer.three.setClearColor(col);
     world.scene.three.background = col;
   });
@@ -1011,7 +1021,7 @@ export async function bootstrap() {
     "unit_test.ifc",
   ];
   const libUrls = assetFiles.map(name =>
-    new URL(`../core/assets/${name}`, import.meta.url).href
+    new URL(`../core/assets/${name}`, import.meta.url).pathname
   );
 
   // async function populateUnitList(urls: string[]) {
@@ -1136,7 +1146,7 @@ export async function bootstrap() {
   ) {
     let modelID = -1;
     let root: THREE.Object3D;
-    const url = typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name;
+    const url = typeof urlOrFile === 'string' ? new URL(urlOrFile, window.location.origin).pathname : urlOrFile.name;
 
     if (typeof urlOrFile === 'string') {
       if (/\.ifc(zip)?$/i.test(urlOrFile)) {
@@ -1316,7 +1326,7 @@ export async function bootstrap() {
 
   world.renderer.three.domElement.addEventListener("pointermove", ev => {
     if (controls && (controls as any).dragging) return;
-    const rect = container.getBoundingClientRect();
+    const rect = container!.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((ev.clientX - rect.left) / rect.width) * 2 - 1,
       -((ev.clientY - rect.top) / rect.height) * 2 + 1,
@@ -1467,7 +1477,7 @@ export async function bootstrap() {
 
   // Allow dropping a library item onto the canvas
   // Sta dragover toe en update ghost-positie
-  container.addEventListener("dragover", ev => {
+  container?.addEventListener("dragover", ev => {
       ev.preventDefault();
 
       // ➜ plane op de actieve floor zetten
@@ -1505,13 +1515,13 @@ export async function bootstrap() {
 
 
   // Verberg ghost wanneer je container verlaat
-  container.addEventListener("dragleave", (ev) => {
+  container?.addEventListener("dragleave", (ev) => {
     // Alleen verbergen als we écht de container verlaten
     if (!container.contains(ev.relatedTarget as Node)) hideDropGhost();
   });
 
   // Beste plek om ghost te verwijderen is bij drop
-  container.addEventListener("drop", async ev => {
+  container?.addEventListener("drop", async ev => {
     ev.preventDefault();
     hideDropGhost();
 
@@ -1534,11 +1544,15 @@ export async function bootstrap() {
     if (!hit) return;
 
     const step = grids[currentLevel].config.primarySize;
-    point.x = Math.round(point.x / step);
-
-    const { object } = await addModel(url, point, currentLevel);
-    selectObject(object);
-    // (rest van jouw bestaande drop-code kun je laten staan)
+    point.x = Math.round(point.x / step) * step;
+    point.z = Math.round(point.z / step) * step;
+    point.y = currentLevel * floors[currentLevel].height;
+    try {
+      const { object } = await addModel(url, point, currentLevel);
+      selectObject(object);
+    } catch (err) {
+      console.error(`[IFC] load error ${url} (drag-drop)`, err);
+    }
   });
 
   // Veiligheid: als drag wordt beëindigd buiten drop
@@ -1672,20 +1686,24 @@ export async function bootstrap() {
   fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
-    if (!file.name.match(/\.glb$|\.gltf$/i)) {
+    if (!file.name.match(/\.ifc(zip)?$|\.glb$|\.gltf$/i)) {
       alert("Invalid file type");
       return;
     }
-    const url = URL.createObjectURL(file);
-    const { object, width } = await addModel(
-      url,
-      new THREE.Vector3(offset, currentLevel * floors[currentLevel].height, 0),
-      currentLevel
-    );
-    offset += width;
-    selectObject(object);
-    addCartItem(object);
-    updateLayout(object);
+    try {
+      const source = file.name.match(/\.glb$|\.gltf$/i) ? URL.createObjectURL(file) : file;
+      const { object, width } = await addModel(
+        source,
+        new THREE.Vector3(offset, currentLevel * floors[currentLevel].height, 0),
+        currentLevel
+      );
+      offset += width;
+      selectObject(object);
+      addCartItem(object);
+      updateLayout(object);
+    } catch (err) {
+      console.error(`[IFC] load error ${file.name} (file-input)`, err);
+    }
   });
 
   if (paintBtn && paintMenu) {
@@ -1710,7 +1728,7 @@ export async function bootstrap() {
     });
   }
 
-  resetBtn.addEventListener("click", () => {
+  resetBtn?.addEventListener("click", () => {
     if (subSelected) {
       resetMaterial(subSelected);
       subBox?.update();

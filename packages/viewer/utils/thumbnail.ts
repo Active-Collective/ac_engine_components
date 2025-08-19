@@ -4,6 +4,7 @@ import { loadIfc } from '../src/ifc/loader';
 
 const thumbSize = { width: 160, height: 120 };
 const gltfLoader = new GLTFLoader();
+const PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAGgwJ/lqY5WQAAAABJRU5ErkJggg==';
 
 /**
  * Generate a thumbnail for a given model source. The source can be a URL to a
@@ -15,6 +16,7 @@ export async function generateThumbnail(source: string | THREE.Object3D): Promis
   try {
     if (typeof source === 'string') {
       if (/\.ifc(zip)?$/i.test(source)) {
+        console.log(`[IFC] thumbnail load ${source}`);
         const { root: r } = await loadIfc(source);
         root = r;
       } else {
@@ -25,8 +27,8 @@ export async function generateThumbnail(source: string | THREE.Object3D): Promis
       root = source;
     }
   } catch (error) {
-    console.warn(`Thumbnail failed for ${source}`, error);
-    return '';
+    console.warn(`[IFC] thumbnail failed for ${source}`, error);
+    return PLACEHOLDER;
   }
 
   const scene = new THREE.Scene();
