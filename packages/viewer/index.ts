@@ -8,6 +8,7 @@ import * as THREE from "three";
 // TransformControls helper for translation/rotation gizmos.
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import * as FRAGS from "@thatopen/fragments";
 import { setupIfc, loadIfc } from "./src/ifc/loader";
 import { buildIndex, picked, byStorey } from "./src/ifc";
 import { setStoreys } from "./src/ifc/storeys";
@@ -372,15 +373,16 @@ function detachHandle() {
  * when showing or hiding the nudge arrows around the selected model.
  */
 function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
+  if (!target.children.length) return;
   const start = performance.now();
-  const from = (target.children[0] as THREE.ArrowHelper).cone.material.opacity;
+  const first = target.children[0] as THREE.Mesh;
+  const from = (first.material as THREE.Material & { opacity: number }).opacity;
   function step() {
     const t = Math.min(1, (performance.now() - start) / 200);
     const val = from + (to - from) * t;
     target.children.forEach(c => {
-      const a = c as THREE.ArrowHelper;
-      (a.cone.material as THREE.Material & { opacity: number }).opacity = val;
-      (a.line.material as THREE.Material & { opacity: number }).opacity = val;
+      const mat = (c as THREE.Mesh).material as THREE.Material & { opacity: number };
+      mat.opacity = val;
     });
     if (t < 1) requestAnimationFrame(step); else done && done();
   }
@@ -727,33 +729,38 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
 
   if (selection.size === 1 && selected) {
     if (!controls) {
-      controls = new TransformControls(
+      const c = new TransformControls(
         world.camera.three,
         world.renderer.three.domElement,
       );
-      controls.setMode("translate");
-      controls.showY = false;
-      controls.translationSnap = grid.config.primarySize;
-      controls.addEventListener("dragging-changed", ev => {
-        if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
-        world.camera.controls.enabled = !ev.value;
-        if (nudgeGroup) nudgeGroup.visible = !ev.value;
-      });
-      controls.addEventListener("change", () => {
-        if (!controls || !controls.object) return;
-        const p = controls.object.position;
-        const size = grid.config.primarySize;
-        p.set(
-          Math.round(p.x / size) * size,
-          p.y,
-          Math.round(p.z / size) * size,
-        );
-        updateBoxes();
-        subBox?.update();
-        attachNudge(controls.object as THREE.Object3D);
-        updateLayout(controls.object as THREE.Object3D);
-      });
-      world.scene.three.add(controls);
+      if (c instanceof THREE.Object3D) {
+        controls = c;
+        controls.setMode("translate");
+        controls.showY = false;
+        controls.translationSnap = grid.config.primarySize;
+        controls.addEventListener("dragging-changed", ev => {
+          if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
+          world.camera.controls.enabled = !ev.value;
+          if (nudgeGroup) nudgeGroup.visible = !ev.value;
+        });
+        controls.addEventListener("change", () => {
+          if (!controls || !controls.object) return;
+          const p = controls.object.position;
+          const size = grid.config.primarySize;
+          p.set(
+            Math.round(p.x / size) * size,
+            p.y,
+            Math.round(p.z / size) * size,
+          );
+          updateBoxes();
+          subBox?.update();
+          attachNudge(controls.object as THREE.Object3D);
+          updateLayout(controls.object as THREE.Object3D);
+        });
+        world.scene.three.add(controls);
+      } else {
+        console.warn("[IFC] incompatible TransformControls instance");
+      }
     } else if (!controls.parent) {
       // Ensure the TransformControls instance comes from the same THREE build
       // before adding. This avoids "object not an instance" errors when
@@ -1459,7 +1466,12 @@ export async function bootstrap() {
       dup.textContent = `Duplicate to floor ${i}`;
       dup.onclick = () => {
         selection.forEach(sel => {
-          const clone = sel.clone(true);
+          let clone: THREE.Object3D;
+          if (sel instanceof FRAGS.FragmentsGroup && typeof (FRAGS.FragmentsGroup as any).cloneGroup === 'function') {
+            clone = (FRAGS.FragmentsGroup as any).cloneGroup(sel);
+          } else {
+            clone = sel.clone(true);
+          }
           world.scene.three.add(clone);
           addUnitToLevel(clone, i);
           const cid = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);

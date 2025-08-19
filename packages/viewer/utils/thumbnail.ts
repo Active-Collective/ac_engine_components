@@ -37,9 +37,13 @@ export async function generateThumbnail(source: string | THREE.Object3D): Promis
   renderer.setSize(thumbSize.width, thumbSize.height);
   renderer.setClearColor(0x000000, 0);
 
-  const clone = root instanceof FragmentsGroup
-    ? FragmentsGroup.cloneGroup(root as FragmentsGroup)
-    : root.clone(true);
+  let clone: THREE.Object3D;
+  if (root instanceof FragmentsGroup) {
+    const cg = (FragmentsGroup as any).cloneGroup;
+    clone = typeof cg === 'function' ? cg(root as FragmentsGroup) : root;
+  } else {
+    clone = root.clone(true);
+  }
   scene.add(clone);
 
   const box = new THREE.Box3().setFromObject(clone);
