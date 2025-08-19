@@ -15,9 +15,9 @@ small but extendable viewer.
 3. Open [http://localhost:5173](http://localhost:5173).
    The viewer now uses [Bootstrap](https://getbootstrap.com/) and a fixed 1920×1080 canvas so you can place additional elements around it.
 
-Four demo units (`unit1.glb` … `unit4.glb`) will appear side by side if they are
-present under `packages/core/assets`. Drag items from the library sidebar or
-choose a file via the **Choose file** button at the bottom of the sidebar.
+The sample `unit_test.ifc` will appear if present under
+`packages/core/assets`. Drag items from the library sidebar or choose a file via
+the **Choose file** button at the bottom of the sidebar.
 
 ## Features
 
@@ -27,9 +27,8 @@ choose a file via the **Choose file** button at the bottom of the sidebar.
 | **Nudge arrows** | Select a model to display six arrows for precise movement. See **`createNudgeGizmos`** in **`index.ts`**. | `index.ts` |
 | **Multi-selection** | Hold Shift while clicking to select several models at once for rotation or recoloring. | `index.ts` |
 | **Keyboard controls** | Move with arrow keys or WASD/QE, rotate with `R` and delete with Backspace/Delete. Use Cmd/Ctrl+Z to undo the last move. Shift+click allows selecting multiple models. | `index.ts` |
-| **Material palette** | Right‑click a mesh to recolor it. Material logic lives in **`applyVariant`** and **`resetMaterial`**. | `index.ts` |
 | **Metadata sidebar** | Each loaded model is analyzed in **`sidebar.ts`** to display mesh counts and materials. | `sidebar.ts` |
-| **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. The paint brush reveals a palette for textures and colors. | `nav-controls.ts` |
+| **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. | `nav-controls.ts` |
 | **Layout persistence** | Added/placed units restore after reload using `localStorage`. | `index.ts` |
 | **Bootstrap UI** | Modern components and tooltips styled with Bootstrap 5. | `index.html` |
 
@@ -46,4 +45,12 @@ yarn workspace viewer build
 The built files are output to `packages/viewer/dist`.
 
 
+
+## IFC-only acceptance checklist
+
+- `/wasm/web-ifc.wasm` is served (HTTP 200)
+- Load at least two IFC models via library or file input
+- Selected units snap to the grid on XZ and rotate in 90° Y steps
+- Level bar lists storeys and ghosts inactive ones
+- Sidebar shows GlobalId, IfcClass and Storey for the selected element
 

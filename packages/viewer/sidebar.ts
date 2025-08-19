@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import * as FRAGS from "@thatopen/fragments";
 
 import { selectObject, downloadLayoutJson, importLayoutFromFile } from "./index";
 import { exportToPdf } from "./utils/exportPdf";
@@ -9,6 +10,7 @@ export interface UnitMeta {
   tris: number;
   mats: { name: string; color: string; texture?: string }[];
   layers: string[];
+  origin: [number, number, number];
 }
 
 export const metaCache = new WeakMap<THREE.Object3D, UnitMeta>();
@@ -159,8 +161,7 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
     }
     ev.dataTransfer?.setData("text/plain", url);
   });
-  // Onderstaande line lijkt onbedoeld units te dupliceren in de unitList (de unit library)
-  // unitList.appendChild(li);
+  unitList.appendChild(li);
   itemMap.set(group, li);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
@@ -169,15 +170,31 @@ export function addUnitItem(group: THREE.Object3D, url: string) {
   const cam = new THREE.PerspectiveCamera(35, 80 / 60, 0.1, 10);
   const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   scene.add(light);
-  const clone = group.clone(true);
+  let clone: THREE.Object3D;
+  const cg = (group as any)?.cloneGroup;
+  if (typeof cg === "function") {
+    try {
+      clone = cg.call(group);
+    } catch {
+      clone = group.clone(true);
+    }
+  } else {
+    clone = group.clone(true);
+  }
   scene.add(clone);
   const box = new THREE.Box3().setFromObject(clone);
   const size = box.getSize(new THREE.Vector3()).length();
   const center = box.getCenter(new THREE.Vector3());
   cam.position.copy(center).addScalar(size);
   cam.lookAt(center);
-  renderer.render(scene, cam);
-  img.src = renderer.domElement.toDataURL();
+  let snapshot: string | null = null;
+  try {
+    renderer.render(scene, cam);
+    snapshot = renderer.domElement.toDataURL();
+  } catch (err) {
+    console.warn("[IFC] thumbnail render failed", err);
+  }
+  img.src = snapshot || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
   renderer.dispose();
 }
 
@@ -218,7 +235,15 @@ export function removeCartItem(group: THREE.Object3D) {
 }
 
 export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
-  const meta: UnitMeta = { file: url.split("/").pop() || url, meshes: 0, tris: 0, mats: [], layers: [] };
+  const zero = (group.userData as any).zero as THREE.Vector3 | undefined;
+  const meta: UnitMeta = {
+    file: url.split("/").pop() || url,
+    meshes: 0,
+    tris: 0,
+    mats: [],
+    layers: [],
+    origin: zero ? [zero.x, zero.y, zero.z] : [0, 0, 0],
+  };
   const mats = new Map<string, { name: string; color: string; texture?: string }>();
   const layers = new Set<string>();
   group.traverse(obj => {
@@ -264,6 +289,7 @@ export function renderMeta(group: THREE.Object3D) {
   add("File", meta.file);
   add("Meshes", String(meta.meshes));
   add("Triangles", String(meta.tris));
+  add("Origin", meta.origin.map(n => n.toFixed(2)).join(", "));
   if (meta.layers.length) add("Layers", meta.layers.join(", "));
   if (meta.mats.length) {
     const rows = meta.mats.map(m => `${m.name || "mat"} #${m.color}`).join(", ");
