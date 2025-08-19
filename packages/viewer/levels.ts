@@ -93,14 +93,14 @@ export function moveUnitToLevel(obj: THREE.Object3D, level: number) {
   unitsByLevel[old] = unitsByLevel[old].filter(o => o !== obj);
   unitsByLevel[level].push(obj);
   obj.userData.level = level;
-  obj.position.y = level * floors[level].height;
+  obj.position.y = level * floors[level].height - ((obj.userData.zero?.y) || 0);
 }
 
 export function updateFloor(index: number, cfg: Partial<FloorCfg>) {
   Object.assign(floors[index], cfg);
   setActiveFloor(currentLevel);
   unitsByLevel[index].forEach(obj => {
-    obj.position.y = index * floors[index].height;
+    obj.position.y = index * floors[index].height - ((obj.userData.zero?.y) || 0);
   });
 }
 

@@ -10,6 +10,7 @@
 * **viewer:** drop `@thatopen/components-front` dependency to streamline example setup.
 * **viewer:** copy `web-ifc.wasm` during install instead of committing the binary.
 * IFC hardening: single IfcLoader, Uint8Array everywhere, port-agnostic assets, UI guards; GLB unaffected.
+* align IFC unit origins to ground and hide extra TransformControls gizmos.
 * guard TransformControls attach to prevent null errors during selection.
 * fix FragmentsGroup cloning for duplication and library previews; use isObject3D to avoid TransformControls warnings.
 * clone fragment groups via instance method, restore unit list entries, and guard zoom extents on empty scenes.

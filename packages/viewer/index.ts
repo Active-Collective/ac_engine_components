@@ -753,31 +753,12 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       );
       const helper = (c as any).getHelper?.() ?? c;
       if ((helper as any).isObject3D) {
+        helper.visible = false;
+        c.showX = c.showY = c.showZ = false;
+        c.enabled = false;
         world.scene.three.add(helper);
         controls = c;
         controlsHelper = helper as THREE.Object3D;
-        controls.setMode("translate");
-        controls.showY = false;
-        controls.translationSnap = grid.config.primarySize;
-        controls.addEventListener("dragging-changed", ev => {
-          if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
-          world.camera.controls.enabled = !ev.value;
-          if (nudgeGroup) nudgeGroup.visible = !ev.value;
-        });
-        controls.addEventListener("change", () => {
-          if (!controls || !controls.object) return;
-          const p = controls.object.position;
-          const size = grid.config.primarySize;
-          p.set(
-            Math.round(p.x / size) * size,
-            p.y,
-            Math.round(p.z / size) * size,
-          );
-          updateBoxes();
-          subBox?.update();
-          attachNudge(controls.object as THREE.Object3D);
-          updateLayout(controls.object as THREE.Object3D);
-        });
       } else {
         console.warn("[IFC] incompatible TransformControls instance");
         controls = null;
@@ -787,13 +768,9 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       world.scene.three.add(controlsHelper);
     }
 
-    if (controls) {
-      controls.attach(selected);
-    }
     attachNudge(selected);
     if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
   } else {
-    controls?.detach();
     detachNudge();
     if (sidebarEl?.dataset.mode === "info") clearInfo();
   }
@@ -1175,6 +1152,7 @@ export async function bootstrap() {
     position = new THREE.Vector3(),
     level = currentLevel,
     displayUrl?: string,
+    isWorld = false,
   ) {
     let modelID = -1;
     let root: THREE.Object3D;
@@ -1225,8 +1203,8 @@ export async function bootstrap() {
     // kunnen tonen in het infovenster en de offset niet verliezen.
     (root.userData as any).zero = bounds.min.clone();
 
-    // Respecteer het nulpunt van het model door de positie direct toe te
-    // wijzen zonder correctie op basis van de bounding box.
+    // Corrigeer de positie met het oorspronkelijke nulpunt zodat de onderzijde op het grid rust.
+    if (!isWorld) position.y -= bounds.min.y;
     root.position.copy(position);
 
     world.scene.three.add(root);
@@ -1307,7 +1285,7 @@ export async function bootstrap() {
           errors.push(`Item ${i}: blob-URL kan niet opnieuw geladen worden (${it.url}).`);
           continue;
         }
-        const { object } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level ?? 0);
+        const { object } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level ?? 0, undefined, true);
         object.rotation.y = typeof it.rot === "number" ? it.rot : 0;
       } catch (e: any) {
         errors.push(`Item ${i} (${it?.url ?? "?"}): ${e?.message ?? e}`);
@@ -1342,7 +1320,7 @@ export async function bootstrap() {
     try {
       const items = JSON.parse(saved) as LayoutItem[];
       for (const it of items) {
-        const { object, width } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level);
+        const { object, width } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level, undefined, true);
         object.rotation.y = it.rot;
         offset = Math.max(offset, object.position.x + width);
       }
