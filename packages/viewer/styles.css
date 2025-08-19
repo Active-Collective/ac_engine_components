@@ -76,6 +76,16 @@ body {
 .panel{display:none;height:calc(100% - 32px);overflow:auto;padding:4px;}
 .panel.active{display:block;}
 
+.param-banner{
+  background:#fffa8b;
+  border:1px solid #e0c200;
+  padding:8px;
+  border-radius:4px;
+  margin-bottom:8px;
+  font-size:12px;
+}
+.param-banner button{margin:2px 4px 0 0;}
+
 #unitList{
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -1,7 +1,16 @@
 import * as THREE from "three";
 import * as FRAGS from "@thatopen/fragments";
+import * as WEBIFC from "web-ifc";
+import { getUnitDimensions } from "./src/logic/dimensions";
 
-import { selectObject, downloadLayoutJson, importLayoutFromFile } from "./index";
+import {
+  selectObject,
+  downloadLayoutJson,
+  importLayoutFromFile,
+  clipSelected,
+  makeTransparentSelected,
+  resetVisuals,
+} from "./index";
 import { exportToPdf } from "./utils/exportPdf";
 
 export interface UnitMeta {
@@ -11,6 +20,15 @@ export interface UnitMeta {
   mats: { name: string; color: string; texture?: string }[];
   layers: string[];
   origin: [number, number, number];
+  dims?: {
+    width: number;
+    depth: number;
+    height: number;
+    area?: number;
+    volume?: number;
+    source: "qto" | "box";
+  };
+  parameterTests?: { raw: string; side: "A" | "B" | "C" | "D" | "E" }[];
 }
 
 export const metaCache = new WeakMap<THREE.Object3D, UnitMeta>();
@@ -31,6 +49,7 @@ let toggleBtn: HTMLButtonElement;
 let tabBtn: HTMLElement;
 let pdfOptions: HTMLElement;
 let jsonButtons: HTMLElement;
+let paramContainer: HTMLDivElement;
 
 export function initSidebar() {
   sidebar = document.getElementById("sidebar") as HTMLElement;
@@ -45,6 +64,9 @@ export function initSidebar() {
   tabBtn = document.getElementById("sidebarTab") as HTMLElement;
   pdfOptions = document.getElementById("pdfOptions") as HTMLElement;
   jsonButtons = document.getElementById("jsonButtons") as HTMLElement;
+  paramContainer = document.createElement("div");
+  paramContainer.hidden = true;
+  panelInfo.prepend(paramContainer);
 
   const toggle = () => sidebar.classList.toggle("collapsed");
   toggleBtn.onclick = toggle;
@@ -234,7 +256,10 @@ export function removeCartItem(group: THREE.Object3D) {
   cartMap.delete(group);
 }
 
-export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
+export async function analyzeUnit(
+  group: THREE.Object3D,
+  url: string,
+): Promise<UnitMeta> {
   const zero = (group.userData as any).zero as THREE.Vector3 | undefined;
   const meta: UnitMeta = {
     file: url.split("/").pop() || url,
@@ -269,23 +294,84 @@ export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
   });
   meta.mats = Array.from(mats.values());
   meta.layers = Array.from(layers);
+  meta.parameterTests = await getParameterTests(group as FRAGS.FragmentsGroup);
+  meta.dims = await getUnitDimensions(group as FRAGS.FragmentsGroup, {
+    modelID: (group as any).modelID,
+    expressID: (group as any).expressID,
+  });
   return meta;
 }
+
+async function getParameterTests(group: FRAGS.FragmentsGroup) {
+  const out: { raw: string; side: "A" | "B" | "C" | "D" | "E" }[] = [];
+  try {
+    const psets = await group.getAllPropertiesOfType(WEBIFC.IFCPROPERTYSET);
+    if (!psets) return out;
+    for (const pset of Object.values(psets) as any[]) {
+      const props = pset.HasProperties || [];
+      for (const h of props) {
+        const prop = await group.getProperties(h.value);
+        if (prop?.Name?.value === "ParameterTest") {
+          const raw = String(prop.NominalValue?.value ?? "");
+          const side = raw.trim().toUpperCase()[0] as any;
+          if (["A", "B", "C", "D", "E"].includes(side)) {
+            out.push({ raw, side });
+          }
+        }
+      }
+    }
+  } catch {
+    /* empty */
+  }
+  return out;
+}
+
 
 function countTris(mesh: THREE.Mesh) {
   const g = mesh.geometry;
   return g.index ? g.index.count / 3 : g.attributes.position.count / 3;
 }
 
-export function renderMeta(group: THREE.Object3D) {
+export async function renderMeta(group: THREE.Object3D) {
   const meta = metaCache.get(group);
   if (!meta) return;
+  meta.dims = await getUnitDimensions(group as FRAGS.FragmentsGroup, {
+    modelID: (group as any).modelID,
+    expressID: (group as any).expressID,
+  });
   metaTable.innerHTML = "";
   const add = (k: string, v: string) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `<th>${k}</th><td>${v}</td>`;
     metaTable.appendChild(tr);
   };
+
+  if (paramContainer) {
+    paramContainer.innerHTML = "";
+    const tests = meta.parameterTests || [];
+    tests.forEach(t => {
+      const banner = document.createElement("div");
+      banner.className = "param-banner";
+      const msg = document.createElement("div");
+      msg.textContent = `ParameterTest: ${t.raw}`;
+      const openBtn = document.createElement("button");
+      openBtn.textContent = `Open side ${t.side}`;
+      openBtn.onclick = () => clipSelected(t.side);
+      const tBtn = document.createElement("button");
+      tBtn.textContent = "Make transparent";
+      tBtn.onclick = () => makeTransparentSelected();
+      const igBtn = document.createElement("button");
+      igBtn.textContent = "Ignore";
+      igBtn.onclick = () => {
+        banner.remove();
+        resetVisuals();
+        if (!paramContainer.childElementCount) paramContainer.hidden = true;
+      };
+      banner.append(msg, openBtn, tBtn, igBtn);
+      paramContainer.appendChild(banner);
+    });
+    paramContainer.hidden = tests.length === 0;
+  }
   add("File", meta.file);
   add("Meshes", String(meta.meshes));
   add("Triangles", String(meta.tris));
@@ -295,8 +381,21 @@ export function renderMeta(group: THREE.Object3D) {
     const rows = meta.mats.map(m => `${m.name || "mat"} #${m.color}`).join(", ");
     add("Materials", rows);
   }
+  if (meta.dims) {
+    const d = meta.dims;
+    add(
+      "Dimensions",
+      `${d.width.toFixed(2)} × ${d.depth.toFixed(2)} × ${d.height.toFixed(2)} m`,
+    );
+    if (d.area !== undefined) add("Area", `${d.area.toFixed(2)} m²`);
+    if (d.volume !== undefined) add("Volume", `${d.volume.toFixed(2)} m³`);
+  }
 }
 
 export function clearInfo() {
   metaTable.innerHTML = "";
+  if (paramContainer) {
+    paramContainer.innerHTML = "";
+    paramContainer.hidden = true;
+  }
 }
