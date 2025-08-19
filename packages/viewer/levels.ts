@@ -85,7 +85,6 @@ export function setActiveFloor(level: number) {
 export function addUnitToLevel(obj: THREE.Object3D, level = currentLevel) {
   unitsByLevel[level].push(obj);
   obj.userData.level = level;
-  obj.position.y = level * floors[level].height;
 }
 
 export function moveUnitToLevel(obj: THREE.Object3D, level: number) {

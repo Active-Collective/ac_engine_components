@@ -70,7 +70,7 @@ let nudgeTargets: THREE.Object3D[] = [];
 let hoveredArrow: THREE.Object3D | null = null;
 // When holding down a nudge arrow we repeatedly apply the movement at this
 // interval, emulating a key-repeat behavior.
-let arrowHold: THREE.ArrowHelper | null = null;
+let arrowHold: THREE.Object3D | null = null;
 let holdInterval: number | null = null;
 
 interface HistoryEntry {
@@ -376,7 +376,12 @@ function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
   const meshes: THREE.Mesh[] = [];
   target.traverse(obj => {
     const mesh = obj as THREE.Mesh & { material?: any };
-    if ((mesh as any).isMesh && mesh.material && typeof mesh.material.opacity === "number") {
+    if (
+      (mesh as any).isMesh &&
+      mesh.material &&
+      typeof mesh.material.opacity === "number" &&
+      !mesh.userData.hitArea
+    ) {
       meshes.push(mesh);
     }
   });
@@ -526,6 +531,7 @@ function createNudgeGizmos(obj: THREE.Object3D) {
     // lift de sphere naar het middelpunt van de arrow (arrow.local‑origin)
     hitSphere.position.set(0, 0, 0);
     // Voeg ‘m als kind, zodat hij meelift en meedraait
+    hitSphere.userData.hitArea = true;
     arrow.add(hitSphere);
 
     g.add(arrow);
@@ -736,52 +742,49 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
         world.camera.three,
         world.renderer.three.domElement,
       );
-      try {
+      if ((c as any).isObject3D) {
         world.scene.three.add(c);
-      } catch (err) {
-        console.warn("[IFC] TransformControls unavailable", err);
-        return;
-      }
-      controls = c;
-      controls.setMode("translate");
-      controls.showY = false;
-      controls.translationSnap = grid.config.primarySize;
-      controls.addEventListener("dragging-changed", ev => {
-        if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
-        world.camera.controls.enabled = !ev.value;
-        if (nudgeGroup) nudgeGroup.visible = !ev.value;
-      });
-      controls.addEventListener("change", () => {
-        if (!controls || !controls.object) return;
-        const p = controls.object.position;
-        const size = grid.config.primarySize;
-        p.set(
-          Math.round(p.x / size) * size,
-          p.y,
-          Math.round(p.z / size) * size,
-        );
-        updateBoxes();
-        subBox?.update();
-        attachNudge(controls.object as THREE.Object3D);
-        updateLayout(controls.object as THREE.Object3D);
-      });
-    } else if (!controls.parent) {
-      try {
-        world.scene.three.add(controls);
-      } catch (err) {
-        console.warn("[IFC] TransformControls unavailable", err);
+        controls = c;
+        controls.setMode("translate");
+        controls.showY = false;
+        controls.translationSnap = grid.config.primarySize;
+        controls.addEventListener("dragging-changed", ev => {
+          if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
+          world.camera.controls.enabled = !ev.value;
+          if (nudgeGroup) nudgeGroup.visible = !ev.value;
+        });
+        controls.addEventListener("change", () => {
+          if (!controls || !controls.object) return;
+          const p = controls.object.position;
+          const size = grid.config.primarySize;
+          p.set(
+            Math.round(p.x / size) * size,
+            p.y,
+            Math.round(p.z / size) * size,
+          );
+          updateBoxes();
+          subBox?.update();
+          attachNudge(controls.object as THREE.Object3D);
+          updateLayout(controls.object as THREE.Object3D);
+        });
+      } else {
+        console.warn("[IFC] incompatible TransformControls instance");
         controls = null;
-        return;
+      }
+    } else if (!controls.parent) {
+      if ((controls as any).isObject3D) {
+        world.scene.three.add(controls);
+      } else {
+        console.warn("[IFC] incompatible TransformControls instance");
+        controls = null;
       }
     }
 
     if (controls) {
       controls.attach(selected);
-      attachNudge(selected);
-      if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
-    } else {
-      console.warn("[IFC] TransformControls unavailable, skipping attach");
     }
+    attachNudge(selected);
+    if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
   } else {
     controls?.detach();
     detachNudge();
@@ -1367,14 +1370,18 @@ export async function bootstrap() {
       if (hoveredArrow && hoveredArrow !== pickedMesh) {
         const prevGroup = hoveredArrow.parent as THREE.Group;
         prevGroup.children.forEach(ch => {
-          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+          if (!(ch as any).userData.hitArea) {
+            (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+          }
         });
       }
 
       // 2) highlight de nieuwe hover
       hoveredArrow = pickedMesh;
       arrowGroup.children.forEach(ch => {
-        (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_HOVER);
+        if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_HOVER);
+        }
       });
 
       container.style.cursor = "pointer";
@@ -1386,7 +1393,9 @@ export async function bootstrap() {
     if (hoveredArrow) {
       const prevGroup = hoveredArrow.parent as THREE.Group;
       prevGroup.children.forEach(ch => {
-        (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+        if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+        }
       });
       hoveredArrow = null;
       container.style.cursor = "";
@@ -1399,15 +1408,23 @@ export async function bootstrap() {
   world.renderer.three.domElement.addEventListener("pointerdown", ev => {
     if (controls && (controls as any).dragging) return;
     if (hoveredArrow && selected) {
-      const arrow = hoveredArrow.parent as THREE.ArrowHelper;
+      const arrow = hoveredArrow.parent as THREE.Group;
       nudge(arrow);
       arrowHold = arrow;
       holdInterval = window.setInterval(() => nudge(arrow), 200);
-      arrow.setColor(0x4caf50);
+      arrow.children.forEach(ch => {
+        if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(0x4caf50);
+        }
+      });
       arrow.scale.set(1.25, 1.25, 1.25);
       setTimeout(() => {
         arrow.scale.set(1, 1, 1);
-        arrow.setColor(0x0078ff);
+        arrow.children.forEach(ch => {
+          if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+          }
+        });
       }, 150);
       return;
     }
