@@ -10,6 +10,7 @@ export interface UnitMeta {
   tris: number;
   mats: { name: string; color: string; texture?: string }[];
   layers: string[];
+  origin: [number, number, number];
 }
 
 export const metaCache = new WeakMap<THREE.Object3D, UnitMeta>();
@@ -234,7 +235,15 @@ export function removeCartItem(group: THREE.Object3D) {
 }
 
 export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
-  const meta: UnitMeta = { file: url.split("/").pop() || url, meshes: 0, tris: 0, mats: [], layers: [] };
+  const zero = (group.userData as any).zero as THREE.Vector3 | undefined;
+  const meta: UnitMeta = {
+    file: url.split("/").pop() || url,
+    meshes: 0,
+    tris: 0,
+    mats: [],
+    layers: [],
+    origin: zero ? [zero.x, zero.y, zero.z] : [0, 0, 0],
+  };
   const mats = new Map<string, { name: string; color: string; texture?: string }>();
   const layers = new Set<string>();
   group.traverse(obj => {
@@ -280,6 +289,7 @@ export function renderMeta(group: THREE.Object3D) {
   add("File", meta.file);
   add("Meshes", String(meta.meshes));
   add("Triangles", String(meta.tris));
+  add("Origin", meta.origin.map(n => n.toFixed(2)).join(", "));
   if (meta.layers.length) add("Layers", meta.layers.join(", "));
   if (meta.mats.length) {
     const rows = meta.mats.map(m => `${m.name || "mat"} #${m.color}`).join(", ");

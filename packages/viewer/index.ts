@@ -261,6 +261,12 @@ function redo() {
 function deleteUnit(obj: THREE.Object3D) {
   const level = obj.userData.level ?? 0;
   unitsByLevel[level] = unitsByLevel[level].filter(o => o !== obj);
+  // Als deze unit momenteel geselecteerd is, koppel dan eerst de
+  // TransformControls los zodat de scene-hierarchy consistent blijft.
+  if (controls?.object === obj) {
+    controls.detach();
+    detachNudge();
+  }
   obj.traverse(o => {
     rootMap.delete(o);
     if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) {
@@ -1215,11 +1221,13 @@ export async function bootstrap() {
     footprintByUrl.set(url, { w: dims.width, d: dims.depth });
     bboxer.reset();
 
-    root.position.set(
-      position.x - bounds.min.x,
-      position.y - bounds.min.y,
-      position.z - bounds.min.z,
-    );
+    // Bewaar het oorspronkelijke nulpunt van het model zodat we deze later
+    // kunnen tonen in het infovenster en de offset niet verliezen.
+    (root.userData as any).zero = bounds.min.clone();
+
+    // Respecteer het nulpunt van het model door de positie direct toe te
+    // wijzen zonder correctie op basis van de bounding box.
+    root.position.copy(position);
 
     world.scene.three.add(root);
     addUnitToLevel(root, level);
