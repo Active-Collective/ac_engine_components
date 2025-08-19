@@ -1,7 +1,16 @@
 import * as THREE from "three";
 import * as FRAGS from "@thatopen/fragments";
+import * as WEBIFC from "web-ifc";
+import { IfcPropertiesUtils } from "@thatopen/components";
 
-import { selectObject, downloadLayoutJson, importLayoutFromFile } from "./index";
+import {
+  selectObject,
+  downloadLayoutJson,
+  importLayoutFromFile,
+  clipSelected,
+  makeTransparentSelected,
+  resetVisuals,
+} from "./index";
 import { exportToPdf } from "./utils/exportPdf";
 
 export interface UnitMeta {
@@ -11,6 +20,14 @@ export interface UnitMeta {
   mats: { name: string; color: string; texture?: string }[];
   layers: string[];
   origin: [number, number, number];
+  dims?: {
+    width: number;
+    depth: number;
+    height: number;
+    area?: number;
+    volume?: number;
+  };
+  parameterTest?: string | null;
 }
 
 export const metaCache = new WeakMap<THREE.Object3D, UnitMeta>();
@@ -31,6 +48,7 @@ let toggleBtn: HTMLButtonElement;
 let tabBtn: HTMLElement;
 let pdfOptions: HTMLElement;
 let jsonButtons: HTMLElement;
+let paramBanner: HTMLDivElement;
 
 export function initSidebar() {
   sidebar = document.getElementById("sidebar") as HTMLElement;
@@ -45,6 +63,10 @@ export function initSidebar() {
   tabBtn = document.getElementById("sidebarTab") as HTMLElement;
   pdfOptions = document.getElementById("pdfOptions") as HTMLElement;
   jsonButtons = document.getElementById("jsonButtons") as HTMLElement;
+  paramBanner = document.createElement("div");
+  paramBanner.className = "param-banner";
+  paramBanner.hidden = true;
+  panelInfo.prepend(paramBanner);
 
   const toggle = () => sidebar.classList.toggle("collapsed");
   toggleBtn.onclick = toggle;
@@ -234,7 +256,10 @@ export function removeCartItem(group: THREE.Object3D) {
   cartMap.delete(group);
 }
 
-export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
+export async function analyzeUnit(
+  group: THREE.Object3D,
+  url: string,
+): Promise<UnitMeta> {
   const zero = (group.userData as any).zero as THREE.Vector3 | undefined;
   const meta: UnitMeta = {
     file: url.split("/").pop() || url,
@@ -269,7 +294,90 @@ export function analyzeUnit(group: THREE.Object3D, url: string): UnitMeta {
   });
   meta.mats = Array.from(mats.values());
   meta.layers = Array.from(layers);
+  meta.parameterTest = await getParameterTest(group as FRAGS.FragmentsGroup);
+  meta.dims = await getUnitDimensions(group as FRAGS.FragmentsGroup);
   return meta;
+}
+
+async function getParameterTest(group: FRAGS.FragmentsGroup) {
+  try {
+    const psets = await group.getAllPropertiesOfType(WEBIFC.IFCPROPERTYSET);
+    if (!psets) return null;
+    for (const pset of Object.values(psets) as any[]) {
+      const props = pset.HasProperties || [];
+      for (const h of props) {
+        const prop = await group.getProperties(h.value);
+        if (prop?.Name?.value === "ParameterTest") {
+          const val = prop.NominalValue?.value;
+          return val !== undefined ? String(val) : null;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function getUnitDimensions(group: FRAGS.FragmentsGroup) {
+  const factor = await IfcPropertiesUtils.getUnits(group);
+  let width: number | undefined;
+  let depth: number | undefined;
+  let height: number | undefined;
+  let area: number | undefined;
+  let volume: number | undefined;
+  try {
+    const qsets = await group.getAllPropertiesOfType(WEBIFC.IFCELEMENTQUANTITY);
+    if (qsets) {
+      for (const qset of Object.values(qsets) as any[]) {
+        if (qset.Name?.value !== "BaseQuantities") continue;
+        const ids = await IfcPropertiesUtils.getQsetQuantities(group, qset.expressID);
+        if (!ids) break;
+        for (const id of ids) {
+          const q = await group.getProperties(id);
+          const name = q?.Name?.value as string | undefined;
+          const { value } = await IfcPropertiesUtils.getQuantityValue(group, id);
+          if (value === null || value === undefined || !name) continue;
+          const num = Number(value);
+          const lname = name.toLowerCase();
+          if (lname === "width") width = num * factor;
+          else if (lname === "length" || lname === "depth") depth = num * factor;
+          else if (lname === "height") height = num * factor;
+          else if (lname.includes("area")) area = num * factor * factor;
+          else if (lname.includes("volume")) volume = num * factor * factor * factor;
+        }
+        break;
+      }
+    }
+  } catch {
+    /* empty */
+  }
+  if (width === undefined || depth === undefined || height === undefined) {
+    const box = new THREE.Box3().setFromObject(group);
+    const size = box.getSize(new THREE.Vector3());
+    width ??= size.x * factor;
+    depth ??= size.z * factor;
+    height ??= size.y * factor;
+  }
+  if (area === undefined && width !== undefined && depth !== undefined) {
+    area = width * depth;
+  }
+  if (
+    volume === undefined &&
+    width !== undefined &&
+    depth !== undefined &&
+    height !== undefined
+  ) {
+    volume = width * depth * height;
+  }
+  const round = (n: number) => Math.round(n * 100) / 100;
+  return {
+    width: round(width ?? 0),
+    depth: round(depth ?? 0),
+    height: round(height ?? 0),
+    area: area !== undefined ? round(area) : undefined,
+    volume: volume !== undefined ? round(volume) : undefined,
+  };
 }
 
 function countTris(mesh: THREE.Mesh) {
@@ -286,6 +394,35 @@ export function renderMeta(group: THREE.Object3D) {
     tr.innerHTML = `<th>${k}</th><td>${v}</td>`;
     metaTable.appendChild(tr);
   };
+
+  if (paramBanner) {
+    paramBanner.innerHTML = "";
+    if (meta.parameterTest) {
+      const msg = document.createElement("div");
+      msg.textContent = `ParameterTest: ${meta.parameterTest}`;
+      const sides: Array<"A" | "B" | "C" | "D" | "E"> = ["A", "B", "C", "D", "E"];
+      const btnWrap = document.createElement("div");
+      sides.forEach(s => {
+        const b = document.createElement("button");
+        b.textContent = `Open side ${s}`;
+        b.onclick = () => clipSelected(s);
+        btnWrap.appendChild(b);
+      });
+      const tBtn = document.createElement("button");
+      tBtn.textContent = "Make transparent";
+      tBtn.onclick = () => makeTransparentSelected();
+      const igBtn = document.createElement("button");
+      igBtn.textContent = "Ignore";
+      igBtn.onclick = () => {
+        paramBanner.hidden = true;
+        resetVisuals();
+      };
+      paramBanner.append(msg, btnWrap, tBtn, igBtn);
+      paramBanner.hidden = false;
+    } else {
+      paramBanner.hidden = true;
+    }
+  }
   add("File", meta.file);
   add("Meshes", String(meta.meshes));
   add("Triangles", String(meta.tris));
@@ -295,8 +432,18 @@ export function renderMeta(group: THREE.Object3D) {
     const rows = meta.mats.map(m => `${m.name || "mat"} #${m.color}`).join(", ");
     add("Materials", rows);
   }
+  if (meta.dims) {
+    const d = meta.dims;
+    add(
+      "Dimensions",
+      `${d.width.toFixed(2)} × ${d.depth.toFixed(2)} × ${d.height.toFixed(2)} m`,
+    );
+    if (d.area !== undefined) add("Area", `${d.area.toFixed(2)} m²`);
+    if (d.volume !== undefined) add("Volume", `${d.volume.toFixed(2)} m³`);
+  }
 }
 
 export function clearInfo() {
   metaTable.innerHTML = "";
+  if (paramBanner) paramBanner.hidden = true;
 }

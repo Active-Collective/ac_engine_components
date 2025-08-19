@@ -63,6 +63,88 @@ let controlsHelper: THREE.Object3D | null = null;
 // Maps any child mesh to its root model for easy selection lookups
 const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
 
+let activeClip: { root: THREE.Object3D; plane: THREE.Plane } | null = null;
+const transparentMats = new Map<THREE.Material, number>();
+
+export function resetVisuals() {
+  if (activeClip) {
+    activeClip.root.traverse(obj => {
+      if ((obj as any).isMesh) {
+        const mesh = obj as THREE.Mesh;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mats.forEach(m => (m.clippingPlanes = undefined));
+      }
+    });
+    activeClip = null;
+  }
+  transparentMats.forEach((o, m) => {
+    m.opacity = o;
+    if (o >= 1) m.transparent = false;
+  });
+  transparentMats.clear();
+  if (world?.renderer?.three) {
+    world.renderer.three.localClippingEnabled = false;
+  }
+}
+
+function applyClip(root: THREE.Object3D, side: "A" | "B" | "C" | "D" | "E") {
+  resetVisuals();
+  const box = new THREE.Box3().setFromObject(root);
+  const center = box.getCenter(new THREE.Vector3());
+  const normal = new THREE.Vector3();
+  switch (side) {
+    case "A":
+      normal.set(-1, 0, 0);
+      break;
+    case "B":
+      normal.set(0, 0, -1);
+      break;
+    case "C":
+      normal.set(1, 0, 0);
+      break;
+    case "D":
+      normal.set(0, 0, 1);
+      break;
+    case "E":
+      normal.set(0, -1, 0);
+      break;
+  }
+  const plane = new THREE.Plane(normal, -normal.dot(center));
+  plane.applyMatrix4(root.matrixWorld);
+  root.traverse(obj => {
+    if ((obj as any).isMesh) {
+      const mesh = obj as THREE.Mesh;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mats.forEach(m => (m.clippingPlanes = [plane]));
+    }
+  });
+  world.renderer.three.localClippingEnabled = true;
+  activeClip = { root, plane };
+}
+
+function applyTransparency(root: THREE.Object3D) {
+  resetVisuals();
+  root.traverse(obj => {
+    if ((obj as any).isMesh) {
+      const mesh = obj as THREE.Mesh;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mats.forEach(m => {
+        if (!transparentMats.has(m)) transparentMats.set(m, m.opacity);
+        m.transparent = true;
+        m.opacity = 0.6;
+      });
+    }
+  });
+}
+
+export function clipSelected(side: "A" | "B" | "C" | "D" | "E") {
+  if (selected) applyClip(selected, side);
+}
+
+export function makeTransparentSelected() {
+  if (selected) applyTransparency(selected);
+}
+
 // Group holding the six nudge arrows. nudgeTargets is the list of meshes used
 // for raycasting interaction.
 let nudgeGroup: THREE.Group | null = null;
@@ -686,6 +768,7 @@ function findCartGroup(obj: THREE.Object3D | null): THREE.Object3D | null {
 }
 
 export function selectObject(obj: THREE.Object3D | null, additive = false) {
+  resetVisuals();
   if (!additive) {
     selection.forEach(o => {
       world.scene.three.remove(boxMap.get(o)!);
@@ -771,7 +854,7 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
 async function openInfoForUrl(url: string) {
   try {
     const { root } = await loadIfc(url);
-    const info = analyzeUnit(root, url);
+    const info = await analyzeUnit(root, url);
     metaCache.set(root, info);
     showInfo(root);
   } catch (e) {
@@ -1190,7 +1273,7 @@ export async function bootstrap() {
     root.userData.url = url;
     layoutMap.set(id, { id, url, pos: [position.x, position.y, position.z], rot: root.rotation.y, level });
     saveLayout();
-    const info = analyzeUnit(root, url);
+    const info = await analyzeUnit(root, url);
     metaCache.set(root, info);
     addUnitItem(root, url);
     addCartItem(root);
