@@ -15,6 +15,7 @@
 * clone fragment groups via instance method, restore unit list entries, and guard zoom extents on empty scenes.
 * silence stray TransformControls warnings and stabilize nudge arrow opacity.
 * skip nudge hit-spheres from fade/color, preserve drop height on floor assignment, and block incompatible TransformControls adds.
+* cache uploaded IFC bytes for reuse and attach TransformControls helpers to avoid compatibility warnings.
 
 
 ## [2.4.0](https://github.com/ThatOpen/engine_components/compare/v2.3.0...v2.4.0) (2024-11-28)

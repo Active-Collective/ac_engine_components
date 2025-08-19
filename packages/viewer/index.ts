@@ -10,6 +10,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import * as FRAGS from "@thatopen/fragments";
 import { setupIfc, loadIfc } from "./src/ifc/loader";
+import { toUint8Array } from "./src/ifc/bytes";
 import { buildIndex, picked, byStorey } from "./src/ifc";
 import { setStoreys } from "./src/ifc/storeys";
 import { generateThumbnail } from "./utils/thumbnail";
@@ -53,11 +54,13 @@ let selected: THREE.Object3D | null = null;
 const selection = new Set<THREE.Object3D>();
 const boxMap = new Map<THREE.Object3D, THREE.BoxHelper>();
 const footprintByUrl = new Map<string, { w: number; d: number }>();
+const ifcBytes = new Map<string, Uint8Array>();
 let subSelected: THREE.Mesh | null = null;
 let subBox: THREE.BoxHelper | null = null;
 let hoverBox: THREE.BoxHelper | null = null;
 // One shared TransformControls instance is reused for all objects.
 let controls: TransformControls | null = null;
+let controlsHelper: THREE.Object3D | null = null;
 // Small red sphere used for mouse dragging
 // Drag handle removed per UX update
 // Maps any child mesh to its root model for easy selection lookups
@@ -742,9 +745,11 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
         world.camera.three,
         world.renderer.three.domElement,
       );
-      if ((c as any).isObject3D) {
-        world.scene.three.add(c);
+      const helper = (c as any).getHelper?.() ?? c;
+      if ((helper as any).isObject3D) {
+        world.scene.three.add(helper);
         controls = c;
+        controlsHelper = helper as THREE.Object3D;
         controls.setMode("translate");
         controls.showY = false;
         controls.translationSnap = grid.config.primarySize;
@@ -770,14 +775,10 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       } else {
         console.warn("[IFC] incompatible TransformControls instance");
         controls = null;
+        controlsHelper = null;
       }
-    } else if (!controls.parent) {
-      if ((controls as any).isObject3D) {
-        world.scene.three.add(controls);
-      } else {
-        console.warn("[IFC] incompatible TransformControls instance");
-        controls = null;
-      }
+    } else if (controlsHelper && !controlsHelper.parent) {
+      world.scene.three.add(controlsHelper);
     }
 
     if (controls) {
@@ -1164,13 +1165,16 @@ export async function bootstrap() {
    * sizes based on all loaded models.
    */
   async function addModel(
-    urlOrFile: string | File,
+    urlOrFile: string | File | Uint8Array,
     position = new THREE.Vector3(),
-    level = currentLevel
+    level = currentLevel,
+    displayUrl?: string,
   ) {
     let modelID = -1;
     let root: THREE.Object3D;
-    const url = typeof urlOrFile === 'string' ? new URL(urlOrFile, window.location.origin).pathname : urlOrFile.name;
+    const url = typeof urlOrFile === 'string'
+      ? (urlOrFile.startsWith('blob:') ? urlOrFile : new URL(urlOrFile, window.location.origin).pathname)
+      : displayUrl || (urlOrFile instanceof File ? urlOrFile.name : 'bytes');
 
     if (typeof urlOrFile === 'string') {
       if (/\.ifc(zip)?$/i.test(urlOrFile)) {
@@ -1577,6 +1581,7 @@ export async function bootstrap() {
 
     const url = ev.dataTransfer?.getData("text");
     if (!url) return;
+    const source = ifcBytes.get(url) || url;
 
     const rect = container.getBoundingClientRect();
     const ndc = new THREE.Vector2(
@@ -1596,7 +1601,7 @@ export async function bootstrap() {
     point.z = Math.round(point.z / step) * step;
     point.y = currentLevel * floors[currentLevel].height;
     try {
-      const { object } = await addModel(url, point, currentLevel);
+      const { object } = await addModel(source, point, currentLevel, url);
       selectObject(object);
     } catch (err) {
       console.error(`[IFC] load error ${url} (drag-drop)`, err);
@@ -1739,11 +1744,19 @@ export async function bootstrap() {
       return;
     }
     try {
-      const source = file.name.match(/\.glb$|\.gltf$/i) ? URL.createObjectURL(file) : file;
+      let source: string | Uint8Array;
+      if (file.name.match(/\.glb$|\.gltf$/i)) {
+        source = URL.createObjectURL(file);
+      } else {
+        const bytes = await toUint8Array(file);
+        ifcBytes.set(file.name, bytes.slice());
+        source = bytes;
+      }
       const { object, width } = await addModel(
         source,
         new THREE.Vector3(offset, currentLevel * floors[currentLevel].height, 0),
-        currentLevel
+        currentLevel,
+        file.name,
       );
       offset += width;
       selectObject(object);
