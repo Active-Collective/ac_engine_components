@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Features
+* Added IFC4 Reference View support via OBC and web-ifc. The viewer now focuses on `.ifc` files only and drops glTF paths.
+* Multi-model loading with basic storey navigation.
+
+### Miscellaneous Chores
+* **viewer:** drop `@thatopen/components-front` dependency to streamline example setup.
+* **viewer:** copy `web-ifc.wasm` during install instead of committing the binary.
+* IFC hardening: single IfcLoader, Uint8Array everywhere, port-agnostic assets, UI guards; GLB unaffected.
+* align IFC unit origins to ground and hide extra TransformControls gizmos.
+* guard TransformControls attach to prevent null errors during selection.
+* fix FragmentsGroup cloning for duplication and library previews; use isObject3D to avoid TransformControls warnings.
+* clone fragment groups via instance method, restore unit list entries, and guard zoom extents on empty scenes.
+* silence stray TransformControls warnings and stabilize nudge arrow opacity.
+* skip nudge hit-spheres from fade/color, preserve drop height on floor assignment, and block incompatible TransformControls adds.
+* cache uploaded IFC bytes for reuse and attach TransformControls helpers to avoid compatibility warnings.
+* detach TransformControls before removing units and surface model zero points in the info panel.
+
+
 ## [2.4.0](https://github.com/ThatOpen/engine_components/compare/v2.3.0...v2.4.0) (2024-11-28)
 
 

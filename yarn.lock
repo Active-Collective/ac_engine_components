@@ -837,15 +837,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@gltf-transform/core@npm:^4.2.0":
-  version: 4.2.1
-  resolution: "@gltf-transform/core@npm:4.2.1"
-  dependencies:
-    property-graph: ^3.0.0
-  checksum: b5aa1a77edacea9d9ca8c7424f6dd92fc64f710fffef0f66e2a333a1fb120e8bf470c5c1897fa585df51b1de582742170dd3e8cf43f2172abbab88ba8a635a0e
-  languageName: node
-  linkType: hard
-
 "@humanwhocodes/config-array@npm:^0.11.14":
   version: 0.11.14
   resolution: "@humanwhocodes/config-array@npm:0.11.14"
@@ -1635,7 +1626,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@thatopen/components-front@workspace:packages/front":
+"@thatopen/components-front@workspace:*, @thatopen/components-front@workspace:packages/front":
   version: 0.0.0-use.local
   resolution: "@thatopen/components-front@workspace:packages/front"
   dependencies:
@@ -1727,9 +1718,11 @@ __metadata:
   resolution: "@thatopen/viewer-example@workspace:packages/viewer"
   dependencies:
     "@thatopen/components": "workspace:*"
+    "@thatopen/components-front": "workspace:*"
     jspdf: ^3.0.1
     three: ^0.175.0
     vite: ^7.0.4
+    web-ifc: 0.0.68
   languageName: unknown
   linkType: soft
 
@@ -6326,13 +6319,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"property-graph@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "property-graph@npm:3.0.0"
-  checksum: 7c2b2dd2dd817462a1a7737cf3ce545223e9114c01074e837be6886cc23dee844622b409c08085ac384d9ebb2c2aec657e6989377c8056b6796dcb4ddce66555
-  languageName: node
-  linkType: hard
-
 "punycode@npm:^2.1.0":
   version: 2.3.1
   resolution: "punycode@npm:2.3.1"
@@ -6618,7 +6604,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@gltf-transform/core": ^4.2.0
     "@rollup/plugin-terser": ^0.4.4
     "@types/jest": ^30.0.0
     "@types/node": latest
@@ -6633,6 +6618,7 @@ __metadata:
     glob: latest
     jest: ^30.0.4
     prettier: 3.2.5
+    three: ^0.175.0
     ts-jest: ^29.4.0
     typescript: 5.4.2
     vite: 5.1.6

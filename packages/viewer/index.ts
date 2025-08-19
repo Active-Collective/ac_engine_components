@@ -4,10 +4,12 @@
 import * as OBC from "@thatopen/components";
 import * as THREE from "three";
 
-// We rely on the standard GLTF loader for importing models and the
 // TransformControls helper for translation/rotation gizmos.
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import { setupIfc, loadIfc } from "./src/ifc/loader";
+import { toUint8Array } from "./src/ifc/bytes";
+import { buildIndex, picked, byStorey } from "./src/ifc";
+import { setStoreys } from "./src/ifc/storeys";
 import { generateThumbnail } from "./utils/thumbnail";
 // Helper modules defined in this package
 //  - sidebar.ts: collects model metadata and renders the info sidebar
@@ -49,11 +51,13 @@ let selected: THREE.Object3D | null = null;
 const selection = new Set<THREE.Object3D>();
 const boxMap = new Map<THREE.Object3D, THREE.BoxHelper>();
 const footprintByUrl = new Map<string, { w: number; d: number }>();
+const ifcBytes = new Map<string, Uint8Array>();
 let subSelected: THREE.Mesh | null = null;
 let subBox: THREE.BoxHelper | null = null;
 let hoverBox: THREE.BoxHelper | null = null;
 // One shared TransformControls instance is reused for all objects.
 let controls: TransformControls | null = null;
+let controlsHelper: THREE.Object3D | null = null;
 // Small red sphere used for mouse dragging
 // Drag handle removed per UX update
 // Maps any child mesh to its root model for easy selection lookups
@@ -66,7 +70,7 @@ let nudgeTargets: THREE.Object3D[] = [];
 let hoveredArrow: THREE.Object3D | null = null;
 // When holding down a nudge arrow we repeatedly apply the movement at this
 // interval, emulating a key-repeat behavior.
-let arrowHold: THREE.ArrowHelper | null = null;
+let arrowHold: THREE.Object3D | null = null;
 let holdInterval: number | null = null;
 
 interface HistoryEntry {
@@ -90,6 +94,11 @@ export const layoutMap = new Map<string, LayoutItem>();
 export let downloadLayoutJson: (filename?: string) => void;
 export let loadLayoutFromItems: (items: LayoutItem[]) => Promise<void>;
 export let importLayoutFromFile: (file: File) => void;
+
+// Optional UI elements and grid reference are declared up-front so that
+// functions defined earlier can safely reference them.
+let sidebarEl: HTMLElement | null = null;
+let grid: any;
 
 function saveLayout() {
   localStorage.setItem("layout", JSON.stringify(Array.from(layoutMap.values())));
@@ -249,6 +258,12 @@ function redo() {
 function deleteUnit(obj: THREE.Object3D) {
   const level = obj.userData.level ?? 0;
   unitsByLevel[level] = unitsByLevel[level].filter(o => o !== obj);
+  // Als deze unit momenteel geselecteerd is, koppel dan eerst de
+  // TransformControls los zodat de scene-hierarchy consistent blijft.
+  if (controls?.object === obj) {
+    controls.detach();
+    detachNudge();
+  }
   obj.traverse(o => {
     rootMap.delete(o);
     if (o instanceof THREE.Mesh || o instanceof THREE.InstancedMesh) {
@@ -364,15 +379,26 @@ function detachHandle() {
  * when showing or hiding the nudge arrows around the selected model.
  */
 function fadeNudge(target: THREE.Group, to: number, done?: () => void) {
+  const meshes: THREE.Mesh[] = [];
+  target.traverse(obj => {
+    const mesh = obj as THREE.Mesh & { material?: any };
+    if (
+      (mesh as any).isMesh &&
+      mesh.material &&
+      typeof mesh.material.opacity === "number" &&
+      !mesh.userData.hitArea
+    ) {
+      meshes.push(mesh);
+    }
+  });
+  if (!meshes.length) return;
   const start = performance.now();
-  const from = (target.children[0] as THREE.ArrowHelper).cone.material.opacity;
+  const from = (meshes[0].material as any).opacity;
   function step() {
     const t = Math.min(1, (performance.now() - start) / 200);
     const val = from + (to - from) * t;
-    target.children.forEach(c => {
-      const a = c as THREE.ArrowHelper;
-      (a.cone.material as THREE.Material & { opacity: number }).opacity = val;
-      (a.line.material as THREE.Material & { opacity: number }).opacity = val;
+    meshes.forEach(m => {
+      (m.material as any).opacity = val;
     });
     if (t < 1) requestAnimationFrame(step); else done && done();
   }
@@ -511,6 +537,7 @@ function createNudgeGizmos(obj: THREE.Object3D) {
     // lift de sphere naar het middelpunt van de arrow (arrow.local‑origin)
     hitSphere.position.set(0, 0, 0);
     // Voeg ‘m als kind, zodat hij meelift en meedraait
+    hitSphere.userData.hitArea = true;
     arrow.add(hitSphere);
 
     g.add(arrow);
@@ -647,12 +674,6 @@ function setupMoveFloorButtons() {
  * object between floors so the user can see where it will land.
  */
 
-/** Helper wrapper around GLTFLoader that returns a promise. */
-function loadGltf(url: string): Promise<THREE.Group> {
-  const loader = new GLTFLoader();
-  return loader.loadAsync(url);
-}
-
 // Helper function for finding cartgroup
 function findCartGroup(obj: THREE.Object3D | null): THREE.Object3D | null {
   if (!obj) return null;
@@ -682,8 +703,6 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       if (li) {
         li.classList.add("active");
       }
-    } else {
-      console.warn("Geen cart-item gevonden voor object:", obj);
     }
   }
 
@@ -692,7 +711,7 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
       controls?.detach();
       detachNudge();
       selected = null;
-      if (sidebarEl.dataset.mode === "info") clearInfo();
+      if (sidebarEl?.dataset.mode === "info") clearInfo();
     }
     updateBoxes();
     return;
@@ -719,62 +738,44 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
 
   if (selection.size === 1 && selected) {
     if (!controls) {
-      controls = new TransformControls(
+      const c = new TransformControls(
         world.camera.three,
         world.renderer.three.domElement,
       );
-      controls.setMode("translate");
-      controls.showY = false;
-      controls.translationSnap = grid.config.primarySize;
-      controls.addEventListener("dragging-changed", ev => {
-        if (ev.value && controls?.object) saveState(controls.object as THREE.Object3D);
-        world.camera.controls.enabled = !ev.value;
-        if (nudgeGroup) nudgeGroup.visible = !ev.value;
-      });
-      controls.addEventListener("change", () => {
-        if (!controls || !controls.object) return;
-        const p = controls.object.position;
-        const size = grid.config.primarySize;
-        p.set(
-          Math.round(p.x / size) * size,
-          p.y,
-          Math.round(p.z / size) * size,
-        );
-        updateBoxes();
-        subBox?.update();
-        attachNudge(controls.object as THREE.Object3D);
-        updateLayout(controls.object as THREE.Object3D);
-      });
-      world.scene.three.add(controls);
-    } else if (!controls.parent) {
-      // Ensure the TransformControls instance comes from the same THREE build
-      // before adding. This avoids "object not an instance" errors when
-      // multiple Three.js copies slip into the bundle.
-      if (controls instanceof THREE.Object3D) {
-        world.scene.three.add(controls);
+      const helper = (c as any).getHelper?.() ?? c;
+      if ((helper as any).isObject3D) {
+        helper.visible = false;
+        c.showX = c.showY = c.showZ = false;
+        c.enabled = false;
+        world.scene.three.add(helper);
+        controls = c;
+        controlsHelper = helper as THREE.Object3D;
+      } else {
+        console.warn("[IFC] incompatible TransformControls instance");
+        controls = null;
+        controlsHelper = null;
       }
+    } else if (controlsHelper && !controlsHelper.parent) {
+      world.scene.three.add(controlsHelper);
     }
 
-    controls.attach(selected);
     attachNudge(selected);
-    if (sidebarEl.dataset.mode === "info") renderMeta(selected);
+    if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
   } else {
-    controls?.detach();
     detachNudge();
-    if (sidebarEl.dataset.mode === "info") clearInfo();
+    if (sidebarEl?.dataset.mode === "info") clearInfo();
   }
 }
 
 // laad GLB offscreen en toon Info-paneel
 async function openInfoForUrl(url: string) {
   try {
-    const gltf = await loadGltf(url);         // je bestaande loader
-    const temp = gltf.scene;                   // NIET aan world toevoegen
-    const info = analyzeUnit(temp, url);
-    metaCache.set(temp, info);
-    showInfo(temp);
+    const { root } = await loadIfc(url);
+    const info = analyzeUnit(root, url);
+    metaCache.set(root, info);
+    showInfo(root);
   } catch (e) {
-    console.warn("Info load failed for", url, e);
+    console.warn('[IFC] info load failed for', url, e);
   }
 }
 
@@ -786,7 +787,7 @@ async function createLibraryItem(url: string): Promise<HTMLLIElement> {
 
   const img = document.createElement("img");
   img.width = 80; img.height = 60;
-  img.src = "/path/to/placeholder.png"; // evt. eigen placeholder
+  img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAGgwJ/lqY5WQAAAABJRU5ErkJggg==';
   img.draggable = false;
   li.appendChild(img);
 
@@ -830,7 +831,7 @@ async function createLibraryItem(url: string): Promise<HTMLLIElement> {
     const thumb = await generateThumbnail(url);
     img.src = thumb;
   } catch (err) {
-    console.warn(`Thumbnail failed for ${url}`, err);
+    console.warn(`[IFC] thumbnail failed for ${url}`, err);
   }
 
   return li;
@@ -852,15 +853,19 @@ async function buildLibrary(urls: string[]) {
  * bottom of the file.
  */
 export async function bootstrap() {
-  const container = document.getElementById("viewer") as HTMLDivElement;
-  const fileInput = document.getElementById("fileInput") as HTMLInputElement;
-  const paintMenu = document.getElementById("paintMenu") as HTMLDivElement;
-  const paintBtn = document.getElementById("paintBtn") as HTMLButtonElement;
-  const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement;
+  const container = document.getElementById("viewer") as HTMLDivElement | null;
+  const fileInput = document.getElementById("fileInput") as HTMLInputElement | null;
+  const paintMenu = document.getElementById("paintMenu") as HTMLDivElement | null;
+  const paintBtn = document.getElementById("paintBtn") as HTMLButtonElement | null;
+  const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement | null;
   initSidebar();
-  const sidebarEl = document.getElementById("sidebar") as HTMLElement;
-  const placedList = document.getElementById("placedList") as HTMLUListElement;
+  sidebarEl = document.getElementById("sidebar") as HTMLElement | null;
+  const placedList = document.getElementById("placedList") as HTMLUListElement | null;
   const placedListItem = document.querySelectorAll("#placedList .cart-item");
+  if (!container) {
+    console.warn('[IFC] viewer container missing');
+    return;
+  }
   const menu = document.createElement("div");
   menu.id = "contextMenu";
   Object.assign(menu.style, {
@@ -872,7 +877,7 @@ export async function bootstrap() {
     display: "none",
   });
   document.body.appendChild(menu);
-  placedList.addEventListener("remove-unit", ev => {
+  placedList?.addEventListener("remove-unit", ev => {
     const group = (ev as CustomEvent).detail as THREE.Object3D;
     deleteUnit(group);
     selection.delete(group);
@@ -912,37 +917,38 @@ export async function bootstrap() {
   });
 
   bboxer = components.get(OBC.BoundingBoxer);
+  await setupIfc(world);
 
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   initFloors(world, gridPlane);
-  const grid = grids[0];
+  grid = grids[0];
   grid.config.color = new THREE.Color(0x555555);
   grid.config.secondarySize = grid.config.primarySize;
   verticalSnap = floors[0].height;
   initSettings();
-  snapInput.value = String(grid.config.primarySize);
-  snapHeightInput.value = String(floors[0].height);
-  gridColorInput.value = `#${grid.config.color.getHexString()}`;
-  bgInput.value = "#f0f0f0";
-  snapInput.addEventListener("change", () => {
-    const v = parseFloat(snapInput.value) || 1;
+  snapInput && (snapInput.value = String(grid.config.primarySize));
+  snapHeightInput && (snapHeightInput.value = String(floors[0].height));
+  gridColorInput && (gridColorInput.value = `#${grid.config.color.getHexString()}`);
+  bgInput && (bgInput.value = "#f0f0f0");
+  snapInput?.addEventListener("change", () => {
+    const v = parseFloat(snapInput!.value) || 1;
     grids.forEach(g => {
       g.config.primarySize = v;
       g.config.secondarySize = v;
     });
     if (controls) controls.translationSnap = v;
   });
-  snapHeightInput.addEventListener("change", () => {
-    const v = parseFloat(snapHeightInput.value) || 1;
+  snapHeightInput?.addEventListener("change", () => {
+    const v = parseFloat(snapHeightInput!.value) || 1;
     verticalSnap = v;
     floors.forEach(f => (f.height = v));
     setActiveFloor(currentLevel);
   });
-  gridColorInput.addEventListener("change", () => {
-    grid.config.color = new THREE.Color(gridColorInput.value);
+  gridColorInput?.addEventListener("change", () => {
+    grid.config.color = new THREE.Color(gridColorInput!.value);
   });
-  bgInput.addEventListener("change", () => {
-    const col = new THREE.Color(bgInput.value);
+  bgInput?.addEventListener("change", () => {
+    const col = new THREE.Color(bgInput!.value);
     world.renderer.three.setClearColor(col);
     world.scene.three.background = col;
   });
@@ -999,14 +1005,12 @@ export async function bootstrap() {
   const casters = components.get(OBC.Raycasters);
   const caster = casters.get(world);
 
-  const libUrls = [
-    new URL("../core/assets/unit1.glb", import.meta.url).href,
-    new URL("../core/assets/unit2.glb", import.meta.url).href,
-    new URL("../core/assets/unit3.glb", import.meta.url).href,
-    new URL("../core/assets/unit4.glb", import.meta.url).href,
-    new URL("../core/assets/Materiaal-test-V2.glb", import.meta.url).href,
-    new URL("../core/assets/simplified.glb", import.meta.url).href,
+  const assetFiles = [
+    "unit_test.ifc",
   ];
+  const libUrls = assetFiles.map(name =>
+    new URL(`../core/assets/${name}`, import.meta.url).pathname
+  );
 
   // async function populateUnitList(urls: string[]) {
   //   const list = document.getElementById("unitList");
@@ -1119,80 +1123,104 @@ export async function bootstrap() {
   }
 
   /**
-   * Loads a glTF file and inserts it into the scene. Every mesh is registered
+   * Loads an IFC file and inserts it into the scene. Every mesh is registered
    * in `world.meshes` for raycasting. The function also updates average snap
    * sizes based on all loaded models.
    */
   async function addModel(
-    url: string,
+    urlOrFile: string | File | Uint8Array,
     position = new THREE.Vector3(),
-    level = currentLevel
+    level = currentLevel,
+    displayUrl?: string,
+    isWorld = false,
   ) {
-    const gltf = await loadGltf(url);
+    let modelID = -1;
+    let root: THREE.Object3D;
+    const url = typeof urlOrFile === 'string'
+      ? (urlOrFile.startsWith('blob:') ? urlOrFile : new URL(urlOrFile, window.location.origin).pathname)
+      : displayUrl || (urlOrFile instanceof File ? urlOrFile.name : 'bytes');
 
-    gltf.scene.updateMatrixWorld(true);
+    if (typeof urlOrFile === 'string') {
+      const res = await loadIfc(urlOrFile);
+      modelID = res.modelID;
+      root = res.root;
+    } else {
+      const res = await loadIfc(urlOrFile);
+      modelID = res.modelID;
+      root = res.root;
+    }
+
+    root.updateMatrixWorld(true);
     bboxer.reset();
-    gltf.scene.traverse(obj => {
-      rootMap.set(obj, gltf.scene);
+    root.traverse(obj => {
+      rootMap.set(obj, root);
       if (obj instanceof THREE.Mesh || obj instanceof THREE.InstancedMesh) {
         bboxer.addMesh(obj);
         world.meshes.add(obj);
         if (!obj.userData.originalMaterial) {
           obj.userData.originalMaterial = obj.material;
         }
+        picked.set(obj, {
+          modelID,
+          expressID: obj.userData.expressID || obj.id,
+          globalId: obj.userData.globalId,
+          ifcClass: obj.userData.ifcClass,
+        });
       }
-      if (obj instanceof THREE.Object3D) obj.name ||= "unit";
+      if (obj instanceof THREE.Object3D) obj.name ||= 'unit';
     });
     const bounds = bboxer.get();
     const dims = OBC.BoundingBoxer.getDimensions(bounds);
     footprintByUrl.set(url, { w: dims.width, d: dims.depth });
     bboxer.reset();
 
-    gltf.scene.position.set(
-      position.x - bounds.min.x,
-      position.y - bounds.min.y,
-      position.z - bounds.min.z,
-    );
+    // Bewaar het oorspronkelijke nulpunt van het model zodat we deze later
+    // kunnen tonen in het infovenster en de offset niet verliezen.
+    (root.userData as any).zero = bounds.min.clone();
 
-    world.scene.three.add(gltf.scene);
-    addUnitToLevel(gltf.scene, level);
+    // Corrigeer de positie met het oorspronkelijke nulpunt zodat de onderzijde op het grid rust.
+    if (!isWorld) position.y -= bounds.min.y;
+    root.position.copy(position);
+
+    world.scene.three.add(root);
+    addUnitToLevel(root, level);
     checkOverlaps();
     const id = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
-    gltf.scene.userData.id = id;
-    gltf.scene.userData.url = url;
-    layoutMap.set(id, { id, url, pos: [position.x, position.y, position.z], rot: gltf.scene.rotation.y, level });
+    root.userData.id = id;
+    root.userData.url = url;
+    layoutMap.set(id, { id, url, pos: [position.x, position.y, position.z], rot: root.rotation.y, level });
     saveLayout();
-    const info = analyzeUnit(gltf.scene, url);
-    metaCache.set(gltf.scene, info);
-    addUnitItem(gltf.scene, url);
-    addCartItem(gltf.scene);
+    const info = analyzeUnit(root, url);
+    metaCache.set(root, info);
+    addUnitItem(root, url);
+    addCartItem(root);
+    await buildIndex({ modelID, root });
+    setStoreys(byStorey);
+
     totalWidth += dims.width;
     totalHeight += dims.height;
     loadedCount++;
     const avg = totalWidth / loadedCount;
     const hAvg = totalHeight / loadedCount;
-    // update alle grids
     grids.forEach(g => {
-      g.config.primarySize   = avg;
+      g.config.primarySize = avg;
       g.config.secondarySize = avg;
     });
     verticalSnap = hAvg;
     floors.forEach(f => (f.height = hAvg));
 
-    // actieve floor herpositioneren (grids krijgen nieuwe y)
     setActiveFloor(currentLevel);
 
-    // controls snap mee laten lopen
     if (controls) controls.translationSnap = avg;
 
     snapInput.value = String(avg);
     snapHeightInput.value = String(hAvg);
     const sizeSnap = grids[currentLevel].config.primarySize;
-    gltf.scene.position.x = Math.round(gltf.scene.position.x / sizeSnap) * sizeSnap;
-    gltf.scene.position.z = Math.round(gltf.scene.position.z / sizeSnap) * sizeSnap;
+    root.position.x = Math.round(root.position.x / sizeSnap) * sizeSnap;
+    root.position.z = Math.round(root.position.z / sizeSnap) * sizeSnap;
 
-    // gltf.scene.scale.setScalar(10);
-    return { object: gltf.scene, width: dims.width };
+    return { object: root, width: dims.width };
+  
   }
 
   // Export / Import JSON helpers
@@ -1232,7 +1260,7 @@ export async function bootstrap() {
           errors.push(`Item ${i}: blob-URL kan niet opnieuw geladen worden (${it.url}).`);
           continue;
         }
-        const { object } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level ?? 0);
+        const { object } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level ?? 0, undefined, true);
         object.rotation.y = typeof it.rot === "number" ? it.rot : 0;
       } catch (e: any) {
         errors.push(`Item ${i} (${it?.url ?? "?"}): ${e?.message ?? e}`);
@@ -1267,21 +1295,13 @@ export async function bootstrap() {
     try {
       const items = JSON.parse(saved) as LayoutItem[];
       for (const it of items) {
-        const { object, width } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level);
+        const { object, width } = await addModel(it.url, new THREE.Vector3(...it.pos), it.level, undefined, true);
         object.rotation.y = it.rot;
         offset = Math.max(offset, object.position.x + width);
       }
     } catch {}
   } else {
-    const loadUrls = [
-      new URL("../core/assets/unit1.glb", import.meta.url).href,
-      new URL("../core/assets/unit2.glb", import.meta.url).href,
-      new URL("../core/assets/unit3.glb", import.meta.url).href,
-      new URL("../core/assets/unit4.glb", import.meta.url).href,
-      new URL("../core/assets/Materiaal-test-V2.glb", import.meta.url).href,
-      new URL("../core/assets/simplified.glb", import.meta.url).href,
-    ];
-    for (const url of loadUrls) {
+    for (const url of libUrls) {
       const { object, width } = await addModel(
         url,
         new THREE.Vector3(offset, 0, 0),
@@ -1295,7 +1315,7 @@ export async function bootstrap() {
 
   world.renderer.three.domElement.addEventListener("pointermove", ev => {
     if (controls && (controls as any).dragging) return;
-    const rect = container.getBoundingClientRect();
+    const rect = container!.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((ev.clientX - rect.left) / rect.width) * 2 - 1,
       -((ev.clientY - rect.top) / rect.height) * 2 + 1,
@@ -1315,14 +1335,18 @@ export async function bootstrap() {
       if (hoveredArrow && hoveredArrow !== pickedMesh) {
         const prevGroup = hoveredArrow.parent as THREE.Group;
         prevGroup.children.forEach(ch => {
-          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+          if (!(ch as any).userData.hitArea) {
+            (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+          }
         });
       }
 
       // 2) highlight de nieuwe hover
       hoveredArrow = pickedMesh;
       arrowGroup.children.forEach(ch => {
-        (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_HOVER);
+        if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_HOVER);
+        }
       });
 
       container.style.cursor = "pointer";
@@ -1334,7 +1358,9 @@ export async function bootstrap() {
     if (hoveredArrow) {
       const prevGroup = hoveredArrow.parent as THREE.Group;
       prevGroup.children.forEach(ch => {
-        (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+        if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+        }
       });
       hoveredArrow = null;
       container.style.cursor = "";
@@ -1347,15 +1373,23 @@ export async function bootstrap() {
   world.renderer.three.domElement.addEventListener("pointerdown", ev => {
     if (controls && (controls as any).dragging) return;
     if (hoveredArrow && selected) {
-      const arrow = hoveredArrow.parent as THREE.ArrowHelper;
+      const arrow = hoveredArrow.parent as THREE.Group;
       nudge(arrow);
       arrowHold = arrow;
       holdInterval = window.setInterval(() => nudge(arrow), 200);
-      arrow.setColor(0x4caf50);
+      arrow.children.forEach(ch => {
+        if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(0x4caf50);
+        }
+      });
       arrow.scale.set(1.25, 1.25, 1.25);
       setTimeout(() => {
         arrow.scale.set(1, 1, 1);
-        arrow.setColor(0x0078ff);
+        arrow.children.forEach(ch => {
+          if (!(ch as any).userData.hitArea) {
+          (ch.material as THREE.MeshBasicMaterial).color.setHex(ARROW_COLOR_DEFAULT);
+          }
+        });
       }, 150);
       return;
     }
@@ -1423,7 +1457,17 @@ export async function bootstrap() {
       dup.textContent = `Duplicate to floor ${i}`;
       dup.onclick = () => {
         selection.forEach(sel => {
-          const clone = sel.clone(true);
+          let clone: THREE.Object3D;
+          const cg = (sel as any)?.cloneGroup;
+          if (typeof cg === "function") {
+            try {
+              clone = cg.call(sel);
+            } catch {
+              clone = sel.clone(true);
+            }
+          } else {
+            clone = sel.clone(true);
+          }
           world.scene.three.add(clone);
           addUnitToLevel(clone, i);
           const cid = (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
@@ -1446,7 +1490,7 @@ export async function bootstrap() {
 
   // Allow dropping a library item onto the canvas
   // Sta dragover toe en update ghost-positie
-  container.addEventListener("dragover", ev => {
+  container?.addEventListener("dragover", ev => {
       ev.preventDefault();
 
       // ➜ plane op de actieve floor zetten
@@ -1484,13 +1528,13 @@ export async function bootstrap() {
 
 
   // Verberg ghost wanneer je container verlaat
-  container.addEventListener("dragleave", (ev) => {
+  container?.addEventListener("dragleave", (ev) => {
     // Alleen verbergen als we écht de container verlaten
     if (!container.contains(ev.relatedTarget as Node)) hideDropGhost();
   });
 
   // Beste plek om ghost te verwijderen is bij drop
-  container.addEventListener("drop", async ev => {
+  container?.addEventListener("drop", async ev => {
     ev.preventDefault();
     hideDropGhost();
 
@@ -1498,6 +1542,7 @@ export async function bootstrap() {
 
     const url = ev.dataTransfer?.getData("text");
     if (!url) return;
+    const source = ifcBytes.get(url) || url;
 
     const rect = container.getBoundingClientRect();
     const ndc = new THREE.Vector2(
@@ -1513,11 +1558,15 @@ export async function bootstrap() {
     if (!hit) return;
 
     const step = grids[currentLevel].config.primarySize;
-    point.x = Math.round(point.x / step);
-
-    const { object } = await addModel(url, point, currentLevel);
-    selectObject(object);
-    // (rest van jouw bestaande drop-code kun je laten staan)
+    point.x = Math.round(point.x / step) * step;
+    point.z = Math.round(point.z / step) * step;
+    point.y = currentLevel * floors[currentLevel].height;
+    try {
+      const { object } = await addModel(source, point, currentLevel, url);
+      selectObject(object);
+    } catch (err) {
+      console.error(`[IFC] load error ${url} (drag-drop)`, err);
+    }
   });
 
   // Veiligheid: als drag wordt beëindigd buiten drop
@@ -1651,43 +1700,51 @@ export async function bootstrap() {
   fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
-    if (!file.name.match(/\.glb$|\.gltf$/i)) {
+    if (!file.name.match(/\.ifc(zip)?$/i)) {
       alert("Invalid file type");
       return;
     }
-    const url = URL.createObjectURL(file);
-    const { object, width } = await addModel(
-      url,
-      new THREE.Vector3(offset, currentLevel * floors[currentLevel].height, 0),
-      currentLevel
-    );
-    offset += width;
-    selectObject(object);
-    addCartItem(object);
-    updateLayout(object);
+    try {
+      const bytes = await toUint8Array(file);
+      ifcBytes.set(file.name, bytes.slice());
+      const { object, width } = await addModel(
+        bytes,
+        new THREE.Vector3(offset, currentLevel * floors[currentLevel].height, 0),
+        currentLevel,
+        file.name,
+      );
+      offset += width;
+      selectObject(object);
+      addCartItem(object);
+      updateLayout(object);
+    } catch (err) {
+      console.error(`[IFC] load error ${file.name} (file-input)`, err);
+    }
   });
 
-  paintBtn.onclick = () => paintMenu.classList.toggle("show");
-  paintMenu.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (subSelected) {
-        applyVariant(subSelected, createMat(btn.dataset.variant!));
-        subBox?.update();
+  if (paintBtn && paintMenu) {
+    paintBtn.onclick = () => paintMenu.classList.toggle("show");
+    paintMenu.querySelectorAll<HTMLButtonElement>("button[data-variant]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (subSelected) {
+          applyVariant(subSelected, createMat(btn.dataset.variant!));
+          subBox?.update();
+          paintMenu.classList.remove("show");
+          return;
+        }
+        if (selection.size === 0) return;
+        const mat = createMat(btn.dataset.variant!);
+        selection.forEach(o => {
+          applyVariant(o, mat);
+          updateLayout(o);
+        });
+        updateBoxes();
         paintMenu.classList.remove("show");
-        return;
-      }
-      if (selection.size === 0) return;
-      const mat = createMat(btn.dataset.variant!);
-      selection.forEach(o => {
-        applyVariant(o, mat);
-        updateLayout(o);
       });
-      updateBoxes();
-      paintMenu.classList.remove("show");
     });
-  });
+  }
 
-  resetBtn.addEventListener("click", () => {
+  resetBtn?.addEventListener("click", () => {
     if (subSelected) {
       resetMaterial(subSelected);
       subBox?.update();

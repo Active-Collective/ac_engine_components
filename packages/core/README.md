@@ -88,7 +88,7 @@ world.camera.controls.setLookAt(3, 3, 3, 0, 0, 0);
 
 ## 🧪 Viewer test
 
-Run the glTF viewer example to verify that local models load correctly.
+Run the IFC viewer example to verify that local models load correctly.
 
 1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/) (v3).
 2. Install dependencies from the repository root
@@ -105,7 +105,7 @@ Run the glTF viewer example to verify that local models load correctly.
    yarn dev --host
    ```
 5. Open [`http://localhost:5173`](http://localhost:5173) in your browser.
-6. If `unit1.glb` … `unit4.glb` are present in `packages/core/assets` they load automatically. Use the file input to load your own `.glb` or `.gltf` file.
+6. If `unit_test.ifc` is present in `packages/core/assets` it loads automatically. Use the file input to load your own `.ifc` or `.ifczip` file.
 7. Use the **arrow keys** to move the selected model one meter at a time on X/Y.
 8. Press **R** to rotate the selected model by 90°.
 9. Right-click a mesh (e.g. a door) to select that part and use the palette to
