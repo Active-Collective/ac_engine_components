@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { FragmentsGroup } from '@thatopen/fragments';
 import { loadIfc } from '../src/ifc/loader';
 
 const thumbSize = { width: 160, height: 120 };
@@ -36,7 +37,9 @@ export async function generateThumbnail(source: string | THREE.Object3D): Promis
   renderer.setSize(thumbSize.width, thumbSize.height);
   renderer.setClearColor(0x000000, 0);
 
-  const clone = root.clone(true);
+  const clone = root instanceof FragmentsGroup
+    ? FragmentsGroup.cloneGroup(root as FragmentsGroup)
+    : root.clone(true);
   scene.add(clone);
 
   const box = new THREE.Box3().setFromObject(clone);

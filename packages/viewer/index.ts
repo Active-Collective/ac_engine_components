@@ -94,6 +94,11 @@ export let downloadLayoutJson: (filename?: string) => void;
 export let loadLayoutFromItems: (items: LayoutItem[]) => Promise<void>;
 export let importLayoutFromFile: (file: File) => void;
 
+// Optional UI elements and grid reference are declared up-front so that
+// functions defined earlier can safely reference them.
+let sidebarEl: HTMLElement | null = null;
+let grid: any;
+
 function saveLayout() {
   localStorage.setItem("layout", JSON.stringify(Array.from(layoutMap.values())));
 }
@@ -867,7 +872,7 @@ export async function bootstrap() {
   const paintBtn = document.getElementById("paintBtn") as HTMLButtonElement | null;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement | null;
   initSidebar();
-  const sidebarEl = document.getElementById("sidebar") as HTMLElement | null;
+  sidebarEl = document.getElementById("sidebar") as HTMLElement | null;
   const placedList = document.getElementById("placedList") as HTMLUListElement | null;
   const placedListItem = document.querySelectorAll("#placedList .cart-item");
   if (!container) {
@@ -929,7 +934,7 @@ export async function bootstrap() {
 
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   initFloors(world, gridPlane);
-  const grid = grids[0];
+  grid = grids[0];
   grid.config.color = new THREE.Color(0x555555);
   grid.config.secondarySize = grid.config.primarySize;
   verticalSnap = floors[0].height;
