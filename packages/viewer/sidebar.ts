@@ -26,6 +26,7 @@ export interface UnitMeta {
     height: number;
     area?: number;
     volume?: number;
+    source: "qto" | "box";
   };
   parameterTests?: { raw: string; side: "A" | "B" | "C" | "D" | "E" }[];
 }
@@ -294,7 +295,10 @@ export async function analyzeUnit(
   meta.mats = Array.from(mats.values());
   meta.layers = Array.from(layers);
   meta.parameterTests = await getParameterTests(group as FRAGS.FragmentsGroup);
-  meta.dims = await getUnitDimensions(group as FRAGS.FragmentsGroup);
+  meta.dims = await getUnitDimensions(group as FRAGS.FragmentsGroup, {
+    modelID: (group as any).modelID,
+    expressID: (group as any).expressID,
+  });
   return meta;
 }
 
@@ -331,7 +335,10 @@ function countTris(mesh: THREE.Mesh) {
 export async function renderMeta(group: THREE.Object3D) {
   const meta = metaCache.get(group);
   if (!meta) return;
-  meta.dims = await getUnitDimensions(group as FRAGS.FragmentsGroup);
+  meta.dims = await getUnitDimensions(group as FRAGS.FragmentsGroup, {
+    modelID: (group as any).modelID,
+    expressID: (group as any).expressID,
+  });
   metaTable.innerHTML = "";
   const add = (k: string, v: string) => {
     const tr = document.createElement("tr");

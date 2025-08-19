@@ -9,6 +9,7 @@ export interface Dimensions {
   height: number;
   area?: number;
   volume?: number;
+  source: "qto" | "box";
 }
 
 let cache = new WeakMap<THREE.Object3D, Dimensions>();
@@ -30,6 +31,7 @@ export async function getUnitDimensions(
   let volume: number | undefined;
   let source: "qto" | "box" = "box";
   let hasBQ = false;
+  let boxSize: THREE.Vector3 | undefined;
 
   const group = unitRoot as any as FRAGS.FragmentsGroup;
 
@@ -88,16 +90,13 @@ export async function getUnitDimensions(
     volume === undefined
   ) {
     const box = new THREE.Box3().setFromObject(unitRoot);
-    const size = box.getSize(new THREE.Vector3());
-    width ??= size.x;
-    depth ??= size.z;
-    height ??= size.y;
+    boxSize = box.getSize(new THREE.Vector3());
+    width ??= boxSize.x;
+    depth ??= boxSize.z;
+    height ??= boxSize.y;
     area ??= width * depth;
     volume ??= width * depth * height;
     if (source !== "qto") source = "box";
-    if (import.meta.env.DEV && !logged.has(unitRoot)) {
-      console.info("[dims] Box3", size);
-    }
   }
 
   const round = (n: number) => Math.round(n * 100) / 100;
@@ -105,18 +104,14 @@ export async function getUnitDimensions(
     width: round(width ?? 0),
     depth: round(depth ?? 0),
     height: round(height ?? 0),
+    source,
   };
   if (area !== undefined) result.area = round(area);
   if (volume !== undefined) result.volume = round(volume);
   cache.set(unitRoot, result);
 
   if (import.meta.env.DEV && !logged.has(unitRoot)) {
-    console.info(
-      "[dims] BaseQuantities:",
-      hasBQ,
-      "source:",
-      source,
-    );
+    console.info("[dims]", { box: boxSize, qtoFound: hasBQ, source });
     logged.add(unitRoot);
   }
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import * as OBC from '@thatopen/components';
 import { FragmentsGroup } from '@thatopen/fragments';
-import { loadIfc } from '../src/ifc/loader';
+import { loadIfcBytes } from '../src/ifc/loader';
 
 const thumbSize = { width: 160, height: 120 };
 const PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAGgwJ/lqY5WQAAAABJRU5ErkJggg==';
@@ -15,8 +16,12 @@ export async function generateThumbnail(source: string | THREE.Object3D): Promis
   try {
     if (typeof source === 'string') {
       console.log(`[IFC] thumbnail load ${source}`);
-      const { root: r } = await loadIfc(source);
-      root = r;
+      const bytes = await loadIfcBytes(source);
+      const comps = new OBC.Components();
+      const loader = comps.get(OBC.IfcLoader as any);
+      if (loader?.setup) await loader.setup();
+      const model: any = await loader.load(bytes.slice() as any);
+      root = model?.mesh || model?.root || model?.object || model;
     } else {
       root = source;
     }
