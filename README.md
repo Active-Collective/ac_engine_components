@@ -61,9 +61,9 @@ The bundled viewer example now relies solely on `@thatopen/components`; the brow
    ```
 3. Open <http://localhost:5173> to launch the viewer example.
 
-### IFC and glTF models
+### IFC models
 
-Place `.ifc` files inside `packages/core/assets/` next to the sample `.glb` units and reference them by pathname. The viewer supports loading both `.glb` and `.ifc` files. The WebAssembly module is expected at `/wasm/web-ifc.wasm`.
+Place `.ifc` files inside `packages/core/assets/` and reference them by pathname. The viewer loads IFC4 Reference View files only. The WebAssembly module is expected at `/wasm/web-ifc.wasm`.
 
 ## Usage
 
@@ -105,7 +105,7 @@ world.camera.controls.setLookAt(3, 3, 3, 0, 0, 0);
 
 ## 🧪 Viewer test
 
-Run the glTF viewer example to verify that local models load correctly.
+Run the IFC viewer example to verify that local models load correctly.
 
 1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/) (v3).
 2. Install dependencies from the repository root
@@ -121,20 +121,18 @@ Run the glTF viewer example to verify that local models load correctly.
    yarn workspace @thatopen/viewer-example dev --host
    ```
 5. Open [`http://localhost:5173`](http://localhost:5173) in your browser.
-6. If `unit1.glb` … `unit4.glb` are present in `packages/core/assets` they load automatically. Use the file input to load your own `.glb` or `.gltf` file.
+6. If `unit_test.ifc` is present in `packages/core/assets` it loads automatically. Use the file input to load your own `.ifc` or `.ifczip` file.
 7. Use the **arrow keys** to move the selected model one meter at a time on X/Y.
 8. Press **R** to rotate the selected model by 90°.
 9. Hit **Delete** or **Backspace** to remove the selected model(s).
 10. Use the toolbar at the top to orbit, pan, zoom extents or change camera views.
 11. Press **Cmd/Ctrl+Z** to undo the last move or rotation.
-12. Right-click a mesh (e.g. a door) to select that part and use the palette to
-    change its material. The **reset** button restores the original look.
-13. Run `yarn test` to execute the placeholder test script.
+12. Run `yarn test` to execute the placeholder test script.
 
 ### Viewer features
 
 * **Sidebar library** – draggable unit thumbnails with filenames. Upload custom models via the *Choose file* button.
-* **Navigation toolbar** – orbit, pan and camera view buttons with a paintbrush palette for textures and colors.
+  * **Navigation toolbar** – orbit, pan and camera view buttons.
 * **Multi-floor scenes** – switch floors using the pill buttons or keys `1`‑`3`; inactive floors show ghost grids.
 * **Move/rotate controls** – Shift‑click to multi-select, drag the red handle or use WASD/QE and the arrow keys. Press `R` to rotate. Hit Delete/Backspace to remove models.
 * **Nudge arrows** – six arrows appear when selecting a model and nudge it by one grid unit.

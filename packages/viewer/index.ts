@@ -4,11 +4,8 @@
 import * as OBC from "@thatopen/components";
 import * as THREE from "three";
 
-// We rely on the standard GLTF loader for importing models and the
 // TransformControls helper for translation/rotation gizmos.
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import * as FRAGS from "@thatopen/fragments";
 import { setupIfc, loadIfc } from "./src/ifc/loader";
 import { toUint8Array } from "./src/ifc/bytes";
 import { buildIndex, picked, byStorey } from "./src/ifc";
@@ -677,12 +674,6 @@ function setupMoveFloorButtons() {
  * object between floors so the user can see where it will land.
  */
 
-/** Helper wrapper around GLTFLoader that returns a promise. */
-function loadGltf(url: string): Promise<THREE.Group> {
-  const loader = new GLTFLoader();
-  return loader.loadAsync(url);
-}
-
 // Helper function for finding cartgroup
 function findCartGroup(obj: THREE.Object3D | null): THREE.Object3D | null {
   if (!obj) return null;
@@ -779,14 +770,7 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
 // laad GLB offscreen en toon Info-paneel
 async function openInfoForUrl(url: string) {
   try {
-    let root: THREE.Object3D;
-    if (/\.ifc(zip)?$/i.test(url)) {
-      const { root: r } = await loadIfc(url);
-      root = r;
-    } else {
-      const gltf = await loadGltf(url);
-      root = gltf.scene;
-    }
+    const { root } = await loadIfc(url);
     const info = analyzeUnit(root, url);
     metaCache.set(root, info);
     showInfo(root);
@@ -1022,10 +1006,6 @@ export async function bootstrap() {
   const caster = casters.get(world);
 
   const assetFiles = [
-    "unit1.glb",
-    "unit2.glb",
-    "unit3.glb",
-    "unit4.glb",
     "unit_test.ifc",
   ];
   const libUrls = assetFiles.map(name =>
@@ -1143,7 +1123,7 @@ export async function bootstrap() {
   }
 
   /**
-   * Loads a glTF file and inserts it into the scene. Every mesh is registered
+   * Loads an IFC file and inserts it into the scene. Every mesh is registered
    * in `world.meshes` for raycasting. The function also updates average snap
    * sizes based on all loaded models.
    */
@@ -1161,14 +1141,9 @@ export async function bootstrap() {
       : displayUrl || (urlOrFile instanceof File ? urlOrFile.name : 'bytes');
 
     if (typeof urlOrFile === 'string') {
-      if (/\.ifc(zip)?$/i.test(urlOrFile)) {
-        const res = await loadIfc(urlOrFile);
-        modelID = res.modelID;
-        root = res.root;
-      } else {
-        const gltf = await loadGltf(urlOrFile);
-        root = gltf.scene;
-      }
+      const res = await loadIfc(urlOrFile);
+      modelID = res.modelID;
+      root = res.root;
     } else {
       const res = await loadIfc(urlOrFile);
       modelID = res.modelID;
@@ -1725,21 +1700,15 @@ export async function bootstrap() {
   fileInput?.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
-    if (!file.name.match(/\.ifc(zip)?$|\.glb$|\.gltf$/i)) {
+    if (!file.name.match(/\.ifc(zip)?$/i)) {
       alert("Invalid file type");
       return;
     }
     try {
-      let source: string | Uint8Array;
-      if (file.name.match(/\.glb$|\.gltf$/i)) {
-        source = URL.createObjectURL(file);
-      } else {
-        const bytes = await toUint8Array(file);
-        ifcBytes.set(file.name, bytes.slice());
-        source = bytes;
-      }
+      const bytes = await toUint8Array(file);
+      ifcBytes.set(file.name, bytes.slice());
       const { object, width } = await addModel(
-        source,
+        bytes,
         new THREE.Vector3(offset, currentLevel * floors[currentLevel].height, 0),
         currentLevel,
         file.name,

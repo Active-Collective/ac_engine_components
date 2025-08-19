@@ -1,29 +1,22 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FragmentsGroup } from '@thatopen/fragments';
 import { loadIfc } from '../src/ifc/loader';
 
 const thumbSize = { width: 160, height: 120 };
-const gltfLoader = new GLTFLoader();
 const PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAGgwJ/lqY5WQAAAABJRU5ErkJggg==';
 
 /**
- * Generate a thumbnail for a given model source. The source can be a URL to a
- * glTF/IFC file or an already loaded THREE.Object3D.
+ * Generate a thumbnail for a given IFC model source. The source can be a URL to
+ * an IFC file or an already loaded THREE.Object3D.
  */
 export async function generateThumbnail(source: string | THREE.Object3D): Promise<string> {
   let root: THREE.Object3D;
 
   try {
     if (typeof source === 'string') {
-      if (/\.ifc(zip)?$/i.test(source)) {
-        console.log(`[IFC] thumbnail load ${source}`);
-        const { root: r } = await loadIfc(source);
-        root = r;
-      } else {
-        const gltf = await gltfLoader.loadAsync(source);
-        root = gltf.scene;
-      }
+      console.log(`[IFC] thumbnail load ${source}`);
+      const { root: r } = await loadIfc(source);
+      root = r;
     } else {
       root = source;
     }

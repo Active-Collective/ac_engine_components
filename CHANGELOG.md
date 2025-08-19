@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Features
-* Added IFC4 Reference View support via OBC and web-ifc. The viewer now accepts both `.glb` and `.ifc` files.
+* Added IFC4 Reference View support via OBC and web-ifc. The viewer now focuses on `.ifc` files only and drops glTF paths.
 * Multi-model loading with basic storey navigation.
 
 ### Miscellaneous Chores
