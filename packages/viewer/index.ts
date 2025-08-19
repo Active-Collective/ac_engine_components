@@ -30,6 +30,7 @@ import {
   renderMeta,
   clearInfo,
 } from "./sidebar";
+import { clearDimensionsCache } from "./src/logic/dimensions";
 import {
   initFloors,
   addUnitToLevel,
@@ -833,6 +834,13 @@ export function selectObject(obj: THREE.Object3D | null, additive = false) {
         world.scene.three.add(helper);
         controls = c;
         controlsHelper = helper as THREE.Object3D;
+        c.addEventListener("dragging-changed", e => {
+          if (!e.value && selected) {
+            selected.updateWorldMatrix(true, true);
+            clearDimensionsCache(selected);
+            if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
+          }
+        });
       } else {
         console.warn("[IFC] incompatible TransformControls instance");
         controls = null;
@@ -1767,14 +1775,18 @@ export async function bootstrap() {
       o.position.y = Math.round(o.position.y / vstep) * vstep;
       o.position.z = Math.round(o.position.z / step) * step;
       setActiveFloor(Math.round(o.position.y / vstep));
-      o.updateMatrixWorld();
+      o.updateWorldMatrix(true, true);
       updateLayout(o);
+      clearDimensionsCache(o);
     });
     if (controls && typeof (controls as any).updateMatrixWorld === "function") {
       controls.updateMatrixWorld(true);
     }
     updateBoxes();
-    if (selection.size === 1 && selected) attachNudge(selected);
+    if (selection.size === 1 && selected) {
+      attachNudge(selected);
+      if (sidebarEl?.dataset.mode === "info") renderMeta(selected);
+    }
     e.preventDefault();
   };
   window.addEventListener("keydown", keyHandler, true);
