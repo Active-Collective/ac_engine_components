@@ -11,6 +11,8 @@ import { toUint8Array } from "./src/ifc/bytes";
 import { buildIndex, picked, byStorey } from "./src/ifc";
 import { setStoreys } from "./src/ifc/storeys";
 import { generateThumbnail } from "./utils/thumbnail";
+import { buildParamGroups } from "./ifc/parameter-visibility";
+import { mountIfcToggles } from "./ui/ifc-toggles";
 // Helper modules defined in this package
 //  - sidebar.ts: collects model metadata and renders the info sidebar
 //  - levels.ts: manages floor grids and level switching
@@ -949,6 +951,7 @@ export async function bootstrap() {
   const paintMenu = document.getElementById("paintMenu") as HTMLDivElement | null;
   const paintBtn = document.getElementById("paintBtn") as HTMLButtonElement | null;
   const resetBtn = document.getElementById("resetBtn") as HTMLButtonElement | null;
+  let ifcAPI: any = null;
   initSidebar();
   sidebarEl = document.getElementById("sidebar") as HTMLElement | null;
   const placedList = document.getElementById("placedList") as HTMLUListElement | null;
@@ -1008,7 +1011,8 @@ export async function bootstrap() {
   });
 
   bboxer = components.get(OBC.BoundingBoxer);
-  await setupIfc(world);
+  const ifcLoader = await setupIfc(world);
+  ifcAPI = (ifcLoader as any)?.ifcManager?.ifcAPI;
 
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   initFloors(world, gridPlane);
@@ -1287,6 +1291,15 @@ export async function bootstrap() {
     addCartItem(root);
     await buildIndex({ modelID, root });
     setStoreys(byStorey);
+
+    if (ifcAPI) {
+      try {
+        const groups = await buildParamGroups(ifcAPI, modelID, world.scene.three);
+        mountIfcToggles(groups);
+      } catch (err) {
+        console.warn('[IFC] ParameterTest parsing failed', err);
+      }
+    }
 
     totalWidth += dims.width;
     totalHeight += dims.height;
