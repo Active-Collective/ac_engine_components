@@ -1,1 +1,1 @@
-/// <reference path="./thatopen-components.d.ts" />
+export * from './thatopen-components';
