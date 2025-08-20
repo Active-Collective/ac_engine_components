@@ -5,7 +5,7 @@ export function mountIfcToggles(groups: ParamGroups) {
   const active = labels.some(l => (groups.map.get(l)?.size ?? 0) > 0);
   const existing = document.getElementById('ifcParamPanel');
   existing?.remove();
-  if (!active) return;
+
 
   const panel = document.createElement('div');
   panel.id = 'ifcParamPanel';
@@ -22,6 +22,14 @@ export function mountIfcToggles(groups: ParamGroups) {
   });
 
   const state: Record<Label, boolean> = { AA: true, BB: true, CC: true, DD: true };
+  
+  if (!active) {
+    const msg = document.createElement('div');
+    msg.textContent = 'Geen parameters gevonden';
+    msg.style.fontSize = '12px';
+    panel.appendChild(msg);
+  }
+
 
   labels.forEach(label => {
     const btn = document.createElement('button');

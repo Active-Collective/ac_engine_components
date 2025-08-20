@@ -345,10 +345,9 @@ export async function renderMeta(group: THREE.Object3D) {
     tr.innerHTML = `<th>${k}</th><td>${v}</td>`;
     metaTable.appendChild(tr);
   };
-
+  const tests = meta.parameterTests || [];
   if (paramContainer) {
     paramContainer.innerHTML = "";
-    const tests = meta.parameterTests || [];
     tests.forEach(t => {
       const banner = document.createElement("div");
       banner.className = "param-banner";
@@ -372,6 +371,7 @@ export async function renderMeta(group: THREE.Object3D) {
     });
     paramContainer.hidden = tests.length === 0;
   }
+  add("Parameters", tests.length ? tests.map(t => t.raw).join(", ") : "Geen parameters gevonden");
   add("File", meta.file);
   add("Meshes", String(meta.meshes));
   add("Triangles", String(meta.tris));
