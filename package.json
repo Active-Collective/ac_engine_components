@@ -29,7 +29,7 @@
     "url": "git+https://github.com/ThatOpen/engine_components.git"
   },
   "workspaces": [
-    "./packages/*"
+    "packages/*"
   ],
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",

@@ -5,15 +5,9 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "typeRoots": ["./types", "../../node_modules/@types"]
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
   "include": [
-    "src",
-    "index.ts",
-    "levels.ts",
-    "sidebar.ts",
-    "settings.ts",
-    "nav-controls.ts",
-    "utils/*"
+    "types/shims/index.d.ts"
   ]
 }

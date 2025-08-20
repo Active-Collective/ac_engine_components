@@ -513,7 +513,7 @@ export async function bootstrap() {
     "unit_test.ifc",
   ];
   const libUrls = assetFiles.map(name =>
-    new URL(`../core/assets/${name}`, import.meta.url).pathname
+    new URL(`./assets/${name}`, import.meta.url).pathname
   );
 
   // async function populateUnitList(urls: string[]) {
