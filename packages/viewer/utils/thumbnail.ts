@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import * as OBC from '@thatopen/components';
-import { FragmentsGroup } from '@thatopen/fragments';
 import { loadIfcBytes } from '../src/ifc/loader';
 
 const thumbSize = { width: 160, height: 120 };
@@ -37,7 +36,7 @@ export async function generateThumbnail(source: string | THREE.Object3D): Promis
   renderer.setClearColor(0x000000, 0);
 
   let clone: THREE.Object3D;
-  if (root instanceof FragmentsGroup && typeof (root as any).cloneGroup === 'function') {
+  if (typeof (root as any).cloneGroup === 'function') {
     try {
       clone = (root as any).cloneGroup();
     } catch {
