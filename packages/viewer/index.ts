@@ -11,6 +11,30 @@ import { buildIndex, picked, byStorey } from "./src/ifc";
 import { setStoreys } from "./src/ifc/storeys";
 import { generateThumbnail } from "./utils/thumbnail";
 import { initSidebar } from "./src/ui/sidebar";
+import {
+  metaCache,
+  cartMap,
+  cartListItems,
+  addUnitItem,
+  addCartItem,
+  removeCartItem,
+  renderMeta,
+  clearInfo,
+  showInfo,
+} from "./sidebar";
+import {
+  floors,
+  grids,
+  unitsByLevel,
+  currentLevel,
+  initFloors,
+  setActiveFloor,
+  addUnitToLevel,
+  moveUnitToLevel,
+} from "./levels";
+import { initSettings } from "./settings";
+import { initNavControls } from "./nav-controls";
+import { initHealthOverlay, setStage } from "./src/ui/health";
 import "./src/styles/app.css";
 // Helper modules defined in this package
 //  - sidebar.ts: collects model metadata and renders the info sidebar
@@ -37,6 +61,19 @@ let controlsHelper: THREE.Object3D | null = null;
 // Drag handle removed per UX update
 // Maps any child mesh to its root model for easy selection lookups
 // const rootMap = new Map<THREE.Object3D, THREE.Object3D>();
+
+export let world: OBC.World<OBC.SimpleScene, OBC.SimpleCamera, OBC.SimpleRenderer>;
+let bboxer: OBC.BoundingBoxer;
+let totalWidth = 0;
+let totalHeight = 0;
+let loadedCount = 0;
+
+if (import.meta.env.DEV) {
+  console.info('[BOOT] entry:', import.meta.url);
+  (window as any).__boot_entry__ = import.meta.url;
+  initHealthOverlay();
+  setStage('entry', true);
+}
 
 // let activeClip: { root: THREE.Object3D; plane: THREE.Plane } | null = null;
 // const transparentMats = new Map<THREE.Material, number>();
@@ -392,6 +429,7 @@ async function buildLibrary(urls: string[]) {
  * bottom of the file.
  */
 export async function bootstrap() {
+  if (import.meta.env.DEV) setStage('bootstrap', true);
   const container = document.getElementById("viewer") as HTMLDivElement | null;
   initSidebar();
   sidebarEl = document.getElementById("sidebar") as HTMLElement | null;
@@ -433,16 +471,23 @@ export async function bootstrap() {
   world.scene = new OBC.SimpleScene(components);
   world.renderer = new OBC.SimpleRenderer(components, container);
   world.camera = new OBC.SimpleCamera(components);
+  if (import.meta.env.DEV) console.info('[BOOT] renderer attached to #viewer');
 
   // initialize modular subsystems
   initMask(world);
   initCollision(world);
 
   components.init();
+  if (import.meta.env.DEV) console.info('[BOOT] components.init()');
   world.scene.setup();
+  if (import.meta.env.DEV) console.info('[BOOT] world.scene.setup()');
   world.renderer.three.setClearColor(0xf0f0f0);
   world.scene.three.background = new THREE.Color(0xf0f0f0);
   world.camera.controls.setLookAt(5, 5, 5, 0, 0, 0);
+  if (import.meta.env.DEV) {
+    console.info('[BOOT] camera lookAt set');
+    setStage('renderer', true);
+  }
 
   // Replace deprecated outputEncoding with outputColorSpace
   // world.renderer.three.outputEncoding = THREE.sRGBEncoding;
@@ -457,6 +502,11 @@ export async function bootstrap() {
 
   bboxer = components.get(OBC.BoundingBoxer);
   await setupIfc(world);
+  if (import.meta.env.DEV) {
+    const wasm = await fetch('/wasm/web-ifc.wasm', { method: 'HEAD' });
+    console.info('[BOOT] wasm path = /wasm/');
+    setStage('wasm', wasm.ok);
+  }
 
   const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   initFloors(world, gridPlane);
@@ -513,7 +563,7 @@ export async function bootstrap() {
     "unit_test.ifc",
   ];
   const libUrls = assetFiles.map(name =>
-    new URL(`../core/assets/${name}`, import.meta.url).pathname
+    new URL(`./assets/${name}`, import.meta.url).pathname
   );
 
   // async function populateUnitList(urls: string[]) {
@@ -675,6 +725,7 @@ export async function bootstrap() {
     addCartItem(root);
     await buildIndex({ modelID, root });
     setStoreys(byStorey);
+    if (import.meta.env.DEV) setStage('storeys', true);
 
     totalWidth += dims.width;
     totalHeight += dims.height;
@@ -1013,4 +1064,25 @@ export async function bootstrap() {
   document.getElementById("closeHelp")?.addEventListener("click", () => {
     document.getElementById("helpDialog")?.close();
   });
+
+  if (import.meta.env.DEV) {
+    const params = new URLSearchParams(window.location.search);
+    let url = params.get('autoload');
+    if (url === '1') url = '/assets/unit_test.ifc';
+    if (url) {
+      console.info('[BOOT] autoload IFC', url);
+      try {
+        await addModel(url, new THREE.Vector3());
+        setStage('ifc', true);
+      } catch (e) {
+        console.warn('[BOOT] autoload failed', e);
+      }
+    }
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => bootstrap());
+} else {
+  bootstrap();
 }
