@@ -5,16 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@thatopen/components": "workspace:*",
     "@thatopen/components-front": "workspace:*",
-    "jspdf": "^3.0.1",
     "three": "^0.175.0",
-    "web-ifc": "0.0.68"
-  },
-  "devDependencies": {
-    "vite": "^7.0.4"
+    "web-ifc": "^0.0.x"
   }
 }

@@ -1,12 +1,12 @@
 import { floors, currentLevel, setActiveFloor, updateFloor } from "./levels";
 
 function qs(id: string) {
-  return document.getElementById(id) as HTMLInputElement;
+  return document.getElementById(id);
 }
 
-const heightInput = qs("floorHeight");
-const ghostInput = qs("ghostOpacity");
-const hideInput = qs("hideGhost");
+const heightInput = document.getElementById("floorHeight") as HTMLInputElement;
+const ghostInput = document.getElementById("ghostOpacity") as HTMLInputElement;
+const hideInput = document.getElementById("hideGhost") as HTMLInputElement;
 const levelBar = document.getElementById("levelBar") as HTMLDivElement;
 
 function save() {
@@ -18,13 +18,18 @@ function load() {
   if (data) {
     try {
       const arr = JSON.parse(data) as typeof floors;
-      arr.forEach((d, i) => Object.assign(floors[i], d));
-    } catch {}
+      arr.forEach((d, i) => {
+        if (floors[i]) Object.assign(floors[i], d);
+      });
+    } catch (err) {
+      console.warn("Failed to parse floors from localStorage", err);
+    }
   }
 }
 
 function refreshInputs() {
   const cfg = floors[currentLevel];
+  if (!cfg) return;
   heightInput.value = String(cfg.height);
   ghostInput.value = String(cfg.ghostOpacity);
   hideInput.checked = !cfg.showGhost;
@@ -32,7 +37,7 @@ function refreshInputs() {
 
 function refreshButtons() {
   levelBar.querySelectorAll<HTMLButtonElement>("button[data-level]").forEach(b => {
-    const i = parseInt(b.dataset.level!) - 1;
+    const i = parseInt(b.dataset.level || "0", 10) - 1;
     b.classList.toggle("active", i === currentLevel);
   });
 }
@@ -48,7 +53,7 @@ export function initSettings() {
     save();
   };
   ghostInput.oninput = () => {
-    updateFloor(currentLevel, { ghostOpacity: parseFloat(ghostInput.value) });
+    updateFloor(currentLevel, { ghostOpacity: parseFloat(ghostInput.value) || 0 });
     save();
   };
   hideInput.onchange = () => {
@@ -58,7 +63,7 @@ export function initSettings() {
 
   levelBar.querySelectorAll<HTMLButtonElement>("button[data-level]").forEach(b => {
     b.onclick = () => {
-      setActiveFloor(parseInt(b.dataset.level!) - 1);
+      setActiveFloor(parseInt(b.dataset.level || "1", 10) - 1);
       refreshButtons();
       refreshInputs();
       save();
@@ -71,21 +76,23 @@ export function initSettings() {
   });
 }
 
-const settingsContainer = qs("settings");
-const settingsOpen = qs("settingsOpen");
-const settingsClosed = qs("settingsClosed");
+const settingsContainer = qs("settings") as HTMLElement | null;
+const settingsOpen = qs("settingsOpen") as HTMLElement | null;
+const settingsClosed = qs("settingsClosed") as HTMLElement | null;
 
 const openButton = qs("openButton");
 const closeButton = qs("closeButton");
 
 openButton?.addEventListener("click", () => {
+  if (!settingsContainer || !settingsOpen || !settingsClosed) return;
   settingsOpen.style.display = "block";
   settingsClosed.style.display = "none";
-  settings.style.padding = "10px";
+  settingsContainer.style.padding = "10px";
 });
 
 closeButton?.addEventListener("click", () => {
+  if (!settingsContainer || !settingsOpen || !settingsClosed) return;
   settingsOpen.style.display = "none";
   settingsClosed.style.display = "block";
-  settings.style.padding = "0px";
+  settingsContainer.style.padding = "0px";
 });

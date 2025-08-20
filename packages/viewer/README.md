@@ -1,56 +1,28 @@
-# Viewer Example
+# IFC Viewer
 
-This demo showcases the most common features of
-[@thatopen/components](https://www.npmjs.com/package/@thatopen/components) in a
-small but extendable viewer.
+A minimal, modular IFC viewer built with TypeScript, Three.js, OBC, and web-ifc. No React, no GLTF, no demo code.
 
-## Quick start
+## Installatie
 
-1. Install [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/).
-2. From the repository root run:
+1. Installeer [Node.js](https://nodejs.org/) (aanbevolen: v18+) en [Yarn](https://yarnpkg.com/).
+2. Voer uit in de root van de repository:
    ```bash
    yarn install
-   yarn workspace viewer dev --host
+   yarn workspace viewer dev
    ```
-3. Open [http://localhost:5173](http://localhost:5173).
-   The viewer now uses [Bootstrap](https://getbootstrap.com/) and a fixed 1920×1080 canvas so you can place additional elements around it.
 
-The sample `unit_test.ifc` will appear if present under
-`packages/core/assets`. Drag items from the library sidebar or choose a file via
-the **Choose file** button at the bottom of the sidebar.
+## Assets
+Alle IFC-bestanden staan nu onder `packages/viewer/assets/`. Voeg hier je eigen .ifc-bestanden toe voor tests of demo.
 
-## Features
+## WASM
+web-ifc verwacht het bestand `web-ifc.wasm` onder `packages/viewer/public/wasm/`. Dit wordt automatisch geserveerd.
 
-| Feature | Description | Where to look |
-| ------- | ----------- | ------------- |
-| **Floor management** | Switch floors with the pill buttons or keys `1`‑`3`. Ghost grid opacity and visibility are adjustable in **`settings.ts`**. | `levels.ts` |
-| **Nudge arrows** | Select a model to display six arrows for precise movement. See **`createNudgeGizmos`** in **`index.ts`**. | `index.ts` |
-| **Multi-selection** | Hold Shift while clicking to select several models at once for rotation or recoloring. | `index.ts` |
-| **Keyboard controls** | Move with arrow keys or WASD/QE, rotate with `R` and delete with Backspace/Delete. Use Cmd/Ctrl+Z to undo the last move. Shift+click allows selecting multiple models. | `index.ts` |
-| **Metadata sidebar** | Each loaded model is analyzed in **`sidebar.ts`** to display mesh counts and materials. | `sidebar.ts` |
-| **Navigation toolbar** | Centered toolbar with orbit, pan and camera view buttons. | `nav-controls.ts` |
-| **Layout persistence** | Added/placed units restore after reload using `localStorage`. | `index.ts` |
-| **Bootstrap UI** | Modern components and tooltips styled with Bootstrap 5. | `index.html` |
+## Gebruik
+Open [http://localhost:5173](http://localhost:5173) in je browser. Sleep een `.ifc` uit de bibliotheek in de viewer, of gebruik de “+” knop om een bestand te kiezen.
 
-Most functions in `index.ts` include comments explaining their role and where to
-extend them. Refer to the
-[OBC documentation](https://docs.thatopen.com/intro) for deeper API details.
+## Meer info
+Zie [docs/architecture.md](../../docs/architecture.md) voor uitleg over de mapstructuur en modularisatie.
 
-## Building
+---
 
-```bash
-yarn workspace viewer build
-```
-
-The built files are output to `packages/viewer/dist`.
-
-
-
-## IFC-only acceptance checklist
-
-- `/wasm/web-ifc.wasm` is served (HTTP 200)
-- Load at least two IFC models via library or file input
-- Selected units snap to the grid on XZ and rotate in 90° Y steps
-- Level bar lists storeys and ghosts inactive ones
-- Sidebar shows GlobalId, IfcClass and Storey for the selected element
-
+Voor technische details en uitbreidingen, zie de code en [OBC documentatie](https://docs.thatopen.com/intro).

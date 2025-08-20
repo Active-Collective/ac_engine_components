@@ -82,7 +82,7 @@ await propsManager.setData(model, newProp);
 newPset.HasProperties.push(new WEBIFC.Handle(newProp.expressID));
 
 /* MD
-  As the property set has been created with a valid property, the next logical step is to add the set to the elements we want. Surprisingly, this job doesn't belong to the IfcPropertiesManager, but to the IfcRelationsIndexer! The reason is because when it comes to add a property set to another entity, what happens behind the scenes is a new IfcRelation has to be created. Everything that has to be with IfcRelations is managed by the IfcRelationsIndexer, and you can do it as follows:
+  As the property set has been created with a valid property, the next logical step is to add the set to the elements we want. Surprisingly, this job doesn't belong to the IfcPropertiesManager, but to the IfcRelationsIndexer! The reason is because when it comes to add a property set to another entity, what happens behind the scenes is a new IfcRelation has to be created. Everything that has to do with IfcRelations is managed by the IfcRelationsIndexer, and you can do it as follows:
   */
 
 const indexer = components.get(OBC.IfcRelationsIndexer);

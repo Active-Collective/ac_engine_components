@@ -20,6 +20,8 @@ export default defineConfig({
   resolve: {
     alias: {
       three: resolve(__dirname, '../../node_modules/three'),
+      '@thatopen/components': resolve(__dirname, '../../core/src'),
+      '@thatopen/components-front': resolve(__dirname, '../../front/src'),
     },
   },
   optimizeDeps: {
